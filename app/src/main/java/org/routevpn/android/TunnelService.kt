@@ -34,18 +34,22 @@ object TunnelStatus {
     val activeProfile = activeMutable.asStateFlow()
 }
 
+/** Number of servers probed at the same time (each HTTPS probe starts its own local core). */
+const val PROBE_CONCURRENCY = 4
+
 class TunnelService : VpnService(), PlatformInterface {
     private val executor = Executors.newSingleThreadExecutor()
     private var box: BoxService? = null
     private var xray: MothXrayService? = null
-    private val probes = Executors.newSingleThreadExecutor()
+    private val probes = Executors.newSingleThreadExecutor() // coordinator: runs one probe batch at a time
+    private val requests = java.util.concurrent.ConcurrentHashMap.newKeySet<ProxyRequest>()
+    private val tcpSockets = java.util.concurrent.ConcurrentHashMap.newKeySet<java.net.Socket>()
+    private val usedPorts = HashSet<Int>()
     private val healthExecutor = Executors.newSingleThreadScheduledExecutor()
-    private val lookupExecutor = Executors.newSingleThreadExecutor()
-    @Volatile private var tcpSocket: java.net.Socket? = null
+    private val lookupExecutor = Executors.newCachedThreadPool()
     private var healthTask: java.util.concurrent.ScheduledFuture<*>? = null
     private val generation = AtomicLong()
     private var probeCancel = AtomicBoolean(false)
-    @Volatile private var request: ProxyRequest? = null
     private var initialized = false
     private var tun: ParcelFileDescriptor? = null
     @Volatile private var stopped = false
@@ -148,8 +152,17 @@ class TunnelService : VpnService(), PlatformInterface {
             Logger.i("Core", "initCore ok")
         } catch (t: Throwable) { Logger.e("Core", "initCore failed", t); throw t }
     }
+    /** Unique loopback port per concurrent probe: remembered until the probe ends so two tasks never get the same one. */
+    private fun allocatePort(): Int = synchronized(usedPorts) {
+        repeat(20) {
+            val p = ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
+            if (usedPorts.add(p)) return p
+        }
+        error("No free local port")
+    }
+    private fun releasePort(port: Int) { synchronized(usedPorts) { usedPorts.remove(port) } }
     private fun freePort() = ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
-    private fun cancelProbes() { probeCancel.set(true); request?.cancel(); runCatching { tcpSocket?.close() } }
+    private fun cancelProbes() { probeCancel.set(true); requests.forEach { it.cancel() }; tcpSockets.forEach { s -> runCatching { s.close() } } }
     private fun checkHealth(settings: ClientSettings) {
         val current = generation.get()
         if (TunnelStatus.state.value != TunnelState.RUNNING) return
@@ -174,8 +187,9 @@ class TunnelService : VpnService(), PlatformInterface {
             Logger.i("Probe", "probeProfiles: speed=$speed mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
             if (!access.available || (wantedNetwork != null && wantedNetwork != access.kind)) { Logger.w("Probe", "skipped: network unavailable or changed"); return }
             val profiles = SubscriptionStore(this).load()?.profiles.orEmpty().filter { id == null || it.id == id }
-            for (profile in profiles) {
-                if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
+            val pool = Executors.newFixedThreadPool(if (speed) 1 else PROBE_CONCURRENCY.coerceAtMost(profiles.size).coerceAtLeast(1))
+            fun probeOne(profile: Profile) {
+                if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) return
                 val key = "${access.kind}:${profile.id}"
                 val method = if (!speed && settings.probeMode == "tcp") "TCP" else "HTTPS"
                 fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false) = Diagnostics.result(key,
@@ -184,6 +198,7 @@ class TunnelService : VpnService(), PlatformInterface {
                 val label = describe(profile)
                 var stage = "start"
                 Logger.i("Probe", "profile ${profiles.indexOf(profile)} method=$method $label network=${access.kind}")
+                var allocated = 0; var registered: ProxyRequest? = null
                 var local: BoxService? = null; var xr: MothXrayService? = null
                 try {
                     if (method == "TCP") {
@@ -191,10 +206,10 @@ class TunnelService : VpnService(), PlatformInterface {
                         stage = "tcp"
                         if (endpoint == null) result(error = tr(R.string.msg_udp_protocol_choose_an_https_check_129))
                         else { val ms = tcpProbe(endpoint, settings.timeoutSeconds, cancelled); Logger.i("Probe", "TCP ok in $ms ms ($label)"); if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) result(ms = ms) }
-                        continue
+                        return
                     }
                     stage = "free port"
-                    val port = freePort(); val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
+                    val port = allocatePort(); allocated = port; val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
                     if (profile.engine == "xray") { stage = "xray start"; xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this) }
                     else {
                         stage = "build config"
@@ -210,7 +225,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     for (url in if (speed) listOf("https://speed.cloudflare.com/__down?bytes=1048576") else ProbePolicy.urls(settings)) {
                         if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
                         val test = ProxyRequest(this, port, user, password, if (speed) 30 else settings.timeoutSeconds, cancelled)
-                        request = test
+                        requests.add(test); registered = test
                         stage = "request ${Diagnostics.describeUrl(url)}"
                         try { measured = test.run(url, if (speed) 1048576 else 0); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} ${measured?.first}${if (speed) " bytes" else " ms"} ($label)"); break }
                         catch (e: Throwable) {
@@ -230,12 +245,14 @@ class TunnelService : VpnService(), PlatformInterface {
                         else result(error = Diagnostics.friendly(e))
                     }
                 } finally {
-                    request = null
+                    registered?.let { requests.remove(it) }
+                    if (allocated != 0) releasePort(allocated)
                     runCatching { local?.close() }; runCatching { xr?.close() }
                     if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = tr(R.string.msg_check_cancelled_46), wasCancelled = true)
                 }
-                if (speed) break
             }
+            val futures = profiles.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }
+            try { futures.forEach { runCatching { it.get() } } } finally { pool.shutdownNow() }
             if (speed && (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle)) Diagnostics.speedMutable.value = tr(R.string.msg_test_cancelled_132)
         } catch (t: Throwable) {
             Logger.e("Probe", "probeProfiles aborted", t)
@@ -258,14 +275,14 @@ class TunnelService : VpnService(), PlatformInterface {
             Logger.d("Probe", "tcpProbe: dns ok in ${(System.nanoTime() - start) / 1_000_000} ms (family=${if (address is java.net.Inet4Address) "v4" else "v6"}) port=${endpoint.second}")
             stage = "tcp connect"
             java.net.Socket().use { socket ->
-                tcpSocket = socket
+                tcpSockets.add(socket)
                 try {
                     val tunnelActive = TunnelStatus.state.value !in setOf(TunnelState.OFF, TunnelState.ERROR)
                     val protectedOk = protect(socket)
                     if (!protectedOk) Logger.w("Probe", "tcpProbe: protect(socket) returned false (tunnelActive=$tunnelActive)")
                     check(ProtectPolicy.allows(protectedOk, tunnelActive)) { "protect(socket) failed" }
                     network.bindSocket(socket); socket.connect(java.net.InetSocketAddress(address, endpoint.second), remaining()); return (System.nanoTime() - start) / 1_000_000 }
-                finally { tcpSocket = null }
+                finally { tcpSockets.remove(socket) }
             }
         } catch (t: Throwable) {
             Logger.w("Probe", "tcpProbe failed at stage '$stage' after ${(System.nanoTime() - start) / 1_000_000} ms (timeout=${timeoutSeconds}s)", t)

@@ -10,6 +10,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import org.routevpn.core.LatencyBand
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,11 +79,25 @@ import org.routevpn.core.ClientSettings
                 Surface(color = if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().clickable(enabled = !locked) { select(p.id, kind) }
                         .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
-                    Column(Modifier.padding(horizontal = 14.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(p.name, maxLines = if (settings.compactServers) 1 else 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
-                        Text(p.protocol.uppercase() + " · " + when { r?.checking == true -> tr(R.string.msg_checking_62); r?.latencyMs != null -> tr(R.string.msg_r_latencyms_ms_r_method_63, r.latencyMs, r.method); r?.error != null -> localizedError(r.error); else -> tr(R.string.msg_not_checked_64) }, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        if (r?.latencyMs != null && r.method == "TCP") Text(tr(R.string.msg_port_is_reachable_vpn_traffic_has_not_been_ch_65), style = MaterialTheme.typography.labelSmall)
-                        if (r != null && !r.checking && r.networkHandle != network.handle) Text(tr(R.string.msg_checked_on_a_different_network_66), style = MaterialTheme.typography.labelSmall)
+                    Row(Modifier.padding(horizontal = 14.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(p.name, maxLines = if (settings.compactServers) 1 else 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
+                            Text(p.protocol.uppercase() + if (r?.latencyMs != null && r.method == "TCP") " · TCP" else "", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (r?.latencyMs != null && r.method == "TCP") Text(tr(R.string.msg_port_is_reachable_vpn_traffic_has_not_been_ch_65), style = MaterialTheme.typography.labelSmall)
+                            if (r != null && !r.checking && r.networkHandle != network.handle) Text(tr(R.string.msg_checked_on_a_different_network_66), style = MaterialTheme.typography.labelSmall)
+                        }
+                        val dark = isSystemInDarkTheme()
+                        when {
+                            r?.checking == true -> Text(tr(R.string.msg_checking_62), style = MaterialTheme.typography.labelMedium, color = Color.Gray, modifier = Modifier.padding(start = 12.dp))
+                            r?.latencyMs != null -> Text("${r.latencyMs} ms", fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, modifier = Modifier.padding(start = 12.dp),
+                                color = when (LatencyBand.of(r.latencyMs)) {
+                                    LatencyBand.GOOD -> if (dark) Color(0xFF66DD88) else Color(0xFF1B7F3A)
+                                    LatencyBand.MEDIUM -> if (dark) Color(0xFFFFC247) else Color(0xFFB36B00)
+                                    LatencyBand.POOR -> if (dark) Color(0xFFFF6B6B) else Color(0xFFC62828)
+                                })
+                            r?.error != null -> Text(localizedError(r.error), style = MaterialTheme.typography.labelSmall, color = Color.Gray, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.End, modifier = Modifier.padding(start = 12.dp).widthIn(max = 120.dp))
+                        }
                     }
                 }
             }
