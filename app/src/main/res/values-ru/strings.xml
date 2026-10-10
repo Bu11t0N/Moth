@@ -180,4 +180,14 @@
     <string name="tile_starting">Подключаемся…</string>
     <string name="tile_stopping">Отключаем…</string>
     <string name="tile_setup">Добавь подписку для подключения</string>
+    <string name="dev_for_developers">Для разработчиков</string>
+    <string name="dev_log">Журнал</string>
+    <string name="dev_log_level">Уровень журнала</string>
+    <string name="dev_level_off">Выключен</string>
+    <string name="dev_log_privacy_note">В журнал не попадают ссылки подписки, ключи, пароли и адреса серверов. Более подробные уровни включают все предыдущие.</string>
+    <string name="dev_share_log">Поделиться журналом</string>
+    <string name="dev_clear_log">Очистить журнал</string>
+    <string name="dev_refresh">Обновить</string>
+    <string name="dev_log_is_off">Журнал выключен. Выберите уровень в Настройки → Для разработчиков.</string>
+    <string name="dev_log_empty">Журнал пуст</string>
 </resources>

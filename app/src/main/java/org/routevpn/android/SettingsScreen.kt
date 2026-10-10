@@ -18,12 +18,13 @@ import org.routevpn.core.ClientSettings
 @Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit) {
     var draft by remember(initial) { mutableStateOf(initial) }
     var section by remember { mutableStateOf<String?>(null) }
+    var logOpen by remember { mutableStateOf(false) }
     var mtu by remember(initial) { mutableStateOf(initial.mtu.toString()) }
     var timeout by remember(initial) { mutableStateOf(initial.timeoutSeconds.toString()) }
     var interval by remember(initial) { mutableStateOf(initial.healthIntervalSeconds.toString()) }
     var error by remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
-    BackHandler(enabled = section != null) { section = null }
+    BackHandler(enabled = section != null) { if (logOpen) logOpen = false else section = null }
     fun applySettings(next: ClientSettings) {
         draft = next
         try { save(next.validate()); error = "" }
@@ -36,8 +37,8 @@ import org.routevpn.core.ClientSettings
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(section ?: tr(R.string.msg_settings_28), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).padding(top = 12.dp))
-            TextButton(onClick = { if (section != null) section = null else back() }) { Text(tr(R.string.msg_back_73)) }
+            Text(if (logOpen) tr(R.string.dev_log) else (section ?: tr(R.string.msg_settings_28)), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).padding(top = 12.dp))
+            TextButton(onClick = { if (logOpen) logOpen = false else if (section != null) section = null else back() }) { Text(tr(R.string.msg_back_73)) }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (section) {
@@ -47,6 +48,7 @@ import org.routevpn.core.ClientSettings
                     SettingsCategory(tr(R.string.msg_checks_76)) { section = tr(R.string.msg_checks_76) }
                     SettingsCategory(tr(R.string.msg_subscription_and_hwid_77)) { section = tr(R.string.msg_subscription_and_hwid_77) }
                     SettingsCategory(tr(R.string.msg_about_78)) { section = tr(R.string.msg_about_78) }
+                    SettingsCategory(tr(R.string.dev_for_developers)) { section = tr(R.string.dev_for_developers) }
                 }
                 tr(R.string.msg_appearance_74) -> {
                     Text(tr(R.string.language), style = MaterialTheme.typography.titleMedium)
@@ -113,6 +115,7 @@ import org.routevpn.core.ClientSettings
                     OutlinedTextField(draft.userAgent, { applySettings(draft.copy(userAgent = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_user_agent_109)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text(tr(R.string.msg_providers_may_select_the_subscription_format_110), style = MaterialTheme.typography.bodySmall)
                 }
+                tr(R.string.dev_for_developers) -> if (logOpen) LogViewer() else DeveloperSection { logOpen = true }
                 tr(R.string.msg_about_78) -> {
                     Text("${tr(R.string.app_name)} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleLarge)
                     Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111))

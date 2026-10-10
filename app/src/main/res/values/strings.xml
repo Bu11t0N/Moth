@@ -180,4 +180,14 @@
     <string name="tile_starting">Connecting…</string>
     <string name="tile_stopping">Disconnecting…</string>
     <string name="tile_setup">Add a subscription to connect</string>
+    <string name="dev_for_developers">For developers</string>
+    <string name="dev_log">Log</string>
+    <string name="dev_log_level">Log level</string>
+    <string name="dev_level_off">Off</string>
+    <string name="dev_log_privacy_note">The log never contains subscription links, keys, passwords or server addresses. Higher levels include everything from the lower ones.</string>
+    <string name="dev_share_log">Share log</string>
+    <string name="dev_clear_log">Clear log</string>
+    <string name="dev_refresh">Refresh</string>
+    <string name="dev_log_is_off">Logging is off. Select a level in Settings → For developers.</string>
+    <string name="dev_log_empty">The log is empty</string>
 </resources>

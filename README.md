@@ -32,6 +32,8 @@ To add the Quick Settings toggle, open **Settings → Appearance → Add VPN but
 
 Language is under **Settings → Appearance**. The default follows the system; English and Russian can be selected explicitly. Android 13+ exposes the same choice in system app language settings.
 
+0.4.2 adds a developer log (Settings → For developers → Log) with levels, share and clear; it never records subscription links, keys or server addresses.
+
 Official 0.4.1 APKs update official 0.2, 0.3 and 0.4.0 APKs without deleting app data. The application ID and signing certificate are unchanged. The original GitHub 0.1 APK and independently built APKs can have different signatures.
 
 ## Supported subscriptions

@@ -2,7 +2,7 @@ plugins { id("com.android.application"); kotlin("android") }
 android {
     namespace = "org.routevpn.android"
     compileSdk = 34
-    defaultConfig { applicationId = "org.routevpn.android"; minSdk = 26; targetSdk = 34; versionCode = 6; versionName = "0.4.1" }
+    defaultConfig { applicationId = "org.routevpn.android"; minSdk = 26; targetSdk = 34; versionCode = 7; versionName = "0.4.2" }
     buildTypes {
         getByName("release") {
             signingConfig = signingConfigs.getByName("debug")

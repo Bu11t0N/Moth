@@ -51,35 +51,47 @@ class TunnelService : VpnService(), PlatformInterface {
     private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "STOP") {
+            Logger.i("Tunnel", "stop requested (state=${TunnelStatus.state.value})")
             cancelProbes()
             TunnelStatus.mutable.value = TunnelState.STOPPING
-            executor.execute { closeTunnel(); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf(startId) }
+            executor.execute { closeTunnel(); Logger.i("Tunnel", "tunnel stopped"); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf(startId) }
         } else if (intent?.action == "START") {
             val id = intent.getStringExtra("profile") ?: return START_NOT_STICKY
             foreground()
             TunnelStatus.mutable.value = TunnelState.STARTING
             executor.execute {
+                var stage = "init"
                 try {
                     closeTunnel()
                     initCore()
+                    stage = "load settings/profile"
                     val settings = SettingsStore(this).load()
                     var profile = SubscriptionStore(this).load()?.profiles?.firstOrNull { it.id == id } ?: error("Missing profile")
+                    Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled}")
                     if (profile.engine == "xray") {
+                        stage = "xray start"
                         val port = freePort(); val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
                         xray = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this)
+                        Logger.d("Tunnel", "xray started")
                         profile = LocalProxyConfig.bridge(profile, port, user, password)
                     }
+                    stage = "build config"
                     val config = TunnelConfig.create(profile, settings)
+                    stage = "Libbox.checkConfig"
                     Libbox.checkConfig(config)
+                    stage = "Libbox.newService"
                     box = Libbox.newService(config, this)
+                    stage = "BoxService.start"
                     box!!.start()
+                    Logger.i("Tunnel", "tunnel running (stopped=$stopped)")
                     if (!stopped) {
                         TunnelStatus.mutable.value = TunnelState.RUNNING
                         TunnelStatus.activeMutable.value = id
                         Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) tr(R.string.msg_checking_internet_access_through_vpn_120) else tr(R.string.msg_checks_are_disabled_in_settings_121))
                         if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
                     }
-                } catch (_: Exception) {
+                } catch (t: Throwable) {
+                    Logger.e("Tunnel", "start failed at stage '$stage'", t)
                     closeTunnel()
                     TunnelStatus.mutable.value = TunnelState.ERROR
                     stopSelf(startId)
@@ -97,10 +109,11 @@ class TunnelService : VpnService(), PlatformInterface {
             val id = intent?.getStringExtra("profile")
             val speed = intent?.action == "SPEED"
             Diagnostics.runningMutable.value = true
+            Logger.i("Probe", "${if (speed) "speed test" else "probe"} requested for ${if (id == null) "all profiles" else "one profile"} requestedNetwork=${intent?.getStringExtra("network")}")
             if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_download_test_up_to_1_mib_123)
             executor.execute {
                 try { if (speed || SettingsStore(this).load().probeMode != "tcp") initCore(); probes.execute { probeProfiles(id, speed, cancel, intent?.getStringExtra("network")) } }
-                catch (_: Exception) { Diagnostics.runningMutable.value = false; if (TunnelStatus.state.value == TunnelState.OFF) stopSelf() }
+                catch (t: Throwable) { Logger.e("Probe", "probe setup failed (initCore or scheduling)", t); Diagnostics.runningMutable.value = false; if (TunnelStatus.state.value == TunnelState.OFF) stopSelf() }
             }
         }
         return START_NOT_STICKY
@@ -116,6 +129,7 @@ class TunnelService : VpnService(), PlatformInterface {
         startForeground(1, notification)
     }
     private fun closeTunnel() {
+        Logger.d("Tunnel", "closeTunnel (box=${box != null}, xray=${xray != null})")
         generation.incrementAndGet(); healthTask?.cancel(true); healthTask = null
         TunnelStatus.activeMutable.value = ""
         Diagnostics.healthMutable.value = HealthResult()
@@ -125,9 +139,13 @@ class TunnelService : VpnService(), PlatformInterface {
     }
     private fun initCore() {
         if (initialized) return
-        go.Seq.setContext(applicationContext)
-        Libbox.setup(SetupOptions().apply { basePath = filesDir.absolutePath; workingPath = filesDir.absolutePath; tempPath = cacheDir.absolutePath; fixAndroidStack = true })
-        initialized = true
+        try {
+            Logger.d("Core", "initCore: loading libbox")
+            go.Seq.setContext(applicationContext)
+            Libbox.setup(SetupOptions().apply { basePath = filesDir.absolutePath; workingPath = filesDir.absolutePath; tempPath = cacheDir.absolutePath; fixAndroidStack = true })
+            initialized = true
+            Logger.i("Core", "initCore ok")
+        } catch (t: Throwable) { Logger.e("Core", "initCore failed", t); throw t }
     }
     private fun freePort() = ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
     private fun cancelProbes() { probeCancel.set(true); request?.cancel(); runCatching { tcpSocket?.close() } }
@@ -140,18 +158,20 @@ class TunnelService : VpnService(), PlatformInterface {
             var ms: Long? = null
             for (url in ProbePolicy.urls(settings)) {
                 if (generation.get() != current) return
-                try { ms = Diagnostics.checkTunnel(connectivity, url, settings.timeoutSeconds); break } catch (_: Exception) { }
+                try { ms = Diagnostics.checkTunnel(connectivity, url, settings.timeoutSeconds); Logger.v("Health", "ok via ${Diagnostics.describeUrl(url)} in $ms ms"); break }
+                catch (e: Exception) { Logger.w("Health", "check via ${Diagnostics.describeUrl(url)} failed", e) }
             }
             check(ms != null)
             HealthResult(latencyMs = ms, message = tr(R.string.msg_internet_access_through_vpn_is_available_127))
-        } catch (_: Exception) { HealthResult(message = tr(R.string.msg_internet_check_through_vpn_failed_128), failures = previous.failures + 1) }
+        } catch (e: Exception) { Logger.e("Health", "internet check through VPN failed (consecutive failures=${previous.failures + 1})", e); HealthResult(message = tr(R.string.msg_internet_check_through_vpn_failed_128), failures = previous.failures + 1) }
         if (generation.get() == current && TunnelStatus.state.value == TunnelState.RUNNING) Diagnostics.healthMutable.value = next
     }
     private fun probeProfiles(id: String?, speed: Boolean, cancelled: AtomicBoolean, wantedNetwork: String?) {
         try {
             val settings = SettingsStore(this).load()
             val access = NetworkTracker.read(connectivity)
-            if (!access.available || (wantedNetwork != null && wantedNetwork != access.kind)) return
+            Logger.i("Probe", "probeProfiles: speed=$speed mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
+            if (!access.available || (wantedNetwork != null && wantedNetwork != access.kind)) { Logger.w("Probe", "skipped: network unavailable or changed"); return }
             val profiles = SubscriptionStore(this).load()?.profiles.orEmpty().filter { id == null || it.id == id }
             for (profile in profiles) {
                 if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
@@ -160,34 +180,50 @@ class TunnelService : VpnService(), PlatformInterface {
                 fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false) = Diagnostics.result(key,
                     ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled))
                 if (!speed) result(checking = true)
+                val label = describe(profile)
+                var stage = "start"
+                Logger.i("Probe", "profile ${profiles.indexOf(profile)} method=$method $label network=${access.kind}")
                 var local: BoxService? = null; var xr: MothXrayService? = null
                 try {
                     if (method == "TCP") {
                         val endpoint = ProbePolicy.tcpEndpoint(profile)
+                        stage = "tcp"
                         if (endpoint == null) result(error = tr(R.string.msg_udp_protocol_choose_an_https_check_129))
-                        else { val ms = tcpProbe(endpoint, settings.timeoutSeconds, cancelled); if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) result(ms = ms) }
+                        else { val ms = tcpProbe(endpoint, settings.timeoutSeconds, cancelled); Logger.i("Probe", "TCP ok in $ms ms ($label)"); if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) result(ms = ms) }
                         continue
                     }
+                    stage = "free port"
                     val port = freePort(); val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
-                    if (profile.engine == "xray") xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this)
+                    if (profile.engine == "xray") { stage = "xray start"; xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this) }
                     else {
+                        stage = "build config"
                         val config = LocalProxyConfig.singBox(profile, port, user, password, settings)
-                        Libbox.checkConfig(config); local = Libbox.newService(config, this); local.start()
+                        stage = "Libbox.checkConfig"; Libbox.checkConfig(config)
+                        stage = "Libbox.newService"; local = Libbox.newService(config, this)
+                        stage = "BoxService.start"; local.start()
                     }
+                    stage = "local proxy ready"
+                    Logger.d("Probe", "local proxy started ($label)")
                     var measured: Pair<Long, Long>? = null
-                    var last: Exception? = null
+                    var last: Throwable? = null
                     for (url in if (speed) listOf("https://speed.cloudflare.com/__down?bytes=1048576") else ProbePolicy.urls(settings)) {
                         if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
                         val test = ProxyRequest(this, port, user, password, if (speed) 30 else settings.timeoutSeconds, cancelled)
                         request = test
-                        try { measured = test.run(url, if (speed) 1048576 else 0); break } catch (e: Exception) { last = e }
+                        stage = "request ${Diagnostics.describeUrl(url)}"
+                        try { measured = test.run(url, if (speed) 1048576 else 0); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} ${measured?.first}${if (speed) " bytes" else " ms"} ($label)"); break }
+                        catch (e: Throwable) {
+                            last = e
+                            Logger.w("Probe", "request failed url=${Diagnostics.describeUrl(url)} handshakeStage=${test.stage} method=$method network=${access.kind} ($label)", e)
+                        }
                     }
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
                         val measurement = measured ?: throw (last ?: java.net.SocketTimeoutException())
                         if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_profile_name_1f_mbit_s_2f_mib_130, profile.name, measurement.first * 8000.0 / measurement.second, measurement.first / 1048576.0)
                         else result(ms = measurement.first)
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    Logger.e("Probe", "probe failed at stage '$stage' method=$method network=${access.kind} cancelled=${cancelled.get()} ($label)", e)
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
                         if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_speed_test_failed_131)
                         else result(error = Diagnostics.friendly(e))
@@ -200,25 +236,37 @@ class TunnelService : VpnService(), PlatformInterface {
                 if (speed) break
             }
             if (speed && (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle)) Diagnostics.speedMutable.value = tr(R.string.msg_test_cancelled_132)
+        } catch (t: Throwable) {
+            Logger.e("Probe", "probeProfiles aborted", t)
         } finally {
             Diagnostics.runningMutable.value = false
+            Logger.d("Probe", "probeProfiles finished")
             if (TunnelStatus.state.value in setOf(TunnelState.OFF, TunnelState.ERROR)) stopSelf()
         }
     }
     private fun tcpProbe(endpoint: Pair<String, Int>, timeoutSeconds: Int, cancelled: AtomicBoolean): Long {
-        val network = NetworkTracker.physical(connectivity) ?: error(tr(R.string.msg_no_network_20))
+        val network = NetworkTracker.physical(connectivity) ?: run { Logger.w("Probe", "tcpProbe: no physical network"); error(tr(R.string.msg_no_network_20)) }
+        var stage = "dns lookup"
         val start = System.nanoTime()
         val deadline = start + timeoutSeconds * 1_000_000_000L
         fun remaining() = ((deadline - System.nanoTime()) / 1_000_000).toInt().also { if (it <= 0 || cancelled.get()) throw java.net.SocketTimeoutException() }
         val lookup = lookupExecutor.submit<java.net.InetAddress?> { network.getAllByName(endpoint.first).let { addresses -> addresses.firstOrNull { it is java.net.Inet4Address } ?: addresses.firstOrNull() } }
-        val address = try { lookup.get(remaining().toLong(), TimeUnit.MILLISECONDS) ?: error(tr(R.string.msg_no_address_found_133)) }
-            finally { lookup.cancel(true) }
-        java.net.Socket().use { socket ->
-            tcpSocket = socket
-            try { check(protect(socket)); network.bindSocket(socket); socket.connect(java.net.InetSocketAddress(address, endpoint.second), remaining()); return (System.nanoTime() - start) / 1_000_000 }
-            finally { tcpSocket = null }
+        try {
+            val address = try { lookup.get(remaining().toLong(), TimeUnit.MILLISECONDS) ?: error(tr(R.string.msg_no_address_found_133)) }
+                finally { lookup.cancel(true) }
+            Logger.d("Probe", "tcpProbe: dns ok in ${(System.nanoTime() - start) / 1_000_000} ms (family=${if (address is java.net.Inet4Address) "v4" else "v6"}) port=${endpoint.second}")
+            stage = "tcp connect"
+            java.net.Socket().use { socket ->
+                tcpSocket = socket
+                try { check(protect(socket)); network.bindSocket(socket); socket.connect(java.net.InetSocketAddress(address, endpoint.second), remaining()); return (System.nanoTime() - start) / 1_000_000 }
+                finally { tcpSocket = null }
+            }
+        } catch (t: Throwable) {
+            Logger.w("Probe", "tcpProbe failed at stage '$stage' after ${(System.nanoTime() - start) / 1_000_000} ms (timeout=${timeoutSeconds}s)", t)
+            throw t
         }
     }
+    private fun describe(profile: Profile) = "protocol=${profile.protocol} engine=${profile.engine}"
     override fun onRevoke() { stopped = true; cancelProbes(); executor.execute { closeTunnel(); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf() } }
     override fun onDestroy() {
         stopped = true
