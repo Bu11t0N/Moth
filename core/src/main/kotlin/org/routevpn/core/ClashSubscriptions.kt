@@ -64,11 +64,11 @@ object ClashSubscriptions {
                 require(p["token"] == null) { "TUIC v4 не поддерживается" }
             }
             "vmess" -> {
-                require(network !in setOf("xhttp", "splithttp")) { "VMess XHTTP пока не поддерживается" }
                 val v = JSONObject().put("add", value("server")).put("port", port.toString()).put("id", value("uuid")).put("ps", name)
                     .put("aid", value("alterId", "0").toInt()).put("scy", value("cipher", "auto")).put("net", network)
                     .put("host", host).put("path", if (network == "grpc") q["serviceName"].orEmpty() else path)
                     .put("tls", if (value("tls") == "true") "tls" else "").put("sni", q["sni"])
+                    .put("fp", q["fp"] ?: "").put("alpn", q["alpn"] ?: "").put("mode", q["mode"] ?: "auto")
                 return Subscriptions.parseLink("vmess://" + Base64.getEncoder().encodeToString(v.toString().toByteArray()))
             }
             else -> error("Неподдерживаемый протокол")

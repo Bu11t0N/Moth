@@ -14,6 +14,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.net.NetworkInterface as JavaInterface
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+import org.routevpn.core.ClientSettings
+import org.routevpn.core.Profile
+import org.routevpn.core.TunnelConfig
+import org.routevpn.core.LocalProxyConfig
+import java.net.ServerSocket
+import java.util.UUID
 
 enum class TunnelState { OFF, STARTING, RUNNING, STOPPING, ERROR }
 object TunnelStatus {
@@ -24,32 +33,68 @@ object TunnelStatus {
 class TunnelService : VpnService(), PlatformInterface {
     private val executor = Executors.newSingleThreadExecutor()
     private var box: BoxService? = null
+    private var xray: MothXrayService? = null
+    private val probes = Executors.newSingleThreadExecutor()
+    private val healthExecutor = Executors.newSingleThreadScheduledExecutor()
+    private var healthTask: java.util.concurrent.ScheduledFuture<*>? = null
+    private val generation = AtomicLong()
+    private var probeCancel = AtomicBoolean(false)
+    @Volatile private var request: ProxyRequest? = null
+    private var initialized = false
     private var tun: ParcelFileDescriptor? = null
     @Volatile private var stopped = false
     private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "STOP") {
+            cancelProbes()
             TunnelStatus.mutable.value = TunnelState.STOPPING
             executor.execute { closeTunnel(); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf(startId) }
         } else if (intent?.action == "START") {
-            val config = intent.getStringExtra("config") ?: return START_NOT_STICKY
+            val id = intent.getStringExtra("profile") ?: return START_NOT_STICKY
             foreground()
             TunnelStatus.mutable.value = TunnelState.STARTING
             executor.execute {
                 try {
                     closeTunnel()
-                    go.Seq.setContext(applicationContext)
-                    val setup = SetupOptions().apply { basePath = filesDir.absolutePath; workingPath = filesDir.absolutePath; tempPath = cacheDir.absolutePath; fixAndroidStack = true }
-                    Libbox.setup(setup)
+                    initCore()
+                    val settings = SettingsStore(this).load()
+                    var profile = SubscriptionStore(this).load()?.profiles?.firstOrNull { it.id == id } ?: error("Missing profile")
+                    if (profile.engine == "xray") {
+                        val port = freePort(); val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
+                        xray = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password), this)
+                        profile = LocalProxyConfig.bridge(profile, port, user, password)
+                    }
+                    val config = TunnelConfig.create(profile, settings)
                     Libbox.checkConfig(config)
                     box = Libbox.newService(config, this)
                     box!!.start()
-                    if (!stopped) TunnelStatus.mutable.value = TunnelState.RUNNING
+                    if (!stopped) {
+                        TunnelStatus.mutable.value = TunnelState.RUNNING
+                        Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) "Проверяем интернет через VPN…" else "Проверка отключена в настройках")
+                        if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
+                    }
                 } catch (_: Exception) {
                     closeTunnel()
                     TunnelStatus.mutable.value = TunnelState.ERROR
                     stopSelf(startId)
                 }
+            }
+        } else if (intent?.action == "HEALTH") {
+            if (TunnelStatus.state.value == TunnelState.RUNNING) healthExecutor.execute { checkHealth(SettingsStore(this).load()) }
+        } else if (intent?.action == "CANCEL_PROBES") {
+            cancelProbes()
+        } else if (intent?.action in setOf("PROBE", "SPEED")) {
+            if (Diagnostics.running.value) return START_NOT_STICKY
+            foreground()
+            probeCancel = AtomicBoolean(false)
+            val cancel = probeCancel
+            val id = intent?.getStringExtra("profile")
+            val speed = intent?.action == "SPEED"
+            Diagnostics.runningMutable.value = true
+            if (speed) Diagnostics.speedMutable.value = "Тест загрузки: до 1 МиБ…"
+            executor.execute {
+                try { initCore(); probes.execute { probeProfiles(id, speed, cancel) } }
+                catch (_: Exception) { Diagnostics.runningMutable.value = false; if (TunnelStatus.state.value == TunnelState.OFF) stopSelf() }
             }
         }
         return START_NOT_STICKY
@@ -65,12 +110,75 @@ class TunnelService : VpnService(), PlatformInterface {
         startForeground(1, notification)
     }
     private fun closeTunnel() {
+        generation.incrementAndGet(); healthTask?.cancel(true); healthTask = null
+        Diagnostics.healthMutable.value = HealthResult()
         runCatching { box?.close() }; box = null
         runCatching { tun?.close() }; tun = null
+        runCatching { xray?.close() }; xray = null
     }
-    override fun onRevoke() { stopped = true; executor.execute { closeTunnel(); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf() } }
+    private fun initCore() {
+        if (initialized) return
+        go.Seq.setContext(applicationContext)
+        Libbox.setup(SetupOptions().apply { basePath = filesDir.absolutePath; workingPath = filesDir.absolutePath; tempPath = cacheDir.absolutePath; fixAndroidStack = true })
+        initialized = true
+    }
+    private fun freePort() = ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
+    private fun cancelProbes() { probeCancel.set(true); request?.cancel() }
+    private fun checkHealth(settings: ClientSettings) {
+        val current = generation.get()
+        if (TunnelStatus.state.value != TunnelState.RUNNING) return
+        val previous = Diagnostics.health.value
+        Diagnostics.healthMutable.value = previous.copy(checking = true)
+        val next = try {
+            val ms = Diagnostics.checkTunnel(connectivity, settings.probeUrl, settings.timeoutSeconds)
+            HealthResult(latencyMs = ms, message = "Интернет через VPN доступен")
+        } catch (_: Exception) { HealthResult(message = "Проверка интернета через VPN не прошла", failures = previous.failures + 1) }
+        if (generation.get() == current && TunnelStatus.state.value == TunnelState.RUNNING) Diagnostics.healthMutable.value = next
+    }
+    private fun probeProfiles(id: String?, speed: Boolean, cancelled: AtomicBoolean) {
+        try {
+            val settings = SettingsStore(this).load()
+            val profiles = SubscriptionStore(this).load()?.profiles.orEmpty().filter { id == null || it.id == id }
+            for (profile in profiles) {
+                if (cancelled.get()) break
+                if (!speed) Diagnostics.result(profile.id, ProbeResult(checking = true))
+                var local: BoxService? = null; var xr: MothXrayService? = null
+                try {
+                    val port = freePort(); val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
+                    if (profile.engine == "xray") xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password), this)
+                    else {
+                        val config = LocalProxyConfig.singBox(profile, port, user, password)
+                        Libbox.checkConfig(config); local = Libbox.newService(config, this); local.start()
+                    }
+                    val test = ProxyRequest(this, port, user, password, if (speed) 30 else settings.timeoutSeconds, cancelled)
+                    request = test
+                    val result = test.run(if (speed) "https://speed.cloudflare.com/__down?bytes=1048576" else settings.probeUrl, if (speed) 1048576 else 0)
+                    if (!cancelled.get()) {
+                        if (speed) Diagnostics.speedMutable.value = "${profile.name}: %.1f Мбит/с · %.2f МиБ".format(java.util.Locale.US, result.first * 8000.0 / result.second, result.first / 1048576.0)
+                        else Diagnostics.result(profile.id, ProbeResult(latencyMs = result.first))
+                    }
+                } catch (e: Exception) {
+                    if (!cancelled.get()) {
+                        if (speed) Diagnostics.speedMutable.value = "Тест скорости не прошёл"
+                        else Diagnostics.result(profile.id, ProbeResult(error = Diagnostics.friendly(e)))
+                    }
+                } finally {
+                    request = null
+                    runCatching { local?.close() }; runCatching { xr?.close() }
+                    if (!speed && Diagnostics.results.value[profile.id]?.checking == true) Diagnostics.result(profile.id, ProbeResult(error = "Проверка отменена"))
+                }
+                if (speed) break
+            }
+            if (cancelled.get() && speed) Diagnostics.speedMutable.value = "Тест отменён"
+        } finally {
+            Diagnostics.runningMutable.value = false
+            if (TunnelStatus.state.value in setOf(TunnelState.OFF, TunnelState.ERROR)) stopSelf()
+        }
+    }
+    override fun onRevoke() { stopped = true; cancelProbes(); executor.execute { closeTunnel(); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf() } }
     override fun onDestroy() {
         stopped = true
+        cancelProbes(); healthExecutor.shutdownNow(); probes.shutdown()
         executor.execute { closeTunnel(); if (TunnelStatus.mutable.value != TunnelState.ERROR) TunnelStatus.mutable.value = TunnelState.OFF }
         executor.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)

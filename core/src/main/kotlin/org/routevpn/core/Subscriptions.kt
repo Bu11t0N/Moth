@@ -25,6 +25,7 @@ object Subscriptions {
         val text = body.trim().removePrefix("\uFEFF")
         if (text.startsWith("proxies:") || text.contains("\nproxies:") || text.startsWith("{")) return ClashSubscriptions.parse(text)
         val decoded = if (text.contains("://")) text else runCatching { unbase64(text) }.getOrDefault(text)
+        if (decoded.startsWith("proxies:") || decoded.contains("\nproxies:")) return ClashSubscriptions.parse(decoded)
         val lines = decoded.lineSequence().map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
         require(lines.size <= 2000) { "Слишком много серверов" }
         var rejected = 0
@@ -41,12 +42,16 @@ object Subscriptions {
         if (scheme == "vmess") {
             val v = JSONObject(unbase64(link.substringAfter("://")))
             require(v.optInt("aid", 0) == 0) { "VMess alterId не поддерживается" }
+            if (v.optString("net") in setOf("xhttp", "splithttp")) return ExtraProtocols.xhttpVmess(v, link)
             o = JSONObject().put("type", "vmess").put("server", v.getString("add")).put("server_port", v.getString("port").toInt())
                 .put("uuid", UUID.fromString(v.getString("id")).toString()).put("security", v.optString("scy", "auto"))
             name = v.optString("ps").ifBlank { v.getString("add") }
             val net = v.optString("net", "tcp")
             transport(o, net, v.optString("host"), v.optString("path"), v.optString("path"))
-            if (v.optString("tls") == "tls") o.put("tls", JSONObject().put("enabled", true).put("server_name", v.optString("sni").ifBlank { v.optString("host").ifBlank { v.getString("add") } }))
+            if (v.optString("tls") == "tls") o.put("tls", JSONObject().put("enabled", true).put("server_name", v.optString("sni").ifBlank { v.optString("host").ifBlank { v.getString("add") } }).apply {
+                v.optString("alpn").takeIf { it.isNotBlank() }?.let { put("alpn", JSONArray(it.split(','))) }
+                v.optString("fp").takeIf { it.isNotBlank() }?.let { put("utls", JSONObject().put("enabled", true).put("fingerprint", it)) }
+            })
         } else {
             require(scheme in setOf("vless", "trojan", "ss")) { "Протокол не поддерживается" }
             var normalized = link

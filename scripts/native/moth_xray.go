@@ -24,7 +24,7 @@ func MothStartXray(config string, platform PlatformInterface) (*MothXrayService,
     mothXrayPlatform = platform
     mothXrayLock.Unlock()
     mothXrayOnce.Do(func() {
-        mothXrayInitError = internet.RegisterDialerController(func(network, address string, conn syscall.RawConn) error {
+        controller := func(network, address string, conn syscall.RawConn) error {
             var protectErr error
             err := conn.Control(func(fd uintptr) {
                 mothXrayLock.RLock()
@@ -34,7 +34,9 @@ func MothStartXray(config string, platform PlatformInterface) (*MothXrayService,
             })
             if err != nil { return err }
             return protectErr
-        })
+        }
+        mothXrayInitError = internet.RegisterDialerController(controller)
+        if mothXrayInitError == nil { mothXrayInitError = internet.RegisterListenerController(controller) }
     })
     if mothXrayInitError != nil { return nil, mothXrayInitError }
     parsed, err := xcore.LoadConfig("json", bytes.NewReader([]byte(config)))

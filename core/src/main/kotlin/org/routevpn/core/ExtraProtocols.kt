@@ -84,4 +84,16 @@ object ExtraProtocols {
         val o = JSONObject().put("tag", "proxy").put("protocol", protocol).put("settings", settings).put("streamSettings", stream)
         return Profile(id(link.substringBefore('#')), u.rawFragment?.let(::decode)?.ifBlank { u.host } ?: u.host, "$protocol / XHTTP", o.toString(), "xray")
     }
+    fun xhttpVmess(v: JSONObject, original: String): Profile {
+        fun enc(s: String) = java.net.URLEncoder.encode(s, "UTF-8").replace("+", "%20")
+        val host = v.getString("add").let { if (it.contains(':') && !it.startsWith('[')) "[$it]" else it }
+        val query = mapOf("type" to "xhttp", "security" to if (v.optString("tls") == "tls") "tls" else "none",
+            "host" to v.optString("host"), "path" to v.optString("path", "/"), "mode" to v.optString("mode", "auto"),
+            "sni" to v.optString("sni", v.getString("add")), "fp" to v.optString("fp", "chrome"))
+        val p = xhttp("vless://${v.getString("id")}@$host:${v.getInt("port")}?" + query.entries.joinToString("&") { "${it.key}=${enc(it.value)}" })
+        val o = JSONObject(p.outbound).put("protocol", "vmess")
+        val user = o.getJSONObject("settings").getJSONArray("vnext").getJSONObject(0).getJSONArray("users").getJSONObject(0)
+        user.remove("encryption"); user.put("security", v.optString("scy", "auto"))
+        return p.copy(id = id(original.substringBefore('#')), protocol = "vmess / XHTTP", name = v.optString("ps").ifBlank { v.getString("add") }, outbound = o.toString())
+    }
 }

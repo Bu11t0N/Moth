@@ -27,6 +27,22 @@ s = p.read_text()
 needle = 'errors.LogInfoInner(ctx, err, "failed to apply external controller")'
 assert needle in s
 p.write_text(s.replace(needle, 'return err'))
+p = Path('.moth-xray/transport/internet/system_listener.go')
+s = p.read_text()
+old = '''\t\treturn c.Control(func(fd uintptr) {
+\t\t\tfor _, controller := range controllers {
+\t\t\t\tif err := controller(network, address, c); err != nil {
+\t\t\t\t\terrors.LogInfoInner(ctx, err, "failed to apply external controller")
+\t\t\t\t}
+\t\t\t}
+'''
+new = '''\t\tfor _, controller := range controllers {
+\t\t\tif err := controller(network, address, c); err != nil { return err }
+\t\t}
+\t\treturn c.Control(func(fd uintptr) {
+'''
+assert old in s
+p.write_text(s.replace(old, new))
 PY
 go mod edit -replace github.com/xtls/xray-core=./.moth-xray
 go mod tidy

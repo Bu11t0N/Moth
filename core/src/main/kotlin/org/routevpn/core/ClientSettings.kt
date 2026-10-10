@@ -69,7 +69,10 @@ object LocalProxyConfig {
         .put("type", "socks").put("tag", "proxy").put("server", "127.0.0.1").put("server_port", port).put("version", "5")
         .put("username", username).put("password", password).toString())
     fun xray(profile: Profile, port: Int, username: String, password: String): String = JSONObject().put("log", JSONObject().put("loglevel", "none"))
+        .put("dns", JSONObject().put("servers", org.json.JSONArray().put("https+local://1.1.1.1/dns-query")).put("queryStrategy", "UseIPv4"))
         .put("inbounds", org.json.JSONArray().put(JSONObject().put("listen", "127.0.0.1").put("port", port).put("protocol", "socks")
             .put("settings", JSONObject().put("auth", "password").put("udp", true).put("accounts", org.json.JSONArray().put(JSONObject().put("user", username).put("pass", password))))))
-        .put("outbounds", org.json.JSONArray().put(JSONObject(profile.outbound))).toString()
+        .put("outbounds", org.json.JSONArray().put(JSONObject(profile.outbound).apply {
+            getJSONObject("streamSettings").put("sockopt", JSONObject().put("domainStrategy", "ForceIPv4"))
+        })).toString()
 }
