@@ -192,4 +192,7 @@
     <string name="dev_log_empty">Журнал пуст</string>
     <string name="dev_crash_log">Краш-лог</string>
     <string name="dev_showing_last_lines">Показаны последние %1$d строк; «Поделиться» отправляет весь файл.</string>
+    <string name="dev_download_log">Скачать</string>
+    <string name="dev_saved_to_downloads">Сохранено в Загрузки</string>
+    <string name="dev_save_failed">Не удалось сохранить файл</string>
 </resources>

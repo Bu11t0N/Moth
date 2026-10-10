@@ -192,4 +192,7 @@
     <string name="dev_log_empty">The log is empty</string>
     <string name="dev_crash_log">Crash log</string>
     <string name="dev_showing_last_lines">Showing the last %1$d lines; Share exports the whole file.</string>
+    <string name="dev_download_log">Download</string>
+    <string name="dev_saved_to_downloads">Saved to Downloads</string>
+    <string name="dev_save_failed">Could not save the file</string>
 </resources>
