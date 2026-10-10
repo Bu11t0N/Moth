@@ -9,12 +9,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -46,7 +41,7 @@ class MainActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         store = SubscriptionStore(this)
         busy = true
         lifecycleScope.launch {
@@ -70,66 +65,19 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = if (dark) darkColorScheme(primary = Color(0xFF83DCC6), background = Color(0xFF101A23), surface = Color(0xFF1C2A35)) else lightColorScheme()) {
                 Surface(Modifier.fillMaxSize()) {
                     if (settingsOpen) {
-                        SettingsScreen(settings, locked, { next ->
-                        busy = true
-                        lifecycleScope.launch {
-                            try { withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).save(next) }; settings = next; settingsOpen = false; message = "Настройки сохранены" }
-                            catch (_: Exception) { message = "Не удалось сохранить настройки" }
-                            finally { busy = false }
-                        }
-                        }, { settingsOpen = false })
+                        SettingsScreen(settings, locked, { next -> saveSettings(next, true) }, { settingsOpen = false })
                     } else {
-                    Column(Modifier.fillMaxSize().padding(24.dp).statusBarsPadding().navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("MOTH / VPN", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                            TextButton(onClick = { settingsOpen = true }) { Text("Настройки") }
-                        }
-                        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-                            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text(when(tunnel) { TunnelState.OFF -> "VPN отключён"; TunnelState.STARTING -> "Запускаем VPN…"; TunnelState.RUNNING -> "VPN запущен"; TunnelState.STOPPING -> "Отключаем…"; TunnelState.ERROR -> "Не удалось запустить VPN" }, style = MaterialTheme.typography.titleLarge)
-                                Text(if (tunnel == TunnelState.RUNNING) health.message + (health.latencyMs?.let { " · $it мс" } ?: "") else "Выбери сервер и подключись", style = MaterialTheme.typography.bodyMedium)
-                                if (tunnel == TunnelState.RUNNING) TextButton(enabled = !health.checking, onClick = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("HEALTH")) }) { Text(if (health.checking) "Проверяем…" else "Проверить туннель") }
-                                Button(onClick = { if (tunnel == TunnelState.RUNNING) stop() else connect() }, enabled = !busy && (!probing || tunnel == TunnelState.RUNNING) && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING) && saved?.profiles?.isNotEmpty() == true, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                                    Text(if (tunnel == TunnelState.RUNNING) "Отключить" else "Подключиться")
-                                }
-                            }
-                        }
-                        if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.primary)
-                        if (tunnel == TunnelState.ERROR) Text("Проверь выбранный сервер и поддержку его настроек. Можно выбрать другой сервер.", color = MaterialTheme.colorScheme.error)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(enabled = !locked, onClick = { url = ""; dialog = true }) { Text(if (saved == null) "Добавить подписку" else "Заменить подписку") }
-                            if (saved != null) TextButton(enabled = !locked, onClick = { saved?.let { import(it.url) } }) { Text("Обновить") }
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Серверы · ${saved?.profiles?.size ?: 0}", style = MaterialTheme.typography.titleMedium)
-                            if (saved != null) TextButton(enabled = !locked, onClick = { removeSubscription() }) { Text("Удалить") }
-                        }
-                        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                        if (saved != null) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            OutlinedButton(enabled = !busy && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING), onClick = {
-                                if (probing) startService(Intent(this@MainActivity, TunnelService::class.java).setAction("CANCEL_PROBES")) else diagnose(null, false)
-                            }) { Text(if (probing) "Отменить" else "Проверить все") }
-                            TextButton(enabled = !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING), onClick = { diagnose(saved?.selected, true) }) { Text("Скорость · 1 МиБ") }
-                        }
-                        if (speed.isNotEmpty()) Text(speed, style = MaterialTheme.typography.bodySmall)
-                        if (probing) LinearProgressIndicator(Modifier.fillMaxWidth())
-                        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(saved?.profiles.orEmpty().let { list -> if (settings.sortByLatency) list.sortedBy { results[it.id]?.latencyMs ?: Long.MAX_VALUE } else list }, key = { it.id }) { profile ->
-                                val selected = profile.id == saved?.selected
-                                Row(Modifier.fillMaxWidth().background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
-                                    .clickable(enabled = !locked) { select(profile.id) }.padding(12.dp)) {
-                                    RadioButton(selected = selected, onClick = { select(profile.id) }, enabled = !locked)
-                                    Column(Modifier.weight(1f).padding(start = 8.dp)) {
-                                        Text(profile.name, style = MaterialTheme.typography.titleMedium); Text(profile.protocol.uppercase(), style = MaterialTheme.typography.labelSmall)
-                                        results[profile.id]?.let { r -> Text(if (r.checking) "Проверяем…" else r.latencyMs?.let { "$it мс · HTTPS" } ?: r.error.orEmpty(), style = MaterialTheme.typography.bodySmall) }
-                                        results[profile.id]?.takeIf { !it.checking }?.let { r -> Text("Проверено " + android.text.format.DateFormat.getTimeFormat(this@MainActivity).format(java.util.Date(r.checkedAt)), style = MaterialTheme.typography.labelSmall) }
-                                        TextButton(enabled = !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING), onClick = { diagnose(profile.id, false) }) { Text("Проверить") }
-                                    }
-                                }
-                            }
-                        }
-                        Text("Без автоматического выбора и переподключения", style = MaterialTheme.typography.labelSmall)
-                    }
+                        HomeScreen(saved, settings, tunnel, health, results, busy, probing, message, speed,
+                            openSettings = { settingsOpen = true },
+                            add = { url = ""; dialog = true },
+                            refresh = { saved?.let { import(it.url) } },
+                            remove = { removeSubscription() },
+                            toggleConnection = { if (tunnel == TunnelState.RUNNING) stop() else connect() },
+                            select = { select(it) }, probe = { diagnose(it, false) },
+                            speedTest = { diagnose(saved?.selected, true) },
+                            cancel = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("CANCEL_PROBES")) },
+                            checkHealth = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("HEALTH")) },
+                            preferences = { saveSettings(it, false) })
                     }
                     if (dialog) AlertDialog(onDismissRequest = { if (!busy) dialog = false }, title = { Text("Добавить подписку") }, text = {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -139,6 +87,20 @@ class MainActivity : ComponentActivity() {
                     }, confirmButton = { TextButton(enabled = url.isNotBlank(), onClick = { dialog = false; import(url); url = "" }) { Text("Добавить") } }, dismissButton = { TextButton(onClick = { dialog = false; url = "" }) { Text("Отмена") } })
                 }
             }
+        }
+    }
+    private fun saveSettings(next: ClientSettings, close: Boolean) {
+        if (busy) return
+        val previous = settings
+        if (!close) settings = next
+        busy = true
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).save(next) }
+                settings = next
+                if (close) { settingsOpen = false; message = "Настройки сохранены" }
+            } catch (_: Exception) { settings = previous; message = "Не удалось сохранить настройки" }
+            finally { busy = false }
         }
     }
     private fun import(url: String) {

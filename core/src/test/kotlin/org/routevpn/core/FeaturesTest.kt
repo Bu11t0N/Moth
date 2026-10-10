@@ -98,6 +98,17 @@ class FeaturesTest {
         assertFails { s.copy(userAgent = "Moth\r\nx-hwid: injected").validate() }
         assertFails { s.copy(hwid = "short").validate() }
     }
+    @Test fun settingsFromPreviousReleaseKeepHwidAndConnectionOptions() {
+        val previous = ClientSettings(mtu = 1280, ipv6 = false, theme = "dark", sortByLatency = true, deviceInfo = true)
+        val json = previous.json().apply { remove("compactServers"); remove("hideUnavailable") }
+        val migrated = ClientSettings.from(json)
+        assertEquals(previous, migrated)
+        assertEquals(previous.hwid, migrated.hwid)
+        assertTrue(migrated.compactServers)
+        assertFalse(migrated.hideUnavailable)
+        assertEquals(migrated.copy(compactServers = false, hideUnavailable = true),
+            ClientSettings.from(migrated.copy(compactServers = false, hideUnavailable = true).json()))
+    }
     @Test fun tunnelRespectsSettingsAndCapturesIpv6WhenDisabled() {
         val p = Subscriptions.parseLink("hy2://secret@example.com")
         val config = JSONObject(TunnelConfig.create(p, ClientSettings(mtu = 1280, ipv6 = false, dns = "https://dns.google/dns-query")))

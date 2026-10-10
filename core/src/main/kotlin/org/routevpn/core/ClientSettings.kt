@@ -11,7 +11,8 @@ data class ClientSettings(
     val healthEnabled: Boolean = true, val healthIntervalSeconds: Int = 60,
     val hwidEnabled: Boolean = true, val hwid: String = UUID.randomUUID().toString(),
     val deviceInfo: Boolean = false, val userAgent: String = "Moth/0.2",
-    val sortByLatency: Boolean = false
+    val sortByLatency: Boolean = false,
+    val compactServers: Boolean = true, val hideUnavailable: Boolean = false
 ) {
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
@@ -30,12 +31,14 @@ data class ClientSettings(
         .put("probeUrl", probeUrl).put("timeoutSeconds", timeoutSeconds).put("healthEnabled", healthEnabled)
         .put("healthIntervalSeconds", healthIntervalSeconds).put("hwidEnabled", hwidEnabled).put("hwid", hwid)
         .put("deviceInfo", deviceInfo).put("userAgent", userAgent).put("sortByLatency", sortByLatency)
+        .put("compactServers", compactServers).put("hideUnavailable", hideUnavailable)
     companion object {
         fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
             j.optString("dns", "https://1.1.1.1/dns-query"), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
             j.optInt("timeoutSeconds", 10), j.optBoolean("healthEnabled", true), j.optInt("healthIntervalSeconds", 60),
             j.optBoolean("hwidEnabled", true), j.getString("hwid"), j.optBoolean("deviceInfo", false),
-            j.optString("userAgent", "Moth/0.2"), j.optBoolean("sortByLatency", false)).validate()
+            j.optString("userAgent", "Moth/0.2"), j.optBoolean("sortByLatency", false),
+            j.optBoolean("compactServers", true), j.optBoolean("hideUnavailable", false)).validate()
     }
 }
 
