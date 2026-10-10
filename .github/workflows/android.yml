@@ -1,7 +1,7 @@
 name: Android
 on:
   push:
-    branches: [main]
+    branches: [main, feature/settings-protocols-health]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -28,6 +28,10 @@ jobs:
         run: sdkmanager 'ndk;28.0.13004108' 'platforms;android-34' 'build-tools;34.0.0'
       - name: Build official mobile core
         run: bash scripts/build-libbox.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Moth-native-core
+          path: libbox.aar
       - name: Archive corresponding source and Go dependencies
         run: |
           mkdir -p artifacts
@@ -41,7 +45,7 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :core:test :app:assembleDebug :app:lintDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk artifacts/Moth-0.1.0-alpha.1.apk
+          cp app/build/outputs/apk/debug/app-debug.apk artifacts/Moth-0.2.0-alpha.1.apk
           cp libbox.aar artifacts/libbox-v1.11.15.aar
           sha256sum artifacts/* > artifacts/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4

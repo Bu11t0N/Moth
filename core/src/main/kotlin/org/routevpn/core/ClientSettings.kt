@@ -1,0 +1,75 @@
+package org.routevpn.core
+
+import org.json.JSONObject
+import java.net.URI
+import java.util.UUID
+
+data class ClientSettings(
+    val theme: String = "system", val mtu: Int = 1400, val ipv6: Boolean = true,
+    val dns: String = "https://1.1.1.1/dns-query",
+    val probeUrl: String = "https://www.gstatic.com/generate_204", val timeoutSeconds: Int = 10,
+    val healthEnabled: Boolean = true, val healthIntervalSeconds: Int = 60,
+    val hwidEnabled: Boolean = true, val hwid: String = UUID.randomUUID().toString(),
+    val deviceInfo: Boolean = false, val userAgent: String = "Moth/0.2",
+    val sortByLatency: Boolean = false
+) {
+    fun validate(): ClientSettings {
+        require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
+        require(mtu in 1280..9000) { "MTU: от 1280 до 9000" }
+        require(timeoutSeconds in 3..30) { "Тайм-аут: от 3 до 30 секунд" }
+        require(healthIntervalSeconds in 30..600) { "Интервал проверки: от 30 до 600 секунд" }
+        require(hwid.matches(Regex("[a-zA-Z0-9=-]{10,64}"))) { "HWID: 10–64 символа, буквы, цифры, = или -" }
+        require(userAgent.isNotBlank() && userAgent.length <= 160 && userAgent.all { it.code in 32..126 }) { "User-Agent должен содержать печатные латинские символы" }
+        listOf(dns, probeUrl).forEach { value ->
+            val u = URI(value)
+            require(u.scheme == "https" && !u.host.isNullOrBlank() && u.rawUserInfo == null && u.fragment == null) { "Нужен корректный HTTPS-адрес" }
+        }
+        return this
+    }
+    fun json(): JSONObject = JSONObject().put("theme", theme).put("mtu", mtu).put("ipv6", ipv6).put("dns", dns)
+        .put("probeUrl", probeUrl).put("timeoutSeconds", timeoutSeconds).put("healthEnabled", healthEnabled)
+        .put("healthIntervalSeconds", healthIntervalSeconds).put("hwidEnabled", hwidEnabled).put("hwid", hwid)
+        .put("deviceInfo", deviceInfo).put("userAgent", userAgent).put("sortByLatency", sortByLatency)
+    companion object {
+        fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
+            j.optString("dns", "https://1.1.1.1/dns-query"), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
+            j.optInt("timeoutSeconds", 10), j.optBoolean("healthEnabled", true), j.optInt("healthIntervalSeconds", 60),
+            j.optBoolean("hwidEnabled", true), j.getString("hwid"), j.optBoolean("deviceInfo", false),
+            j.optString("userAgent", "Moth/0.2"), j.optBoolean("sortByLatency", false)).validate()
+    }
+}
+
+object SubscriptionHeaders {
+    fun create(settings: ClientSettings, original: URI, destination: URI, osVersion: String, model: String): Map<String, String> {
+        val headers = mutableMapOf("User-Agent" to settings.userAgent, "Accept" to "text/plain, application/yaml, application/json, application/octet-stream")
+        val sameOrigin = original.scheme == destination.scheme && original.host.equals(destination.host, true) &&
+            (if (original.port == -1) 443 else original.port) == (if (destination.port == -1) 443 else destination.port)
+        if (settings.hwidEnabled && sameOrigin) {
+            headers["x-hwid"] = settings.hwid
+            if (settings.deviceInfo) {
+                headers["x-device-os"] = "Android"
+                headers["x-ver-os"] = osVersion.filter { it.code in 32..126 }.take(64)
+                headers["x-device-model"] = model.filter { it.code in 32..126 }.take(120)
+            }
+        }
+        return headers
+    }
+}
+
+object LocalProxyConfig {
+    fun singBox(profile: Profile, port: Int, username: String, password: String): String = JSONObject()
+        .put("log", JSONObject().put("disabled", true))
+        .put("dns", JSONObject().put("servers", org.json.JSONArray().put(JSONObject().put("tag", "bootstrap").put("address", "https://1.1.1.1/dns-query").put("detour", "direct")))
+            .put("final", "bootstrap").put("strategy", "ipv4_only"))
+        .put("inbounds", org.json.JSONArray().put(JSONObject().put("type", "socks").put("listen", "127.0.0.1").put("listen_port", port)
+            .put("users", org.json.JSONArray().put(JSONObject().put("username", username).put("password", password)))))
+        .put("outbounds", org.json.JSONArray().put(JSONObject(profile.outbound)).put(JSONObject().put("type", "direct").put("tag", "direct")))
+        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy")).toString()
+    fun bridge(profile: Profile, port: Int, username: String, password: String): Profile = profile.copy(engine = "sing-box", outbound = JSONObject()
+        .put("type", "socks").put("tag", "proxy").put("server", "127.0.0.1").put("server_port", port).put("version", "5")
+        .put("username", username).put("password", password).toString())
+    fun xray(profile: Profile, port: Int, username: String, password: String): String = JSONObject().put("log", JSONObject().put("loglevel", "none"))
+        .put("inbounds", org.json.JSONArray().put(JSONObject().put("listen", "127.0.0.1").put("port", port).put("protocol", "socks")
+            .put("settings", JSONObject().put("auth", "password").put("udp", true).put("accounts", org.json.JSONArray().put(JSONObject().put("user", username).put("pass", password))))))
+        .put("outbounds", org.json.JSONArray().put(JSONObject(profile.outbound))).toString()
+}
