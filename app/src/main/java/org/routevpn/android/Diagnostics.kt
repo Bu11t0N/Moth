@@ -78,8 +78,9 @@ class ProxyRequest(private val service: VpnService, private val port: Int, priva
         }
         val raw = Socket(); socket = raw
         try {
-            stage = "protect socket"
-            check(service.protect(raw))
+            // The loopback connection to the local SOCKS proxy never needs protect(); it returns false when no VPN is up.
+            stage = "protect socket (optional)"
+            if (!service.protect(raw)) Logger.d("Probe", "protect(loopback socket) returned false; continuing (not required for 127.0.0.1)")
             stage = "tcp connect to local SOCKS"
             raw.connect(InetSocketAddress("127.0.0.1", port), timeout())
             raw.soTimeout = timeout()

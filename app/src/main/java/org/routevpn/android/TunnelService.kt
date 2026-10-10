@@ -22,6 +22,7 @@ import org.routevpn.core.Profile
 import org.routevpn.core.TunnelConfig
 import org.routevpn.core.LocalProxyConfig
 import org.routevpn.core.ProbePolicy
+import org.routevpn.core.ProtectPolicy
 import java.net.ServerSocket
 import java.util.UUID
 
@@ -258,7 +259,12 @@ class TunnelService : VpnService(), PlatformInterface {
             stage = "tcp connect"
             java.net.Socket().use { socket ->
                 tcpSocket = socket
-                try { check(protect(socket)); network.bindSocket(socket); socket.connect(java.net.InetSocketAddress(address, endpoint.second), remaining()); return (System.nanoTime() - start) / 1_000_000 }
+                try {
+                    val tunnelActive = TunnelStatus.state.value !in setOf(TunnelState.OFF, TunnelState.ERROR)
+                    val protectedOk = protect(socket)
+                    if (!protectedOk) Logger.w("Probe", "tcpProbe: protect(socket) returned false (tunnelActive=$tunnelActive)")
+                    check(ProtectPolicy.allows(protectedOk, tunnelActive)) { "protect(socket) failed" }
+                    network.bindSocket(socket); socket.connect(java.net.InetSocketAddress(address, endpoint.second), remaining()); return (System.nanoTime() - start) / 1_000_000 }
                 finally { tcpSocket = null }
             }
         } catch (t: Throwable) {
@@ -288,7 +294,13 @@ class TunnelService : VpnService(), PlatformInterface {
         return tun!!.fd
     }
     override fun usePlatformAutoDetectInterfaceControl() = true
-    override fun autoDetectInterfaceControl(fd: Int) { check(!stopped && protect(fd)) { "Cannot protect upstream socket" } }
+    override fun autoDetectInterfaceControl(fd: Int) {
+        check(!stopped) { "Service stopped" }
+        val protectedOk = protect(fd)
+        val tunnelActive = TunnelStatus.state.value !in setOf(TunnelState.OFF, TunnelState.ERROR)
+        if (!protectedOk) Logger.w("Core", "autoDetectInterfaceControl: protect(fd) returned false (tunnelActive=$tunnelActive, tunnelState=${TunnelStatus.state.value})")
+        check(ProtectPolicy.allows(protectedOk, tunnelActive)) { "Cannot protect upstream socket" }
+    }
     override fun writeLog(message: String?) { /* Never retain core logs containing credentials. */ }
     override fun useProcFS() = false
     override fun findConnectionOwner(ipProtocol: Int, sourceAddress: String?, sourcePort: Int, destinationAddress: String?, destinationPort: Int): Int = -1
