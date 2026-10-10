@@ -29,6 +29,7 @@ import org.routevpn.core.Subscriptions
 import org.routevpn.core.TunnelConfig
 import org.routevpn.core.ClientSettings
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.activity.compose.BackHandler
 
 class MainActivity : ComponentActivity() {
     private lateinit var store: SubscriptionStore
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
             busy = false
         }
         setContent {
+            BackHandler(enabled = settingsOpen) { settingsOpen = false }
             val tunnel by TunnelStatus.state.collectAsState()
             val results by Diagnostics.results.collectAsState()
             val health by Diagnostics.health.collectAsState()
@@ -67,14 +69,16 @@ class MainActivity : ComponentActivity() {
             val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
             MaterialTheme(colorScheme = if (dark) darkColorScheme(primary = Color(0xFF83DCC6), background = Color(0xFF101A23), surface = Color(0xFF1C2A35)) else lightColorScheme()) {
                 Surface(Modifier.fillMaxSize()) {
-                    if (settingsOpen) SettingsScreen(settings, locked, { next ->
+                    if (settingsOpen) {
+                        SettingsScreen(settings, locked, { next ->
                         busy = true
                         lifecycleScope.launch {
                             try { withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).save(next) }; settings = next; settingsOpen = false; message = "Настройки сохранены" }
                             catch (_: Exception) { message = "Не удалось сохранить настройки" }
                             finally { busy = false }
                         }
-                    }, { settingsOpen = false }) else
+                        }, { settingsOpen = false })
+                    } else {
                     Column(Modifier.fillMaxSize().padding(24.dp).statusBarsPadding().navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("MOTH / VPN", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
@@ -118,12 +122,14 @@ class MainActivity : ComponentActivity() {
                                     Column(Modifier.weight(1f).padding(start = 8.dp)) {
                                         Text(profile.name, style = MaterialTheme.typography.titleMedium); Text(profile.protocol.uppercase(), style = MaterialTheme.typography.labelSmall)
                                         results[profile.id]?.let { r -> Text(if (r.checking) "Проверяем…" else r.latencyMs?.let { "$it мс · HTTPS" } ?: r.error.orEmpty(), style = MaterialTheme.typography.bodySmall) }
+                                        results[profile.id]?.takeIf { !it.checking }?.let { r -> Text("Проверено " + android.text.format.DateFormat.getTimeFormat(this@MainActivity).format(java.util.Date(r.checkedAt)), style = MaterialTheme.typography.labelSmall) }
                                         TextButton(enabled = !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING), onClick = { diagnose(profile.id, false) }) { Text("Проверить") }
                                     }
                                 }
                             }
                         }
                         Text("Без автоматического выбора и переподключения", style = MaterialTheme.typography.labelSmall)
+                    }
                     }
                     if (dialog) AlertDialog(onDismissRequest = { if (!busy) dialog = false }, title = { Text("Добавить подписку") }, text = {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -162,7 +168,7 @@ class MainActivity : ComponentActivity() {
         }
     }
     private fun select(id: String) {
-        if (busy || TunnelStatus.state.value in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING)) return
+        if (busy || Diagnostics.running.value || TunnelStatus.state.value in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING)) return
         val next = saved?.copy(selected = id) ?: return
         busy = true
         lifecycleScope.launch {

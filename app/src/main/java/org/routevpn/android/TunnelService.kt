@@ -85,7 +85,7 @@ class TunnelService : VpnService(), PlatformInterface {
             cancelProbes()
         } else if (intent?.action in setOf("PROBE", "SPEED")) {
             if (Diagnostics.running.value) return START_NOT_STICKY
-            foreground()
+            foreground("Проверяем VPN-серверы — управление в приложении")
             probeCancel = AtomicBoolean(false)
             val cancel = probeCancel
             val id = intent?.getStringExtra("profile")
@@ -99,13 +99,13 @@ class TunnelService : VpnService(), PlatformInterface {
         }
         return START_NOT_STICKY
     }
-    private fun foreground() {
+    private fun foreground(text: String = "VPN запущен — управление в приложении") {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("vpn", "VPN-подключение", NotificationManager.IMPORTANCE_LOW))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 1, Intent(this, TunnelService::class.java).setAction("STOP"), PendingIntent.FLAG_IMMUTABLE)
         val notification = Notification.Builder(this, "vpn").setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle("Moth")
-            .setContentText("VPN запущен — управление в приложении").setContentIntent(open).setOngoing(true)
+            .setContentText(text).setContentIntent(open).setOngoing(true)
             .addAction(Notification.Action.Builder(null, "Отключить", stop).build()).build()
         startForeground(1, notification)
     }
@@ -196,7 +196,7 @@ class TunnelService : VpnService(), PlatformInterface {
         return tun!!.fd
     }
     override fun usePlatformAutoDetectInterfaceControl() = true
-    override fun autoDetectInterfaceControl(fd: Int) { check(protect(fd)) { "Cannot protect upstream socket" } }
+    override fun autoDetectInterfaceControl(fd: Int) { check(!stopped && protect(fd)) { "Cannot protect upstream socket" } }
     override fun writeLog(message: String?) { /* Never retain core logs containing credentials. */ }
     override fun useProcFS() = false
     override fun findConnectionOwner(ipProtocol: Int, sourceAddress: String?, sourcePort: Int, destinationAddress: String?, destinationPort: Int): Int = -1

@@ -1,7 +1,7 @@
 name: Android
 on:
   push:
-    branches: [main, feature/settings-protocols-health]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:

@@ -33,6 +33,16 @@ class FeaturesTest {
         assertFails { Subscriptions.parseLink("hy2://secret@example.com?insecure=1") }
         assertFails { Subscriptions.parseLink("vless://$uuid@example.com:443?type=xhttp&mode=unknown") }
         assertFails { Subscriptions.parseLink("tuic://$uuid:p@example.com?congestion_control=unknown") }
+        val extra = java.net.URLEncoder.encode("{\"downloadSettings\":{\"tlsSettings\":{\"allowInsecure\":true}}}", "UTF-8")
+        assertFails { Subscriptions.parseLink("vless://$uuid@example.com:443?type=xhttp&extra=$extra") }
+    }
+    @Test fun vmessXhttpAndBootstrapDns() {
+        val v = JSONObject().put("id", uuid).put("add", "example.com").put("port", 443).put("net", "xhttp").put("tls", "tls").put("scy", "auto")
+        val p = Subscriptions.parseLink("vmess://" + java.util.Base64.getEncoder().encodeToString(v.toString().toByteArray()))
+        assertEquals("xray", p.engine)
+        val config = JSONObject(LocalProxyConfig.xray(p, 18080, "u", "p"))
+        assertEquals("https+local://1.1.1.1/dns-query", config.getJSONObject("dns").getJSONArray("servers").getString(0))
+        assertEquals("ForceIPv4", config.getJSONArray("outbounds").getJSONObject(0).getJSONObject("streamSettings").getJSONObject("sockopt").getString("domainStrategy"))
     }
     @Test fun clashMixedSubscription() {
         val result = Subscriptions.parse("""

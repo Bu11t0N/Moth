@@ -69,7 +69,21 @@ object ExtraProtocols {
         val mode = q["mode"] ?: "auto"
         require(mode in setOf("auto", "packet-up", "stream-up", "stream-one")) { "Неизвестный режим XHTTP" }
         val xhttp = JSONObject().put("host", q["host"].orEmpty()).put("path", q["path"] ?: "/").put("mode", mode)
-        q["extra"]?.takeIf { it.isNotBlank() }?.let { require(it.length <= 16384); xhttp.put("extra", JSONObject(it)) }
+        q["extra"]?.takeIf { it.isNotBlank() }?.let {
+            require(it.length <= 16384)
+            val extra = JSONObject(it)
+            fun checkTls(value: Any, depth: Int = 0) {
+                require(depth <= 20) { "Слишком сложные параметры XHTTP" }
+                if (value is JSONObject) value.keys().forEach { key ->
+                    require(!(key in setOf("allowInsecure", "insecure") && value.optBoolean(key))) { "Отключение проверки TLS не поддерживается" }
+                    checkTls(value.get(key), depth + 1)
+                }
+                if (value is JSONArray) (0 until value.length()).forEach { checkTls(value.get(it), depth + 1) }
+            }
+            checkTls(extra)
+            extra.optJSONObject("downloadSettings")?.put("sockopt", JSONObject().put("domainStrategy", "ForceIPv4"))
+            xhttp.put("extra", extra)
+        }
         val stream = JSONObject().put("network", "xhttp").put("security", security).put("xhttpSettings", xhttp)
         if (security != "none") {
             val tls = JSONObject().put("serverName", q["sni"] ?: q["serverName"] ?: u.host.removeSurrounding("[", "]"))

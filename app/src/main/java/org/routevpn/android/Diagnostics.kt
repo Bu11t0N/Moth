@@ -52,7 +52,7 @@ object Diagnostics {
 /** No system DNS lookup: the destination hostname is sent to the authenticated SOCKS server. */
 class ProxyRequest(private val service: VpnService, private val port: Int, private val user: String, private val password: String,
                    private val timeoutSeconds: Int, private val cancelled: AtomicBoolean) {
-    private var socket: Socket? = null
+    @Volatile private var socket: Socket? = null
     fun cancel() { runCatching { socket?.close() } }
     fun run(address: String, downloadLimit: Int = 0): Pair<Long, Long> {
         val url = URL(address)
