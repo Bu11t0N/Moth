@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Moth</string>
+    <string name="msg_connection_has_not_been_checked_yet_0" formatted="false">"Connection has not been checked yet"</string>
+    <string name="msg_server_timed_out_1" formatted="false">"Server timed out"</string>
+    <string name="msg_dns_lookup_timed_out_2" formatted="false">"DNS lookup timed out"</string>
+    <string name="msg_could_not_resolve_the_server_address_3" formatted="false">"Could not resolve the server address"</string>
+    <string name="msg_server_port_is_not_responding_4" formatted="false">"Server port is not responding"</string>
+    <string name="msg_could_not_verify_https_5" formatted="false">"Could not verify HTTPS"</string>
+    <string name="msg_check_failed_6" formatted="false">"Check failed"</string>
+    <string name="msg_vpn_network_is_not_ready_yet_7" formatted="false">"VPN network is not ready yet"</string>
+    <string name="msg_disconnect_vpn_8" formatted="false">"Disconnect VPN"</string>
+    <string name="msg_connect_vpn_9" formatted="false">"Connect VPN"</string>
+    <string name="msg_connect_10" formatted="false">"Connect"</string>
+    <string name="msg_vpn_is_on_11" formatted="false">"VPN is on"</string>
+    <string name="msg_connecting_12" formatted="false">"Connecting…"</string>
+    <string name="msg_disconnecting_13" formatted="false">"Disconnecting…"</string>
+    <string name="msg_could_not_connect_14" formatted="false">"Could not connect"</string>
+    <string name="msg_checking_internet_access_15" formatted="false">"Checking internet access…"</string>
+    <string name="msg_add_subscription_16" formatted="false">"Add subscription"</string>
+    <string name="msg_host_saved_profiles_size_servers_17" formatted="false">"%1$s · %2$s servers"</string>
+    <string name="msg_traffic_1f_1f_gib_18" formatted="false">"Traffic: %.1f / %.1f GiB"</string>
+    <string name="msg_subscription_expires_on_19" formatted="false">"Subscription expires on "</string>
+    <string name="msg_no_network_20" formatted="false">"No network"</string>
+    <string name="msg_mobile_data_21" formatted="false">"Mobile data"</string>
+    <string name="msg_vpn_permission_was_not_granted_22" formatted="false">"VPN permission was not granted"</string>
+    <string name="msg_could_not_read_the_saved_subscription_add_it_23" formatted="false">"Could not read the saved subscription. Add it again."</string>
+    <string name="msg_could_not_read_settings_24" formatted="false">"Could not read settings"</string>
+    <string name="msg_could_not_apply_settings_25" formatted="false">"Could not apply settings"</string>
+    <string name="msg_home_26" formatted="false">"Home"</string>
+    <string name="msg_servers_27" formatted="false">"Servers"</string>
+    <string name="msg_settings_28" formatted="false">"Settings"</string>
+    <string name="msg_paste_the_https_link_from_your_vpn_provider_i_29" formatted="false">"Paste the HTTPS link from your VPN provider. It is stored only on this device."</string>
+    <string name="msg_subscription_link_30" formatted="false">"Subscription link"</string>
+    <string name="msg_add_31" formatted="false">"Add"</string>
+    <string name="msg_cancel_32" formatted="false">"Cancel"</string>
+    <string name="msg_downloading_servers_33" formatted="false">"Downloading servers…"</string>
+    <string name="msg_servers_added_result_first_profiles_size_34" formatted="false">"Servers added: %1$s"</string>
+    <string name="msg_unsupported_profiles_skipped_result_second_35" formatted="false">". Unsupported profiles skipped: %1$s"</string>
+    <string name="msg_subscription_service_timed_out_36" formatted="false">"Subscription service timed out"</string>
+    <string name="msg_could_not_find_the_subscription_service_check_37" formatted="false">"Could not find the subscription service. Check your internet connection."</string>
+    <string name="msg_could_not_verify_the_secure_connection_to_the_38" formatted="false">"Could not verify the secure connection to the subscription service"</string>
+    <string name="msg_could_not_add_the_subscription_39" formatted="false">"Could not add the subscription"</string>
+    <string name="msg_could_not_download_the_subscription_check_the_40" formatted="false">"Could not download the subscription. Check the link and your internet connection."</string>
+    <string name="msg_could_not_save_the_selected_server_41" formatted="false">"Could not save the selected server"</string>
+    <string name="msg_subscription_removed_42" formatted="false">"Subscription removed"</string>
+    <string name="msg_could_not_remove_the_subscription_43" formatted="false">"Could not remove the subscription"</string>
+    <string name="msg_switch_networks_to_run_this_check_44" formatted="false">"Switch networks to run this check"</string>
+    <string name="msg_could_not_start_the_check_or_vpn_45" formatted="false">"Could not start the check or VPN"</string>
+    <string name="msg_check_cancelled_46" formatted="false">"Check cancelled"</string>
+    <string name="msg_replace_subscription_47" formatted="false">"Replace subscription"</string>
+    <string name="msg_update_subscription_48" formatted="false">"Update subscription"</string>
+    <string name="msg_cancel_checks_49" formatted="false">"Cancel checks"</string>
+    <string name="msg_check_servers_50" formatted="false">"Check servers"</string>
+    <string name="msg_measure_speed_download_up_to_1_mib_51" formatted="false">"Measure speed: download up to 1 MiB"</string>
+    <string name="msg_remove_subscription_52" formatted="false">"Remove subscription"</string>
+    <string name="msg_no_network_available_for_this_check_53" formatted="false">"No network available for this check"</string>
+    <string name="msg_to_check_mobile_data_enable_it_and_turn_off_w_54" formatted="false">"To check mobile data, enable it and turn off Wi-Fi"</string>
+    <string name="msg_connect_to_wi_fi_to_run_this_check_55" formatted="false">"Connect to Wi-Fi to run this check"</string>
+    <string name="msg_hide_unavailable_56" formatted="false">"Hide unavailable"</string>
+    <string name="msg_search_servers_57" formatted="false">"Search servers"</string>
+    <string name="msg_add_a_subscription_58" formatted="false">"Add a subscription"</string>
+    <string name="msg_no_servers_found_59" formatted="false">"No servers found"</string>
+    <string name="msg_show_all_60" formatted="false">"Show all"</string>
+    <string name="msg_selected_61" formatted="false">", selected"</string>
+    <string name="msg_checking_62" formatted="false">"checking…"</string>
+    <string name="msg_r_latencyms_ms_r_method_63" formatted="false">"%1$s ms · %2$s"</string>
+    <string name="msg_not_checked_64" formatted="false">"not checked"</string>
+    <string name="msg_port_is_reachable_vpn_traffic_has_not_been_ch_65" formatted="false">"Port is reachable; VPN traffic has not been checked"</string>
+    <string name="msg_checked_on_a_different_network_66" formatted="false">"Checked on a different network"</string>
+    <string name="msg_remove_subscription_67" formatted="false">"Remove subscription?"</string>
+    <string name="msg_the_subscription_link_will_need_to_be_added_a_68" formatted="false">"The subscription link will need to be added again to connect."</string>
+    <string name="msg_remove_69" formatted="false">"Remove"</string>
+    <string name="msg_enter_a_valid_https_url_70" formatted="false">"Enter a valid HTTPS URL"</string>
+    <string name="msg_check_your_settings_71" formatted="false">"Check your settings"</string>
+    <string name="msg_enter_a_whole_number_72" formatted="false">"Enter a whole number"</string>
+    <string name="msg_back_73" formatted="false">"Back"</string>
+    <string name="msg_appearance_74" formatted="false">"Appearance"</string>
+    <string name="msg_connection_75" formatted="false">"Connection"</string>
+    <string name="msg_checks_76" formatted="false">"Checks"</string>
+    <string name="msg_subscription_and_hwid_77" formatted="false">"Subscription and HWID"</string>
+    <string name="msg_about_78" formatted="false">"About"</string>
+    <string name="msg_theme_79" formatted="false">"Theme"</string>
+    <string name="msg_system_default_80" formatted="false">"System default"</string>
+    <string name="msg_dark_81" formatted="false">"Dark"</string>
+    <string name="msg_light_82" formatted="false">"Light"</string>
+    <string name="msg_compact_server_rows_83" formatted="false">"Compact server rows"</string>
+    <string name="msg_sort_by_latency_84" formatted="false">"Sort by latency"</string>
+    <string name="msg_hide_unavailable_servers_85" formatted="false">"Hide unavailable servers"</string>
+    <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Servers with failed checks in the last 15 minutes are hidden. Unchecked servers and checks in progress stay visible. Check again after switching networks."</string>
+    <string name="msg_screen_sharing_and_screenshots_are_allowed_su_87" formatted="false">"Screen sharing and screenshots are allowed. Subscription links and HWID are masked in input fields."</string>
+    <string name="msg_network_settings_are_available_after_disconne_88" formatted="false">"Network settings are available after disconnecting VPN and finishing checks."</string>
+    <string name="msg_ipv6_through_vpn_89" formatted="false">"IPv6 through VPN"</string>
+    <string name="msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90" formatted="false">"When disabled, IPv6 is blocked inside the tunnel."</string>
+    <string name="msg_server_bootstrap_dns_91" formatted="false">"Server bootstrap DNS"</string>
+    <string name="msg_this_dns_is_used_directly_to_connect_to_serve_92" formatted="false">"This DNS is used directly to connect to servers. If Cloudflare is unavailable, choose another DoH endpoint."</string>
+    <string name="msg_disconnect_vpn_and_finish_checks_to_change_th_93" formatted="false">"Disconnect VPN and finish checks to change these settings."</string>
+    <string name="msg_check_the_active_tunnel_94" formatted="false">"Check the active tunnel"</string>
+    <string name="msg_interval_30_600_seconds_95" formatted="false">"Interval · 30–600 seconds"</string>
+    <string name="msg_timeout_3_30_seconds_96" formatted="false">"Timeout · 3–30 seconds"</string>
+    <string name="msg_https_check_url_97" formatted="false">"HTTPS check URL"</string>
+    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Latency includes establishing an HTTPS connection. A failed check does not mean every website is unavailable."</string>
+    <string name="msg_check_method_99" formatted="false">"Check method"</string>
+    <string name="msg_https_multiple_urls_100" formatted="false">"HTTPS · multiple URLs"</string>
+    <string name="msg_https_custom_url_101" formatted="false">"HTTPS · custom URL"</string>
+    <string name="msg_tcp_port_reachability_102" formatted="false">"TCP · port reachability"</string>
+    <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP does not verify VPN traffic and cannot check UDP-based Hysteria/TUIC. HTTPS checks traffic through the server."</string>
+    <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Disconnect and finish checks to change subscription settings."</string>
+    <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Send HWID to the provider"</string>
+    <string name="msg_a_persistent_installation_identifier_without_106" formatted="false">"A persistent installation identifier, without IMEI or serial number. Change it only if the provider supplies a specific value."</string>
+    <string name="msg_copy_hwid_107" formatted="false">"Copy HWID"</string>
+    <string name="msg_send_device_model_and_android_version_108" formatted="false">"Send device model and Android version"</string>
+    <string name="msg_subscription_user_agent_109" formatted="false">"Subscription User-Agent"</string>
+    <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Providers may select the subscription format by User-Agent. HWID is sent only to the original subscription website."</string>
+    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.11.15 + Xray 25.3.6\nOpen source · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
+    <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Use an HTTPS link without a username or password in the URL"</string>
+    <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Subscription device limit reached. Contact the provider."</string>
+    <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"The provider requires HWID. Enable it in settings."</string>
+    <string name="msg_redirect_destination_is_missing_115" formatted="false">"Redirect destination is missing"</string>
+    <string name="msg_the_server_list_is_too_large_116" formatted="false">"The server list is too large"</string>
+    <string name="msg_subscription_is_unavailable_check_the_link_an_117" formatted="false">"Subscription is unavailable. Check the link and expiration date."</string>
+    <string name="msg_subscription_service_returned_an_error_try_ag_118" formatted="false">"Subscription service returned an error. Try again later."</string>
+    <string name="msg_too_many_redirects_119" formatted="false">"Too many redirects"</string>
+    <string name="msg_checking_internet_access_through_vpn_120" formatted="false">"Checking internet access through VPN…"</string>
+    <string name="msg_checks_are_disabled_in_settings_121" formatted="false">"Checks are disabled in settings"</string>
+    <string name="msg_checking_vpn_servers_manage_in_the_app_122" formatted="false">"Checking VPN servers — manage in the app"</string>
+    <string name="msg_download_test_up_to_1_mib_123" formatted="false">"Download test: up to 1 MiB…"</string>
+    <string name="msg_vpn_is_running_manage_in_the_app_124" formatted="false">"VPN is running — manage in the app"</string>
+    <string name="msg_vpn_connection_125" formatted="false">"VPN connection"</string>
+    <string name="msg_disconnect_126" formatted="false">"Disconnect"</string>
+    <string name="msg_internet_access_through_vpn_is_available_127" formatted="false">"Internet access through VPN is available"</string>
+    <string name="msg_internet_check_through_vpn_failed_128" formatted="false">"Internet check through VPN failed"</string>
+    <string name="msg_udp_protocol_choose_an_https_check_129" formatted="false">"UDP protocol: choose an HTTPS check"</string>
+    <string name="msg_profile_name_1f_mbit_s_2f_mib_130" formatted="false">"%1$s: %2$.1f Mbit/s · %3$.2f MiB"</string>
+    <string name="msg_speed_test_failed_131" formatted="false">"Speed test failed"</string>
+    <string name="msg_test_cancelled_132" formatted="false">"Test cancelled"</string>
+    <string name="msg_no_address_found_133" formatted="false">"No address found"</string>
+    <string name="msg_use_a_clash_subscription_with_a_proxies_list_134" formatted="false">"Use a Clash subscription with a proxies list"</string>
+    <string name="msg_clash_an_embedded_proxies_list_is_required_pr_135" formatted="false">"Clash: an embedded proxies list is required; proxy-providers are not supported yet"</string>
+    <string name="msg_too_many_servers_136" formatted="false">"Too many servers"</string>
+    <string name="msg_clash_no_supported_profiles_check_the_format_137" formatted="false">"Clash: no supported profiles; check the format and TLS settings"</string>
+    <string name="msg_unsafe_tls_configuration_138" formatted="false">"Unsafe TLS configuration"</string>
+    <string name="msg_proxy_chains_are_not_supported_139" formatted="false">"Proxy chains are not supported"</string>
+    <string name="msg_unsupported_websocket_headers_140" formatted="false">"Unsupported WebSocket headers"</string>
+    <string name="msg_websocket_early_data_is_not_supported_yet_141" formatted="false">"WebSocket early data is not supported yet"</string>
+    <string name="msg_tuic_v4_is_not_supported_142" formatted="false">"TUIC v4 is not supported"</string>
+    <string name="msg_unsupported_protocol_143" formatted="false">"Unsupported protocol"</string>
+    <string name="msg_invalid_theme_144" formatted="false">"Invalid theme"</string>
+    <string name="msg_invalid_check_method_145" formatted="false">"Invalid check method"</string>
+    <string name="msg_mtu_must_be_between_1280_and_9000_146" formatted="false">"MTU must be between 1280 and 9000"</string>
+    <string name="msg_timeout_must_be_between_3_and_30_seconds_147" formatted="false">"Timeout must be between 3 and 30 seconds"</string>
+    <string name="msg_check_interval_must_be_between_30_and_600_sec_148" formatted="false">"Check interval must be between 30 and 600 seconds"</string>
+    <string name="msg_hwid_10_64_letters_digits_or_149" formatted="false">"HWID: 10–64 letters, digits, = or -"</string>
+    <string name="msg_user_agent_must_contain_printable_ascii_chara_150" formatted="false">"User-Agent must contain printable ASCII characters"</string>
+    <string name="msg_disabling_tls_verification_is_not_supported_151" formatted="false">"Disabling TLS verification is not supported"</string>
+    <string name="msg_server_address_is_missing_152" formatted="false">"Server address is missing"</string>
+    <string name="msg_hysteria_port_hopping_is_not_supported_yet_153" formatted="false">"Hysteria port hopping is not supported yet"</string>
+    <string name="msg_hysteria2_password_is_missing_154" formatted="false">"Hysteria2 password is missing"</string>
+    <string name="msg_invalid_hysteria2_obfuscation_settings_155" formatted="false">"Invalid Hysteria2 obfuscation settings"</string>
+    <string name="msg_hysteria_requires_udp_transport_156" formatted="false">"Hysteria requires UDP transport"</string>
+    <string name="msg_hysteria_requires_upmbps_and_downmbps_157" formatted="false">"Hysteria requires upmbps and downmbps"</string>
+    <string name="msg_tuic_v5_requires_a_uuid_and_password_158" formatted="false">"TUIC v5 requires a UUID and password"</string>
+    <string name="msg_server_key_is_missing_159" formatted="false">"Server key is missing"</string>
+    <string name="msg_unsupported_vless_encryption_160" formatted="false">"Unsupported VLESS encryption"</string>
+    <string name="msg_xhttp_does_not_support_vision_flow_161" formatted="false">"XHTTP does not support Vision flow"</string>
+    <string name="msg_unsupported_xhttp_mode_162" formatted="false">"Unsupported XHTTP mode"</string>
+    <string name="msg_xhttp_extra_settings_are_too_large_163" formatted="false">"XHTTP extra settings are too large"</string>
+    <string name="msg_reality_public_key_is_missing_164" formatted="false">"REALITY public key is missing"</string>
+    <string name="msg_no_supported_servers_use_vless_vmess_trojan_o_165" formatted="false">"No supported servers. Use VLESS, VMess, Trojan or Shadowsocks links."</string>
+    <string name="msg_vmess_alterid_is_not_supported_166" formatted="false">"VMess alterId is not supported"</string>
+    <string name="msg_transport_is_not_supported_167" formatted="false">"Transport is not supported"</string>
+    <string name="msg_invalid_server_address_168" formatted="false">"Invalid server address"</string>
+    <string name="msg_insecure_tls_settings_are_not_supported_169" formatted="false">"Insecure TLS settings are not supported"</string>
+    <string name="msg_shadowsocks_plugins_are_not_supported_170" formatted="false">"Shadowsocks plugins are not supported"</string>
+    <string name="msg_transport_type_is_not_supported_171" formatted="false">"Transport %1$s is not supported"</string>
+    <string name="language">Language</string>
+    <string name="add_tile">Add VPN button to Quick Settings</string>
+    <string name="tile_off">Disconnected</string>
+    <string name="tile_on">Connected</string>
+    <string name="tile_starting">Connecting…</string>
+    <string name="tile_stopping">Disconnecting…</string>
+    <string name="tile_setup">Add a subscription to connect</string>
+</resources>

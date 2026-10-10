@@ -6,7 +6,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -30,7 +30,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+    companion object { const val CONNECT_FROM_TILE = "org.routevpn.android.CONNECT_FROM_TILE" }
     private lateinit var store: SubscriptionStore
     private var saved by mutableStateOf<SavedSubscription?>(null)
     private var busy by mutableStateOf(false)
@@ -42,24 +43,28 @@ class MainActivity : ComponentActivity() {
     private var pendingAction: Intent? = null
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val action = pendingAction; pendingAction = null
-        if (result.resultCode == RESULT_OK && action != null) launchService(action) else message = "Разрешение на VPN не выдано"
+        if (result.resultCode == RESULT_OK && action != null) launchService(action) else message = tr(R.string.msg_vpn_permission_was_not_granted_22)
     }
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        @Suppress("DEPRECATION")
+        val restoredAction = state?.getParcelable<Intent>("pending_vpn_action")
+        pendingAction = restoredAction
         window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         store = SubscriptionStore(this)
         networks = NetworkTracker(this)
         busy = true
         lifecycleScope.launch {
             runCatching { withContext(Dispatchers.IO) { store.load() } }.onSuccess { saved = it }
-                .onFailure { message = "Не удалось прочитать сохранённую подписку. Добавь её снова." }
+                .onFailure { message = tr(R.string.msg_could_not_read_the_saved_subscription_add_it_23) }
             runCatching { withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).load() } }.onSuccess { settings = it }
-                .onFailure { message = "Не удалось прочитать настройки" }
+                .onFailure { message = tr(R.string.msg_could_not_read_settings_24) }
             busy = false
             var persisted = settings
             var commit = 0L
             settingsApplied.value = commit to persisted
+            consumeTileRequest()
             withContext(kotlinx.coroutines.NonCancellable) {
                 for (next in settingsQueue) {
                     try {
@@ -67,7 +72,7 @@ class MainActivity : ComponentActivity() {
                         persisted = next
                     } catch (_: Exception) {
                         if (settings == next) settings = persisted
-                        message = "Не удалось применить настройки"
+                        message = tr(R.string.msg_could_not_apply_settings_25)
                     }
                     settingsApplied.value = ++commit to persisted
                 }
@@ -102,17 +107,17 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         NavigationBar {
-                            listOf("Главная" to "home", "Серверы" to "list", "Настройки" to "settings").forEachIndexed { i, item ->
+                            listOf(tr(R.string.msg_home_26) to "home", tr(R.string.msg_servers_27) to "list", tr(R.string.msg_settings_28) to "settings").forEachIndexed { i, item ->
                                 NavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { MothIcon(item.second) }, label = { Text(item.first) })
                             }
                         }
                     }
-                    if (dialog) AlertDialog(onDismissRequest = { if (!busy) dialog = false }, title = { Text("Добавить подписку") }, text = {
+                    if (dialog) AlertDialog(onDismissRequest = { if (!busy) dialog = false }, title = { Text(tr(R.string.msg_add_subscription_16)) }, text = {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Вставь HTTPS-ссылку от своего VPN-провайдера. Она хранится только на устройстве.")
-                            OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Ссылка подписки") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                            Text(tr(R.string.msg_paste_the_https_link_from_your_vpn_provider_i_29))
+                            OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text(tr(R.string.msg_subscription_link_30)) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
                         }
-                    }, confirmButton = { TextButton(enabled = url.isNotBlank(), onClick = { dialog = false; import(url); url = "" }) { Text("Добавить") } }, dismissButton = { TextButton(onClick = { dialog = false; url = "" }) { Text("Отмена") } })
+                    }, confirmButton = { TextButton(enabled = url.isNotBlank(), onClick = { dialog = false; import(url); url = "" }) { Text(tr(R.string.msg_add_31)) } }, dismissButton = { TextButton(onClick = { dialog = false; url = "" }) { Text(tr(R.string.msg_cancel_32)) } })
                 }
             }
         }
@@ -125,7 +130,7 @@ class MainActivity : ComponentActivity() {
     }
     private fun import(url: String) {
         if (busy) return
-        busy = true; message = "Загружаем серверы…"
+        busy = true; message = tr(R.string.msg_downloading_servers_33)
         lifecycleScope.launch {
             try {
                 val previous = saved
@@ -142,14 +147,14 @@ class MainActivity : ComponentActivity() {
                     next to parsed.rejected
                 }
                 saved = result.first
-                message = "Добавлено серверов: ${result.first.profiles.size}" + if (result.second > 0) ". Пропущено неподдерживаемых: ${result.second}" else ""
+                message = tr(R.string.msg_servers_added_result_first_profiles_size_34, result.first.profiles.size) + if (result.second > 0) tr(R.string.msg_unsupported_profiles_skipped_result_second_35, result.second) else ""
             } catch (e: Exception) {
                 message = when(e) {
-                    is java.net.SocketTimeoutException -> "Сервис подписки не ответил вовремя"
-                    is java.net.UnknownHostException -> "Не удалось найти сервис подписки. Проверь интернет."
-                    is javax.net.ssl.SSLException -> "Не удалось проверить защищённое соединение с сервисом подписки"
-                    is IllegalArgumentException, is IllegalStateException -> e.message?.takeIf { !it.contains("://") } ?: "Не удалось добавить подписку"
-                    else -> "Не удалось загрузить подписку. Проверь ссылку и интернет."
+                    is java.net.SocketTimeoutException -> tr(R.string.msg_subscription_service_timed_out_36)
+                    is java.net.UnknownHostException -> tr(R.string.msg_could_not_find_the_subscription_service_check_37)
+                    is javax.net.ssl.SSLException -> tr(R.string.msg_could_not_verify_the_secure_connection_to_the_38)
+                    is IllegalArgumentException, is IllegalStateException -> e.message?.takeIf { !it.contains("://") }?.let(::localizedError) ?: tr(R.string.msg_could_not_add_the_subscription_39)
+                    else -> tr(R.string.msg_could_not_download_the_subscription_check_the_40)
                 }
             } finally { busy = false }
         }
@@ -160,7 +165,7 @@ class MainActivity : ComponentActivity() {
         busy = true
         lifecycleScope.launch {
             try { withContext(Dispatchers.IO) { store.save(next) }; saved = next }
-            catch (_: Exception) { message = "Не удалось сохранить выбранный сервер" }
+            catch (_: Exception) { message = tr(R.string.msg_could_not_save_the_selected_server_41) }
             finally { busy = false }
         }
     }
@@ -168,18 +173,19 @@ class MainActivity : ComponentActivity() {
         if (busy) return
         busy = true
         lifecycleScope.launch {
-            try { withContext(Dispatchers.IO) { store.clear() }; saved = null; message = "Подписка удалена" }
-            catch (_: Exception) { message = "Не удалось удалить подписку" }
+            try { withContext(Dispatchers.IO) { store.clear() }; saved = null; message = tr(R.string.msg_subscription_removed_42) }
+            catch (_: Exception) { message = tr(R.string.msg_could_not_remove_the_subscription_43) }
             finally { busy = false }
         }
     }
     private fun connect() {
+        if (!networks.state.value.available) { message = tr(R.string.msg_no_network_20); return }
         val subscription = saved ?: return
         val profile = subscription.profiles.firstOrNull { it.id == subscription.selection(networks.state.value.kind) } ?: return
         authorize(Intent(this, TunnelService::class.java).setAction("START").putExtra("profile", profile.id))
     }
     private fun diagnose(id: String?, speed: Boolean, kind: String) {
-        if (!networks.state.value.available || networks.state.value.kind != kind) { message = "Переключи сеть для этой проверки"; return }
+        if (!networks.state.value.available || networks.state.value.kind != kind) { message = tr(R.string.msg_switch_networks_to_run_this_check_44); return }
         authorize(Intent(this, TunnelService::class.java).setAction(if (speed) "SPEED" else "PROBE").putExtra("network", kind).apply { if (id != null) putExtra("profile", id) })
     }
     private fun authorize(action: Intent) {
@@ -193,9 +199,24 @@ class MainActivity : ComponentActivity() {
         if (action.action == "START") TunnelStatus.mutable.value = TunnelState.STARTING
         if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         try { startForegroundService(action) }
-        catch (_: Exception) { if (action.action == "START") TunnelStatus.mutable.value = TunnelState.ERROR; message = "Не удалось запустить проверку или VPN" }
+        catch (_: Exception) { if (action.action == "START") TunnelStatus.mutable.value = TunnelState.ERROR; message = tr(R.string.msg_could_not_start_the_check_or_vpn_45) }
     }
     private fun stop() { startService(Intent(this, TunnelService::class.java).setAction("STOP")) }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (settingsApplied.value != null) consumeTileRequest()
+    }
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putParcelable("pending_vpn_action", pendingAction)
+        super.onSaveInstanceState(outState)
+    }
+    private fun consumeTileRequest() {
+        if (!intent.getBooleanExtra(CONNECT_FROM_TILE, false)) return
+        intent.removeExtra(CONNECT_FROM_TILE)
+        if (saved == null) message = tr(R.string.tile_setup)
+        else if (TunnelStatus.state.value in setOf(TunnelState.OFF, TunnelState.ERROR) && !Diagnostics.running.value) connect()
+    }
     override fun onDestroy() { networks.close(); settingsQueue.close(); super.onDestroy() }
 }
 

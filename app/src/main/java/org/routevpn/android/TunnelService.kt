@@ -76,7 +76,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     if (!stopped) {
                         TunnelStatus.mutable.value = TunnelState.RUNNING
                         TunnelStatus.activeMutable.value = id
-                        Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) "Проверяем интернет через VPN…" else "Проверка отключена в настройках")
+                        Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) tr(R.string.msg_checking_internet_access_through_vpn_120) else tr(R.string.msg_checks_are_disabled_in_settings_121))
                         if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
                     }
                 } catch (_: Exception) {
@@ -91,13 +91,13 @@ class TunnelService : VpnService(), PlatformInterface {
             cancelProbes()
         } else if (intent?.action in setOf("PROBE", "SPEED")) {
             if (Diagnostics.running.value) return START_NOT_STICKY
-            foreground("Проверяем VPN-серверы — управление в приложении")
+            foreground(tr(R.string.msg_checking_vpn_servers_manage_in_the_app_122))
             probeCancel = AtomicBoolean(false)
             val cancel = probeCancel
             val id = intent?.getStringExtra("profile")
             val speed = intent?.action == "SPEED"
             Diagnostics.runningMutable.value = true
-            if (speed) Diagnostics.speedMutable.value = "Тест загрузки: до 1 МиБ…"
+            if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_download_test_up_to_1_mib_123)
             executor.execute {
                 try { if (speed || SettingsStore(this).load().probeMode != "tcp") initCore(); probes.execute { probeProfiles(id, speed, cancel, intent?.getStringExtra("network")) } }
                 catch (_: Exception) { Diagnostics.runningMutable.value = false; if (TunnelStatus.state.value == TunnelState.OFF) stopSelf() }
@@ -105,14 +105,14 @@ class TunnelService : VpnService(), PlatformInterface {
         }
         return START_NOT_STICKY
     }
-    private fun foreground(text: String = "VPN запущен — управление в приложении") {
+    private fun foreground(text: String = tr(R.string.msg_vpn_is_running_manage_in_the_app_124)) {
         val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel("vpn", "VPN-подключение", NotificationManager.IMPORTANCE_LOW))
+        manager.createNotificationChannel(NotificationChannel("vpn", tr(R.string.msg_vpn_connection_125), NotificationManager.IMPORTANCE_LOW))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 1, Intent(this, TunnelService::class.java).setAction("STOP"), PendingIntent.FLAG_IMMUTABLE)
-        val notification = Notification.Builder(this, "vpn").setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle("Moth")
+        val notification = Notification.Builder(this, "vpn").setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle(tr(R.string.app_name))
             .setContentText(text).setContentIntent(open).setOngoing(true)
-            .addAction(Notification.Action.Builder(null, "Отключить", stop).build()).build()
+            .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build()).build()
         startForeground(1, notification)
     }
     private fun closeTunnel() {
@@ -143,8 +143,8 @@ class TunnelService : VpnService(), PlatformInterface {
                 try { ms = Diagnostics.checkTunnel(connectivity, url, settings.timeoutSeconds); break } catch (_: Exception) { }
             }
             check(ms != null)
-            HealthResult(latencyMs = ms, message = "Интернет через VPN доступен")
-        } catch (_: Exception) { HealthResult(message = "Проверка интернета через VPN не прошла", failures = previous.failures + 1) }
+            HealthResult(latencyMs = ms, message = tr(R.string.msg_internet_access_through_vpn_is_available_127))
+        } catch (_: Exception) { HealthResult(message = tr(R.string.msg_internet_check_through_vpn_failed_128), failures = previous.failures + 1) }
         if (generation.get() == current && TunnelStatus.state.value == TunnelState.RUNNING) Diagnostics.healthMutable.value = next
     }
     private fun probeProfiles(id: String?, speed: Boolean, cancelled: AtomicBoolean, wantedNetwork: String?) {
@@ -157,14 +157,14 @@ class TunnelService : VpnService(), PlatformInterface {
                 if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
                 val key = "${access.kind}:${profile.id}"
                 val method = if (!speed && settings.probeMode == "tcp") "TCP" else "HTTPS"
-                fun result(ms: Long? = null, error: String? = null, checking: Boolean = false) = Diagnostics.result(key,
-                    ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle))
+                fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false) = Diagnostics.result(key,
+                    ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled))
                 if (!speed) result(checking = true)
                 var local: BoxService? = null; var xr: MothXrayService? = null
                 try {
                     if (method == "TCP") {
                         val endpoint = ProbePolicy.tcpEndpoint(profile)
-                        if (endpoint == null) result(error = "UDP-протокол: выбери HTTPS-проверку")
+                        if (endpoint == null) result(error = tr(R.string.msg_udp_protocol_choose_an_https_check_129))
                         else { val ms = tcpProbe(endpoint, settings.timeoutSeconds, cancelled); if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) result(ms = ms) }
                         continue
                     }
@@ -184,34 +184,34 @@ class TunnelService : VpnService(), PlatformInterface {
                     }
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
                         val measurement = measured ?: throw (last ?: java.net.SocketTimeoutException())
-                        if (speed) Diagnostics.speedMutable.value = "${profile.name}: %.1f Мбит/с · %.2f МиБ".format(java.util.Locale.US, measurement.first * 8000.0 / measurement.second, measurement.first / 1048576.0)
+                        if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_profile_name_1f_mbit_s_2f_mib_130, profile.name, measurement.first * 8000.0 / measurement.second, measurement.first / 1048576.0)
                         else result(ms = measurement.first)
                     }
                 } catch (e: Exception) {
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
-                        if (speed) Diagnostics.speedMutable.value = "Тест скорости не прошёл"
+                        if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_speed_test_failed_131)
                         else result(error = Diagnostics.friendly(e))
                     }
                 } finally {
                     request = null
                     runCatching { local?.close() }; runCatching { xr?.close() }
-                    if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = "Проверка отменена")
+                    if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = tr(R.string.msg_check_cancelled_46), wasCancelled = true)
                 }
                 if (speed) break
             }
-            if (speed && (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle)) Diagnostics.speedMutable.value = "Тест отменён"
+            if (speed && (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle)) Diagnostics.speedMutable.value = tr(R.string.msg_test_cancelled_132)
         } finally {
             Diagnostics.runningMutable.value = false
             if (TunnelStatus.state.value in setOf(TunnelState.OFF, TunnelState.ERROR)) stopSelf()
         }
     }
     private fun tcpProbe(endpoint: Pair<String, Int>, timeoutSeconds: Int, cancelled: AtomicBoolean): Long {
-        val network = NetworkTracker.physical(connectivity) ?: error("Нет сети")
+        val network = NetworkTracker.physical(connectivity) ?: error(tr(R.string.msg_no_network_20))
         val start = System.nanoTime()
         val deadline = start + timeoutSeconds * 1_000_000_000L
         fun remaining() = ((deadline - System.nanoTime()) / 1_000_000).toInt().also { if (it <= 0 || cancelled.get()) throw java.net.SocketTimeoutException() }
         val lookup = lookupExecutor.submit<java.net.InetAddress?> { network.getAllByName(endpoint.first).let { addresses -> addresses.firstOrNull { it is java.net.Inet4Address } ?: addresses.firstOrNull() } }
-        val address = try { lookup.get(remaining().toLong(), TimeUnit.MILLISECONDS) ?: error("Нет адреса") }
+        val address = try { lookup.get(remaining().toLong(), TimeUnit.MILLISECONDS) ?: error(tr(R.string.msg_no_address_found_133)) }
             finally { lookup.cancel(true) }
         java.net.Socket().use { socket ->
             tcpSocket = socket

@@ -36,54 +36,54 @@ import org.routevpn.core.ClientSettings
         profiles.filter { p ->
             val r = results["$kind:${p.id}"]
             val current = r?.networkHandle == network.handle && kind == network.kind
-            val failed = current && r != null && !r.checking && r.error != null && r.error != "Проверка отменена" && r.method == "HTTPS" && now - r.checkedAt in 0 until 900_000
+            val failed = current && r != null && !r.checking && !r.cancelled && r.error != null && r.method == "HTTPS" && now - r.checkedAt in 0 until 900_000
             (!settings.hideUnavailable || !failed) && (p.name.contains(search, true) || p.protocol.contains(search, true))
         }.let { if (settings.sortByLatency) it.sortedBy { p -> results["$kind:${p.id}"]?.latencyMs ?: Long.MAX_VALUE } else it }
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Серверы", style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            ActionIcon("add", if (saved == null) "Добавить подписку" else "Заменить подписку", !locked, add)
-            ActionIcon("refresh", "Обновить подписку", saved != null && !locked, refresh)
-            ActionIcon(if (probing) "stop" else "check", if (probing) "Отменить проверки" else "Проверить серверы", probing || canCheck) { if (probing) cancel() else probe(kind) }
-            ActionIcon("speed", "Измерить скорость: загрузка до 1 МиБ", canCheck) { speedTest(kind) }
-            ActionIcon("delete", "Удалить подписку", saved != null && !locked) { delete = true }
+            Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            ActionIcon("add", if (saved == null) tr(R.string.msg_add_subscription_16) else tr(R.string.msg_replace_subscription_47), !locked, add)
+            ActionIcon("refresh", tr(R.string.msg_update_subscription_48), saved != null && !locked, refresh)
+            ActionIcon(if (probing) "stop" else "check", if (probing) tr(R.string.msg_cancel_checks_49) else tr(R.string.msg_check_servers_50), probing || canCheck) { if (probing) cancel() else probe(kind) }
+            ActionIcon("speed", tr(R.string.msg_measure_speed_download_up_to_1_mib_51), canCheck) { speedTest(kind) }
+            ActionIcon("delete", tr(R.string.msg_remove_subscription_52), saved != null && !locked) { delete = true }
         }
         TabRow(selectedTabIndex = if (kind == "wifi") 0 else 1) {
             Tab(selected = kind == "wifi", onClick = { kind = "wifi" }, text = { Text("Wi-Fi") })
-            Tab(selected = kind == "mobile", onClick = { kind = "mobile" }, text = { Text("Мобильные данные") })
+            Tab(selected = kind == "mobile", onClick = { kind = "mobile" }, text = { Text(tr(R.string.msg_mobile_data_21)) })
         }
-        if (!network.available || kind != network.kind) Text(if (!network.available) "Нет сети для проверки" else if (kind == "mobile") "Для проверки включи мобильные данные и отключи Wi-Fi" else "Для проверки подключись к Wi-Fi", style = MaterialTheme.typography.bodySmall)
+        if (!network.available || kind != network.kind) Text(if (!network.available) tr(R.string.msg_no_network_available_for_this_check_53) else if (kind == "mobile") tr(R.string.msg_to_check_mobile_data_enable_it_and_turn_off_w_54) else tr(R.string.msg_connect_to_wi_fi_to_run_this_check_55), style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${visible.size} / ${profiles.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-            FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text("Без недоступных") })
+            FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text(tr(R.string.msg_hide_unavailable_56)) })
         }
-        OutlinedTextField(search, { search = it }, singleLine = true, placeholder = { Text("Поиск сервера") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
+        OutlinedTextField(search, { search = it }, singleLine = true, placeholder = { Text(tr(R.string.msg_search_servers_57)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
         if (busy || probing) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (speed.isNotBlank()) Text(speed, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         if (visible.isEmpty()) Column(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(if (saved == null) "Добавь подписку" else "Серверы не найдены")
-            if (saved == null) TextButton(enabled = !busy, onClick = add) { Text("Добавить подписку") }
-            else TextButton(onClick = { search = ""; preferences(settings.copy(hideUnavailable = false)) }) { Text("Показать все") }
+            Text(if (saved == null) tr(R.string.msg_add_a_subscription_58) else tr(R.string.msg_no_servers_found_59))
+            if (saved == null) TextButton(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
+            else TextButton(onClick = { search = ""; preferences(settings.copy(hideUnavailable = false)) }) { Text(tr(R.string.msg_show_all_60)) }
         } else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
             items(visible, key = { it.id }) { p ->
                 val chosen = p.id == saved?.selection(kind)
                 val r = results["$kind:${p.id}"]
                 Surface(color = if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().clickable(enabled = !locked) { select(p.id, kind) }
-                        .semantics { contentDescription = p.name + if (chosen) ", выбран" else "" }) {
+                        .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
                     Column(Modifier.padding(horizontal = 14.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(p.name, maxLines = if (settings.compactServers) 1 else 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
-                        Text(p.protocol.uppercase() + " · " + when { r?.checking == true -> "проверяем…"; r?.latencyMs != null -> "${r.latencyMs} мс · ${r.method}"; r?.error != null -> r.error; else -> "не проверен" }, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        if (r?.latencyMs != null && r.method == "TCP") Text("Порт доступен; работа VPN не проверена", style = MaterialTheme.typography.labelSmall)
-                        if (r != null && !r.checking && r.networkHandle != network.handle) Text("Проверено в другой сети", style = MaterialTheme.typography.labelSmall)
+                        Text(p.protocol.uppercase() + " · " + when { r?.checking == true -> tr(R.string.msg_checking_62); r?.latencyMs != null -> tr(R.string.msg_r_latencyms_ms_r_method_63, r.latencyMs, r.method); r?.error != null -> localizedError(r.error); else -> tr(R.string.msg_not_checked_64) }, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        if (r?.latencyMs != null && r.method == "TCP") Text(tr(R.string.msg_port_is_reachable_vpn_traffic_has_not_been_ch_65), style = MaterialTheme.typography.labelSmall)
+                        if (r != null && !r.checking && r.networkHandle != network.handle) Text(tr(R.string.msg_checked_on_a_different_network_66), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
         }
     }
-    if (delete) AlertDialog(onDismissRequest = { delete = false }, title = { Text("Удалить подписку?") }, text = { Text("Для подключения понадобится снова добавить ссылку.") }, confirmButton = { TextButton(enabled = !locked, onClick = { delete = false; remove() }) { Text("Удалить") } }, dismissButton = { TextButton(onClick = { delete = false }) { Text("Отмена") } })
+    if (delete) AlertDialog(onDismissRequest = { delete = false }, title = { Text(tr(R.string.msg_remove_subscription_67)) }, text = { Text(tr(R.string.msg_the_subscription_link_will_need_to_be_added_a_68)) }, confirmButton = { TextButton(enabled = !locked, onClick = { delete = false; remove() }) { Text(tr(R.string.msg_remove_69)) } }, dismissButton = { TextButton(onClick = { delete = false }) { Text(tr(R.string.msg_cancel_32)) } })
 }
 
 @Composable private fun ActionIcon(icon: String, label: String, enabled: Boolean, action: () -> Unit) {
