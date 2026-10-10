@@ -247,7 +247,7 @@ class TunnelService : VpnService(), PlatformInterface {
     override fun packageNameByUid(uid: Int): String = packageManager.getPackagesForUid(uid)?.firstOrNull().orEmpty()
     override fun uidByPackageName(packageName: String): Int = packageManager.getApplicationInfo(packageName, 0).uid
     override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
-        val network = connectivity.allNetworks.firstOrNull { n -> connectivity.getNetworkCapabilities(n)?.let { it.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) && it.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN) } == true }
+        val network = NetworkTracker.physical(connectivity)
         val name = network?.let { connectivity.getLinkProperties(it)?.interfaceName }.orEmpty()
         val index = runCatching { JavaInterface.getByName(name)?.index ?: -1 }.getOrDefault(-1)
         listener.updateDefaultInterface(name, index, network?.let { connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) } == true, false)

@@ -26,7 +26,17 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - name: Install pinned Android NDK
         run: sdkmanager 'ndk;28.0.13004108' 'platforms;android-34' 'build-tools;34.0.0'
+      - name: Cache pinned mobile core and corresponding source
+        id: native-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            libbox.aar
+            .core-build/sing-box
+            ~/go/pkg/mod
+          key: moth-native-${{ runner.os }}-go1.24.3-ndk28-${{ hashFiles('scripts/build-libbox.sh', 'scripts/native/**') }}
       - name: Build official mobile core
+        if: steps.native-cache.outputs.cache-hit != 'true'
         run: bash scripts/build-libbox.sh
       - uses: actions/upload-artifact@v4
         with:
