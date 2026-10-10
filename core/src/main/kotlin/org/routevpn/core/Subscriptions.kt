@@ -9,7 +9,7 @@ import java.security.MessageDigest
 import java.util.Base64
 import java.util.UUID
 
-data class Profile(val id: String, val name: String, val protocol: String, val outbound: String)
+data class Profile(val id: String, val name: String, val protocol: String, val outbound: String, val engine: String = "sing-box")
 data class ImportResult(val profiles: List<Profile>, val rejected: Int)
 
 object Subscriptions {
@@ -23,7 +23,9 @@ object Subscriptions {
     fun parse(body: String): ImportResult {
         require(body.length <= 2 * 1024 * 1024) { "Список серверов слишком большой" }
         val text = body.trim().removePrefix("\uFEFF")
+        if (text.startsWith("proxies:") || text.contains("\nproxies:") || text.startsWith("{")) return ClashSubscriptions.parse(text)
         val decoded = if (text.contains("://")) text else runCatching { unbase64(text) }.getOrDefault(text)
+        if (decoded.startsWith("proxies:") || decoded.contains("\nproxies:")) return ClashSubscriptions.parse(decoded)
         val lines = decoded.lineSequence().map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
         require(lines.size <= 2000) { "Слишком много серверов" }
         var rejected = 0
@@ -33,17 +35,23 @@ object Subscriptions {
     }
     fun parseLink(link: String): Profile {
         val scheme = link.substringBefore("://").lowercase()
+        if (scheme in setOf("hy2", "hysteria2", "hysteria", "tuic")) return ExtraProtocols.parse(link)
+        if (scheme in setOf("vless", "trojan") && URI(link).rawQuery.orEmpty().split('&').any { it in setOf("type=xhttp", "type=splithttp") }) return ExtraProtocols.xhttp(link)
         val o: JSONObject
         val name: String
         if (scheme == "vmess") {
             val v = JSONObject(unbase64(link.substringAfter("://")))
             require(v.optInt("aid", 0) == 0) { "VMess alterId не поддерживается" }
+            if (v.optString("net") in setOf("xhttp", "splithttp")) return ExtraProtocols.xhttpVmess(v, link)
             o = JSONObject().put("type", "vmess").put("server", v.getString("add")).put("server_port", v.getString("port").toInt())
                 .put("uuid", UUID.fromString(v.getString("id")).toString()).put("security", v.optString("scy", "auto"))
             name = v.optString("ps").ifBlank { v.getString("add") }
             val net = v.optString("net", "tcp")
             transport(o, net, v.optString("host"), v.optString("path"), v.optString("path"))
-            if (v.optString("tls") == "tls") o.put("tls", JSONObject().put("enabled", true).put("server_name", v.optString("sni").ifBlank { v.optString("host").ifBlank { v.getString("add") } }))
+            if (v.optString("tls") == "tls") o.put("tls", JSONObject().put("enabled", true).put("server_name", v.optString("sni").ifBlank { v.optString("host").ifBlank { v.getString("add") } }).apply {
+                v.optString("alpn").takeIf { it.isNotBlank() }?.let { put("alpn", JSONArray(it.split(','))) }
+                v.optString("fp").takeIf { it.isNotBlank() }?.let { put("utls", JSONObject().put("enabled", true).put("fingerprint", it)) }
+            })
         } else {
             require(scheme in setOf("vless", "trojan", "ss")) { "Протокол не поддерживается" }
             var normalized = link
@@ -99,16 +107,20 @@ object Subscriptions {
 }
 
 object TunnelConfig {
-    fun create(profile: Profile): String = JSONObject()
+    fun create(profile: Profile, settings: ClientSettings = ClientSettings()): String = JSONObject()
         .put("log", JSONObject().put("disabled", true))
         .put("dns", JSONObject().put("servers", JSONArray()
             .put(JSONObject().put("tag", "remote").put("address", "https://1.1.1.1/dns-query").put("detour", "proxy"))
             .put(JSONObject().put("tag", "bootstrap").put("address", "https://1.1.1.1/dns-query").put("detour", "direct")))
             .put("rules", JSONArray().put(JSONObject().put("outbound", "any").put("server", "bootstrap")))
-            .put("final", "remote").put("strategy", "ipv4_only"))
+            .put("final", "remote").put("strategy", if (settings.ipv6) "prefer_ipv4" else "ipv4_only").apply {
+                getJSONArray("servers").getJSONObject(0).put("address", settings.dns).put("address_resolver", "bootstrap")
+            })
         .put("inbounds", JSONArray().put(JSONObject().put("type", "tun").put("tag", "tun-in").put("address", JSONArray(listOf("172.19.0.1/30", "fdfe:dcba:9876::1/126")))
-            .put("mtu", 1400).put("auto_route", true).put("strict_route", true).put("stack", "gvisor")))
+            .put("mtu", settings.mtu).put("auto_route", true).put("strict_route", true).put("stack", "gvisor")))
         .put("outbounds", JSONArray().put(JSONObject(profile.outbound)).put(JSONObject().put("type", "direct").put("tag", "direct")))
-        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").put("rules", JSONArray().put(JSONObject().put("port", 53).put("action", "hijack-dns"))))
+        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").put("rules", JSONArray().put(JSONObject().put("port", 53).put("action", "hijack-dns")).apply {
+            if (!settings.ipv6) put(JSONObject().put("ip_version", 6).put("action", "reject"))
+        }))
         .toString()
 }
