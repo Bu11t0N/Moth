@@ -4,9 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.AtomicFile
-import org.json.JSONArray
 import org.json.JSONObject
-import org.routevpn.core.Profile
 import org.routevpn.core.ClientSettings
 import org.routevpn.core.SubscriptionHeaders
 import android.os.Build
@@ -21,6 +19,9 @@ import javax.crypto.spec.GCMParameterSpec
 typealias SavedSubscription = org.routevpn.core.SubscriptionRecord
 
 class SubscriptionStore(context: Context, filename: String = "subscription.enc") {
+    // Activity and VPN service create different store instances. AtomicFile alone
+    // does not synchronize them; a reader must not interrupt an in-flight write.
+    private companion object { val storageLock = Any() }
     private val file = AtomicFile(java.io.File(context.noBackupFilesDir, filename))
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -34,30 +35,33 @@ class SubscriptionStore(context: Context, filename: String = "subscription.enc")
         val json = saved.json()
         writeJson(json)
     }
-    @Synchronized fun writeJson(json: JSONObject) {
+    fun writeJson(json: JSONObject) = synchronized(storageLock) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }
         val encrypted = cipher.doFinal(json.toString().toByteArray(Charsets.UTF_8))
         val stream = file.startWrite()
         try { stream.write(byteArrayOf(cipher.iv.size.toByte())); stream.write(cipher.iv); stream.write(encrypted); file.finishWrite(stream) }
         catch (e: Exception) { file.failWrite(stream); throw e }
     }
-    @Synchronized fun readJson(): JSONObject? {
-        if (!file.baseFile.exists()) return null
+    fun readJson(): JSONObject? = synchronized(storageLock) {
+        if (!file.baseFile.exists()) return@synchronized null
         val bytes = file.readFully()
         require(bytes.isNotEmpty() && bytes[0].toInt() == 12 && bytes.size > 29)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes.copyOfRange(1, 13))) }
-        return JSONObject(String(cipher.doFinal(bytes.copyOfRange(13, bytes.size)), Charsets.UTF_8))
+        JSONObject(String(cipher.doFinal(bytes.copyOfRange(13, bytes.size)), Charsets.UTF_8))
+    }
+    fun readOrInitialize(default: () -> JSONObject): JSONObject = synchronized(storageLock) {
+        readJson() ?: default().also { writeJson(it) }
     }
     @Synchronized fun load(): SavedSubscription? {
         val json = readJson() ?: return null
         return SavedSubscription.from(json)
     }
-    @Synchronized fun clear() = file.delete()
+    fun clear() = synchronized(storageLock) { file.delete() }
 }
 
 class SettingsStore(context: Context) {
     private val store = SubscriptionStore(context, "settings.enc")
-    fun load(): ClientSettings = store.readJson()?.let(ClientSettings::from) ?: ClientSettings().also { save(it) }
+    fun load(): ClientSettings = ClientSettings.from(store.readOrInitialize { ClientSettings().json() })
     fun save(value: ClientSettings) = store.writeJson(value.validate().json())
 }
 
