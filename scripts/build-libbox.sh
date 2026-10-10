@@ -14,7 +14,7 @@ test "$(git rev-parse HEAD)" = bc35aca01704497c179da1a03e45ad8e32f1a51b
 
 # XHTTP uses Xray v25.3.6 (2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4).
 cp "$project_root/scripts/native/moth_xray.go" experimental/libbox/moth_xray.go
-go get github.com/xtls/xray-core@v25.3.6
+go get github.com/xtls/xray-core@2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4
 xray_path="$(go list -m -f '{{.Dir}}' github.com/xtls/xray-core)"
 mkdir -p .moth-xray
 cp -R "$xray_path/." .moth-xray/
