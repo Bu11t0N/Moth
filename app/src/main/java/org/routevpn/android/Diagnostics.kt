@@ -16,8 +16,8 @@ import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 
-data class ProbeResult(val checking: Boolean = false, val latencyMs: Long? = null, val error: String? = null, val checkedAt: Long = System.currentTimeMillis(), val method: String = "HTTPS", val networkHandle: Long = 0)
-data class HealthResult(val checking: Boolean = false, val latencyMs: Long? = null, val message: String = "Соединение ещё не проверено", val failures: Int = 0)
+data class ProbeResult(val checking: Boolean = false, val latencyMs: Long? = null, val error: String? = null, val checkedAt: Long = System.currentTimeMillis(), val method: String = "HTTPS", val networkHandle: Long = 0, val cancelled: Boolean = false)
+data class HealthResult(val checking: Boolean = false, val latencyMs: Long? = null, val message: String = tr(R.string.msg_connection_has_not_been_checked_yet_0), val failures: Int = 0)
 object Diagnostics {
     internal val resultsMutable = MutableStateFlow<Map<String, ProbeResult>>(emptyMap())
     val results = resultsMutable.asStateFlow()
@@ -29,16 +29,16 @@ object Diagnostics {
     val speed = speedMutable.asStateFlow()
     @Synchronized fun result(id: String, value: ProbeResult) { resultsMutable.value = resultsMutable.value + (id to value) }
     fun friendly(e: Exception) = when (e) {
-        is java.net.SocketTimeoutException -> "Не ответил вовремя"
-        is java.util.concurrent.TimeoutException -> "Не удалось найти адрес вовремя"
-        is java.net.UnknownHostException -> "Не удалось найти адрес сервера"
-        is java.net.ConnectException -> "Порт сервера не отвечает"
-        is javax.net.ssl.SSLException -> "Не удалось проверить HTTPS"
-        else -> "Проверка не прошла"
+        is java.net.SocketTimeoutException -> tr(R.string.msg_server_timed_out_1)
+        is java.util.concurrent.TimeoutException -> tr(R.string.msg_dns_lookup_timed_out_2)
+        is java.net.UnknownHostException -> tr(R.string.msg_could_not_resolve_the_server_address_3)
+        is java.net.ConnectException -> tr(R.string.msg_server_port_is_not_responding_4)
+        is javax.net.ssl.SSLException -> tr(R.string.msg_could_not_verify_https_5)
+        else -> tr(R.string.msg_check_failed_6)
     }
     fun checkTunnel(manager: ConnectivityManager, address: String, timeout: Int): Long {
         val network = manager.allNetworks.firstOrNull { manager.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true }
-            ?: error("VPN-сеть ещё не появилась")
+            ?: error(tr(R.string.msg_vpn_network_is_not_ready_yet_7))
         val started = System.nanoTime()
         val c = network.openConnection(URL(address)) as HttpsURLConnection
         try {

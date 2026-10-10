@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Мотылёк</string>
+    <string name="msg_connection_has_not_been_checked_yet_0" formatted="false">"Соединение ещё не проверено"</string>
+    <string name="msg_server_timed_out_1" formatted="false">"Не ответил вовремя"</string>
+    <string name="msg_dns_lookup_timed_out_2" formatted="false">"Не удалось найти адрес вовремя"</string>
+    <string name="msg_could_not_resolve_the_server_address_3" formatted="false">"Не удалось найти адрес сервера"</string>
+    <string name="msg_server_port_is_not_responding_4" formatted="false">"Порт сервера не отвечает"</string>
+    <string name="msg_could_not_verify_https_5" formatted="false">"Не удалось проверить HTTPS"</string>
+    <string name="msg_check_failed_6" formatted="false">"Проверка не прошла"</string>
+    <string name="msg_vpn_network_is_not_ready_yet_7" formatted="false">"VPN-сеть ещё не появилась"</string>
+    <string name="msg_disconnect_vpn_8" formatted="false">"Отключить VPN"</string>
+    <string name="msg_connect_vpn_9" formatted="false">"Подключить VPN"</string>
+    <string name="msg_connect_10" formatted="false">"Подключиться"</string>
+    <string name="msg_vpn_is_on_11" formatted="false">"VPN включён"</string>
+    <string name="msg_connecting_12" formatted="false">"Подключаемся…"</string>
+    <string name="msg_disconnecting_13" formatted="false">"Отключаем…"</string>
+    <string name="msg_could_not_connect_14" formatted="false">"Не удалось подключиться"</string>
+    <string name="msg_checking_internet_access_15" formatted="false">"Проверяем интернет…"</string>
+    <string name="msg_add_subscription_16" formatted="false">"Добавить подписку"</string>
+    <string name="msg_host_saved_profiles_size_servers_17" formatted="false">"%1$s · %2$s серверов"</string>
+    <string name="msg_traffic_1f_1f_gib_18" formatted="false">"Трафик: %.1f / %.1f ГиБ"</string>
+    <string name="msg_subscription_expires_on_19" formatted="false">"Подписка до "</string>
+    <string name="msg_no_network_20" formatted="false">"Нет сети"</string>
+    <string name="msg_mobile_data_21" formatted="false">"Мобильные данные"</string>
+    <string name="msg_vpn_permission_was_not_granted_22" formatted="false">"Разрешение на VPN не выдано"</string>
+    <string name="msg_could_not_read_the_saved_subscription_add_it_23" formatted="false">"Не удалось прочитать сохранённую подписку. Добавь её снова."</string>
+    <string name="msg_could_not_read_settings_24" formatted="false">"Не удалось прочитать настройки"</string>
+    <string name="msg_could_not_apply_settings_25" formatted="false">"Не удалось применить настройки"</string>
+    <string name="msg_home_26" formatted="false">"Главная"</string>
+    <string name="msg_servers_27" formatted="false">"Серверы"</string>
+    <string name="msg_settings_28" formatted="false">"Настройки"</string>
+    <string name="msg_paste_the_https_link_from_your_vpn_provider_i_29" formatted="false">"Вставь HTTPS-ссылку от своего VPN-провайдера. Она хранится только на устройстве."</string>
+    <string name="msg_subscription_link_30" formatted="false">"Ссылка подписки"</string>
+    <string name="msg_add_31" formatted="false">"Добавить"</string>
+    <string name="msg_cancel_32" formatted="false">"Отмена"</string>
+    <string name="msg_downloading_servers_33" formatted="false">"Загружаем серверы…"</string>
+    <string name="msg_servers_added_result_first_profiles_size_34" formatted="false">"Добавлено серверов: %1$s"</string>
+    <string name="msg_unsupported_profiles_skipped_result_second_35" formatted="false">". Пропущено неподдерживаемых: %1$s"</string>
+    <string name="msg_subscription_service_timed_out_36" formatted="false">"Сервис подписки не ответил вовремя"</string>
+    <string name="msg_could_not_find_the_subscription_service_check_37" formatted="false">"Не удалось найти сервис подписки. Проверь интернет."</string>
+    <string name="msg_could_not_verify_the_secure_connection_to_the_38" formatted="false">"Не удалось проверить защищённое соединение с сервисом подписки"</string>
+    <string name="msg_could_not_add_the_subscription_39" formatted="false">"Не удалось добавить подписку"</string>
+    <string name="msg_could_not_download_the_subscription_check_the_40" formatted="false">"Не удалось загрузить подписку. Проверь ссылку и интернет."</string>
+    <string name="msg_could_not_save_the_selected_server_41" formatted="false">"Не удалось сохранить выбранный сервер"</string>
+    <string name="msg_subscription_removed_42" formatted="false">"Подписка удалена"</string>
+    <string name="msg_could_not_remove_the_subscription_43" formatted="false">"Не удалось удалить подписку"</string>
+    <string name="msg_switch_networks_to_run_this_check_44" formatted="false">"Переключи сеть для этой проверки"</string>
+    <string name="msg_could_not_start_the_check_or_vpn_45" formatted="false">"Не удалось запустить проверку или VPN"</string>
+    <string name="msg_check_cancelled_46" formatted="false">"Проверка отменена"</string>
+    <string name="msg_replace_subscription_47" formatted="false">"Заменить подписку"</string>
+    <string name="msg_update_subscription_48" formatted="false">"Обновить подписку"</string>
+    <string name="msg_cancel_checks_49" formatted="false">"Отменить проверки"</string>
+    <string name="msg_check_servers_50" formatted="false">"Проверить серверы"</string>
+    <string name="msg_measure_speed_download_up_to_1_mib_51" formatted="false">"Измерить скорость: загрузка до 1 МиБ"</string>
+    <string name="msg_remove_subscription_52" formatted="false">"Удалить подписку"</string>
+    <string name="msg_no_network_available_for_this_check_53" formatted="false">"Нет сети для проверки"</string>
+    <string name="msg_to_check_mobile_data_enable_it_and_turn_off_w_54" formatted="false">"Для проверки включи мобильные данные и отключи Wi-Fi"</string>
+    <string name="msg_connect_to_wi_fi_to_run_this_check_55" formatted="false">"Для проверки подключись к Wi-Fi"</string>
+    <string name="msg_hide_unavailable_56" formatted="false">"Без недоступных"</string>
+    <string name="msg_search_servers_57" formatted="false">"Поиск сервера"</string>
+    <string name="msg_add_a_subscription_58" formatted="false">"Добавь подписку"</string>
+    <string name="msg_no_servers_found_59" formatted="false">"Серверы не найдены"</string>
+    <string name="msg_show_all_60" formatted="false">"Показать все"</string>
+    <string name="msg_selected_61" formatted="false">", выбран"</string>
+    <string name="msg_checking_62" formatted="false">"проверяем…"</string>
+    <string name="msg_r_latencyms_ms_r_method_63" formatted="false">"%1$s мс · %2$s"</string>
+    <string name="msg_not_checked_64" formatted="false">"не проверен"</string>
+    <string name="msg_port_is_reachable_vpn_traffic_has_not_been_ch_65" formatted="false">"Порт доступен; работа VPN не проверена"</string>
+    <string name="msg_checked_on_a_different_network_66" formatted="false">"Проверено в другой сети"</string>
+    <string name="msg_remove_subscription_67" formatted="false">"Удалить подписку?"</string>
+    <string name="msg_the_subscription_link_will_need_to_be_added_a_68" formatted="false">"Для подключения понадобится снова добавить ссылку."</string>
+    <string name="msg_remove_69" formatted="false">"Удалить"</string>
+    <string name="msg_enter_a_valid_https_url_70" formatted="false">"Нужен корректный HTTPS-адрес"</string>
+    <string name="msg_check_your_settings_71" formatted="false">"Проверь настройки"</string>
+    <string name="msg_enter_a_whole_number_72" formatted="false">"Введи целое число"</string>
+    <string name="msg_back_73" formatted="false">"Назад"</string>
+    <string name="msg_appearance_74" formatted="false">"Интерфейс"</string>
+    <string name="msg_connection_75" formatted="false">"Подключение"</string>
+    <string name="msg_checks_76" formatted="false">"Проверки"</string>
+    <string name="msg_subscription_and_hwid_77" formatted="false">"Подписка и HWID"</string>
+    <string name="msg_about_78" formatted="false">"О приложении"</string>
+    <string name="msg_theme_79" formatted="false">"Тема"</string>
+    <string name="msg_system_default_80" formatted="false">"Как в системе"</string>
+    <string name="msg_dark_81" formatted="false">"Тёмная"</string>
+    <string name="msg_light_82" formatted="false">"Светлая"</string>
+    <string name="msg_compact_server_rows_83" formatted="false">"Компактные строки серверов"</string>
+    <string name="msg_sort_by_latency_84" formatted="false">"Сортировать по задержке"</string>
+    <string name="msg_hide_unavailable_servers_85" formatted="false">"Скрывать недоступные серверы"</string>
+    <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Скрываются серверы с неудачной проверкой за последние 15 минут. Непроверенные и проверяемые остаются в списке. Перепроверь серверы при смене сети."</string>
+    <string name="msg_screen_sharing_and_screenshots_are_allowed_su_87" formatted="false">"Можно транслировать экран и делать скриншоты. Ссылка подписки и HWID скрыты в полях ввода."</string>
+    <string name="msg_network_settings_are_available_after_disconne_88" formatted="false">"Сетевые настройки доступны после отключения VPN и завершения проверок."</string>
+    <string name="msg_ipv6_through_vpn_89" formatted="false">"IPv6 через VPN"</string>
+    <string name="msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90" formatted="false">"При выключении IPv6 блокируется внутри туннеля."</string>
+    <string name="msg_server_bootstrap_dns_91" formatted="false">"DNS для адресов серверов"</string>
+    <string name="msg_this_dns_is_used_directly_to_connect_to_serve_92" formatted="false">"Этот DNS используется напрямую для подключения к серверу. Если Cloudflare недоступен, можно указать другой DoH."</string>
+    <string name="msg_disconnect_vpn_and_finish_checks_to_change_th_93" formatted="false">"Отключи VPN и заверши проверки, чтобы менять эти параметры."</string>
+    <string name="msg_check_the_active_tunnel_94" formatted="false">"Проверять активный туннель"</string>
+    <string name="msg_interval_30_600_seconds_95" formatted="false">"Интервал · 30–600 секунд"</string>
+    <string name="msg_timeout_3_30_seconds_96" formatted="false">"Тайм-аут · 3–30 секунд"</string>
+    <string name="msg_https_check_url_97" formatted="false">"HTTPS-адрес проверки"</string>
+    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Задержка включает установление HTTPS-соединения. Отказ этого адреса не доказывает недоступность всех сайтов."</string>
+    <string name="msg_check_method_99" formatted="false">"Способ проверки"</string>
+    <string name="msg_https_multiple_urls_100" formatted="false">"HTTPS · несколько адресов"</string>
+    <string name="msg_https_custom_url_101" formatted="false">"HTTPS · свой адрес"</string>
+    <string name="msg_tcp_port_reachability_102" formatted="false">"TCP · доступность порта"</string>
+    <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP не подтверждает работу VPN и не подходит для Hysteria/TUIC на UDP. HTTPS проверяет передачу трафика через сервер."</string>
+    <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Заверши подключение и проверки, чтобы менять параметры подписки."</string>
+    <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Передавать HWID провайдеру"</string>
+    <string name="msg_a_persistent_installation_identifier_without_106" formatted="false">"Постоянный идентификатор установки, без IMEI и серийного номера. Меняй его только если провайдер выдал конкретное значение."</string>
+    <string name="msg_copy_hwid_107" formatted="false">"Скопировать HWID"</string>
+    <string name="msg_send_device_model_and_android_version_108" formatted="false">"Передавать модель и версию Android"</string>
+    <string name="msg_subscription_user_agent_109" formatted="false">"User-Agent подписки"</string>
+    <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Провайдер может выбирать формат подписки по User-Agent. HWID отправляется только исходному сайту подписки."</string>
+    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.11.15 + Xray 25.3.6\nОткрытый исходный код · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
+    <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Нужна HTTPS-ссылка без логина и пароля в адресе"</string>
+    <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Достигнут лимит устройств подписки. Обратись к провайдеру."</string>
+    <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"Провайдер требует HWID. Включи его отправку в настройках."</string>
+    <string name="msg_redirect_destination_is_missing_115" formatted="false">"Нет адреса перенаправления"</string>
+    <string name="msg_the_server_list_is_too_large_116" formatted="false">"Список серверов слишком большой"</string>
+    <string name="msg_subscription_is_unavailable_check_the_link_an_117" formatted="false">"Подписка недоступна. Проверь ссылку и срок действия."</string>
+    <string name="msg_subscription_service_returned_an_error_try_ag_118" formatted="false">"Сервис подписки не ответил успешно. Попробуй позже."</string>
+    <string name="msg_too_many_redirects_119" formatted="false">"Слишком много перенаправлений"</string>
+    <string name="msg_checking_internet_access_through_vpn_120" formatted="false">"Проверяем интернет через VPN…"</string>
+    <string name="msg_checks_are_disabled_in_settings_121" formatted="false">"Проверка отключена в настройках"</string>
+    <string name="msg_checking_vpn_servers_manage_in_the_app_122" formatted="false">"Проверяем VPN-серверы — управление в приложении"</string>
+    <string name="msg_download_test_up_to_1_mib_123" formatted="false">"Тест загрузки: до 1 МиБ…"</string>
+    <string name="msg_vpn_is_running_manage_in_the_app_124" formatted="false">"VPN запущен — управление в приложении"</string>
+    <string name="msg_vpn_connection_125" formatted="false">"VPN-подключение"</string>
+    <string name="msg_disconnect_126" formatted="false">"Отключить"</string>
+    <string name="msg_internet_access_through_vpn_is_available_127" formatted="false">"Интернет через VPN доступен"</string>
+    <string name="msg_internet_check_through_vpn_failed_128" formatted="false">"Проверка интернета через VPN не прошла"</string>
+    <string name="msg_udp_protocol_choose_an_https_check_129" formatted="false">"UDP-протокол: выбери HTTPS-проверку"</string>
+    <string name="msg_profile_name_1f_mbit_s_2f_mib_130" formatted="false">"%1$s: %2$.1f Мбит/с · %3$.2f МиБ"</string>
+    <string name="msg_speed_test_failed_131" formatted="false">"Тест скорости не прошёл"</string>
+    <string name="msg_test_cancelled_132" formatted="false">"Тест отменён"</string>
+    <string name="msg_no_address_found_133" formatted="false">"Нет адреса"</string>
+    <string name="msg_use_a_clash_subscription_with_a_proxies_list_134" formatted="false">"Нужна Clash-подписка с разделом proxies"</string>
+    <string name="msg_clash_an_embedded_proxies_list_is_required_pr_135" formatted="false">"Clash: нужен встроенный список proxies; proxy-providers пока не поддерживаются"</string>
+    <string name="msg_too_many_servers_136" formatted="false">"Слишком много серверов"</string>
+    <string name="msg_clash_no_supported_profiles_check_the_format_137" formatted="false">"Clash: нет совместимых серверов; проверь протоколы и параметры TLS"</string>
+    <string name="msg_unsafe_tls_configuration_138" formatted="false">"Небезопасный TLS"</string>
+    <string name="msg_proxy_chains_are_not_supported_139" formatted="false">"Зависимый профиль не поддерживается"</string>
+    <string name="msg_unsupported_websocket_headers_140" formatted="false">"Нестандартные WS headers"</string>
+    <string name="msg_websocket_early_data_is_not_supported_yet_141" formatted="false">"WS early data пока не поддерживается"</string>
+    <string name="msg_tuic_v4_is_not_supported_142" formatted="false">"TUIC v4 не поддерживается"</string>
+    <string name="msg_unsupported_protocol_143" formatted="false">"Неподдерживаемый протокол"</string>
+    <string name="msg_invalid_theme_144" formatted="false">"Неверная тема"</string>
+    <string name="msg_invalid_check_method_145" formatted="false">"Неверный способ проверки"</string>
+    <string name="msg_mtu_must_be_between_1280_and_9000_146" formatted="false">"MTU: от 1280 до 9000"</string>
+    <string name="msg_timeout_must_be_between_3_and_30_seconds_147" formatted="false">"Тайм-аут: от 3 до 30 секунд"</string>
+    <string name="msg_check_interval_must_be_between_30_and_600_sec_148" formatted="false">"Интервал проверки: от 30 до 600 секунд"</string>
+    <string name="msg_hwid_10_64_letters_digits_or_149" formatted="false">"HWID: 10–64 символа, буквы, цифры, = или -"</string>
+    <string name="msg_user_agent_must_contain_printable_ascii_chara_150" formatted="false">"User-Agent должен содержать печатные латинские символы"</string>
+    <string name="msg_disabling_tls_verification_is_not_supported_151" formatted="false">"Отключение проверки TLS не поддерживается"</string>
+    <string name="msg_server_address_is_missing_152" formatted="false">"Нет адреса сервера"</string>
+    <string name="msg_hysteria_port_hopping_is_not_supported_yet_153" formatted="false">"Hysteria port hopping пока не поддерживается"</string>
+    <string name="msg_hysteria2_password_is_missing_154" formatted="false">"Нет пароля Hysteria2"</string>
+    <string name="msg_invalid_hysteria2_obfuscation_settings_155" formatted="false">"Неверные параметры обфускации Hysteria2"</string>
+    <string name="msg_hysteria_requires_udp_transport_156" formatted="false">"Hysteria поддерживает UDP transport"</string>
+    <string name="msg_hysteria_requires_upmbps_and_downmbps_157" formatted="false">"Для Hysteria нужны upmbps и downmbps"</string>
+    <string name="msg_tuic_v5_requires_a_uuid_and_password_158" formatted="false">"TUIC v5: нужны UUID и пароль"</string>
+    <string name="msg_server_key_is_missing_159" formatted="false">"Нет ключа сервера"</string>
+    <string name="msg_unsupported_vless_encryption_160" formatted="false">"Неизвестное шифрование VLESS"</string>
+    <string name="msg_xhttp_does_not_support_vision_flow_161" formatted="false">"XHTTP не поддерживает Vision flow"</string>
+    <string name="msg_unsupported_xhttp_mode_162" formatted="false">"Неизвестный режим XHTTP"</string>
+    <string name="msg_xhttp_extra_settings_are_too_large_163" formatted="false">"Слишком сложные параметры XHTTP"</string>
+    <string name="msg_reality_public_key_is_missing_164" formatted="false">"Нет публичного ключа REALITY"</string>
+    <string name="msg_no_supported_servers_use_vless_vmess_trojan_o_165" formatted="false">"Нет поддерживаемых серверов. Нужен список ссылок VLESS, VMess, Trojan или Shadowsocks."</string>
+    <string name="msg_vmess_alterid_is_not_supported_166" formatted="false">"VMess alterId не поддерживается"</string>
+    <string name="msg_transport_is_not_supported_167" formatted="false">"Протокол не поддерживается"</string>
+    <string name="msg_invalid_server_address_168" formatted="false">"Неверный адрес сервера"</string>
+    <string name="msg_insecure_tls_settings_are_not_supported_169" formatted="false">"Небезопасная проверка TLS не поддерживается"</string>
+    <string name="msg_shadowsocks_plugins_are_not_supported_170" formatted="false">"Shadowsocks plugin не поддерживается"</string>
+    <string name="msg_transport_type_is_not_supported_171" formatted="false">"Транспорт %1$s не поддерживается"</string>
+    <string name="language">Язык</string>
+    <string name="add_tile">Добавить кнопку VPN в шторку</string>
+    <string name="tile_off">Отключён</string>
+    <string name="tile_on">Подключён</string>
+    <string name="tile_starting">Подключаемся…</string>
+    <string name="tile_stopping">Отключаем…</string>
+    <string name="tile_setup">Добавь подписку для подключения</string>
+</resources>

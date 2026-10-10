@@ -4,7 +4,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <application android:label="Moth" android:icon="@drawable/ic_route" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:allowBackup="false" android:dataExtractionRules="@xml/backup_rules" android:usesCleartextTraffic="false" android:supportsRtl="true">
+    <application android:name=".MothApplication" android:label="@string/app_name" android:localeConfig="@xml/locales_config" android:icon="@drawable/ic_route" android:theme="@style/AppTheme" android:allowBackup="false" android:dataExtractionRules="@xml/backup_rules" android:usesCleartextTraffic="false" android:supportsRtl="true">
+        <service android:name="androidx.appcompat.app.AppLocalesMetadataHolderService" android:enabled="false" android:exported="false">
+            <meta-data android:name="autoStoreLocales" android:value="true" />
+        </service>
+        <service android:name=".VpnTileService" android:label="@string/app_name" android:icon="@drawable/ic_moth_tile" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>

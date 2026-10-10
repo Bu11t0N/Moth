@@ -1,193 +1,118 @@
-# Moth — VPN Client
+# Moth
 
-**Простой Android-клиент для вашей VPN-подписки.** Добавьте ссылку, выберите сервер
-и подключитесь. Бесплатный клиент с открытым исходным кодом.
+An open-source Android VPN client built with Kotlin, Jetpack Compose, sing-box and Xray. Import a subscription, choose a server and connect.
 
-[Скачать APK](https://github.com/Bu11t0N/Moth/releases) ·
-[План развития](ROADMAP.md) · [Лицензии](THIRD_PARTY.md) · [Проверки](VALIDATION.md)
+[Download](https://github.com/Bu11t0N/Moth/releases/latest) · [Русский](README.ru.md) · [Report an issue](https://github.com/Bu11t0N/Moth/issues)
 
-> **0.4.0 — версия для тестирования.**
-> Moth не предоставляет VPN-серверы: нужна совместимая подписка вашего провайдера.
+## Features
 
-## Возможности
+- Three tabs: Home, Servers and Settings.
+- Independent server selection for Wi-Fi and mobile data, with all profiles available in both lists.
+- URI, Base64 and Clash subscriptions, including VLESS XHTTP, Hysteria and TUIC.
+- HTTPS checks through each server, TCP port checks, tunnel health checks and a small download test.
+- Search, compact rows, latency sorting and filtering of recently unavailable servers.
+- Subscription expiration and traffic information when supplied by the provider.
+- Persistent HWID and configurable subscription headers.
+- English and Russian, system language detection and the Russian app name **Мотылёк**.
+- A Quick Settings VPN toggle using the selected server for the current network.
+- Light, dark and system themes. Settings apply automatically.
 
-- Добавление одной HTTPS-подписки и загрузка серверов.
-- Ручной выбор сервера, подключение и отключение системного VPN.
-- Ручное обновление и удаление подписки, сохранение выбранного сервера.
-- Шифрование конфигураций с ключом Android Keystore.
-- Интерфейс на русском языке и уведомление с кнопкой отключения.
-- Настройки темы, DNS over HTTPS, IPv6, MTU, тайм-аутов и проверок соединения.
-- Стабильный HWID установки в заголовке `x-hwid` при загрузке подписки.
-- Проверка интернета через активный VPN и HTTPS-задержки каждого профиля.
-- Отдельный тест загрузки до 1 МиБ через выбранный профиль.
-- Компактные строки серверов, поиск по названию/протоколу и фильтр недоступных.
-- Три нижние вкладки: Главная, Серверы, Настройки. Серверы разделены на Wi-Fi
-  и мобильные данные; список общий, выбранный профиль сохраняется отдельно.
-- Настройки применяются автоматически после ввода корректного значения.
-- Информация о провайдере на главной: название/домен, число серверов, а при наличии
-  заголовков провайдера — срок подписки и использованный трафик.
-- HTTPS-проверка по нескольким адресам, свой HTTPS-адрес или TCP-порт.
-- APK по архитектурам с R8 и сжатием нативных библиотек: arm64 примерно 18 МБ.
-- Скриншоты и трансляция экрана разрешены; поля ссылки подписки и HWID скрыты.
+Moth requires a subscription from a compatible provider. It does not supply VPN servers. Automatic server selection, reconnection and background subscription updates are planned.
 
-Автовыбор, переподключение и фоновые обновления пока не реализованы.
-Реклама, аналитика, аккаунты и каталог провайдеров отсутствуют.
+## Installation
 
-## Установка
+Requires **Android 8.0 or newer**.
 
-Android 8.0+. Пользователь проверил первое подключение на **Samsung Galaxy S24 Ultra,
-Android 16**: импорт подписки, выбор сервера и работа интернета через VPN.
-Это ручная проверка одного устройства и одной подписки.
+1. Download an APK from [Releases](https://github.com/Bu11t0N/Moth/releases/latest). Choose `arm64-v8a` for most modern phones, including the Galaxy S24 Ultra; `armeabi-v7a` for older 32-bit ARM devices; or `x86_64` / `x86` for matching devices and emulators.
+2. Install the APK and add the HTTPS subscription link supplied by the provider.
+3. Open **Servers** and choose a server for Wi-Fi and mobile data.
+4. Press the connection button on **Home** and grant Android's VPN permission.
 
-1. Скачайте APK из [Releases](https://github.com/Bu11t0N/Moth/releases).
-   Для Samsung S24 Ultra и большинства современных телефонов нужен `arm64-v8a`.
-   Для 32-битных ARM-устройств — `armeabi-v7a`, для соответствующих эмуляторов — `x86_64`/`x86`.
-2. Установите его, разрешив установку из выбранного источника при необходимости.
-3. Нажмите **«Добавить подписку»** и вставьте HTTPS-ссылку от провайдера.
-   Замена, обновление, проверки и удаление находятся значками на вкладке **«Серверы»**.
-4. На вкладке **«Серверы»** выберите профиль отдельно для Wi-Fi и мобильной сети.
-   На **«Главной»** нажмите круглую кнопку подключения, разрешите системный VPN и уведомления.
-5. Проверьте доступ к интернету.
+To add the Quick Settings toggle, open **Settings → Appearance → Add VPN button to Quick Settings** on Android 13+. Alternatively, edit Android's Quick Settings panel and drag **Moth** / **Мотылёк** into it. The first connection may open the app to request VPN permission.
 
-Ссылка содержит секрет подписки. Не публикуйте её в Issues, логах и скриншотах.
-В отчёте об ошибке достаточно модели, версии Android, протокола/транспорта
-и описания поведения без ключей.
+Language is under **Settings → Appearance**. The default follows the system; English and Russian can be selected explicitly. Android 13+ exposes the same choice in system app language settings.
 
-## Поддержка подписок
+Official 0.4.1 APKs update official 0.2, 0.3 and 0.4.0 APKs without deleting app data. The application ID and signing certificate are unchanged. The original GitHub 0.1 APK and independently built APKs can have different signatures.
 
-Поддерживаются текстовые и Base64-списки URI и Clash YAML/JSON со встроенным списком `proxies`:
+## Supported subscriptions
 
-| Протокол | Поддержка |
+Text and Base64-encoded URI lists and Clash YAML/JSON with an embedded `proxies` list are supported.
+
+| Protocol | Support |
 | --- | --- |
-| VLESS | TLS, REALITY, Vision; XHTTP через Xray |
-| VMess | alterId=0, TLS; XHTTP через Xray |
-| Trojan | TLS; XHTTP через Xray |
-| Shadowsocks | SIP002, без плагинов |
-| Hysteria | v1, UDP, с upmbps/downmbps |
+| VLESS | TLS, REALITY, Vision; XHTTP through Xray |
+| VMess | `alterId=0`, TLS; XHTTP through Xray |
+| Trojan | TLS; XHTTP through Xray |
+| Shadowsocks | SIP002, without plugins |
+| Hysteria | v1 over UDP, with `upmbps` / `downmbps` |
 | Hysteria2 | TLS, Salamander |
-| TUIC | v5, UUID + пароль |
+| TUIC | v5, UUID and password |
 
-Транспорты: TCP, WebSocket, gRPC, HTTPUpgrade, где применимо.
-XHTTP поддерживает auto, packet-up, stream-up и stream-one.
-Hysteria port hopping, TUIC v4, Shadowsocks plugins, внешние Clash
-`proxy-providers` и цепочки `dialer-proxy` пока не поддерживаются.
-Clash-группы и правила маршрутизации не применяются: используется ручной выбор профиля.
-Профили с отключённой проверкой TLS отклоняются.
-Количество пропущенных неподдерживаемых профилей показывается пользователю.
-HTTPS-адрес подписки сам по себе не определяет формат ответа сервера.
+TCP, WebSocket, gRPC and HTTPUpgrade are supported where applicable. XHTTP supports `auto`, `packet-up`, `stream-up` and `stream-one`.
 
-## Приватность и ограничения
+Hysteria port hopping, TUIC v4, Shadowsocks plugins, external Clash `proxy-providers` and `dialer-proxy` chains are not supported. Clash routing rules and groups are not applied. Profiles that disable TLS verification are rejected. Unsupported profiles are counted during import.
 
-Ссылка и профили сохраняются атомарно в файле AES-GCM с ключом Android Keystore.
-Резервное копирование конфигураций отключено. Логи ядра отключены. Подписки
-не отправляются разработчикам Moth: запрос получает ваш сервис подписки.
-Конфигурация доступна процессу приложения во время работы.
+## Connection checks
 
-**«VPN запущен» означает создание туннеля**. Отдельный статус сообщает результат
-HTTPS-проверки через Android VPN Network; при отсутствии VPN-сети прямого fallback нет.
-По умолчанию проверяется `https://www.gstatic.com/generate_204` раз в 60 секунд.
-Адрес, интервал и тайм-аут можно изменить. Отказ тестового адреса сам по себе
-не доказывает недоступность всех сайтов. Проверка всех серверов выполняется
-последовательно через отдельные аутентифицированные локальные SOCKS-прокси.
-Это HTTPS-задержка с установлением соединения, не ICMP ping. Результаты отражают
-последнюю проверку; тест загрузки через Cloudflare показывает ориентировочную
-скорость короткой загрузки, а не предельную пропускную способность канала.
-«Измерить скорость» доступно только значком на вкладке «Серверы»; загрузка — до 1 МиБ.
-Проверки выполняются в текущей сети. Чтобы проверить мобильный интернет,
-включите мобильные данные и отключите Wi-Fi. Результаты разделены по типу сети.
-При смене физической сети текущая проверка отменяется; старый результат помечается.
-TCP проверяет доступность порта и **не подтверждает работоспособность VPN**.
-Для UDP-протоколов Hysteria/TUIC используйте HTTPS. По умолчанию HTTPS пробует
-адрес из настроек, Cloudflare и Google; успешен первый доступный ответ.
-Свои адрес и способ проверки выбираются в «Настройки → Проверки».
-Фильтр «Без недоступных» скрывает только серверы с неудачной HTTPS-проверкой за
-последние 15 минут в текущей физической сети. Непроверенные серверы, TCP-результаты,
-проверки другой сети и отменённые проверки остаются видимыми.
-Результаты не сохраняются после завершения процесса; при смене сети повторите
-проверку. Все серверы можно вернуть, отключив фильтр. Компактный режим включён
-по умолчанию и меняется в «Настройки → Интерфейс».
-При отказе сервера автоматического переключения пока нет. При остановке службы
-VPN закрывается. Для запрета прямого трафика после отключения используются
-настройки Android Always-on VPN / «Блокировать соединения без VPN»;
-этот сценарий требует отдельной проверки.
+HTTPS checks establish a connection **through the selected server**. The default tries the configured URL, Cloudflare and Google; a custom URL can be used instead. Latency includes HTTPS connection setup and is not ICMP ping. Tunnel health is checked separately through Android's VPN network, without a direct-network fallback.
 
-Подписка до подключения и DNS-разрешение имени самого сервера выполняются напрямую.
-DNS пользовательского трафика внутри туннеля направлен через выбранный сервер.
-Bootstrap DNS по умолчанию использует Cloudflare DoH. Его можно изменить в
-«Настройки → Подключение → DNS для адресов серверов», если он недоступен.
-Исчерпывающая проверка DNS/IPv6-утечек ещё не выполнена.
-Клиент не гарантирует работу при любых блокировках: нужен доступный сервер
-и подходящая конфигурация от провайдера.
+TCP checks only show whether a port is reachable; they do not verify VPN traffic and cannot check UDP protocols such as Hysteria or TUIC. The speed icon downloads at most 1 MiB from Cloudflare and gives an approximate short-download rate.
 
-HWID — случайный UUID, сохраняемый в зашифрованных настройках отдельно от подписки.
-Он не использует IMEI/серийный номер; меняется при удалении данных или переустановке.
-Отправка включена по умолчанию и отключается в настройках. Модель устройства и
-версия Android передаются только при включении отдельного переключателя.
-Заголовки устройства отправляются исходному HTTPS origin подписки и не переходят
-на другой сайт при redirect. Поддерживается Remnawave-совместимый `x-hwid`;
-это не гарантия совместимости с любым собственным механизмом провайдера.
-При необходимости можно ввести выданный провайдером HWID и User-Agent.
+Checks run on the current physical network. Switch off Wi-Fi to test mobile data. Results are separated by network type, marked when the network changes and reset when the app process ends. The unavailable-server filter only hides failed HTTPS checks from the last 15 minutes on the current network; unchecked, cancelled and TCP checks remain visible.
 
-## Сборка
+## Privacy and security
 
-Android Studio, **JDK 21**, Android SDK 34. Gradle Wrapper 8.13 включён в репозиторий.
-Настройте `ANDROID_HOME` либо `sdk.dir` в локальном `local.properties`.
+- No advertising, analytics, accounts or hidden telemetry.
+- Subscription links, profiles and settings are stored in AES-GCM encrypted files using Android Keystore. Configuration backup and core logs are disabled.
+- Subscription links are sent to their subscription service, not to Moth's developers.
+- HWID is a random installation UUID, not an IMEI or hardware serial number. Device model and Android version are optional. Device headers are restricted to the original HTTPS origin and are not forwarded across origins on redirects.
+- Subscription and HWID fields are masked. Screenshots and screen sharing are allowed.
 
-Нужна `libbox.aar` в корне проекта. [CI](.github/workflows/android.yml) собирает
-ядро из официального sing-box **v1.11.15** и Xray **v25.3.6**, закреплённых по commit SHA.
-Xray обслуживает XHTTP через локальный SOCKS; Android TUN обслуживает sing-box.
-Для самостоятельной сборки ядра на Linux нужны Go 1.24.3, JDK 17,
-Android SDK и NDK 28.0.13004108:
+Subscription downloads and bootstrap DNS requests may use the direct connection. Traffic DNS inside the tunnel uses the selected server. Bootstrap DNS defaults to Cloudflare DoH and can be changed in Connection settings.
+
+Automatic recovery is not implemented. Android provides Always-on VPN and “Block connections without VPN”. Comprehensive DNS/IPv6 leak testing is still pending. Availability depends on the provider, configuration and network conditions.
+
+Never include subscription links, credentials or private keys in public issues or screenshots.
+
+## Build
+
+Android Studio, **JDK 21** and **Android SDK 34** are required. The Gradle 8.13 wrapper is included. Set `ANDROID_HOME` or `sdk.dir` in a local `local.properties` file.
+
+The app needs `libbox.aar` in the repository root. On Linux, build it with Go 1.24.3, JDK 17 and Android NDK 28.0.13004108:
 
 ```bash
 bash scripts/build-libbox.sh
-# Затем переключите JAVA_HOME на JDK 21:
+# Switch JAVA_HOME to JDK 21 before building the Android app.
 ./gradlew :core:test :app:assembleRelease :app:lintRelease
 ```
 
-Для Windows можно получить AAR из артефактов успешной CI-сборки. Скрипт
-`scripts/fetch-libbox.ps1` сохранён для воспроизведения исходного прототипа:
-он получает сторонний AAR для старого прототипа; для 0.2 требуется новый AAR с Xray,
-см. [THIRD_PARTY.md](THIRD_PARTY.md).
+[CI](.github/workflows/android.yml) builds the pinned native sources and publishes the AAR, APKs, native source archive and Go dependencies as workflow artifacts. Windows builds can use the AAR from a successful workflow. `scripts/fetch-libbox.ps1` is retained for the original prototype and does not fetch the current hybrid core.
 
-APK: `app/build/outputs/apk/release/app-<ABI>-release.apk`. Оптимизированные сборки
-используют существующий локальный ключ подписи Android. APK 0.4 использует ту же
-подпись и applicationId, что опубликованные APK 0.2/0.3; versionCode увеличен до 5.
-Она устанавливается обновлением с сохранением
-данных. Сертификат SHA-256: `8da575e54f9a90626fa3f6cf5f78eb11b3f0252601eecc6cc355fa709af18f90`.
-Первая APK из GitHub-релиза 0.1 подписана другим ключом. Самостоятельные и CI-сборки
-также могут иметь другую подпись: их нельзя автоматически считать совместимыми
-с опубликованной APK. Изменение инфраструктуры подписи будет отдельной задачей.
+APKs are generated at `app/build/outputs/apk/release/app-<ABI>-release.apk`. R8, resource shrinking, ABI splits and compressed native libraries reduce download size. Installed size is larger because native libraries are extracted.
 
-Размер загружаемой APK уменьшен разделением по ABI и сжатием `.so`; установленное
-ядро распаковывается на устройство, поэтому размер установки больше APK.
-Версии: 0.4.0 — текущая; последующие правки — 0.4.1, 0.4.2 и далее.
-Переход на 0.5.0 выполняется только по отдельному решению владельца проекта.
+The current Gradle release configuration uses the local Android debug keystore. Local and CI builds are not automatically compatible with official APKs: updating an existing installation requires the same signing key. Official release certificate SHA-256:
 
-## Архитектура и другие ОС
+```text
+8da575e54f9a90626fa3f6cf5f78eb11b3f0252601eecc6cc355fa709af18f90
+```
 
-- `core` — Kotlin/JVM без Android API: парсер URI, модель, генерация конфигурации.
-- `app` — Compose, Keystore, HTTPS-загрузка, разрешения и VpnService.
-- `scripts` — сборка ядра и вспомогательные инструменты.
+## Project structure
 
-Мы используем готовое ядро sing-box. Windows/Linux требуют своей интеграции TUN
-и маршрутов. Для iOS нужны Network Extension, Xcode, другое хранилище ключей
-и проверка условий App Store. Kotlin/JVM и Android-интерфейс не переносятся
-на iOS автоматически. Первой платформой остаётся Android.
+- `app/` — Compose UI, languages, Quick Settings, encrypted storage and Android VPN integration.
+- `core/` — Android-independent Kotlin/JVM parser, models and configuration generation.
+- `scripts/` — native builds and supporting tools.
+- `licenses/` — third-party notices included in the APK.
 
-Идентификатор `org.routevpn.android` пока сохранён для совместимости с прототипом.
-Название приложения — **Moth**.
+The native core uses **sing-box 1.11.15** for TUN and **Xray 25.3.6** for XHTTP. Sources are pinned by commit in the build script. These versions need a separate upgrade and compatibility review.
 
-## Участие
+Android is the only implemented platform. Other operating systems require their own tunnel integration and interfaces; the Android UI is not directly portable to iOS.
 
-Открывайте Issue с воспроизводимым сценарием. Изменения — через отдельную ветку
-и Pull Request с тестами и сборкой. Примеры конфигураций должны содержать
-вымышленные ключи. Не добавляйте реальные подписки, токены, ключи подписи
-или `local.properties`.
+## Contributing
 
-## Лицензия
+Issues should include reproducible steps, Android version, device model and protocol/transport, with credentials removed. Submit changes through pull requests and run the tests, release build and Android Lint. Use fictional credentials in fixtures. Do not commit real subscriptions, signing keys, tokens or `local.properties`.
 
-Moth — [GPL-3.0-or-later](LICENSE). sing-box также использует GPL-3.0-or-later
-с условием о названии/ассоциации. Moth не является официальным приложением SagerNet.
-Уведомления находятся в [THIRD_PARTY.md](THIRD_PARTY.md) и `licenses/`.
-Коммерческая модель возможна при соблюдении лицензий; сейчас монетизации нет.
+## License
+
+Moth is licensed under [GPL-3.0-or-later](LICENSE). sing-box uses GPL-3.0-or-later with an additional naming/non-association condition; Xray uses MPL-2.0. Moth is an independent project and is not an official SagerNet client.
+
+See [THIRD_PARTY.md](THIRD_PARTY.md) and [licenses/](licenses/) for notices and source details. The unchanged native core's corresponding source and Go dependencies are available with the [0.2 release](https://github.com/Bu11t0N/Moth/releases/tag/v0.2.0-alpha.1); subsequent releases include their own app source archive.

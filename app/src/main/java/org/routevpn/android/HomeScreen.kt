@@ -30,28 +30,28 @@ import java.net.URI
     val transition = tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Moth", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.fillMaxWidth().padding(top = 20.dp))
+        Text(tr(R.string.app_name), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.fillMaxWidth().padding(top = 20.dp))
         Spacer(Modifier.weight(1f))
         Button(onClick = connect, enabled = !busy && (!probing || running) && !transition && selected != null,
             shape = androidx.compose.foundation.shape.CircleShape, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(148.dp)
-                .semantics { contentDescription = if (running) "Отключить VPN" else "Подключить VPN" },
+                .semantics { contentDescription = if (running) tr(R.string.msg_disconnect_vpn_8) else tr(R.string.msg_connect_vpn_9) },
             colors = ButtonDefaults.buttonColors(containerColor = if (running) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary)) {
             if (transition) CircularProgressIndicator(Modifier.size(44.dp), strokeWidth = 3.dp)
             else MothIcon("power", Modifier.size(56.dp))
         }
-        Text(when (tunnel) { TunnelState.OFF -> "Подключиться"; TunnelState.RUNNING -> "VPN включён"; TunnelState.STARTING -> "Подключаемся…"; TunnelState.STOPPING -> "Отключаем…"; TunnelState.ERROR -> "Не удалось подключиться" }, style = MaterialTheme.typography.headlineSmall)
-        if (running) Text(if (health.checking) "Проверяем интернет…" else health.message, style = MaterialTheme.typography.bodyMedium)
+        Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14) }, style = MaterialTheme.typography.headlineSmall)
+        if (running) Text(if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message), style = MaterialTheme.typography.bodyMedium)
         if (selected != null) TextButton(onClick = servers) { Text(selected.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }
-        if (saved == null) Button(enabled = !busy, onClick = add) { Text("Добавить подписку") }
+        if (saved == null) Button(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
         Spacer(Modifier.weight(1f))
         if (saved != null) Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 val host = remember(saved.url) { runCatching { URI(saved.url).host }.getOrNull().orEmpty() }
                 Text(saved.providerName.ifBlank { host }, style = MaterialTheme.typography.titleMedium)
-                Text("$host · ${saved.profiles.size} серверов", style = MaterialTheme.typography.bodySmall)
-                if (saved.totalBytes > 0) Text("Трафик: %.1f / %.1f ГиБ".format(saved.usedBytes / 1073741824.0, saved.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall)
-                if (saved.expires in 1..253402300799L) Text("Подписка до " + java.text.DateFormat.getDateInstance().format(java.util.Date(saved.expires * 1000)), style = MaterialTheme.typography.bodySmall)
-                Text(if (!network.available) "Нет сети" else if (network.kind == "mobile") "Мобильные данные" else "Wi-Fi", style = MaterialTheme.typography.labelMedium)
+                Text(tr(R.string.msg_host_saved_profiles_size_servers_17, host, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
+                if (saved.totalBytes > 0) Text(tr(R.string.msg_traffic_1f_1f_gib_18, saved.usedBytes / 1073741824.0, saved.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall)
+                if (saved.expires in 1..253402300799L) Text(tr(R.string.msg_subscription_expires_on_19) + java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0]).format(java.util.Date(saved.expires * 1000)), style = MaterialTheme.typography.bodySmall)
+                Text(if (!network.available) tr(R.string.msg_no_network_20) else if (network.kind == "mobile") tr(R.string.msg_mobile_data_21) else "Wi-Fi", style = MaterialTheme.typography.labelMedium)
             }
         }
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
