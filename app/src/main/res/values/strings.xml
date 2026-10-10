@@ -190,4 +190,6 @@
     <string name="dev_refresh">Refresh</string>
     <string name="dev_log_is_off">Logging is off. Select a level in Settings → For developers.</string>
     <string name="dev_log_empty">The log is empty</string>
+    <string name="dev_crash_log">Crash log</string>
+    <string name="dev_showing_last_lines">Showing the last %1$d lines; Share exports the whole file.</string>
 </resources>

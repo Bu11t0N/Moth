@@ -190,4 +190,6 @@
     <string name="dev_refresh">Обновить</string>
     <string name="dev_log_is_off">Журнал выключен. Выберите уровень в Настройки → Для разработчиков.</string>
     <string name="dev_log_empty">Журнал пуст</string>
+    <string name="dev_crash_log">Краш-лог</string>
+    <string name="dev_showing_last_lines">Показаны последние %1$d строк; «Поделиться» отправляет весь файл.</string>
 </resources>

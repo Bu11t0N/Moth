@@ -40,7 +40,7 @@ import org.routevpn.core.ClientSettings
             Text(if (logOpen) tr(R.string.dev_log) else (section ?: tr(R.string.msg_settings_28)), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).padding(top = 12.dp))
             TextButton(onClick = { if (logOpen) logOpen = false else if (section != null) section = null else back() }) { Text(tr(R.string.msg_back_73)) }
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (logOpen) LogPage(Modifier.weight(1f)) else Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (section) {
                 null -> {
                     SettingsCategory(tr(R.string.msg_appearance_74)) { section = tr(R.string.msg_appearance_74) }
@@ -115,7 +115,7 @@ import org.routevpn.core.ClientSettings
                     OutlinedTextField(draft.userAgent, { applySettings(draft.copy(userAgent = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_user_agent_109)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text(tr(R.string.msg_providers_may_select_the_subscription_format_110), style = MaterialTheme.typography.bodySmall)
                 }
-                tr(R.string.dev_for_developers) -> if (logOpen) LogViewer() else DeveloperSection { logOpen = true }
+                tr(R.string.dev_for_developers) -> DeveloperSection { logOpen = true }
                 tr(R.string.msg_about_78) -> {
                     Text("${tr(R.string.app_name)} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleLarge)
                     Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111))

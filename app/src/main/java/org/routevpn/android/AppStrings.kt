@@ -11,7 +11,7 @@ import androidx.core.os.LocaleListCompat
 import java.util.Locale
 
 class MothApplication : Application() {
-    override fun onCreate() { super.onCreate(); instance = this }
+    override fun onCreate() { super.onCreate(); instance = this; CrashLog.install(this) }
     companion object { lateinit var instance: MothApplication; private set }
 }
 

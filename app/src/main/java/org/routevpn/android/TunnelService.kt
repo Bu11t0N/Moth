@@ -35,7 +35,7 @@ object TunnelStatus {
 }
 
 /** Number of servers probed at the same time (each HTTPS probe starts its own local core). */
-const val PROBE_CONCURRENCY = 4
+const val PROBE_CONCURRENCY = 3
 
 class TunnelService : VpnService(), PlatformInterface {
     private val executor = Executors.newSingleThreadExecutor()
@@ -45,6 +45,7 @@ class TunnelService : VpnService(), PlatformInterface {
     private val requests = java.util.concurrent.ConcurrentHashMap.newKeySet<ProxyRequest>()
     private val tcpSockets = java.util.concurrent.ConcurrentHashMap.newKeySet<java.net.Socket>()
     private val usedPorts = HashSet<Int>()
+    private val coreStartLock = Any() // local probe cores are started one at a time; requests still run in parallel
     private val healthExecutor = Executors.newSingleThreadScheduledExecutor()
     private val lookupExecutor = Executors.newCachedThreadPool()
     private var healthTask: java.util.concurrent.ScheduledFuture<*>? = null
@@ -210,13 +211,15 @@ class TunnelService : VpnService(), PlatformInterface {
                     }
                     stage = "free port"
                     val port = allocatePort(); allocated = port; val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
-                    if (profile.engine == "xray") { stage = "xray start"; xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this) }
+                    if (profile.engine == "xray") { stage = "xray start"; synchronized(coreStartLock) { xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this) } }
                     else {
                         stage = "build config"
                         val config = LocalProxyConfig.singBox(profile, port, user, password, settings)
                         stage = "Libbox.checkConfig"; Libbox.checkConfig(config)
-                        stage = "Libbox.newService"; local = Libbox.newService(config, this)
-                        stage = "BoxService.start"; local.start()
+                        synchronized(coreStartLock) {
+                            stage = "Libbox.newService"; local = Libbox.newService(config, this)
+                            stage = "BoxService.start"; local!!.start()
+                        }
                     }
                     stage = "local proxy ready"
                     Logger.d("Probe", "local proxy started ($label)")
