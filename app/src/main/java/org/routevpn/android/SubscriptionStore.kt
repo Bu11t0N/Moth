@@ -18,7 +18,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-data class SavedSubscription(val url: String, val profiles: List<Profile>, val selected: String)
+typealias SavedSubscription = org.routevpn.core.SubscriptionRecord
 
 class SubscriptionStore(context: Context, filename: String = "subscription.enc") {
     private val file = AtomicFile(java.io.File(context.noBackupFilesDir, filename))
@@ -31,9 +31,7 @@ class SubscriptionStore(context: Context, filename: String = "subscription.enc")
         }.generateKey()
     }
     @Synchronized fun save(saved: SavedSubscription) {
-        val json = JSONObject().put("url", saved.url).put("selected", saved.selected).put("profiles", JSONArray().apply {
-            saved.profiles.forEach { put(JSONObject().put("id", it.id).put("name", it.name).put("protocol", it.protocol).put("outbound", it.outbound).put("engine", it.engine)) }
-        })
+        val json = saved.json()
         writeJson(json)
     }
     @Synchronized fun writeJson(json: JSONObject) {
@@ -52,10 +50,7 @@ class SubscriptionStore(context: Context, filename: String = "subscription.enc")
     }
     @Synchronized fun load(): SavedSubscription? {
         val json = readJson() ?: return null
-        val list = json.getJSONArray("profiles")
-        return SavedSubscription(json.getString("url"), (0 until list.length()).map { i -> list.getJSONObject(i).let {
-            Profile(it.getString("id"), it.getString("name"), it.getString("protocol"), it.getString("outbound"), it.optString("engine", "sing-box"))
-        } }, json.getString("selected"))
+        return SavedSubscription.from(json)
     }
     @Synchronized fun clear() = file.delete()
 }
@@ -67,7 +62,9 @@ class SettingsStore(context: Context) {
 }
 
 object SubscriptionDownload {
-    fun fetch(address: String, settings: ClientSettings = ClientSettings()): String {
+    data class Response(val body: String, val name: String, val expires: Long, val used: Long, val total: Long)
+    fun fetch(address: String, settings: ClientSettings = ClientSettings()): String = fetchDetails(address, settings).body
+    fun fetchDetails(address: String, settings: ClientSettings = ClientSettings()): Response {
         var url = URL(address.trim())
         val original = url.toURI()
         repeat(6) {
@@ -98,7 +95,15 @@ object SubscriptionDownload {
                             out.toByteArray()
                         }
                         require(bytes.size <= 2 * 1024 * 1024) { "Список серверов слишком большой" }
-                        return String(bytes, Charsets.UTF_8)
+                        val title = connection.getHeaderField("profile-title").orEmpty().let { text ->
+                            if (text.startsWith("base64:")) runCatching { String(android.util.Base64.decode(text.removePrefix("base64:"), android.util.Base64.DEFAULT), Charsets.UTF_8) }.getOrDefault("") else text
+                        }.take(120)
+                        val info = connection.getHeaderField("subscription-userinfo").orEmpty().split(';').mapNotNull {
+                            val pair = it.trim().split('=', limit = 2)
+                            if (pair.size == 2) pair[1].toLongOrNull()?.coerceAtLeast(0)?.let { n -> pair[0] to n } else null
+                        }.toMap()
+                        val used = (info["upload"] ?: 0).let { u -> val d = info["download"] ?: 0; if (Long.MAX_VALUE - u < d) Long.MAX_VALUE else u + d }
+                        return Response(String(bytes, Charsets.UTF_8), title, info["expire"] ?: 0, used, info["total"] ?: 0)
                     }
                     401, 403 -> error("Подписка недоступна. Проверь ссылку и срок действия.")
                     else -> error("Сервис подписки не ответил успешно. Попробуй позже.")
@@ -108,4 +113,3 @@ object SubscriptionDownload {
         error("Слишком много перенаправлений")
     }
 }
-

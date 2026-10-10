@@ -100,7 +100,7 @@ class FeaturesTest {
     }
     @Test fun settingsFromPreviousReleaseKeepHwidAndConnectionOptions() {
         val previous = ClientSettings(mtu = 1280, ipv6 = false, theme = "dark", sortByLatency = true, deviceInfo = true)
-        val json = previous.json().apply { remove("compactServers"); remove("hideUnavailable") }
+        val json = previous.json().apply { remove("compactServers"); remove("hideUnavailable"); remove("probeMode"); remove("bootstrapDns") }
         val migrated = ClientSettings.from(json)
         assertEquals(previous, migrated)
         assertEquals(previous.hwid, migrated.hwid)
@@ -108,6 +108,29 @@ class FeaturesTest {
         assertFalse(migrated.hideUnavailable)
         assertEquals(migrated.copy(compactServers = false, hideUnavailable = true),
             ClientSettings.from(migrated.copy(compactServers = false, hideUnavailable = true).json()))
+    }
+    @Test fun probeVariantsAndUdpAreNotConfusedWithTcp() {
+        val s = ClientSettings()
+        assertEquals(3, ProbePolicy.urls(s).size)
+        assertEquals(2, ProbePolicy.urls(s.copy(probeUrl = "https://cp.cloudflare.com/generate_204")).size)
+        assertEquals(listOf(s.probeUrl), ProbePolicy.urls(s.copy(probeMode = "https")))
+        val tcp = Subscriptions.parseLink("vless://$uuid@example.com:443?security=tls")
+        assertEquals("example.com" to 443, ProbePolicy.tcpEndpoint(tcp))
+        val xhttp = Subscriptions.parseLink("vless://$uuid@example.com:443?type=xhttp&security=tls")
+        assertEquals("example.com" to 443, ProbePolicy.tcpEndpoint(xhttp))
+        assertNull(ProbePolicy.tcpEndpoint(Subscriptions.parseLink("hy2://secret@example.com:443")))
+        assertNull(ProbePolicy.tcpEndpoint(Subscriptions.parseLink("tuic://$uuid:secret@example.com:443")))
+        assertFails { s.copy(probeMode = "icmp").validate() }
+    }
+    @Test fun customBootstrapDnsIsUsedByAllCoreConfigs() {
+        val s = ClientSettings(bootstrapDns = "https://8.8.8.8/dns-query", probeMode = "https")
+        val p = Subscriptions.parseLink("hy2://secret@example.com:443")
+        assertEquals(s.bootstrapDns, JSONObject(TunnelConfig.create(p, s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(1).getString("address"))
+        assertEquals(s.bootstrapDns, JSONObject(LocalProxyConfig.singBox(p, 18080, "u", "p", s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("address"))
+        val xp = Subscriptions.parseLink("vless://$uuid@example.com:443?type=xhttp&security=tls")
+        assertEquals("https+local://8.8.8.8/dns-query", JSONObject(LocalProxyConfig.xray(xp, 18080, "u", "p", s)).getJSONObject("dns").getJSONArray("servers").getString(0))
+        assertEquals(s, ClientSettings.from(s.json()))
+        assertFails { s.copy(bootstrapDns = "http://example.com").validate() }
     }
     @Test fun tunnelRespectsSettingsAndCapturesIpv6WhenDisabled() {
         val p = Subscriptions.parseLink("hy2://secret@example.com")

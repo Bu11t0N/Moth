@@ -44,8 +44,10 @@ jobs:
       - name: Tests, APK and Android Lint
         run: |
           chmod +x gradlew
-          ./gradlew :core:test :app:assembleDebug :app:lintDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk artifacts/Moth-0.3.0-alpha.1.apk
+          ./gradlew :core:test :app:assembleRelease :app:lintRelease --no-daemon
+          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+            cp "app/build/outputs/apk/release/app-$abi-release.apk" "artifacts/Moth-0.4.0-$abi.apk"
+          done
           cp libbox.aar artifacts/libbox-v1.11.15.aar
           sha256sum artifacts/* > artifacts/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
@@ -58,4 +60,4 @@ jobs:
           name: test-reports
           path: |
             core/build/reports/tests/
-            app/build/reports/lint-results-debug.*
+            app/build/reports/lint-results-release.*

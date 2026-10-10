@@ -16,7 +16,7 @@ import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 
-data class ProbeResult(val checking: Boolean = false, val latencyMs: Long? = null, val error: String? = null, val checkedAt: Long = System.currentTimeMillis())
+data class ProbeResult(val checking: Boolean = false, val latencyMs: Long? = null, val error: String? = null, val checkedAt: Long = System.currentTimeMillis(), val method: String = "HTTPS", val networkHandle: Long = 0)
 data class HealthResult(val checking: Boolean = false, val latencyMs: Long? = null, val message: String = "Соединение ещё не проверено", val failures: Int = 0)
 object Diagnostics {
     internal val resultsMutable = MutableStateFlow<Map<String, ProbeResult>>(emptyMap())
@@ -30,6 +30,9 @@ object Diagnostics {
     @Synchronized fun result(id: String, value: ProbeResult) { resultsMutable.value = resultsMutable.value + (id to value) }
     fun friendly(e: Exception) = when (e) {
         is java.net.SocketTimeoutException -> "Не ответил вовремя"
+        is java.util.concurrent.TimeoutException -> "Не удалось найти адрес вовремя"
+        is java.net.UnknownHostException -> "Не удалось найти адрес сервера"
+        is java.net.ConnectException -> "Порт сервера не отвечает"
         is javax.net.ssl.SSLException -> "Не удалось проверить HTTPS"
         else -> "Проверка не прошла"
     }
