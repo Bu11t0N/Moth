@@ -24,5 +24,9 @@ class ConfigFixturesTest {
         File(directory, "xray.json").writeText(LocalProxyConfig.xray(xhttp, 18081, "test", "test"))
         File(directory, "bridge.json").writeText(TunnelConfig.create(LocalProxyConfig.bridge(xhttp, 18081, "test", "test"), ClientSettings(ipv6 = false, dns = "https://dns.google/dns-query")))
         File(directory, "probe.json").writeText(LocalProxyConfig.singBox(Subscriptions.parseLink(links[4]), 18082, "test", "test"))
+        val custom = ClientSettings(bootstrapDns = "https://8.8.8.8/dns-query")
+        File(directory, "custom-bootstrap.json").writeText(TunnelConfig.create(Subscriptions.parseLink(links[4]), custom))
+        File(directory, "custom-probe.json").writeText(LocalProxyConfig.singBox(Subscriptions.parseLink(links[4]), 18083, "test", "test", custom))
+        File(directory, "xray-custom.json").writeText(LocalProxyConfig.xray(xhttp, 18084, "test", "test", custom))
     }
 }

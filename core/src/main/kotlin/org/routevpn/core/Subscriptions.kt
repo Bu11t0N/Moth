@@ -111,7 +111,7 @@ object TunnelConfig {
         .put("log", JSONObject().put("disabled", true))
         .put("dns", JSONObject().put("servers", JSONArray()
             .put(JSONObject().put("tag", "remote").put("address", "https://1.1.1.1/dns-query").put("detour", "proxy"))
-            .put(JSONObject().put("tag", "bootstrap").put("address", "https://1.1.1.1/dns-query").put("detour", "direct")))
+            .put(JSONObject().put("tag", "bootstrap").put("address", settings.bootstrapDns).put("detour", "direct")))
             .put("rules", JSONArray().put(JSONObject().put("outbound", "any").put("server", "bootstrap")))
             .put("final", "remote").put("strategy", if (settings.ipv6) "prefer_ipv4" else "ipv4_only").apply {
                 getJSONArray("servers").getJSONObject(0).put("address", settings.dns).put("address_resolver", "bootstrap")
