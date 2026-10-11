@@ -2,6 +2,16 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.4.5
+
+### Identity and updates
+
+- The application ID and source packages are now org.mothvpn.android. This is a one-time separate installation; export your subscription details before removing the old application.
+- New launcher icon using the supplied Moth artwork.
+- Optional update checks in Settings → Updates. Downloads use the official GitHub release for the device architecture; checksums, package ID, version code and signing certificate are verified before Android asks to install.
+- Release builds require the dedicated Moth signing key; future releases keep this key and application ID.
+- Personal device model references removed from documentation.
+
 ## 0.4.4
 
 ### Subscriptions

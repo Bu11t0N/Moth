@@ -23,7 +23,7 @@ Moth requires a subscription from a compatible provider. It does not supply VPN 
 
 Requires **Android 8.0 or newer**.
 
-1. Download an APK from [Releases](https://github.com/Bu11t0N/Moth/releases/latest). Choose `arm64-v8a` for most modern phones, including the Galaxy S24 Ultra; `armeabi-v7a` for older 32-bit ARM devices; or `x86_64` / `x86` for matching devices and emulators.
+1. Download an APK from [Releases](https://github.com/Bu11t0N/Moth/releases/latest). Choose `arm64-v8a` for most modern phones; `armeabi-v7a` for older 32-bit ARM devices; or `x86_64` / `x86` for matching devices and emulators.
 2. Install the APK and add the HTTPS subscription link supplied by the provider.
 3. Open **Servers** and choose a server for Wi-Fi and mobile data.
 4. Press the connection button on **Home** and grant Android's VPN permission.
@@ -122,3 +122,17 @@ Issues should include reproducible steps, Android version, device model and prot
 Moth is licensed under [GPL-3.0-or-later](LICENSE). sing-box uses GPL-3.0-or-later with an additional naming/non-association condition; Xray uses MPL-2.0. Moth is an independent project and is not an official SagerNet client.
 
 See [THIRD_PARTY.md](THIRD_PARTY.md) and [licenses/](licenses/) for notices and source details. The unchanged native core's corresponding source and Go dependencies are available with the [0.2 release](https://github.com/Bu11t0N/Moth/releases/tag/v0.2.0-beta.1); subsequent releases include their own app source archive.
+
+## Moth 0.4.5 and later
+
+The application ID is `org.mothvpn.android`. Version 0.4.5 installs separately from older packages: save your subscription URL before removing the old app. Later versions update the new package normally.
+
+Optional updates are available in Settings → Updates. Nothing downloads or installs automatically. Moth selects the APK for your architecture, verifies its checksum and signing certificate, then opens Android’s installer. Android may ask you to allow installations from Moth first.
+
+### Release signing
+
+Release builds require the dedicated Moth keystore. Set `MOTH_KEYSTORE_FILE` to its path and `MOTH_KEYSTORE_PASSWORD` securely; the alias is `moth`. Never generate a replacement key for an existing installation. Keep an offline backup of the keystore and password. GitHub Actions can use the encrypted `MOTH_KEYSTORE_BASE64` and `MOTH_KEYSTORE_PASSWORD` repository secrets. No key or password is stored in this repository or release assets.
+
+Without signing secrets, CI produces explicitly unsigned validation APKs; these are not installable updates.
+
+Moth release certificate SHA-256: `e326f86f82b63071ee23a49b174b4cb5d25df1595e46c00571560a62f5ec210a`.

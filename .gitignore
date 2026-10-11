@@ -5,3 +5,7 @@ local.properties
 *.apk
 .idea/
 .core-build/
+*.p12
+*.jks
+*.keystore
+*.password
