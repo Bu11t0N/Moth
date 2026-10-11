@@ -61,12 +61,14 @@ class TunnelService : VpnService(), PlatformInterface {
             Logger.i("Tunnel", "stop requested (state=${TunnelStatus.state.value})")
             cancelProbes()
             TunnelStatus.mutable.value = TunnelState.STOPPING
+            foreground()
             executor.execute { closeTunnel(); Logger.i("Tunnel", "VPN disconnected (tunnel stopped)"); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf(startId) }
         } else if (intent?.action == "START") {
             val id = intent.getStringExtra("profile") ?: run { Logger.w("Tunnel", "START without a profile ignored"); return START_NOT_STICKY }
             Logger.i("Tunnel", "VPN connect requested (previous state=${TunnelStatus.state.value})")
-            foreground()
+            serverName = ""
             TunnelStatus.mutable.value = TunnelState.STARTING
+            foreground()
             executor.execute {
                 var stage = "init"
                 try {
@@ -75,6 +77,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     stage = "load settings/profile"
                     val settings = SettingsStore(this).load()
                     var profile = SubscriptionStore(this).load()?.profiles?.firstOrNull { it.id == id } ?: error("Missing profile")
+                    serverName = profile.name; foreground() // the name is shown in the notification only, never logged
                     Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled}")
                     if (profile.engine == "xray") {
                         stage = "xray start"
@@ -94,6 +97,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
                     if (!stopped) {
                         TunnelStatus.mutable.value = TunnelState.RUNNING
+                        foreground()
                         TunnelStatus.activeMutable.value = id
                         Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) tr(R.string.msg_checking_internet_access_through_vpn_120) else tr(R.string.msg_checks_are_disabled_in_settings_121))
                         if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
@@ -111,7 +115,7 @@ class TunnelService : VpnService(), PlatformInterface {
             cancelProbes()
         } else if (intent?.action in setOf("PROBE", "SPEED")) {
             if (Diagnostics.running.value) { Logger.w("Probe", "request ignored: a check is already running"); return START_NOT_STICKY }
-            foreground(tr(R.string.msg_checking_vpn_servers_manage_in_the_app_122))
+            foreground() // while connected the notification keeps showing the server name
             probeCancel = AtomicBoolean(false)
             val cancel = probeCancel
             val id = intent?.getStringExtra("profile")
@@ -127,15 +131,24 @@ class TunnelService : VpnService(), PlatformInterface {
         }
         return START_NOT_STICKY
     }
-    private fun foreground(text: String = tr(R.string.msg_vpn_is_running_manage_in_the_app_124)) {
+    @Volatile private var serverName = ""
+    /** Posts (or re-posts) the foreground notification for the current state. The app name comes only from the system app-name line. */
+    private fun foreground() {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("vpn", tr(R.string.msg_vpn_connection_125), NotificationManager.IMPORTANCE_LOW))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 1, Intent(this, TunnelService::class.java).setAction("STOP"), PendingIntent.FLAG_IMMUTABLE)
-        val notification = Notification.Builder(this, "vpn").setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle(tr(R.string.app_name))
-            .setContentText(text).setContentIntent(open).setOngoing(true)
-            .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build()).build()
-        startForeground(1, notification)
+        val name = serverName
+        val builder = Notification.Builder(this, "vpn").setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setContentIntent(open).setOngoing(true)
+            .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build())
+        when (TunnelStatus.state.value) {
+            TunnelState.RUNNING -> builder.setContentTitle(name.ifBlank { tr(R.string.msg_vpn_connection_125) })
+            TunnelState.STARTING -> { builder.setContentTitle(tr(R.string.notif_connecting)); if (name.isNotBlank()) builder.setContentText(name) }
+            TunnelState.STOPPING -> builder.setContentTitle(tr(R.string.notif_disconnecting))
+            else -> builder.setContentTitle(tr(R.string.notif_checking))
+        }
+        startForeground(1, builder.build())
     }
     private fun closeTunnel() {
         Logger.d("Tunnel", "closeTunnel (box=${box != null}, xray=${xray != null})")

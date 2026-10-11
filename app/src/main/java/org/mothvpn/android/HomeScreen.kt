@@ -7,6 +7,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -32,6 +34,10 @@ import androidx.compose.foundation.text.selection.SelectionContainer
     }
     val running = tunnel == TunnelState.RUNNING
     val transition = tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)
+    // Red = not connected, green = connected; in-between states keep the neutral disabled look of the button.
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val connectedColor = if (dark) Color(0xFF2E9E57) else Color(0xFF1B7F3A)
+    val disconnectedColor = if (dark) Color(0xFFD64545) else Color(0xFFC62828)
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.Bottom) {
@@ -45,7 +51,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
         Button(onClick = connect, enabled = !busy && (!probing || running) && !transition && selected != null,
             shape = androidx.compose.foundation.shape.CircleShape, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(148.dp)
                 .semantics { contentDescription = if (running) tr(R.string.msg_disconnect_vpn_8) else tr(R.string.msg_connect_vpn_9) },
-            colors = ButtonDefaults.buttonColors(containerColor = if (running) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary)) {
+            colors = ButtonDefaults.buttonColors(containerColor = if (running) connectedColor else disconnectedColor, contentColor = androidx.compose.ui.graphics.Color.White)) {
             if (transition) CircularProgressIndicator(Modifier.size(44.dp), strokeWidth = 3.dp)
             else MothIcon("power", Modifier.size(56.dp))
         }

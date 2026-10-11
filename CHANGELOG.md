@@ -10,6 +10,8 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - While a server is being checked, a small spinner is shown on the right of its row instead of text.
 - A failed or cancelled check now shows a red dash on the right of the row instead of gray text; the "port is reachable" note is gone from the list.
 - New developer option, Settings → For developers → "Show detailed icons": small gray icons instead of the red dash; tap an icon to see the reason.
+- The VPN notification now shows only the selected server name while connected (no repeated app name), with the Disconnect button below; it also shows Connecting…, Disconnecting… and Checking servers.
+- The main button is now red when disconnected and green when connected.
 
 ## 0.4.6
 

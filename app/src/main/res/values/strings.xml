@@ -123,9 +123,7 @@
     <string name="msg_too_many_redirects_119" formatted="false">"Too many redirects"</string>
     <string name="msg_checking_internet_access_through_vpn_120" formatted="false">"Checking internet access through VPN…"</string>
     <string name="msg_checks_are_disabled_in_settings_121" formatted="false">"Checks are disabled in settings"</string>
-    <string name="msg_checking_vpn_servers_manage_in_the_app_122" formatted="false">"Checking VPN servers — manage in the app"</string>
     <string name="msg_download_test_up_to_1_mib_123" formatted="false">"Download test: up to 1 MiB…"</string>
-    <string name="msg_vpn_is_running_manage_in_the_app_124" formatted="false">"VPN is running — manage in the app"</string>
     <string name="msg_vpn_connection_125" formatted="false">"VPN connection"</string>
     <string name="msg_disconnect_126" formatted="false">"Disconnect"</string>
     <string name="msg_internet_access_through_vpn_is_available_127" formatted="false">"Internet access through VPN is available"</string>
@@ -231,4 +229,7 @@
     <string name="set_sort_latency">Latency</string>
     <string name="dev_detailed_icons">Show detailed icons</string>
     <string name="dev_detailed_icons_hint">Instead of the red dash, failed server checks show a small gray icon; tap it to see the reason.</string>
+    <string name="notif_connecting">Connecting…</string>
+    <string name="notif_disconnecting">Disconnecting…</string>
+    <string name="notif_checking">Checking servers</string>
 </resources>
