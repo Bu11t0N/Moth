@@ -4,31 +4,28 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ## 0.4.5
 
-### Identity and updates
+### Changes
 
-- The application ID and source packages are now org.mothvpn.android. This is a one-time separate installation; export your subscription details before removing the old application.
-- New launcher icon using the supplied Moth artwork.
-- Optional update checks in Settings → Updates. Downloads use the official GitHub release for the device architecture; checksums, package ID, version code and signing certificate are verified before Android asks to install.
-- Release builds require the dedicated Moth signing key; future releases keep this key and application ID.
-- Personal device model references removed from documentation.
+- New app icon.
+- In-app updates: Settings → Updates. You check, download and install the new version yourself; the app verifies the file is genuine before installing.
+- New package name: 0.4.5 installs as a separate app. Save your subscription link before removing the old version; data is not transferred.
+- Future versions will update on top of 0.4.5.
 
 ## 0.4.4
 
 ### Subscriptions
 
-- Import of subscriptions delivered as full Xray-core JSON configs: an array of configs, a single config, or a plain list of outbounds.
-- Each config becomes a separate server named from its `remarks`; VLESS (TCP, gRPC, WebSocket with custom headers, XHTTP, HTTPUpgrade; REALITY/TLS/none) and Hysteria 2 are supported.
-- A config with several proxies and a balancer (the provider's "fastest" entry) becomes one balancer server that picks the best outbound automatically (marked "BALANCER").
-- Routing rules, DNS, inbounds and other sections from provider configs are ignored; traffic is never sent directly. Configs with insecure TLS or unsupported parts are skipped and counted as not added.
-- Background group probes are limited to an average of at most one scheduled probe per second across members, with a minimum interval of 10 seconds and a maximum of 24 hours; timeouts are bounded to 500–30000 ms. Invalid durations use safe defaults.
+- Support for Xray JSON subscriptions: each server from the file is added as a separate entry.
+- Entries like "Fastest" work as a group: the app picks the best server on its own.
+- Servers with insecure TLS or unsupported settings are skipped; their number is shown when adding.
+- Routing rules from provider configs are not used yet.
 
 ## 0.4.3
 
 ### Fixes
 
-- Finished probe requests are released after every attempt, including failures before a fallback URL, preventing memory growth during repeated checks.
-- Parallel probe and ping timeout validation errors follow the selected app language.
-- CI APK filenames use the version from build metadata.
+- Repeated server checks no longer accumulate memory.
+- Error messages in check settings are translated into the app language.
 
 ## 0.4.2
 
