@@ -201,4 +201,6 @@
     <string name="changelog_error">Could not load the changelog.</string>
     <string name="changelog_retry">Retry</string>
     <string name="changelog_offline">Showing the saved copy (no connection).</string>
+    <string name="msg_probe_parallel_range">Parallel probes: from 1 to 16</string>
+    <string name="msg_probe_timeout_range">Ping timeout: from 500 to 30000 ms</string>
 </resources>

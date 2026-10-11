@@ -58,6 +58,8 @@ private val englishErrors by lazy {
     errorResources.values.associate { english.getString(it) to it }
 }
 private val errorResources = mapOf(
+        "Параллельных проверок: от 1 до 16" to R.string.msg_probe_parallel_range,
+        "Таймаут пинга: от 500 до 30000 мс" to R.string.msg_probe_timeout_range,
         "Соединение ещё не проверено" to R.string.msg_connection_has_not_been_checked_yet_0,
         "Не ответил вовремя" to R.string.msg_server_timed_out_1,
         "Не удалось найти адрес вовремя" to R.string.msg_dns_lookup_timed_out_2,

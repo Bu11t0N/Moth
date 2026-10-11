@@ -201,4 +201,6 @@
     <string name="changelog_error">Не удалось загрузить список изменений.</string>
     <string name="changelog_retry">Повторить</string>
     <string name="changelog_offline">Показана сохранённая копия (нет соединения).</string>
+    <string name="msg_probe_parallel_range">Параллельных проверок: от 1 до 16</string>
+    <string name="msg_probe_timeout_range">Таймаут пинга: от 500 до 30000 мс</string>
 </resources>

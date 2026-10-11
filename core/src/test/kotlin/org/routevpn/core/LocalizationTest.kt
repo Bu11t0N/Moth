@@ -30,6 +30,21 @@ class LocalizationTest {
         assertEquals("Check cancelled", english["msg_check_cancelled_46"])
         assertEquals("Update subscription", english["msg_update_subscription_48"])
     }
+    @Test fun probeValidationErrorsHaveEnglishAndRussianResources() {
+        val mappings = File("../app/src/main/java/org/routevpn/android/AppStrings.kt").readText()
+        val english = strings("values")
+        val russian = strings("values-ru")
+        val cases = listOf(
+            Triple(ClientSettings(probeParallel = 17), "msg_probe_parallel_range", "Parallel probes: from 1 to 16"),
+            Triple(ClientSettings(probeTimeoutMs = 499), "msg_probe_timeout_range", "Ping timeout: from 500 to 30000 ms")
+        )
+        cases.forEach { (settings, key, translation) ->
+            val error = assertFailsWith<IllegalArgumentException> { settings.validate() }
+            assertEquals(error.message, russian.getValue(key))
+            assertEquals(translation, english.getValue(key))
+            assertTrue(mappings.contains("\"${error.message}\" to R.string.$key"), key)
+        }
+    }
     @Test fun formattedMessagesAcceptTheRuntimeArguments() {
         for (folder in listOf("values", "values-ru")) {
             val resources = strings(folder)

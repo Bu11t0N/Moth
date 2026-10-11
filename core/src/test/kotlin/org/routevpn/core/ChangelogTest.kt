@@ -15,12 +15,15 @@ class ChangelogTest {
     @Test fun repositoryFilesParseAndMatch() {
         val en = Changelog.parse(File("../CHANGELOG.md").readText())
         val ru = Changelog.parse(File("../CHANGELOG.ru.md").readText())
-        val versions = listOf("0.4.2", "0.4.1", "0.4.0", "0.3.0", "0.2.0", "0.1.0")
+        val versions = listOf("0.4.3", "0.4.2", "0.4.1", "0.4.0", "0.3.0", "0.2.0", "0.1.0")
         assertEquals(versions, en.map { it.title })
         assertEquals(versions, ru.map { it.title })
         assertEquals(en.map { it.groups.map { g -> g.items.size } }, ru.map { it.groups.map { g -> g.items.size } })
         assertTrue(en.all { s -> s.groups.all { it.title != null && it.items.isNotEmpty() } })
-        assertEquals(listOf("Logs and diagnostics", "Server ping", "Interface", "Fixes"), en[0].groups.map { it.title })
-        assertEquals(listOf("Журнал и диагностика", "Пинг серверов", "Интерфейс", "Исправления"), ru[0].groups.map { it.title })
+        assertEquals(listOf("Fixes"), en[0].groups.map { it.title })
+        assertEquals(listOf("Исправления"), ru[0].groups.map { it.title })
+        assertEquals(3, en[0].items.size)
+        assertEquals(listOf("Logs and diagnostics", "Server ping", "Interface", "Fixes"), en[1].groups.map { it.title })
+        assertEquals(listOf("Журнал и диагностика", "Пинг серверов", "Интерфейс", "Исправления"), ru[1].groups.map { it.title })
     }
 }

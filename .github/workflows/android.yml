@@ -55,8 +55,9 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :core:test :app:assembleRelease :app:lintRelease --no-daemon
+          version=$(jq -er '.elements[0].versionName | select(type == "string" and length > 0)' app/build/outputs/apk/release/output-metadata.json)
           for abi in arm64-v8a armeabi-v7a x86_64 x86; do
-            cp "app/build/outputs/apk/release/app-$abi-release.apk" "artifacts/Moth-0.4.1-$abi.apk"
+            cp "app/build/outputs/apk/release/app-$abi-release.apk" "artifacts/Moth-$version-$abi.apk"
           done
           cp libbox.aar artifacts/libbox-v1.11.15.aar
           sha256sum artifacts/* > artifacts/SHA256SUMS.txt

@@ -196,7 +196,7 @@ class TunnelService : VpnService(), PlatformInterface {
                 val label = describe(profile)
                 var stage = "start"
                 Logger.i("Probe", "profile ${profiles.indexOf(profile)} method=$method $label network=${access.kind}")
-                var allocated = 0; var registered: ProxyRequest? = null
+                var allocated = 0
                 var local: BoxService? = null; var xr: MothXrayService? = null
                 try {
                     if (method == "TCP") {
@@ -225,12 +225,14 @@ class TunnelService : VpnService(), PlatformInterface {
                     for (url in if (speed) listOf("https://speed.cloudflare.com/__down?bytes=1048576") else ProbePolicy.urls(settings)) {
                         if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
                         val test = ProxyRequest(this, port, user, password, if (speed) 30_000L else settings.probeTimeoutMs.toLong(), cancelled)
-                        requests.add(test); registered = test
+                        requests.add(test)
                         stage = "request ${Diagnostics.describeUrl(url)}"
                         try { measured = test.run(url, if (speed) 1048576 else 0); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} ${measured?.first}${if (speed) " bytes" else " ms"} ($label)"); break }
                         catch (e: Throwable) {
                             last = e
                             Logger.w("Probe", "request failed url=${Diagnostics.describeUrl(url)} handshakeStage=${test.stage} method=$method network=${access.kind} ($label)", e)
+                        } finally {
+                            requests.remove(test)
                         }
                     }
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
@@ -245,7 +247,6 @@ class TunnelService : VpnService(), PlatformInterface {
                         else result(error = Diagnostics.friendly(e))
                     }
                 } finally {
-                    registered?.let { requests.remove(it) }
                     if (allocated != 0) releasePort(allocated)
                     runCatching { local?.close() }; runCatching { xr?.close() }
                     if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = tr(R.string.msg_check_cancelled_46), wasCancelled = true)

@@ -4,9 +4,9 @@ require(versionSuffix.matches(Regex("[A-Za-z0-9.-]*"))) { "versionSuffix: letter
 android {
     namespace = "org.routevpn.android"
     compileSdk = 34
-    defaultConfig { applicationId = "org.routevpn.android"; minSdk = 26; targetSdk = 34; versionCode = 7; versionName = "0.4.2"
-        // Shown on the home screen only for test builds: -PversionSuffix=rc6 gives "v0.4.2rc6"; no property gives an empty label.
-        buildConfigField("String", "VERSION_LABEL", if (versionSuffix.isEmpty()) "\"\"" else "\"v0.4.2$versionSuffix\"") }
+    defaultConfig { applicationId = "org.routevpn.android"; minSdk = 26; targetSdk = 34; versionCode = 8; versionName = "0.4.3"
+        // Shown on the home screen only for test builds: -PversionSuffix=rc6 gives "v0.4.3rc6"; no property gives an empty label.
+        buildConfigField("String", "VERSION_LABEL", if (versionSuffix.isEmpty()) "\"\"" else "\"v0.4.3$versionSuffix\"") }
     buildTypes {
         getByName("release") {
             signingConfig = signingConfigs.getByName("debug")

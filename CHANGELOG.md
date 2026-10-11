@@ -2,6 +2,14 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.4.3
+
+### Fixes
+
+- Finished probe requests are released after every attempt, including failures before a fallback URL, preventing memory growth during repeated checks.
+- Parallel probe and ping timeout validation errors follow the selected app language.
+- CI APK filenames use the version from build metadata.
+
 ## 0.4.2
 
 ### Logs and diagnostics
