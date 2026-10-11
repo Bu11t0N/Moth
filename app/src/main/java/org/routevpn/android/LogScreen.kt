@@ -45,6 +45,7 @@ private const val VISIBLE_LINES = 400
     }
 }
 
+@androidx.annotation.RequiresApi(29)
 private fun saveToDownloads(context: android.content.Context, name: String, text: String): Boolean = runCatching {
     val values = ContentValues().apply {
         put(MediaStore.Downloads.DISPLAY_NAME, name); put(MediaStore.Downloads.MIME_TYPE, "text/plain")

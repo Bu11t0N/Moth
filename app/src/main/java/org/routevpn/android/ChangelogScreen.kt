@@ -19,8 +19,6 @@ import javax.net.ssl.HttpsURLConnection
 
 object ChangelogRepository {
     private const val BASE = "https://raw.githubusercontent.com/Bu11t0N/Moth/main/"
-    // TODO: remove this fallback after PR #5 (release/0.4.2) is merged into main.
-    private const val FALLBACK_BASE = "https://raw.githubusercontent.com/Bu11t0N/Moth/release/0.4.2/"
     data class Result(val sections: List<ChangelogSection>?, val fromCache: Boolean)
 
     fun fileName(russian: Boolean) = if (russian) "CHANGELOG.ru.md" else "CHANGELOG.md"
@@ -34,11 +32,11 @@ object ChangelogRepository {
         } finally { c.disconnect() }
     }
 
-    /** Network first (main, then the release branch on 404); the last successful text is cached and used when the network fails. */
+    /** Network first (main); the last successful text is cached and used when the network fails. */
     fun load(russian: Boolean): Result {
         val cache = File(MothApplication.instance.filesDir, "cache/${fileName(russian)}")
         try {
-            val text = download(BASE + fileName(russian)) ?: download(FALLBACK_BASE + fileName(russian)) ?: error("not found")
+            val text = download(BASE + fileName(russian)) ?: error("not found")
             val sections = Changelog.parse(text)
             check(sections.isNotEmpty()) { "empty changelog" }
             runCatching { cache.parentFile?.mkdirs(); cache.writeText(text) }
