@@ -22,6 +22,8 @@ import org.mothvpn.core.Profile
 import org.mothvpn.core.TunnelConfig
 import org.mothvpn.core.LocalProxyConfig
 import org.mothvpn.core.ProbePolicy
+import org.mothvpn.core.ProbeOrder
+import kotlin.concurrent.withLock
 import org.mothvpn.core.ProtectPolicy
 import java.net.ServerSocket
 import java.util.UUID
@@ -42,7 +44,7 @@ class TunnelService : VpnService(), PlatformInterface {
     private val requests = java.util.concurrent.ConcurrentHashMap.newKeySet<ProxyRequest>()
     private val tcpSockets = java.util.concurrent.ConcurrentHashMap.newKeySet<java.net.Socket>()
     private val usedPorts = HashSet<Int>()
-    private val coreStartLock = Any() // local probe cores are started one at a time; requests still run in parallel
+    private val coreStartLock = java.util.concurrent.locks.ReentrantLock(true) // local probe cores are started one at a time; requests still run in parallel
     private val healthExecutor = Executors.newSingleThreadScheduledExecutor()
     private val lookupExecutor = Executors.newCachedThreadPool()
     private var healthTask: java.util.concurrent.ScheduledFuture<*>? = null
@@ -113,11 +115,12 @@ class TunnelService : VpnService(), PlatformInterface {
             val cancel = probeCancel
             val id = intent?.getStringExtra("profile")
             val speed = intent?.action == "SPEED"
+            val order = intent?.getStringArrayListExtra("order").orEmpty()
             Diagnostics.runningMutable.value = true
             Logger.i("Probe", "${if (speed) "speed test" else "probe"} requested for ${if (id == null) "all profiles" else "one profile"} requestedNetwork=${intent?.getStringExtra("network")}")
             if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_download_test_up_to_1_mib_123)
             executor.execute {
-                try { if (speed || SettingsStore(this).load().probeMode != "tcp") initCore(); probes.execute { probeProfiles(id, speed, cancel, intent?.getStringExtra("network")) } }
+                try { if (speed || SettingsStore(this).load().probeMode != "tcp") initCore(); probes.execute { probeProfiles(id, speed, cancel, intent?.getStringExtra("network"), order) } }
                 catch (t: Throwable) { Logger.e("Probe", "probe setup failed (initCore or scheduling)", t); Diagnostics.runningMutable.value = false; if (TunnelStatus.state.value == TunnelState.OFF) stopSelf() }
             }
         }
@@ -181,13 +184,13 @@ class TunnelService : VpnService(), PlatformInterface {
         } catch (e: Exception) { Logger.e("Health", "internet check through VPN failed (consecutive failures=${previous.failures + 1})", e); HealthResult(message = tr(R.string.msg_internet_check_through_vpn_failed_128), failures = previous.failures + 1) }
         if (generation.get() == current && TunnelStatus.state.value == TunnelState.RUNNING) Diagnostics.healthMutable.value = next
     }
-    private fun probeProfiles(id: String?, speed: Boolean, cancelled: AtomicBoolean, wantedNetwork: String?) {
+    private fun probeProfiles(id: String?, speed: Boolean, cancelled: AtomicBoolean, wantedNetwork: String?, shownOrder: List<String>) {
         try {
             val settings = SettingsStore(this).load()
             val access = NetworkTracker.read(connectivity)
             Logger.i("Probe", "probeProfiles: speed=$speed mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
             if (!access.available || (wantedNetwork != null && wantedNetwork != access.kind)) { Logger.w("Probe", "skipped: network unavailable or changed"); return }
-            val profiles = SubscriptionStore(this).load()?.profiles.orEmpty().filter { id == null || it.id == id }
+            val profiles = SubscriptionStore(this).load()?.profiles.orEmpty().filter { id == null || it.id == id }.let { all -> ProbeOrder.arrange(all, shownOrder) { it.id } } // list order: the pool queue is FIFO
             val pool = Executors.newFixedThreadPool(if (speed) 1 else settings.probeParallel.coerceAtMost(profiles.size).coerceAtLeast(1))
             fun probeOne(profile: Profile) {
                 if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) return
@@ -211,12 +214,12 @@ class TunnelService : VpnService(), PlatformInterface {
                     }
                     stage = "free port"
                     val port = allocatePort(); allocated = port; val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
-                    if (profile.engine == "xray") { stage = "xray start"; synchronized(coreStartLock) { xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this) } }
+                    if (profile.engine == "xray") { stage = "xray start"; coreStartLock.withLock { xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this) } }
                     else {
                         stage = "build config"
                         val config = LocalProxyConfig.singBox(profile, port, user, password, settings)
                         stage = "Libbox.checkConfig"; Libbox.checkConfig(config)
-                        synchronized(coreStartLock) {
+                        coreStartLock.withLock {
                             stage = "Libbox.newService"; local = Libbox.newService(config, this)
                             stage = "BoxService.start"; local!!.start()
                         }

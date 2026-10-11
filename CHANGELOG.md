@@ -2,6 +2,13 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.4.7
+
+### Changes
+
+- Servers are now checked from top to bottom, in the order shown in the list.
+- While a server is being checked, a small spinner is shown on the right of its row instead of text.
+
 ## 0.4.6
 
 ### Changes
