@@ -197,4 +197,8 @@
     <string name="dev_save_failed">Could not save the file</string>
     <string name="set_ping_timeout">Ping timeout, ms · 500–30000</string>
     <string name="set_ping_parallel">Servers pinged in parallel · 1–16</string>
+    <string name="set_changelog">Changelog</string>
+    <string name="changelog_error">Could not load the changelog.</string>
+    <string name="changelog_retry">Retry</string>
+    <string name="changelog_offline">Showing the saved copy (no connection).</string>
 </resources>

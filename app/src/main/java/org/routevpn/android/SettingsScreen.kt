@@ -27,7 +27,7 @@ import org.routevpn.core.ClientSettings
     var interval by remember(initial) { mutableStateOf(initial.healthIntervalSeconds.toString()) }
     var error by remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
-    BackHandler(enabled = section != null) { if (logPage != 0) logPage = 0 else section = null }
+    BackHandler(enabled = section != null) { if (logPage == 3) { logPage = 0; section = null } else if (logPage != 0) logPage = 0 else section = null }
     fun applySettings(next: ClientSettings) {
         draft = next
         try { save(next.validate()); error = "" }
@@ -40,15 +40,16 @@ import org.routevpn.core.ClientSettings
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); else -> (section ?: tr(R.string.msg_settings_28)) }, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).padding(top = 12.dp))
+            Text(when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); else -> (section ?: tr(R.string.msg_settings_28)) }, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).padding(top = 12.dp))
         }
-        if (logPage != 0) LogPage(crash = logPage == 2, modifier = Modifier.weight(1f)) else Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (logPage == 3) ChangelogPage(Modifier.weight(1f)) else if (logPage != 0) LogPage(crash = logPage == 2, modifier = Modifier.weight(1f)) else Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (section) {
                 null -> {
                     SettingsCategory(tr(R.string.msg_appearance_74)) { section = tr(R.string.msg_appearance_74) }
                     SettingsCategory(tr(R.string.msg_connection_75)) { section = tr(R.string.msg_connection_75) }
                     SettingsCategory(tr(R.string.msg_checks_76)) { section = tr(R.string.msg_checks_76) }
                     SettingsCategory(tr(R.string.msg_subscription_and_hwid_77)) { section = tr(R.string.msg_subscription_and_hwid_77) }
+                    SettingsCategory(tr(R.string.set_changelog)) { section = tr(R.string.set_changelog); logPage = 3 }
                     SettingsCategory(tr(R.string.msg_about_78)) { section = tr(R.string.msg_about_78) }
                     SettingsCategory(tr(R.string.dev_for_developers)) { section = tr(R.string.dev_for_developers) }
                 }
