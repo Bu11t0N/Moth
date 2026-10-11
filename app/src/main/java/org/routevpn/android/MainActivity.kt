@@ -138,6 +138,8 @@ class MainActivity : AppCompatActivity() {
                 val result = withContext(Dispatchers.IO) {
                     val response = SubscriptionDownload.fetchDetails(url, settings)
                     val parsed = Subscriptions.parse(response.body)
+                    Logger.i("Import", "parsed ${parsed.profiles.size} profile(s), rejected ${parsed.rejected}")
+                    parsed.reasons.forEach { Logger.w("Import", "rejected: $it") }
                     val selected = previous?.selected?.takeIf { id -> parsed.profiles.any { it.id == id } } ?: parsed.profiles.first().id
                     val sameProvider = previous?.url == url.trim()
                     fun keep(id: String?) = id?.takeIf { n -> parsed.profiles.any { it.id == n } } ?: selected

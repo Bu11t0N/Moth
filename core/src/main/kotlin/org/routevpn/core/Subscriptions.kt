@@ -10,7 +10,7 @@ import java.util.Base64
 import java.util.UUID
 
 data class Profile(val id: String, val name: String, val protocol: String, val outbound: String, val engine: String = "sing-box")
-data class ImportResult(val profiles: List<Profile>, val rejected: Int)
+data class ImportResult(val profiles: List<Profile>, val rejected: Int, val reasons: List<String> = emptyList())
 
 object Subscriptions {
     private fun decode(s: String) = URLDecoder.decode(s.replace("+", "%2B"), "UTF-8")
@@ -23,6 +23,7 @@ object Subscriptions {
     fun parse(body: String): ImportResult {
         require(body.length <= 2 * 1024 * 1024) { "Список серверов слишком большой" }
         val text = body.trim().removePrefix("\uFEFF")
+        if (XrayJsonSubscriptions.looksLike(text)) return XrayJsonSubscriptions.parse(text)
         if (text.startsWith("proxies:") || text.contains("\nproxies:") || text.startsWith("{")) return ClashSubscriptions.parse(text)
         val decoded = if (text.contains("://")) text else runCatching { unbase64(text) }.getOrDefault(text)
         if (decoded.startsWith("proxies:") || decoded.contains("\nproxies:")) return ClashSubscriptions.parse(decoded)

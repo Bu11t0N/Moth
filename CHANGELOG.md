@@ -2,6 +2,16 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.4.4
+
+### Subscriptions
+
+- Import of subscriptions delivered as full Xray-core JSON configs: an array of configs, a single config, or a plain list of outbounds.
+- Each config becomes a separate server named from its `remarks`; VLESS (TCP, gRPC, WebSocket with custom headers, XHTTP, HTTPUpgrade; REALITY/TLS/none) and Hysteria 2 are supported.
+- A config with several proxies and a balancer (the provider's "fastest" entry) becomes one balancer server that picks the best outbound automatically (marked "BALANCER").
+- Routing rules, DNS, inbounds and other sections from provider configs are ignored; traffic is never sent directly. Configs with insecure TLS or unsupported parts are skipped and counted as not added.
+- Background group probes are limited to an average of at most one scheduled probe per second across members, with a minimum interval of 10 seconds and a maximum of 24 hours; timeouts are bounded to 500–30000 ms. Invalid durations use safe defaults.
+
 ## 0.4.3
 
 ### Fixes
