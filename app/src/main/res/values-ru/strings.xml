@@ -226,4 +226,7 @@
     <string name="update_unknown_body">Чтобы обновить Moth, Android должен разрешить установку приложений из этого источника. Нажмите OK: откроются настройки Android для Moth. Включите «Разрешить установку из этого источника» и вернитесь в Moth — установка продолжится автоматически.</string>
     <string name="update_unknown_ok">OK</string>
     <string name="update_downloading">Скачиваем обновление…</string>
+    <string name="set_sort_servers">Сортировать серверы</string>
+    <string name="set_sort_name">Название</string>
+    <string name="set_sort_latency">Задержка</string>
 </resources>

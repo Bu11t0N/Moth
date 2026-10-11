@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import org.mothvpn.core.ClientSettings
+import org.mothvpn.core.ServerOrder
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable fun ServersScreen(saved: SavedSubscription?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
@@ -46,22 +47,22 @@ import org.mothvpn.core.ClientSettings
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
     val canCheck = saved != null && !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING) && network.available && kind == network.kind
     val profiles = saved?.profiles.orEmpty()
-    val visible = remember(profiles, results, settings.hideUnavailable, settings.sortByLatency, search, kind, now, network) {
+    val visible = remember(profiles, results, settings.hideUnavailable, settings.serverSort, search, kind, now, network) {
         profiles.filter { p ->
             val r = results["$kind:${p.id}"]
             val current = r?.networkHandle == network.handle && kind == network.kind
             val failed = current && r != null && !r.checking && !r.cancelled && r.error != null && r.method == "HTTPS" && now - r.checkedAt in 0 until 900_000
             (!settings.hideUnavailable || !failed) && (p.name.contains(search, true) || p.protocol.contains(search, true))
-        }.let { if (settings.sortByLatency) it.sortedBy { p -> results["$kind:${p.id}"]?.latencyMs ?: Long.MAX_VALUE } else it }
+        }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$kind:${p.id}"]?.latencyMs } }
     }
     @Composable fun KindPage(k: String) {
-        val visibleK = remember(profiles, results, settings.hideUnavailable, settings.sortByLatency, search, k, now, network) {
+        val visibleK = remember(profiles, results, settings.hideUnavailable, settings.serverSort, search, k, now, network) {
             profiles.filter { p ->
                 val r = results["$k:${p.id}"]
                 val current = r?.networkHandle == network.handle && k == network.kind
                 val failed = current && r != null && !r.checking && !r.cancelled && r.error != null && r.method == "HTTPS" && now - r.checkedAt in 0 until 900_000
                 (!settings.hideUnavailable || !failed) && (p.name.contains(search, true) || p.protocol.contains(search, true))
-            }.let { if (settings.sortByLatency) it.sortedBy { p -> results["$k:${p.id}"]?.latencyMs ?: Long.MAX_VALUE } else it }
+            }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$k:${p.id}"]?.latencyMs } }
         }
         if (visibleK.isEmpty()) Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             if (saved != null) Text(tr(R.string.msg_no_servers_found_59))

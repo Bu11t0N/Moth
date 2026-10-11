@@ -9,6 +9,8 @@ import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -100,7 +102,11 @@ class MainActivity : AppCompatActivity() {
                 Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().statusBarsPadding()) {
                         Box(Modifier.weight(1f)) {
-                            when (tab) {
+                            AnimatedContent(tab, Modifier.fillMaxSize(), transitionSpec = {
+                                val dir = if (targetState > initialState) 1 else -1
+                                (fadeIn(tween(220, delayMillis = 60)) + slideInHorizontally(tween(260)) { it / 12 * dir }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(260)) { -it / 12 * dir })
+                            }, label = "tab") { shown ->
+                            when (shown) {
                                 0 -> HomeScreen(saved, network, busy, message,
                                     add = { url = ""; dialog = true },
                                     connect = { if (TunnelStatus.state.value == TunnelState.RUNNING) stop() else connect() }, servers = { tab = 1 })
@@ -115,6 +121,7 @@ class MainActivity : AppCompatActivity() {
                                     val probing by Diagnostics.running.collectAsState()
                                     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, probing || tunnel in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 })
                                 }
+                            }
                             }
                         }
                         // Same colour as the content surface and no tonal overlay: no lighter band at the bottom.

@@ -11,7 +11,7 @@ data class ClientSettings(
     val healthEnabled: Boolean = true, val healthIntervalSeconds: Int = 60,
     val hwidEnabled: Boolean = true, val hwid: String = UUID.randomUUID().toString(),
     val deviceInfo: Boolean = false, val userAgent: String = "Moth",
-    val sortByLatency: Boolean = false,
+    val serverSort: String = "name",
     val compactServers: Boolean = true, val hideUnavailable: Boolean = false,
     val probeMode: String = "auto", val bootstrapDns: String = "https://1.1.1.1/dns-query",
     val probeParallel: Int = 5, val probeTimeoutMs: Int = 5000,
@@ -24,6 +24,7 @@ data class ClientSettings(
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
         require(updateChannel in setOf("", "release", "beta")) { "Неверный канал обновлений" }
+        require(serverSort in ServerOrder.all) { "Неверная сортировка" }
         require(probeMode in setOf("auto", "https", "tcp")) { "Неверный способ проверки" }
         require(mtu in 1280..9000) { "MTU: от 1280 до 9000" }
         require(probeParallel in 1..16) { "Параллельных проверок: от 1 до 16" }
@@ -41,7 +42,7 @@ data class ClientSettings(
     fun json(): JSONObject = JSONObject().put("theme", theme).put("mtu", mtu).put("ipv6", ipv6).put("dns", dns)
         .put("probeUrl", probeUrl).put("timeoutMs", timeoutMs).put("healthEnabled", healthEnabled)
         .put("healthIntervalSeconds", healthIntervalSeconds).put("hwidEnabled", hwidEnabled).put("hwid", hwid)
-        .put("deviceInfo", deviceInfo).put("userAgent", userAgent).put("sortByLatency", sortByLatency)
+        .put("deviceInfo", deviceInfo).put("userAgent", userAgent).put("serverSort", serverSort)
         .put("compactServers", compactServers).put("hideUnavailable", hideUnavailable)
         .put("probeMode", probeMode).put("bootstrapDns", bootstrapDns)
         .put("probeParallel", probeParallel).put("probeTimeoutMs", probeTimeoutMs).put("updateChannel", updateChannel)
@@ -50,7 +51,7 @@ data class ClientSettings(
             j.optString("dns", "https://1.1.1.1/dns-query"), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
             (if (j.has("timeoutMs")) j.getInt("timeoutMs") else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(1000, 60000), j.optBoolean("healthEnabled", true), j.optInt("healthIntervalSeconds", 60),
             j.optBoolean("hwidEnabled", true), j.getString("hwid"), j.optBoolean("deviceInfo", false),
-            j.optString("userAgent", "Moth"), j.optBoolean("sortByLatency", false),
+            j.optString("userAgent", "Moth"), j.optString("serverSort", if (j.optBoolean("sortByLatency", false)) "latency" else "name").takeIf { it in ServerOrder.all } ?: "name",
             j.optBoolean("compactServers", true), j.optBoolean("hideUnavailable", false),
             j.optString("probeMode", "auto"), j.optString("bootstrapDns", "https://1.1.1.1/dns-query"),
             j.optInt("probeParallel", 5).coerceIn(1, 16),

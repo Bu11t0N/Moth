@@ -13,6 +13,8 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - Clearer log: skipped and duplicate servers, import results, VPN connect/disconnect, network changes, settings, updates and shown messages are recorded. The log level is chosen in a dialog; logging is off by default.
 - Servers: no duplicate "add subscription" text, and the list scrolls right after swiping between tabs.
 - Updates: a found update is downloaded and installed automatically while the Updates screen is open, with an explanation before the "install unknown apps" permission; an already downloaded update is reused. Installation now goes through the system package installer session, with detailed log lines.
+- "Sort servers by" setting (Name or Latency) in Settings → Appearance; servers are now sorted by name by default.
+- Smoother screen transitions in Settings and between tabs.
 
 ## 0.4.5
 
