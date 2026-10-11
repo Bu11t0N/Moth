@@ -8,7 +8,7 @@ An open-source Android VPN client built with Kotlin, Jetpack Compose, sing-box a
 
 - Three tabs: Home, Servers and Settings.
 - Independent server selection for Wi-Fi and mobile data, with all profiles available in both lists.
-- URI, Base64 and Clash subscriptions, including VLESS XHTTP, Hysteria and TUIC.
+- URI, Base64, Clash and Xray JSON subscriptions, including VLESS XHTTP, Hysteria and TUIC.
 - HTTPS checks through each server, TCP port checks, tunnel health checks and a small download test.
 - Search, compact rows, latency sorting and filtering of recently unavailable servers.
 - Subscription expiration and traffic information when supplied by the provider.
@@ -42,7 +42,7 @@ Official 0.4.1 APKs update official 0.2, 0.3 and 0.4.0 APKs without deleting app
 
 ## Supported subscriptions
 
-Text and Base64-encoded URI lists and Clash YAML/JSON with an embedded `proxies` list are supported.
+Text and Base64-encoded URI lists and Clash YAML/JSON with an embedded `proxies` list are supported. Xray-core JSON configs (an array of configs, one config, or a list of outbounds) are also imported: VLESS and Hysteria 2 outbounds become servers, and a config with a balancer becomes one balancer server. Routing rules, DNS and inbounds from such configs are ignored.
 
 | Protocol | Support |
 | --- | --- |

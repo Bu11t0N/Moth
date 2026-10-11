@@ -9,6 +9,7 @@ object ProbePolicy {
     else listOf(settings.probeUrl)
 
     fun tcpEndpoint(profile: Profile): Pair<String, Int>? {
+        if (JSONObject(profile.outbound).optBoolean("group")) return null // balancer group: use the HTTPS probe
         if (profile.protocol in setOf("hysteria", "hysteria2", "tuic")) return null
         val json = JSONObject(profile.outbound)
         if (profile.engine == "xray") {

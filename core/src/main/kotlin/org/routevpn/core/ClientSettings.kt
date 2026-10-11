@@ -85,11 +85,22 @@ object LocalProxyConfig {
     fun bridge(profile: Profile, port: Int, username: String, password: String): Profile = profile.copy(engine = "sing-box", outbound = JSONObject()
         .put("type", "socks").put("tag", "proxy").put("server", "127.0.0.1").put("server_port", port).put("version", "5")
         .put("username", username).put("password", password).toString())
-    fun xray(profile: Profile, port: Int, username: String, password: String, settings: ClientSettings = ClientSettings()): String = JSONObject().put("log", JSONObject().put("loglevel", "none"))
-        .put("dns", JSONObject().put("servers", org.json.JSONArray().put(settings.bootstrapDns.replaceFirst("https://", "https+local://"))).put("queryStrategy", "UseIPv4"))
-        .put("inbounds", org.json.JSONArray().put(JSONObject().put("listen", "127.0.0.1").put("port", port).put("protocol", "socks")
-            .put("settings", JSONObject().put("auth", "password").put("udp", true).put("accounts", org.json.JSONArray().put(JSONObject().put("user", username).put("pass", password))))))
-        .put("outbounds", org.json.JSONArray().put(JSONObject(profile.outbound).apply {
-            getJSONObject("streamSettings").put("sockopt", JSONObject().put("domainStrategy", "ForceIPv4"))
-        })).toString()
+    fun xray(profile: Profile, port: Int, username: String, password: String, settings: ClientSettings = ClientSettings()): String {
+        val source = JSONObject(profile.outbound)
+        val group = source.optBoolean("group")
+        fun protectedOutbound(o: JSONObject) = o.apply { getJSONObject("streamSettings").put("sockopt", JSONObject().put("domainStrategy", "ForceIPv4")) }
+        val config = JSONObject().put("log", JSONObject().put("loglevel", "none"))
+            .put("dns", JSONObject().put("servers", org.json.JSONArray().put(settings.bootstrapDns.replaceFirst("https://", "https+local://"))).put("queryStrategy", "UseIPv4"))
+            .put("inbounds", org.json.JSONArray().put(JSONObject().put("tag", "moth-in").put("listen", "127.0.0.1").put("port", port).put("protocol", "socks")
+                .put("settings", JSONObject().put("auth", "password").put("udp", true).put("accounts", org.json.JSONArray().put(JSONObject().put("user", username).put("pass", password))))))
+        if (!group) return config.put("outbounds", org.json.JSONArray().put(protectedOutbound(source))).toString()
+        // Balancer group: every connection goes through the balancer; there is no direct outbound or direct fallback.
+        val outbounds = org.json.JSONArray()
+        val members = source.getJSONArray("outbounds")
+        for (i in 0 until members.length()) outbounds.put(protectedOutbound(members.getJSONObject(i)))
+        return config.put("outbounds", outbounds)
+            .put("routing", JSONObject().put("domainStrategy", "AsIs").put("balancers", org.json.JSONArray().put(source.getJSONObject("balancer")))
+                .put("rules", org.json.JSONArray().put(JSONObject().put("type", "field").put("inboundTag", org.json.JSONArray().put("moth-in")).put("balancerTag", "balancer"))))
+            .put("burstObservatory", source.getJSONObject("burstObservatory")).toString()
+    }
 }
