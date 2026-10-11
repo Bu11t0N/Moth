@@ -91,9 +91,9 @@ object XrayJsonSubscriptions {
             catch (e: Reject) { rejected++; reasons += "document $index: ${e.message}" }
             catch (e: Exception) { rejected++; reasons += "document $index: ${e.javaClass.simpleName}" }
         }
-        val unique = profiles.distinctBy { it.id }
+        val (unique, duplicates) = dedupe(profiles, "server")
         require(unique.isNotEmpty()) { "Нет поддерживаемых серверов в Xray JSON" }
-        return ImportResult(unique, rejected, reasons)
+        return ImportResult(unique, rejected, reasons, duplicates, 0, profiles.size)
     }
 
     private fun sha(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -125,6 +125,7 @@ object XrayJsonSubscriptions {
             val selector = balancer.optJSONArray("selector")?.let { s -> (0 until s.length()).map { s.optString(it) }.filter { it.isNotBlank() } }.orEmpty()
             val members = xray.filter { m -> selector.isEmpty() || selector.any { m.tag.startsWith(it) } }
             if (members.size >= 2) {
+                reasons += "document $index: balancer group merged ${members.size} member(s)"
                 if (others.isNotEmpty()) reasons += "document $index: ${others.size} Hysteria member(s) skipped in balancer group"
                 val excluded = xray.size - members.size + others.size
                 if (xray.size > members.size) reasons += "document $index: ${xray.size - members.size} proxy member(s) outside balancer selector skipped"

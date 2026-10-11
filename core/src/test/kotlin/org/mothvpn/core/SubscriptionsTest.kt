@@ -19,6 +19,15 @@ class SubscriptionsTest {
         val result = Subscriptions.parse(input)
         assertEquals(1, result.profiles.size); assertEquals(1, result.rejected)
     }
+    @Test fun importSummaryCountsDuplicatesAndComments() {
+        val result = Subscriptions.parse("# comment\n$vless\n\n# another\n$vless\nunsupported://server")
+        assertEquals("parsed 2, duplicates 1, rejected 1", result.summary())
+        assertEquals(2, result.comments)
+        assertEquals(1, result.duplicates.size)
+        val note = result.duplicates[0]
+        assertTrue(note.startsWith("link 2 (vless): duplicate of link 1, id ") && !note.contains("://") && !note.contains("vpn.example"), note)
+        assertEquals(result.profiles[0].id.take(8), note.takeLast(8))
+    }
     @Test fun rejectionReasonsAreReportedWithoutLinks() {
         val bad = "trojan://password@vpn.example:443?allowInsecure=1"
         val result = Subscriptions.parse("$vless\n$bad\nunsupported://server.example")

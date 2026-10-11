@@ -4,8 +4,9 @@ require(versionSuffix.matches(Regex("[A-Za-z0-9.-]*"))) { "versionSuffix: letter
 android {
     namespace = "org.mothvpn.android"
     compileSdk = 34
-    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 11; versionName = "0.4.6$versionSuffix" }
-        // Test builds: -PversionSuffix=-beta.1 gives versionName 0.4.6-beta.1 (shown as 0.4.6b1); no property gives 0.4.6.
+    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 12; versionName = "0.4.6$versionSuffix" }
+        // versionCode: every build that can be offered as an update must exceed the previous one (beta.1 = 11, beta.2 = 12), so the stable 0.4.6 needs 13 or more.
+        // Test builds: -PversionSuffix=-beta.1 gives versionName 0.4.6-beta.1 ; no property gives 0.4.6.
     buildTypes {
         getByName("release") {
             signingConfig = if (providers.gradleProperty("unsignedValidation").orNull == "true") null else signingConfigs.create("mothRelease") {

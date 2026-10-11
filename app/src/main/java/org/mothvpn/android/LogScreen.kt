@@ -65,7 +65,7 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
     val createDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri != null) {
             val ok = runCatching { context.contentResolver.openOutputStream(uri)!!.use { it.write(full().toByteArray()) } }.onFailure { Logger.w("Log", "saving the log to a document failed", it) }.isSuccess
-            Toast.makeText(context, if (ok) tr(R.string.dev_saved_to_downloads) else tr(R.string.dev_save_failed), Toast.LENGTH_SHORT).show()
+            Logger.i("UI", "toast: log ${if (ok) "saved" else "save failed"}"); Toast.makeText(context, if (ok) tr(R.string.dev_saved_to_downloads) else tr(R.string.dev_save_failed), Toast.LENGTH_SHORT).show()
         }
     }
     LaunchedEffect(version) {
@@ -75,21 +75,36 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
     LaunchedEffect(lines) { if (lines.isNotEmpty()) state.scrollToItem(lines.size - 1) }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (!crash) {
-            Text(tr(R.string.dev_log_level), style = MaterialTheme.typography.titleSmall)
-            // All six levels share the row width equally; labels shrink instead of scrolling.
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                listOf(LogLevel.OFF to tr(R.string.dev_level_off), LogLevel.ERROR to "ERROR", LogLevel.WARN to "WARN", LogLevel.INFO to "INFO",
-                    LogLevel.DEBUG to "DEBUG", LogLevel.VERBOSE to "VERBOSE").forEach { (value, label) ->
-                    FilterChip(selected = level == value, onClick = { level = value; Logger.level = value }, modifier = Modifier.weight(1f),
-                        label = { Text(label, fontSize = 10.sp, maxLines = 1, softWrap = false, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) })
+            val levels = listOf(LogLevel.OFF to tr(R.string.dev_level_off), LogLevel.ERROR to "ERROR", LogLevel.WARN to "WARN", LogLevel.INFO to "INFO",
+                LogLevel.DEBUG to "DEBUG", LogLevel.VERBOSE to "VERBOSE")
+            var levelDialog by remember { mutableStateOf(false) }
+            fun choose(value: LogLevel) { levelDialog = false; if (value != level) { level = value; Logger.level = value } }
+            Card(Modifier.fillMaxWidth().clickable { levelDialog = true }) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(tr(R.string.dev_log_level), style = MaterialTheme.typography.titleMedium)
+                        Text(levels.first { it.first == level }.second, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text("›", modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
                 }
             }
+            if (levelDialog) AlertDialog(onDismissRequest = { levelDialog = false }, title = { Text(tr(R.string.dev_log_level)) },
+                text = { Column {
+                    levels.forEach { (value, label) ->
+                        Row(Modifier.fillMaxWidth().clickable { choose(value) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            RadioButton(level == value, { choose(value) })
+                            Text(label)
+                        }
+                    }
+                } },
+                confirmButton = { TextButton(onClick = { levelDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
             Text(tr(R.string.dev_log_privacy_note), style = MaterialTheme.typography.bodySmall)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = {
                 val file = if (crash) CrashLog.shareFile() else Logger.shareFile()
                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.logs", file)
+                Logger.i("Log", "sharing the ${if (crash) "crash log" else "log"}")
                 val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_STREAM, uri)
                     .putExtra(Intent.EXTRA_SUBJECT, "Moth log").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 context.startActivity(Intent.createChooser(send, tr(R.string.dev_share_log)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
@@ -97,7 +112,7 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
             Button(onClick = {
                 if (Build.VERSION.SDK_INT >= 29) {
                     val ok = saveToDownloads(context, fileName(), full())
-                    Toast.makeText(context, if (ok) tr(R.string.dev_saved_to_downloads) else tr(R.string.dev_save_failed), Toast.LENGTH_SHORT).show()
+                    Logger.i("UI", "toast: log ${if (ok) "saved" else "save failed"}"); Toast.makeText(context, if (ok) tr(R.string.dev_saved_to_downloads) else tr(R.string.dev_save_failed), Toast.LENGTH_SHORT).show()
                 } else createDocument.launch(fileName())
             }) { Text(tr(R.string.dev_download_log)) }
         }

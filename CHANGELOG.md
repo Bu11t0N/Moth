@@ -6,11 +6,11 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ### Changes
 
-- The app version is shown next to the name on the home screen, and the build number in Settings → About.
+- The app version (same text as in Settings → About, without the build number) is shown next to the name on the home screen.
 - Tap the provider on the home screen to see and copy the full subscription link.
 - Language is chosen in a separate Settings row.
-- The Updates screen checks for updates by itself when opened.
-- Clearer log: reasons why servers were skipped, and import errors, are recorded. All log levels fit on one row.
+- The Updates screen checks for updates by itself when opened. New "Release / Beta" channel selector at the bottom: Beta also offers test builds.
+- Clearer log: skipped and duplicate servers, import results, VPN connect/disconnect, network changes, settings, updates and shown messages are recorded. The log level is chosen in a dialog; logging is off by default.
 - Servers: no duplicate "add subscription" text, and the list scrolls right after swiping between tabs.
 
 ## 0.4.5

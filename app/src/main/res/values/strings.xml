@@ -218,4 +218,9 @@
     <string name="sub_link_copy">Copy</string>
     <string name="sub_link_close">Close</string>
     <string name="sub_link_show">Show the full subscription link</string>
+    <string name="update_latest_any">You have the latest version.</string>
+    <string name="update_channel">Update channel</string>
+    <string name="update_channel_release">Release</string>
+    <string name="update_channel_beta">Beta</string>
+    <string name="update_channel_beta_note">Beta also offers test builds, which may be unstable.</string>
 </resources>

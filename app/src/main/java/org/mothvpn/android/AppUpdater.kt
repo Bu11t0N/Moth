@@ -6,6 +6,7 @@ import android.os.Build
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import org.mothvpn.core.AppRelease
+import org.mothvpn.core.UpdateChannel
 import java.io.File
 import java.net.URL
 import java.security.MessageDigest
@@ -52,7 +53,17 @@ object AppUpdater {
         } finally { c.disconnect() }
     }
 
-    suspend fun check(): AppRelease? = AppRelease.parse(text("https://api.github.com/repos/Bu11t0N/Moth/releases/latest", 2 * 1024 * 1024), BuildConfig.VERSION_NAME, Build.SUPPORTED_ABIS.toList())
+    /** Release channel reads releases/latest (never a prerelease); Beta reads the releases list and takes the newest non-draft version. */
+    suspend fun check(channel: UpdateChannel): AppRelease? {
+        val abis = Build.SUPPORTED_ABIS.toList()
+        Logger.i("Update", "check started: channel=${channel.id} installed=${BuildConfig.VERSION_NAME} source=${if (channel == UpdateChannel.BETA) "releases list" else "latest release"}")
+        val found = when (channel) {
+            UpdateChannel.RELEASE -> AppRelease.parse(text("https://api.github.com/repos/Bu11t0N/Moth/releases/latest", 2 * 1024 * 1024), BuildConfig.VERSION_NAME, abis)
+            UpdateChannel.BETA -> AppRelease.parseList(text("https://api.github.com/repos/Bu11t0N/Moth/releases?per_page=30", 4 * 1024 * 1024), BuildConfig.VERSION_NAME, abis)
+        }
+        Logger.i("Update", "check finished: channel=${channel.id} result=${found?.let { "${it.version} available" } ?: "up to date"}")
+        return found
+    }
 
     suspend fun download(context: Context, release: AppRelease): File {
         val expected = AppRelease.checksum(text(release.sumsUrl, 64 * 1024), release.apkName)

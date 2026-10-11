@@ -35,8 +35,11 @@ import androidx.compose.foundation.text.selection.SelectionContainer
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.Bottom) {
-            Text(tr(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
-            Text(VersionLabel.of(BuildConfig.VERSION_NAME), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 10.dp, bottom = 6.dp))
+            // Same text as Settings → About without the build number: "<name> <version>".
+            val about = VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME)
+            val name = tr(R.string.app_name)
+            Text(name, style = MaterialTheme.typography.headlineLarge)
+            Text(about.removePrefix(name).trim(), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 10.dp, bottom = 6.dp))
         }
         Spacer(Modifier.weight(1f))
         Button(onClick = connect, enabled = !busy && (!probing || running) && !transition && selected != null,

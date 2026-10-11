@@ -218,4 +218,9 @@
     <string name="sub_link_copy">Копировать</string>
     <string name="sub_link_close">Закрыть</string>
     <string name="sub_link_show">Показать полную ссылку подписки</string>
+    <string name="update_latest_any">Установлена последняя версия.</string>
+    <string name="update_channel">Канал обновлений</string>
+    <string name="update_channel_release">Релиз</string>
+    <string name="update_channel_beta">Бета</string>
+    <string name="update_channel_beta_note">В бете также предлагаются тестовые сборки, они могут работать нестабильно.</string>
 </resources>

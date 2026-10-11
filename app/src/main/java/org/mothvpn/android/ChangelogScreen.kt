@@ -39,12 +39,13 @@ object ChangelogRepository {
             val text = download(BASE + fileName(russian)) ?: error("not found")
             val sections = Changelog.parse(text)
             check(sections.isNotEmpty()) { "empty changelog" }
-            runCatching { cache.parentFile?.mkdirs(); cache.writeText(text) }
+            runCatching { cache.parentFile?.mkdirs(); cache.writeText(text) }.onFailure { Logger.w("Changelog", "caching failed", it) }
             Logger.i("Changelog", "loaded ${sections.size} sections")
             return Result(sections, false)
         } catch (t: Throwable) {
             Logger.w("Changelog", "fetch failed", t)
-            val cached = runCatching { if (cache.exists()) Changelog.parse(cache.readText()) else null }.getOrNull()
+            val cached = runCatching { if (cache.exists()) Changelog.parse(cache.readText()) else null }.onFailure { Logger.w("Changelog", "reading the cache failed", it) }.getOrNull()
+            Logger.i("Changelog", "showing ${if (!cached.isNullOrEmpty()) "cached copy" else "error"}")
             return if (!cached.isNullOrEmpty()) Result(cached, true) else Result(null, false)
         }
     }

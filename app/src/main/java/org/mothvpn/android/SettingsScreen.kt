@@ -14,6 +14,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import org.mothvpn.core.ClientSettings
+import org.mothvpn.core.VersionLabel
 
 @Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit) {
     var draft by remember(initial) { mutableStateOf(initial) }
@@ -31,18 +32,18 @@ import org.mothvpn.core.ClientSettings
     fun applySettings(next: ClientSettings) {
         draft = next
         try { save(next.validate()); error = "" }
-        catch (e: Exception) { error = if (e is java.net.URISyntaxException) tr(R.string.msg_enter_a_valid_https_url_70) else e.message?.let(::localizedError) ?: tr(R.string.msg_check_your_settings_71) }
+        catch (e: Exception) { Logger.w("Settings", "invalid value rejected: ${e.javaClass.simpleName}: ${e.message}"); error = if (e is java.net.URISyntaxException) tr(R.string.msg_enter_a_valid_https_url_70) else e.message?.let(::localizedError) ?: tr(R.string.msg_check_your_settings_71) }
     }
     fun number(text: String, field: String) {
         val n = text.toIntOrNull()
-        if (n == null) { error = tr(R.string.msg_enter_a_whole_number_72); return }
+        if (n == null) { Logger.w("Settings", "not a number for $field"); error = tr(R.string.msg_enter_a_whole_number_72); return }
         applySettings(when (field) { "mtu" -> draft.copy(mtu = n); "timeout" -> draft.copy(timeoutMs = n); "pingTimeout" -> draft.copy(probeTimeoutMs = n); "parallel" -> draft.copy(probeParallel = n); else -> draft.copy(healthIntervalSeconds = n) })
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); else -> (section ?: tr(R.string.msg_settings_28)) }, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).padding(top = 12.dp))
         }
-        if (section == tr(R.string.update_title)) UpdatePage(Modifier.weight(1f).padding(bottom = 8.dp)) else if (logPage == 3) ChangelogPage(Modifier.weight(1f)) else if (logPage != 0) LogPage(crash = logPage == 2, modifier = Modifier.weight(1f)) else Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (section == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.weight(1f).padding(bottom = 8.dp)) else if (logPage == 3) ChangelogPage(Modifier.weight(1f)) else if (logPage != 0) LogPage(crash = logPage == 2, modifier = Modifier.weight(1f)) else Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (section) {
                 null -> {
                     SettingsCategory(tr(R.string.msg_appearance_74)) { section = tr(R.string.msg_appearance_74) }
@@ -140,7 +141,7 @@ import org.mothvpn.core.ClientSettings
                 }
                 tr(R.string.dev_for_developers) -> DeveloperSection({ logPage = 1 }, { logPage = 2 })
                 tr(R.string.msg_about_78) -> {
-                    Text("${tr(R.string.app_name)} ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", style = MaterialTheme.typography.titleLarge)
+                    Text(VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleLarge)
                     Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111))
                 }
             }

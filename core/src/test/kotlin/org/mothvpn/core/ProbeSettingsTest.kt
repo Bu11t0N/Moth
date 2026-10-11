@@ -36,4 +36,10 @@ class ProbeSettingsTest {
         assertEquals("Moth/0.4.2", ClientSettings(userAgent = "Moth/0.2").withAppVersion("0.4.2").userAgent)
         assertEquals("v2rayN/6", ClientSettings(userAgent = "v2rayN/6").withAppVersion("0.4.2").userAgent)
     }
+    @Test fun updateChannelIsPersistedAndValidated() {
+        assertEquals("", ClientSettings.from(ClientSettings().json()).updateChannel)
+        assertEquals("beta", ClientSettings.from(ClientSettings(updateChannel = "beta").json()).updateChannel)
+        assertEquals("", ClientSettings.from(ClientSettings().json().put("updateChannel", "junk")).updateChannel)
+        assertFailsWith<IllegalArgumentException> { ClientSettings(updateChannel = "junk").validate() }
+    }
 }

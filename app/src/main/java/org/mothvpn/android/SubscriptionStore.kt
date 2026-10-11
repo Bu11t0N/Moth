@@ -86,7 +86,7 @@ object SubscriptionDownload {
                     { Logger.w("Download", "provider reports the device limit"); error(tr(R.string.msg_subscription_device_limit_reached_contact_the_113)) }
                 if (connection.getHeaderField("x-hwid-not-supported") == "true") { Logger.w("Download", "provider requires HWID"); error(tr(R.string.msg_the_provider_requires_hwid_enable_it_in_setti_114)) }
                 when (response) {
-                    301, 302, 303, 307, 308 -> { val next = connection.getHeaderField("Location") ?: error(tr(R.string.msg_redirect_destination_is_missing_115)); url = URL(url, next) }
+                    301, 302, 303, 307, 308 -> { val next = connection.getHeaderField("Location") ?: error(tr(R.string.msg_redirect_destination_is_missing_115)); val target = URL(url, next); Logger.d("Download", "HTTP $response redirect to host=${org.mothvpn.core.LogFacts.hostTag(target.toString())}"); url = target }
                     200 -> {
                         val bytes = connection.inputStream.use { input ->
                             val out = java.io.ByteArrayOutputStream()
@@ -101,7 +101,7 @@ object SubscriptionDownload {
                         }
                         require(bytes.size <= 2 * 1024 * 1024) { tr(R.string.msg_the_server_list_is_too_large_116) }
                         val title = connection.getHeaderField("profile-title").orEmpty().let { text ->
-                            if (text.startsWith("base64:")) runCatching { String(android.util.Base64.decode(text.removePrefix("base64:"), android.util.Base64.DEFAULT), Charsets.UTF_8) }.getOrDefault("") else text
+                            if (text.startsWith("base64:")) runCatching { String(android.util.Base64.decode(text.removePrefix("base64:"), android.util.Base64.DEFAULT), Charsets.UTF_8) }.onFailure { Logger.w("Download", "profile-title base64 decoding failed", it) }.getOrDefault("") else text
                         }.take(120)
                         val info = connection.getHeaderField("subscription-userinfo").orEmpty().split(';').mapNotNull {
                             val pair = it.trim().split('=', limit = 2)

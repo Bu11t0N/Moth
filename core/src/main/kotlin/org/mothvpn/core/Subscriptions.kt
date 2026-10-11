@@ -10,7 +10,28 @@ import java.util.Base64
 import java.util.UUID
 
 data class Profile(val id: String, val name: String, val protocol: String, val outbound: String, val engine: String = "sing-box")
-data class ImportResult(val profiles: List<Profile>, val rejected: Int, val reasons: List<String> = emptyList())
+/**
+ * [duplicates]: one safe note per dropped duplicate ("link 5 (vless): same id as kept 3f2a9c01"); [comments]: skipped '#' / empty lines;
+ * [parsed]: entries that converted successfully before duplicates were removed.
+ */
+data class ImportResult(val profiles: List<Profile>, val rejected: Int, val reasons: List<String> = emptyList(),
+    val duplicates: List<String> = emptyList(), val comments: Int = 0, val parsed: Int = profiles.size + duplicates.size) {
+    /** "parsed N, duplicates D, rejected M" for the developer log. */
+    fun summary() = "parsed $parsed, duplicates ${duplicates.size}, rejected $rejected"
+}
+
+/** Keeps the first profile per id; each dropped one is described by position, protocol and the kept id prefix only. */
+internal fun dedupe(all: List<Profile>, label: String): Pair<List<Profile>, List<String>> {
+    val kept = LinkedHashMap<String, Int>()
+    val notes = mutableListOf<String>()
+    val unique = mutableListOf<Profile>()
+    all.forEachIndexed { index, p ->
+        val first = kept[p.id]
+        if (first == null) { kept[p.id] = index + 1; unique += p }
+        else if (notes.size < 100) notes += "$label ${index + 1} (${p.protocol.take(24)}): duplicate of $label $first, id ${p.id.take(8)}"
+    }
+    return unique to notes
+}
 
 /** Short, link-free reason for a rejected server, safe to write to the log. */
 internal fun rejectReason(e: Throwable): String {
@@ -35,19 +56,22 @@ object Subscriptions {
         if (text.startsWith("proxies:") || text.contains("\nproxies:") || text.startsWith("{")) return ClashSubscriptions.parse(text)
         val decoded = if (text.contains("://")) text else runCatching { unbase64(text) }.getOrDefault(text)
         if (decoded.startsWith("proxies:") || decoded.contains("\nproxies:")) return ClashSubscriptions.parse(decoded)
-        val lines = decoded.lineSequence().map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
+        val allLines = decoded.lineSequence().map(String::trim).filter { it.isNotEmpty() }.toList()
+        val lines = allLines.filter { !it.startsWith("#") }
+        val comments = allLines.size - lines.size
         require(lines.size <= 2000) { "Слишком много серверов" }
         var rejected = 0
         val reasons = mutableListOf<String>()
-        val profiles = lines.mapIndexedNotNull { index, line ->
+        val converted = lines.mapIndexedNotNull { index, line ->
             runCatching { parseLink(line) }.getOrElse { e ->
                 rejected++
                 if (reasons.size < 100) reasons += "link ${index + 1} (${line.substringBefore("://", "?").take(12).lowercase()}): ${rejectReason(e)}"
                 null
             }
-        }.distinctBy { it.id }
+        }
+        val (profiles, duplicates) = dedupe(converted, "link")
         require(profiles.isNotEmpty()) { "Нет поддерживаемых серверов. Нужен список ссылок VLESS, VMess, Trojan или Shadowsocks." }
-        return ImportResult(profiles, rejected, reasons)
+        return ImportResult(profiles, rejected, reasons, duplicates, comments, converted.size)
     }
     fun parseLink(link: String): Profile {
         val scheme = link.substringBefore("://").lowercase()
