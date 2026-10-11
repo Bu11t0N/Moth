@@ -34,9 +34,6 @@ object TunnelStatus {
     val activeProfile = activeMutable.asStateFlow()
 }
 
-/** Number of servers probed at the same time (each HTTPS probe starts its own local core). */
-const val PROBE_CONCURRENCY = 3
-
 class TunnelService : VpnService(), PlatformInterface {
     private val executor = Executors.newSingleThreadExecutor()
     private var box: BoxService? = null
@@ -188,7 +185,7 @@ class TunnelService : VpnService(), PlatformInterface {
             Logger.i("Probe", "probeProfiles: speed=$speed mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
             if (!access.available || (wantedNetwork != null && wantedNetwork != access.kind)) { Logger.w("Probe", "skipped: network unavailable or changed"); return }
             val profiles = SubscriptionStore(this).load()?.profiles.orEmpty().filter { id == null || it.id == id }
-            val pool = Executors.newFixedThreadPool(if (speed) 1 else PROBE_CONCURRENCY.coerceAtMost(profiles.size).coerceAtLeast(1))
+            val pool = Executors.newFixedThreadPool(if (speed) 1 else settings.probeParallel.coerceAtMost(profiles.size).coerceAtLeast(1))
             fun probeOne(profile: Profile) {
                 if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) return
                 val key = "${access.kind}:${profile.id}"
@@ -206,7 +203,7 @@ class TunnelService : VpnService(), PlatformInterface {
                         val endpoint = ProbePolicy.tcpEndpoint(profile)
                         stage = "tcp"
                         if (endpoint == null) result(error = tr(R.string.msg_udp_protocol_choose_an_https_check_129))
-                        else { val ms = tcpProbe(endpoint, settings.timeoutSeconds, cancelled); Logger.i("Probe", "TCP ok in $ms ms ($label)"); if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) result(ms = ms) }
+                        else { val ms = tcpProbe(endpoint, settings.probeTimeoutSeconds, cancelled); Logger.i("Probe", "TCP ok in $ms ms ($label)"); if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) result(ms = ms) }
                         return
                     }
                     stage = "free port"
@@ -227,7 +224,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     var last: Throwable? = null
                     for (url in if (speed) listOf("https://speed.cloudflare.com/__down?bytes=1048576") else ProbePolicy.urls(settings)) {
                         if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
-                        val test = ProxyRequest(this, port, user, password, if (speed) 30 else settings.timeoutSeconds, cancelled)
+                        val test = ProxyRequest(this, port, user, password, if (speed) 30 else settings.probeTimeoutSeconds, cancelled)
                         requests.add(test); registered = test
                         stage = "request ${Diagnostics.describeUrl(url)}"
                         try { measured = test.run(url, if (speed) 1048576 else 0); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} ${measured?.first}${if (speed) " bytes" else " ms"} ($label)"); break }

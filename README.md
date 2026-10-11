@@ -34,6 +34,8 @@ Language is under **Settings → Appearance**. The default follows the system; E
 
 0.4.2 adds a developer log (Settings → For developers → Log) with levels, share and clear; it never records subscription links, keys or server addresses.
 
+Test builds show a version label on the home screen: `./gradlew :app:assembleRelease -PversionSuffix=rc6` gives `v0.4.2rc6`. A release build without `-PversionSuffix` has no label.
+
 Official 0.4.1 APKs update official 0.2, 0.3 and 0.4.0 APKs without deleting app data. The application ID and signing certificate are unchanged. The original GitHub 0.1 APK and independently built APKs can have different signatures.
 
 ## Supported subscriptions

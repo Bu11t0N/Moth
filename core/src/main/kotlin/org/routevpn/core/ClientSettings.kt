@@ -13,12 +13,15 @@ data class ClientSettings(
     val deviceInfo: Boolean = false, val userAgent: String = "Moth/0.2",
     val sortByLatency: Boolean = false,
     val compactServers: Boolean = true, val hideUnavailable: Boolean = false,
-    val probeMode: String = "auto", val bootstrapDns: String = "https://1.1.1.1/dns-query"
+    val probeMode: String = "auto", val bootstrapDns: String = "https://1.1.1.1/dns-query",
+    val probeParallel: Int = 3, val probeTimeoutSeconds: Int = 10
 ) {
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
         require(probeMode in setOf("auto", "https", "tcp")) { "Неверный способ проверки" }
         require(mtu in 1280..9000) { "MTU: от 1280 до 9000" }
+        require(probeParallel in 1..8) { "Параллельных проверок: от 1 до 8" }
+        require(probeTimeoutSeconds in 3..30) { "Таймаут пинга: от 3 до 30 секунд" }
         require(timeoutSeconds in 3..30) { "Тайм-аут: от 3 до 30 секунд" }
         require(healthIntervalSeconds in 30..600) { "Интервал проверки: от 30 до 600 секунд" }
         require(hwid.matches(Regex("[a-zA-Z0-9=-]{10,64}"))) { "HWID: 10–64 символа, буквы, цифры, = или -" }
@@ -35,6 +38,7 @@ data class ClientSettings(
         .put("deviceInfo", deviceInfo).put("userAgent", userAgent).put("sortByLatency", sortByLatency)
         .put("compactServers", compactServers).put("hideUnavailable", hideUnavailable)
         .put("probeMode", probeMode).put("bootstrapDns", bootstrapDns)
+        .put("probeParallel", probeParallel).put("probeTimeoutSeconds", probeTimeoutSeconds)
     companion object {
         fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
             j.optString("dns", "https://1.1.1.1/dns-query"), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
@@ -42,7 +46,8 @@ data class ClientSettings(
             j.optBoolean("hwidEnabled", true), j.getString("hwid"), j.optBoolean("deviceInfo", false),
             j.optString("userAgent", "Moth/0.2"), j.optBoolean("sortByLatency", false),
             j.optBoolean("compactServers", true), j.optBoolean("hideUnavailable", false),
-            j.optString("probeMode", "auto"), j.optString("bootstrapDns", "https://1.1.1.1/dns-query")).validate()
+            j.optString("probeMode", "auto"), j.optString("bootstrapDns", "https://1.1.1.1/dns-query"),
+            j.optInt("probeParallel", 3), j.optInt("probeTimeoutSeconds", j.optInt("timeoutSeconds", 10))).validate()
     }
 }
 
