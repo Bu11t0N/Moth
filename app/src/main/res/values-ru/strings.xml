@@ -203,4 +203,16 @@
     <string name="changelog_offline">Показана сохранённая копия (нет соединения).</string>
     <string name="msg_probe_parallel_range">Параллельных проверок: от 1 до 16</string>
     <string name="msg_probe_timeout_range">Таймаут пинга: от 500 до 30000 мс</string>
+    <string name="update_title">Обновления</string>
+    <string name="update_current">Установленная версия: %1$s</string>
+    <string name="update_optional">Обновления необязательны. Проверяйте и скачивайте, когда удобно. Android запросит подтверждение установки.</string>
+    <string name="update_check">Проверить обновления</string>
+    <string name="update_latest">Установлена последняя стабильная версия.</string>
+    <string name="update_available">Доступна версия: %1$s</string>
+    <string name="update_download">Скачать обновление</string>
+    <string name="update_install">Установить обновление</string>
+    <string name="update_cancel">Отмена</string>
+    <string name="update_failed">Не удалось проверить, скачать или установить обновление. Проверьте соединение и повторите попытку.</string>
+    <string name="update_permission_ready">Разрешение получено. Нажмите «Установить обновление», чтобы продолжить.</string>
+    <string name="update_permission_needed">Для установки разрешите обновления из Moth в настройках Android.</string>
 </resources>

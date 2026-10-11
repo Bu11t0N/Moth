@@ -203,4 +203,16 @@
     <string name="changelog_offline">Showing the saved copy (no connection).</string>
     <string name="msg_probe_parallel_range">Parallel probes: from 1 to 16</string>
     <string name="msg_probe_timeout_range">Ping timeout: from 500 to 30000 ms</string>
+    <string name="update_title">Updates</string>
+    <string name="update_current">Installed version: %1$s</string>
+    <string name="update_optional">Updates are optional. Check and download when you choose. Android asks you to confirm installation.</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_latest">You have the latest stable version.</string>
+    <string name="update_available">Available version: %1$s</string>
+    <string name="update_download">Download update</string>
+    <string name="update_install">Install update</string>
+    <string name="update_cancel">Cancel</string>
+    <string name="update_failed">Could not check, download or install the update. Check your connection and try again.</string>
+    <string name="update_permission_ready">Permission granted. Tap Install update to continue.</string>
+    <string name="update_permission_needed">To install, allow updates from Moth in Android settings.</string>
 </resources>

@@ -2,14 +2,19 @@ plugins { id("com.android.application"); kotlin("android") }
 val versionSuffix = (project.findProperty("versionSuffix") as String?)?.trim().orEmpty()
 require(versionSuffix.matches(Regex("[A-Za-z0-9.-]*"))) { "versionSuffix: letters, digits, . and - only" }
 android {
-    namespace = "org.routevpn.android"
+    namespace = "org.mothvpn.android"
     compileSdk = 34
-    defaultConfig { applicationId = "org.routevpn.android"; minSdk = 26; targetSdk = 34; versionCode = 9; versionName = "0.4.4"
-        // Shown on the home screen only for test builds: -PversionSuffix=rc6 gives "v0.4.4rc6"; no property gives an empty label.
-        buildConfigField("String", "VERSION_LABEL", if (versionSuffix.isEmpty()) "\"\"" else "\"v0.4.4$versionSuffix\"") }
+    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 10; versionName = "0.4.5"
+        // Shown on the home screen only for test builds: -PversionSuffix=rc6 gives "v0.4.5rc6"; no property gives an empty label.
+        buildConfigField("String", "VERSION_LABEL", if (versionSuffix.isEmpty()) "\"\"" else "\"v0.4.5$versionSuffix\"") }
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (providers.gradleProperty("unsignedValidation").orNull == "true") null else signingConfigs.create("mothRelease") {
+                storeFile = file(System.getenv("MOTH_KEYSTORE_FILE") ?: "../moth-release.p12")
+                storePassword = System.getenv("MOTH_KEYSTORE_PASSWORD")
+                keyAlias = "moth"
+                keyPassword = System.getenv("MOTH_KEYSTORE_PASSWORD")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
