@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
                                     connect = { if (TunnelStatus.state.value == TunnelState.RUNNING) stop() else connect() }, servers = { tab = 1 })
                                 1 -> ServersScreen(saved, settings, network, busy, message,
                                     add = { url = ""; dialog = true }, refresh = { saved?.let { import(it.url, "refresh") } }, remove = { removeSubscription() },
-                                    select = { id, kind -> select(id, kind) }, probe = { kind -> diagnose(null, false, kind) },
+                                    select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(null, false, kind, order) },
                                     speedTest = { kind -> diagnose(saved?.selection(kind), true, kind) },
                                     cancel = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("CANCEL_PROBES")) },
                                     preferences = { saveSettings(it) })
@@ -221,10 +221,10 @@ class MainActivity : AppCompatActivity() {
         val profile = subscription.profiles.firstOrNull { it.id == subscription.selection(networks.state.value.kind) } ?: run { Logger.w("Tunnel", "connect ignored: the selected server is missing"); return }
         authorize(Intent(this, TunnelService::class.java).setAction("START").putExtra("profile", profile.id))
     }
-    private fun diagnose(id: String?, speed: Boolean, kind: String) {
+    private fun diagnose(id: String?, speed: Boolean, kind: String, order: List<String> = emptyList()) {
         Logger.i("Probe", "${if (speed) "speed test" else "check"} tapped (kind=$kind, network=${networks.state.value.kind}, available=${networks.state.value.available})")
         if (!networks.state.value.available || networks.state.value.kind != kind) { message = tr(R.string.msg_switch_networks_to_run_this_check_44); return }
-        authorize(Intent(this, TunnelService::class.java).setAction(if (speed) "SPEED" else "PROBE").putExtra("network", kind).apply { if (id != null) putExtra("profile", id) })
+        authorize(Intent(this, TunnelService::class.java).setAction(if (speed) "SPEED" else "PROBE").putExtra("network", kind).putStringArrayListExtra("order", ArrayList(order)).apply { if (id != null) putExtra("profile", id) })
     }
     private fun authorize(action: Intent) {
         lifecycleScope.launch {

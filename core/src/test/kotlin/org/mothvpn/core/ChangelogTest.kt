@@ -15,7 +15,7 @@ class ChangelogTest {
     @Test fun repositoryFilesParseAndMatch() {
         val en = Changelog.parse(File("../CHANGELOG.md").readText())
         val ru = Changelog.parse(File("../CHANGELOG.ru.md").readText())
-        val versions = listOf("0.4.6", "0.4.5", "0.4.4", "0.4.3", "0.4.2", "0.4.1", "0.4.0", "0.3.0", "0.2.0", "0.1.0")
+        val versions = listOf("0.4.7", "0.4.6", "0.4.5", "0.4.4", "0.4.3", "0.4.2", "0.4.1", "0.4.0", "0.3.0", "0.2.0", "0.1.0")
         assertEquals(versions, en.map { it.title })
         assertEquals(versions, ru.map { it.title })
         assertEquals(en.map { it.groups.map { g -> g.items.size } }, ru.map { it.groups.map { g -> g.items.size } })
@@ -24,11 +24,13 @@ class ChangelogTest {
         assertEquals(listOf("Изменения"), ru[0].groups.map { it.title })
         assertEquals(listOf("Changes"), en[1].groups.map { it.title })
         assertEquals(listOf("Изменения"), ru[1].groups.map { it.title })
-        assertEquals(listOf("Subscriptions"), en[2].groups.map { it.title })
-        assertEquals(listOf("Подписки"), ru[2].groups.map { it.title })
-        assertEquals(listOf("Fixes"), en[3].groups.map { it.title })
-        assertEquals(listOf("Исправления"), ru[3].groups.map { it.title })
-        assertEquals(listOf("Logs and diagnostics", "Server ping", "Interface", "Fixes"), en[4].groups.map { it.title })
-        assertEquals(listOf("Журнал и диагностика", "Пинг серверов", "Интерфейс", "Исправления"), ru[4].groups.map { it.title })
+        assertEquals(listOf("Changes"), en[2].groups.map { it.title })
+        assertEquals(listOf("Изменения"), ru[2].groups.map { it.title })
+        assertEquals(listOf("Subscriptions"), en[3].groups.map { it.title })
+        assertEquals(listOf("Подписки"), ru[3].groups.map { it.title })
+        assertEquals(listOf("Fixes"), en[4].groups.map { it.title })
+        assertEquals(listOf("Исправления"), ru[4].groups.map { it.title })
+        assertEquals(listOf("Logs and diagnostics", "Server ping", "Interface", "Fixes"), en[5].groups.map { it.title })
+        assertEquals(listOf("Журнал и диагностика", "Пинг серверов", "Интерфейс", "Исправления"), ru[5].groups.map { it.title })
     }
 }

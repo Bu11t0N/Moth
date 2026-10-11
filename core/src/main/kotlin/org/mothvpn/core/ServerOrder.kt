@@ -27,3 +27,13 @@ object ServerOrder {
         return if (mode == LATENCY) byName.sortedBy { ping(it) ?: Long.MAX_VALUE } else byName // sortedBy is stable
     }
 }
+
+/** Probe queue order: the servers as shown in the list (top first), then any servers not shown (hidden or filtered out) in their saved order. */
+object ProbeOrder {
+    fun <T> arrange(items: List<T>, shownIds: List<String>, id: (T) -> String): List<T> {
+        if (shownIds.isEmpty()) return items
+        val position = HashMap<String, Int>()
+        shownIds.forEachIndexed { i, s -> position.putIfAbsent(s, i) }
+        return items.withIndex().sortedWith(compareBy({ position[id(it.value)] ?: Int.MAX_VALUE }, { it.index })).map { it.value }
+    }
+}
