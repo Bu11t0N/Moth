@@ -12,6 +12,14 @@ import java.util.UUID
 data class Profile(val id: String, val name: String, val protocol: String, val outbound: String, val engine: String = "sing-box")
 data class ImportResult(val profiles: List<Profile>, val rejected: Int, val reasons: List<String> = emptyList())
 
+/** Short, link-free reason for a rejected server, safe to write to the log. */
+internal fun rejectReason(e: Throwable): String {
+    val message = e.message
+    val ours = (e is IllegalArgumentException || e is IllegalStateException) && e !is NumberFormatException &&
+        !message.isNullOrBlank() && !message.contains("://") && !message.startsWith("Invalid UUID") && message.length <= 160
+    return if (ours) message!! else e.javaClass.simpleName
+}
+
 object Subscriptions {
     private fun decode(s: String) = URLDecoder.decode(s.replace("+", "%2B"), "UTF-8")
     fun unbase64(s: String): String {
@@ -30,9 +38,16 @@ object Subscriptions {
         val lines = decoded.lineSequence().map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
         require(lines.size <= 2000) { "Слишком много серверов" }
         var rejected = 0
-        val profiles = lines.mapNotNull { line -> runCatching { parseLink(line) }.getOrElse { rejected++; null } }.distinctBy { it.id }
+        val reasons = mutableListOf<String>()
+        val profiles = lines.mapIndexedNotNull { index, line ->
+            runCatching { parseLink(line) }.getOrElse { e ->
+                rejected++
+                if (reasons.size < 100) reasons += "link ${index + 1} (${line.substringBefore("://", "?").take(12).lowercase()}): ${rejectReason(e)}"
+                null
+            }
+        }.distinctBy { it.id }
         require(profiles.isNotEmpty()) { "Нет поддерживаемых серверов. Нужен список ссылок VLESS, VMess, Trojan или Shadowsocks." }
-        return ImportResult(profiles, rejected)
+        return ImportResult(profiles, rejected, reasons)
     }
     fun parseLink(link: String): Profile {
         val scheme = link.substringBefore("://").lowercase()

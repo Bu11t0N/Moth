@@ -19,6 +19,15 @@ class SubscriptionsTest {
         val result = Subscriptions.parse(input)
         assertEquals(1, result.profiles.size); assertEquals(1, result.rejected)
     }
+    @Test fun rejectionReasonsAreReportedWithoutLinks() {
+        val bad = "trojan://password@vpn.example:443?allowInsecure=1"
+        val result = Subscriptions.parse("$vless\n$bad\nunsupported://server.example")
+        assertEquals(2, result.rejected); assertEquals(2, result.reasons.size)
+        assertTrue(result.reasons.all { it.startsWith("link ") && !it.contains("://") && !it.contains("password") }, result.reasons.toString())
+        val clash = ClashSubscriptions.parse("proxies:\n  - {name: a, type: trojan, server: s.example, port: 443, password: pw, skip-cert-verify: true}\n  - {name: b, type: ss, server: t.example, port: 8388, cipher: aes-128-gcm, password: pw}\n")
+        assertEquals(1, clash.rejected); assertEquals(1, clash.reasons.size)
+        assertTrue(clash.reasons[0].startsWith("proxy 1 (trojan): "), clash.reasons[0])
+    }
     @Test fun unsupportedTransportIsRejectedRatherThanChanged() {
         assertFails { Subscriptions.parseLink(vless.replace("type=tcp", "type=xhttp")) }
         assertFails { Subscriptions.parse("<html>service error</html>") }

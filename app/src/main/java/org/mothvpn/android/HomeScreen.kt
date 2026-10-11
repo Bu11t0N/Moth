@@ -15,6 +15,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.net.URI
+import org.mothvpn.core.VersionLabel
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.foundation.text.selection.SelectionContainer
 
 /** No server list or probe-result subscription here: checks cannot redraw the home screen. */
 @Composable fun HomeScreen(saved: SavedSubscription?, network: AccessNetwork, busy: Boolean, message: String,
@@ -32,8 +36,7 @@ import java.net.URI
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.Bottom) {
             Text(tr(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
-            // Empty in release builds (no -PversionSuffix), so nothing is drawn there.
-            if (BuildConfig.VERSION_LABEL.isNotEmpty()) Text(BuildConfig.VERSION_LABEL, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 10.dp, bottom = 6.dp))
+            Text(VersionLabel.of(BuildConfig.VERSION_NAME), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 10.dp, bottom = 6.dp))
         }
         Spacer(Modifier.weight(1f))
         Button(onClick = connect, enabled = !busy && (!probing || running) && !transition && selected != null,
@@ -52,7 +55,17 @@ import java.net.URI
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 val host = remember(saved.url) { runCatching { URI(saved.url).host }.getOrNull().orEmpty() }
                 Text(saved.providerName.ifBlank { host }, style = MaterialTheme.typography.titleMedium)
-                Text(tr(R.string.msg_host_saved_profiles_size_servers_17, host, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
+                var showLink by remember { mutableStateOf(false) }
+                val clipboard = LocalClipboardManager.current
+                TextButton(onClick = { showLink = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
+                    .semantics { contentDescription = tr(R.string.sub_link_show) }) {
+                    Text(tr(R.string.msg_host_saved_profiles_size_servers_17, host, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
+                }
+                // The link is the user's own; it is shown in full here and is never written to the log.
+                if (showLink) AlertDialog(onDismissRequest = { showLink = false }, title = { Text(tr(R.string.sub_link_title)) },
+                    text = { SelectionContainer { Text(saved.url) } },
+                    confirmButton = { TextButton(onClick = { clipboard.setText(AnnotatedString(saved.url)); showLink = false }) { Text(tr(R.string.sub_link_copy)) } },
+                    dismissButton = { TextButton(onClick = { showLink = false }) { Text(tr(R.string.sub_link_close)) } })
                 if (saved.totalBytes > 0) Text(tr(R.string.msg_traffic_1f_1f_gib_18, saved.usedBytes / 1073741824.0, saved.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall)
                 if (saved.expires in 1..253402300799L) Text(tr(R.string.msg_subscription_expires_on_19) + java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0]).format(java.util.Date(saved.expires * 1000)), style = MaterialTheme.typography.bodySmall)
                 Text(if (!network.available) tr(R.string.msg_no_network_20) else if (network.kind == "mobile") tr(R.string.msg_mobile_data_21) else "Wi-Fi", style = MaterialTheme.typography.labelMedium)

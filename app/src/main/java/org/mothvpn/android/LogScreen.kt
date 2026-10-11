@@ -1,12 +1,10 @@
 package org.mothvpn.android
 
 import android.content.Intent
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import android.content.ContentValues
 import android.os.Build
@@ -53,7 +51,7 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
     }
     val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: error("insert failed")
     context.contentResolver.openOutputStream(uri)!!.use { it.write(text.toByteArray()) }
-}.isSuccess
+}.onFailure { Logger.w("Log", "saving the log to Downloads failed", it) }.isSuccess
 
 /** One log page: [crash] selects the crash log (no level selector) or the normal log (with level selector). */
 @Composable fun LogPage(crash: Boolean, modifier: Modifier = Modifier) {
@@ -66,7 +64,7 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
     val fileName = { (if (crash) "moth-crash-" else "moth-log-") + stamp() + ".txt" }
     val createDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri != null) {
-            val ok = runCatching { context.contentResolver.openOutputStream(uri)!!.use { it.write(full().toByteArray()) } }.isSuccess
+            val ok = runCatching { context.contentResolver.openOutputStream(uri)!!.use { it.write(full().toByteArray()) } }.onFailure { Logger.w("Log", "saving the log to a document failed", it) }.isSuccess
             Toast.makeText(context, if (ok) tr(R.string.dev_saved_to_downloads) else tr(R.string.dev_save_failed), Toast.LENGTH_SHORT).show()
         }
     }
@@ -78,10 +76,12 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (!crash) {
             Text(tr(R.string.dev_log_level), style = MaterialTheme.typography.titleSmall)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // All six levels share the row width equally; labels shrink instead of scrolling.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 listOf(LogLevel.OFF to tr(R.string.dev_level_off), LogLevel.ERROR to "ERROR", LogLevel.WARN to "WARN", LogLevel.INFO to "INFO",
                     LogLevel.DEBUG to "DEBUG", LogLevel.VERBOSE to "VERBOSE").forEach { (value, label) ->
-                    FilterChip(selected = level == value, onClick = { level = value; Logger.level = value }, label = { Text(label) })
+                    FilterChip(selected = level == value, onClick = { level = value; Logger.level = value }, modifier = Modifier.weight(1f),
+                        label = { Text(label, fontSize = 10.sp, maxLines = 1, softWrap = false, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) })
                 }
             }
             Text(tr(R.string.dev_log_privacy_note), style = MaterialTheme.typography.bodySmall)
@@ -105,8 +105,7 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
             OutlinedButton(onClick = { if (crash) CrashLog.clear() else Logger.clear(); version++ }) { Text(tr(R.string.dev_clear_log)) }
             TextButton(onClick = { version++ }) { Text(tr(R.string.dev_refresh)) }
         }
-        if (!crash && level == LogLevel.OFF) Text(tr(R.string.dev_log_is_off), style = MaterialTheme.typography.bodySmall)
-        if (lines.isEmpty()) Text(tr(R.string.dev_log_empty))
+        if (lines.isEmpty()) Text(if (!crash && level == LogLevel.OFF) tr(R.string.dev_log_is_off) else tr(R.string.dev_log_empty))
         else {
             Text(tr(R.string.dev_showing_last_lines, VISIBLE_LINES), style = MaterialTheme.typography.labelSmall)
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = state) {

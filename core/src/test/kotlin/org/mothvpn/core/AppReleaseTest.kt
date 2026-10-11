@@ -17,6 +17,9 @@ class AppReleaseTest {
         assertFalse(AppRelease.newer("0.4.5", "0.4.5"))
         assertFalse(AppRelease.newer("0.4.4", "0.4.5"))
         assertFails { AppRelease.newer("0.4.6-beta.1", "0.4.5") }
+        assertTrue(AppRelease.newer("0.4.6", "0.4.6-beta.1"))
+        assertTrue(AppRelease.newer("0.4.7", "0.4.6-beta.1"))
+        assertFalse(AppRelease.newer("0.4.5", "0.4.6-beta.1"))
     }
     @Test fun selectsMatchingArchitectureAndStableNewRelease() {
         val result = AppRelease.parse(release().toString(), "0.4.5", listOf("arm64-v8a", "armeabi-v7a"))!!

@@ -188,7 +188,7 @@
     <string name="dev_share_log">Поделиться журналом</string>
     <string name="dev_clear_log">Очистить журнал</string>
     <string name="dev_refresh">Обновить</string>
-    <string name="dev_log_is_off">Журнал выключен. Выберите уровень в Настройки → Для разработчиков.</string>
+    <string name="dev_log_is_off">Журнал выключен.</string>
     <string name="dev_log_empty">Журнал пуст</string>
     <string name="dev_crash_log">Краш-лог</string>
     <string name="dev_showing_last_lines">Показаны последние %1$d строк; «Поделиться» отправляет весь файл.</string>
@@ -205,7 +205,6 @@
     <string name="msg_probe_timeout_range">Таймаут пинга: от 500 до 30000 мс</string>
     <string name="update_title">Обновления</string>
     <string name="update_current">Установленная версия: %1$s</string>
-    <string name="update_optional">Обновления необязательны. Проверяйте и скачивайте, когда удобно. Android запросит подтверждение установки.</string>
     <string name="update_check">Проверить обновления</string>
     <string name="update_latest">Установлена последняя стабильная версия.</string>
     <string name="update_available">Доступна версия: %1$s</string>
@@ -215,4 +214,8 @@
     <string name="update_failed">Не удалось проверить, скачать или установить обновление. Проверьте соединение и повторите попытку.</string>
     <string name="update_permission_ready">Разрешение получено. Нажмите «Установить обновление», чтобы продолжить.</string>
     <string name="update_permission_needed">Для установки разрешите обновления из Moth в настройках Android.</string>
+    <string name="sub_link_title">Ссылка подписки</string>
+    <string name="sub_link_copy">Копировать</string>
+    <string name="sub_link_close">Закрыть</string>
+    <string name="sub_link_show">Показать полную ссылку подписки</string>
 </resources>

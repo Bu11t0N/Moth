@@ -16,7 +16,7 @@ import kotlinx.coroutines.*
 import org.mothvpn.core.AppRelease
 import java.io.File
 
-@Composable fun UpdatePage() {
+@Composable fun UpdatePage(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var release by remember { mutableStateOf<AppRelease?>(null) }
@@ -32,39 +32,44 @@ import java.io.File
             busy = true; message = ""
             try { block() }
             catch (e: CancellationException) { throw e }
-            catch (_: Exception) { message = tr(R.string.update_failed) }
+            catch (e: Exception) { Logger.w("Update", "update action failed", e); message = tr(R.string.update_failed) }
             finally { busy = false }
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(tr(R.string.update_current, BuildConfig.VERSION_NAME))
-        Text(tr(R.string.update_optional), style = MaterialTheme.typography.bodySmall)
-        Button(enabled = !busy, onClick = { action {
-            apk = null
-            release = withContext(Dispatchers.IO) { AppUpdater.check() }
-            if (release == null) message = tr(R.string.update_latest)
-        } }) { Text(tr(R.string.update_check)) }
-        release?.let { available ->
-            Text(tr(R.string.update_available, available.version))
-            if (apk == null) Button(enabled = !busy, onClick = { action {
-                apk = withContext(Dispatchers.IO) { AppUpdater.download(context, available) }
-            } }) { Text(tr(R.string.update_download)) }
-            else Button(enabled = !busy, onClick = { action {
-                    if (!context.packageManager.canRequestPackageInstalls()) {
-                        permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
-                    } else {
-                        val file = apk ?: error("APK unavailable")
-                        withContext(Dispatchers.IO) { AppUpdater.verify(context, file, available.version) }
-                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
-                        context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
-                    }
-            } }) { Text(tr(R.string.update_install)) }
+    fun check() = action {
+        apk = null; release = null
+        release = withContext(Dispatchers.IO) { AppUpdater.check() }
+        Logger.i("Update", if (release == null) "no newer stable version" else "newer version ${release?.version} available")
+        if (release == null) message = tr(R.string.update_latest)
+    }
+    // Checked automatically whenever the screen is opened.
+    LaunchedEffect(Unit) { check() }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(tr(R.string.update_current, BuildConfig.VERSION_NAME))
+            release?.let { available ->
+                Text(tr(R.string.update_available, available.version))
+                if (apk == null) Button(enabled = !busy, onClick = { action {
+                    apk = withContext(Dispatchers.IO) { AppUpdater.download(context, available) }
+                } }) { Text(tr(R.string.update_download)) }
+                else Button(enabled = !busy, onClick = { action {
+                        if (!context.packageManager.canRequestPackageInstalls()) {
+                            permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
+                        } else {
+                            val file = apk ?: error("APK unavailable")
+                            withContext(Dispatchers.IO) { AppUpdater.verify(context, file, available.version) }
+                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
+                            context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+                        }
+                } }) { Text(tr(R.string.update_install)) }
+            }
+            if (busy) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+                TextButton(onClick = { job?.cancel() }) { Text(tr(R.string.update_cancel)) }
+            }
+            if (message.isNotEmpty()) Text(message)
         }
-        if (busy) {
-            LinearProgressIndicator(Modifier.fillMaxWidth())
-            TextButton(onClick = { job?.cancel() }) { Text(tr(R.string.update_cancel)) }
-        }
-        if (message.isNotEmpty()) Text(message)
+        Button(enabled = !busy, onClick = { check() }, modifier = Modifier.fillMaxWidth()) { Text(tr(R.string.update_check)) }
     }
 }

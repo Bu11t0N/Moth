@@ -81,9 +81,10 @@ object SubscriptionDownload {
                 .forEach { (key, value) -> connection.setRequestProperty(key, value) }
             try {
                 val response = connection.responseCode
+                Logger.d("Download", "HTTP $response")
                 if (connection.getHeaderField("x-hwid-max-devices-reached") == "true" || connection.getHeaderField("x-hwid-limit") == "true")
-                    error(tr(R.string.msg_subscription_device_limit_reached_contact_the_113))
-                if (connection.getHeaderField("x-hwid-not-supported") == "true") error(tr(R.string.msg_the_provider_requires_hwid_enable_it_in_setti_114))
+                    { Logger.w("Download", "provider reports the device limit"); error(tr(R.string.msg_subscription_device_limit_reached_contact_the_113)) }
+                if (connection.getHeaderField("x-hwid-not-supported") == "true") { Logger.w("Download", "provider requires HWID"); error(tr(R.string.msg_the_provider_requires_hwid_enable_it_in_setti_114)) }
                 when (response) {
                     301, 302, 303, 307, 308 -> { val next = connection.getHeaderField("Location") ?: error(tr(R.string.msg_redirect_destination_is_missing_115)); url = URL(url, next) }
                     200 -> {
@@ -109,8 +110,8 @@ object SubscriptionDownload {
                         val used = (info["upload"] ?: 0).let { u -> val d = info["download"] ?: 0; if (Long.MAX_VALUE - u < d) Long.MAX_VALUE else u + d }
                         return Response(String(bytes, Charsets.UTF_8), title, info["expire"] ?: 0, used, info["total"] ?: 0)
                     }
-                    401, 403 -> error(tr(R.string.msg_subscription_is_unavailable_check_the_link_an_117))
-                    else -> error(tr(R.string.msg_subscription_service_returned_an_error_try_ag_118))
+                    401, 403 -> { Logger.w("Download", "access denied (HTTP $response)"); error(tr(R.string.msg_subscription_is_unavailable_check_the_link_an_117)) }
+                    else -> { Logger.w("Download", "unexpected HTTP $response"); error(tr(R.string.msg_subscription_service_returned_an_error_try_ag_118)) }
                 }
             } finally { connection.disconnect() }
         }

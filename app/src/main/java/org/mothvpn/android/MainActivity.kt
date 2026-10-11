@@ -57,9 +57,9 @@ class MainActivity : AppCompatActivity() {
         busy = true
         lifecycleScope.launch {
             runCatching { withContext(Dispatchers.IO) { store.load() } }.onSuccess { saved = it }
-                .onFailure { message = tr(R.string.msg_could_not_read_the_saved_subscription_add_it_23) }
+                .onFailure { Logger.e("Store", "reading the saved subscription failed", it); message = tr(R.string.msg_could_not_read_the_saved_subscription_add_it_23) }
             runCatching { withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).load() } }.onSuccess { settings = it }
-                .onFailure { message = tr(R.string.msg_could_not_read_settings_24) }
+                .onFailure { Logger.e("Store", "reading settings failed", it); message = tr(R.string.msg_could_not_read_settings_24) }
             busy = false
             var persisted = settings
             var commit = 0L
@@ -70,7 +70,8 @@ class MainActivity : AppCompatActivity() {
                     try {
                         withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).save(next) }
                         persisted = next
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        Logger.e("Store", "saving settings failed", e)
                         if (settings == next) settings = persisted
                         message = tr(R.string.msg_could_not_apply_settings_25)
                     }
@@ -132,6 +133,7 @@ class MainActivity : AppCompatActivity() {
     private fun import(url: String) {
         if (busy) return
         busy = true; message = tr(R.string.msg_downloading_servers_33)
+        Logger.i("Import", "subscription download started")
         lifecycleScope.launch {
             try {
                 val previous = saved
@@ -152,6 +154,8 @@ class MainActivity : AppCompatActivity() {
                 saved = result.first
                 message = tr(R.string.msg_servers_added_result_first_profiles_size_34, result.first.profiles.size) + if (result.second > 0) tr(R.string.msg_unsupported_profiles_skipped_result_second_35, result.second) else ""
             } catch (e: Exception) {
+                // Logger redacts links and addresses from the exception text.
+                Logger.e("Import", "subscription import failed", e)
                 message = when(e) {
                     is java.net.SocketTimeoutException -> tr(R.string.msg_subscription_service_timed_out_36)
                     is java.net.UnknownHostException -> tr(R.string.msg_could_not_find_the_subscription_service_check_37)
@@ -168,7 +172,7 @@ class MainActivity : AppCompatActivity() {
         busy = true
         lifecycleScope.launch {
             try { withContext(Dispatchers.IO) { store.save(next) }; saved = next }
-            catch (_: Exception) { message = tr(R.string.msg_could_not_save_the_selected_server_41) }
+            catch (e: Exception) { Logger.e("Store", "saving the selected server failed", e); message = tr(R.string.msg_could_not_save_the_selected_server_41) }
             finally { busy = false }
         }
     }
@@ -177,7 +181,7 @@ class MainActivity : AppCompatActivity() {
         busy = true
         lifecycleScope.launch {
             try { withContext(Dispatchers.IO) { store.clear() }; saved = null; message = tr(R.string.msg_subscription_removed_42) }
-            catch (_: Exception) { message = tr(R.string.msg_could_not_remove_the_subscription_43) }
+            catch (e: Exception) { Logger.e("Store", "removing the subscription failed", e); message = tr(R.string.msg_could_not_remove_the_subscription_43) }
             finally { busy = false }
         }
     }
@@ -202,7 +206,7 @@ class MainActivity : AppCompatActivity() {
         if (action.action == "START") TunnelStatus.mutable.value = TunnelState.STARTING
         if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         try { startForegroundService(action) }
-        catch (_: Exception) { if (action.action == "START") TunnelStatus.mutable.value = TunnelState.ERROR; message = tr(R.string.msg_could_not_start_the_check_or_vpn_45) }
+        catch (e: Exception) { Logger.e("Service", "starting the service failed (${action.action})", e); if (action.action == "START") TunnelStatus.mutable.value = TunnelState.ERROR; message = tr(R.string.msg_could_not_start_the_check_or_vpn_45) }
     }
     private fun stop() { startService(Intent(this, TunnelService::class.java).setAction("STOP")) }
     override fun onNewIntent(intent: Intent) {

@@ -59,7 +59,7 @@ class VpnTileService : TileService() {
                 }
                 if (Diagnostics.running.value) return@launch
                 val subscription = withContext(Dispatchers.IO) {
-                    runCatching { SubscriptionStore(this@VpnTileService).load() }.getOrNull()
+                    runCatching { SubscriptionStore(this@VpnTileService).load() }.onFailure { Logger.e("Tile", "reading the saved subscription failed", it) }.getOrNull()
                 }
                 val network = NetworkTracker.read(getSystemService(ConnectivityManager::class.java))
                 val profile = subscription?.profiles?.firstOrNull { it.id == subscription.selection(network.kind) }
@@ -71,7 +71,8 @@ class VpnTileService : TileService() {
                     TunnelStatus.mutable.value = TunnelState.STARTING
                     startForegroundService(Intent(this@VpnTileService, TunnelService::class.java)
                         .setAction("START").putExtra("profile", profile.id))
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Logger.e("Tile", "starting the VPN from the tile failed", e)
                     TunnelStatus.mutable.value = TunnelState.ERROR
                     openApp()
                 }

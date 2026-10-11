@@ -8,10 +8,11 @@ data class AppRelease(val version: String, val apkUrl: String, val apkName: Stri
             require(Regex("[0-9]{1,6}\\.[0-9]{1,6}\\.[0-9]{1,6}").matches(value))
             return value.split('.').map(String::toInt)
         }
+        /** [current] may be a test build such as 0.4.6-beta.1: it is older than the stable 0.4.6 and newer than 0.4.5. */
         fun newer(candidate: String, current: String): Boolean {
-            val a = version(candidate); val b = version(current)
+            val a = version(candidate); val b = version(current.substringBefore('-'))
             for (i in a.indices) if (a[i] != b[i]) return a[i] > b[i]
-            return false
+            return current.contains('-')
         }
         fun parse(text: String, current: String, abis: List<String>): AppRelease? {
             val json = JSONObject(text)

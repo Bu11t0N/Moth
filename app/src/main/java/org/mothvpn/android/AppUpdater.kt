@@ -74,6 +74,7 @@ object AppUpdater {
                 } }
             } finally { c.disconnect() }
             val actual = digest.digest().joinToString("") { "%02x".format(it) }
+            if (actual != expected) Logger.e("Update", "downloaded APK checksum mismatch")
             check(actual == expected) { "APK checksum mismatch" }
             verify(context, temporary, release.version)
             currentCoroutineContext().ensureActive()
