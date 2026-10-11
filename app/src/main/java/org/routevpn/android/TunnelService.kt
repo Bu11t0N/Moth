@@ -170,7 +170,7 @@ class TunnelService : VpnService(), PlatformInterface {
             var ms: Long? = null
             for (url in ProbePolicy.urls(settings)) {
                 if (generation.get() != current) return
-                try { ms = Diagnostics.checkTunnel(connectivity, url, settings.timeoutSeconds); Logger.v("Health", "ok via ${Diagnostics.describeUrl(url)} in $ms ms"); break }
+                try { ms = Diagnostics.checkTunnel(connectivity, url, settings.timeoutMs.toLong()); Logger.v("Health", "ok via ${Diagnostics.describeUrl(url)} in $ms ms"); break }
                 catch (e: Exception) { Logger.w("Health", "check via ${Diagnostics.describeUrl(url)} failed", e) }
             }
             check(ms != null)

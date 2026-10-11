@@ -97,7 +97,7 @@
     <string name="msg_disconnect_vpn_and_finish_checks_to_change_th_93" formatted="false">"Отключи VPN и заверши проверки, чтобы менять эти параметры."</string>
     <string name="msg_check_the_active_tunnel_94" formatted="false">"Проверять активный туннель"</string>
     <string name="msg_interval_30_600_seconds_95" formatted="false">"Интервал · 30–600 секунд"</string>
-    <string name="msg_timeout_3_30_seconds_96" formatted="false">"Тайм-аут · 3–30 секунд"</string>
+    <string name="msg_timeout_3_30_seconds_96" formatted="false">"Тайм-аут, мс · 1000–60000"</string>
     <string name="msg_https_check_url_97" formatted="false">"HTTPS-адрес проверки"</string>
     <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Задержка включает установление HTTPS-соединения. Отказ этого адреса не доказывает недоступность всех сайтов."</string>
     <string name="msg_check_method_99" formatted="false">"Способ проверки"</string>
@@ -148,7 +148,7 @@
     <string name="msg_invalid_theme_144" formatted="false">"Неверная тема"</string>
     <string name="msg_invalid_check_method_145" formatted="false">"Неверный способ проверки"</string>
     <string name="msg_mtu_must_be_between_1280_and_9000_146" formatted="false">"MTU: от 1280 до 9000"</string>
-    <string name="msg_timeout_must_be_between_3_and_30_seconds_147" formatted="false">"Тайм-аут: от 3 до 30 секунд"</string>
+    <string name="msg_timeout_must_be_between_3_and_30_seconds_147" formatted="false">"Тайм-аут: от 1000 до 60000 мс"</string>
     <string name="msg_check_interval_must_be_between_30_and_600_sec_148" formatted="false">"Интервал проверки: от 30 до 600 секунд"</string>
     <string name="msg_hwid_10_64_letters_digits_or_149" formatted="false">"HWID: 10–64 символа, буквы, цифры, = или -"</string>
     <string name="msg_user_agent_must_contain_printable_ascii_chara_150" formatted="false">"User-Agent должен содержать печатные латинские символы"</string>

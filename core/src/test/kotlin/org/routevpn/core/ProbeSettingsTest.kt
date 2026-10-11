@@ -11,12 +11,19 @@ class ProbeSettingsTest {
         assertEquals(16, back.probeParallel); assertEquals(750, back.probeTimeoutMs)
     }
     @Test fun oldJsonMigrates() {
-        fun old(block: JSONObject.() -> Unit) = ClientSettings.from(JSONObject(ClientSettings(timeoutSeconds = 12).json().apply { remove("probeParallel"); remove("probeTimeoutMs"); block() }.toString()))
+        fun old(block: JSONObject.() -> Unit) = ClientSettings.from(JSONObject(ClientSettings().json().apply { remove("probeParallel"); remove("probeTimeoutMs"); remove("timeoutMs"); put("timeoutSeconds", 12); block() }.toString()))
         assertEquals(5, old { }.probeParallel)
         assertEquals(12000, old { }.probeTimeoutMs)
         assertEquals(7000, old { put("probeTimeoutSeconds", 7) }.probeTimeoutMs)
         assertEquals(1, old { put("probeParallel", 0) }.probeParallel)
         assertEquals(16, old { put("probeParallel", 40) }.probeParallel)
+    }
+    @Test fun generalTimeoutInMilliseconds() {
+        assertEquals(10000, ClientSettings().timeoutMs)
+        assertEquals(12000, ClientSettings.from(JSONObject(ClientSettings().json().apply { remove("timeoutMs"); put("timeoutSeconds", 12) }.toString())).timeoutMs)
+        assertEquals(1500, ClientSettings.from(ClientSettings(timeoutMs = 1500).json()).timeoutMs)
+        assertFailsWith<IllegalArgumentException> { ClientSettings(timeoutMs = 999).validate() }
+        assertFailsWith<IllegalArgumentException> { ClientSettings(timeoutMs = 60001).validate() }
     }
     @Test fun validation() {
         assertFailsWith<IllegalArgumentException> { ClientSettings(probeParallel = 0).validate() }

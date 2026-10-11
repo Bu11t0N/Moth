@@ -38,14 +38,14 @@ object Diagnostics {
         is javax.net.ssl.SSLException -> tr(R.string.msg_could_not_verify_https_5)
         else -> tr(R.string.msg_check_failed_6)
     }
-    fun checkTunnel(manager: ConnectivityManager, address: String, timeout: Int): Long {
+    fun checkTunnel(manager: ConnectivityManager, address: String, timeoutMs: Long): Long {
         val network = manager.allNetworks.firstOrNull { manager.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true }
             ?: error(tr(R.string.msg_vpn_network_is_not_ready_yet_7))
         val started = System.nanoTime()
         val c = network.openConnection(URL(address)) as HttpsURLConnection
         var stage = "connect"
         try {
-            c.connectTimeout = timeout * 1000; c.readTimeout = timeout * 1000
+            c.connectTimeout = timeoutMs.toInt(); c.readTimeout = timeoutMs.toInt()
             c.instanceFollowRedirects = false
             c.setRequestProperty("Cache-Control", "no-cache")
             stage = "http response"

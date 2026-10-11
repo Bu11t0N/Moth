@@ -106,7 +106,8 @@ class MainActivity : AppCompatActivity() {
                                 }
                             }
                         }
-                        NavigationBar {
+                        // Same colour as the content surface and no tonal overlay: no lighter band at the bottom.
+                        NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                             listOf(tr(R.string.msg_home_26) to "home", tr(R.string.msg_servers_27) to "list", tr(R.string.msg_settings_28) to "settings").forEachIndexed { i, item ->
                                 NavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { MothIcon(item.second) }, label = { Text(item.first) })
                             }

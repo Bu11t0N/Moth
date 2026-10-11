@@ -97,7 +97,7 @@
     <string name="msg_disconnect_vpn_and_finish_checks_to_change_th_93" formatted="false">"Disconnect VPN and finish checks to change these settings."</string>
     <string name="msg_check_the_active_tunnel_94" formatted="false">"Check the active tunnel"</string>
     <string name="msg_interval_30_600_seconds_95" formatted="false">"Interval · 30–600 seconds"</string>
-    <string name="msg_timeout_3_30_seconds_96" formatted="false">"Timeout · 3–30 seconds"</string>
+    <string name="msg_timeout_3_30_seconds_96" formatted="false">"Timeout, ms · 1000–60000"</string>
     <string name="msg_https_check_url_97" formatted="false">"HTTPS check URL"</string>
     <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Latency includes establishing an HTTPS connection. A failed check does not mean every website is unavailable."</string>
     <string name="msg_check_method_99" formatted="false">"Check method"</string>
@@ -148,7 +148,7 @@
     <string name="msg_invalid_theme_144" formatted="false">"Invalid theme"</string>
     <string name="msg_invalid_check_method_145" formatted="false">"Invalid check method"</string>
     <string name="msg_mtu_must_be_between_1280_and_9000_146" formatted="false">"MTU must be between 1280 and 9000"</string>
-    <string name="msg_timeout_must_be_between_3_and_30_seconds_147" formatted="false">"Timeout must be between 3 and 30 seconds"</string>
+    <string name="msg_timeout_must_be_between_3_and_30_seconds_147" formatted="false">"Timeout must be between 1000 and 60000 ms"</string>
     <string name="msg_check_interval_must_be_between_30_and_600_sec_148" formatted="false">"Check interval must be between 30 and 600 seconds"</string>
     <string name="msg_hwid_10_64_letters_digits_or_149" formatted="false">"HWID: 10–64 letters, digits, = or -"</string>
     <string name="msg_user_agent_must_contain_printable_ascii_chara_150" formatted="false">"User-Agent must contain printable ASCII characters"</string>
