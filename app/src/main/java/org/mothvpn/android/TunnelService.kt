@@ -101,8 +101,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
                     if (!stopped) {
                         TunnelStatus.mutable.value = TunnelState.RUNNING
-                        foreground()
-                        startStats()
+                        startStats(); foreground() // startStats first: it sets the connect time the notification chronometer counts from
                         TunnelStatus.activeMutable.value = id
                         Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) tr(R.string.msg_checking_internet_access_through_vpn_120) else tr(R.string.msg_checks_are_disabled_in_settings_121))
                         if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
@@ -150,9 +149,11 @@ class TunnelService : VpnService(), PlatformInterface {
             .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build())
         when (TunnelStatus.state.value) {
             TunnelState.RUNNING -> {
-                // Collapsed: title = server name, text = current speed (third line under the system app-name line).
-                // Expanded: the same title, then speed, sent, received and uptime.
+                // Collapsed: title = server name, text = speed, and on the right of the header row a clock glyph (sub text)
+                // followed by the system chronometer counting from the connect time (mm:ss, then h:mm:ss; ticks by itself).
+                // Expanded: the same title, then speed, total and time lines.
                 builder.setContentTitle(name.ifBlank { tr(R.string.msg_vpn_connection_125) })
+                if (connectStartMillis > 0) builder.setWhen(connectStartMillis).setShowWhen(true).setUsesChronometer(true).setSubText("\uD83D\uDD52")
                 lastDetails?.let { builder.setContentText(it.speed).setStyle(Notification.BigTextStyle().bigText(it.expanded)) }
             }
             TunnelState.STARTING -> { builder.setContentTitle(tr(R.string.notif_connecting)); if (name.isNotBlank()) builder.setContentText(name) }
@@ -168,9 +169,11 @@ class TunnelService : VpnService(), PlatformInterface {
     private var statsTask: java.util.concurrent.ScheduledFuture<*>? = null
     private val statsLock = Any()
     private var statsActive = false
+    @Volatile private var connectStartMillis = 0L // wall-clock time of the connection; the notification chronometer base, reset on every connect
     private var baseTx = 0L; private var baseRx = 0L; private var lastTx = 0L; private var lastRx = 0L; private var lastAt = 0L; private var startedAt = 0L
     /** Traffic is measured with TrafficStats for this app's uid (the core's sockets to the server), relative to the moment of connecting. libbox status is not wired up in this app. */
     private fun startStats(): Unit = synchronized(statsLock) {
+        connectStartMillis = System.currentTimeMillis()
         val tx = TrafficStats.getUidTxBytes(Process.myUid()); val rx = TrafficStats.getUidRxBytes(Process.myUid())
         if (tx == TrafficStats.UNSUPPORTED.toLong() || rx == TrafficStats.UNSUPPORTED.toLong()) { Logger.w("Tunnel", "traffic statistics are unavailable on this device"); return }
         baseTx = tx; baseRx = rx; lastTx = tx; lastRx = rx; lastAt = SystemClock.elapsedRealtime(); startedAt = lastAt
@@ -178,7 +181,7 @@ class TunnelService : VpnService(), PlatformInterface {
         statsTask?.cancel(false)
         statsTask = statsExecutor.scheduleWithFixedDelay({ runCatching { tickStats() }.onFailure { Logger.w("Tunnel", "notification update failed", it) } }, 1, 1, TimeUnit.SECONDS)
     }
-    private fun stopStats() = synchronized(statsLock) { statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null }
+    private fun stopStats() = synchronized(statsLock) { statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0 }
     private fun tickStats(): Unit = synchronized(statsLock) {
         if (!statsActive || TunnelStatus.state.value != TunnelState.RUNNING) return
         val now = SystemClock.elapsedRealtime()
@@ -186,8 +189,8 @@ class TunnelService : VpnService(), PlatformInterface {
         if (tx < 0 || rx < 0) return
         val units = tr(R.string.notif_units).split("|"); val locale = AppLanguage.context().resources.configuration.locales[0]
         val speed = tr(R.string.notif_speed, TrafficFormat.bytes(TrafficFormat.rate(lastTx, tx, now - lastAt), units, locale), TrafficFormat.bytes(TrafficFormat.rate(lastRx, rx, now - lastAt), units, locale))
-        val expanded = listOf(speed, tr(R.string.notif_sent, TrafficFormat.bytes(tx - baseTx, units, locale)), tr(R.string.notif_received, TrafficFormat.bytes(rx - baseRx, units, locale)),
-            tr(R.string.notif_uptime, TrafficFormat.uptime((now - startedAt) / 1000))).joinToString("\n")
+        val expanded = listOf(speed, tr(R.string.notif_total, TrafficFormat.bytes(tx - baseTx, units, locale), TrafficFormat.bytes(rx - baseRx, units, locale)),
+            tr(R.string.notif_uptime, TrafficFormat.duration((now - startedAt) / 1000))).joinToString("\n")
         lastTx = tx; lastRx = rx; lastAt = now
         if (lastDetails?.expanded == expanded) return // nothing changed (uptime changes every second, so this only skips duplicate ticks)
         lastDetails = Details(speed, expanded)

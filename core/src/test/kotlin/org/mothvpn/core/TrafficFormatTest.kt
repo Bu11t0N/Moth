@@ -23,9 +23,14 @@ class TrafficFormatTest {
         assertEquals(0, TrafficFormat.rate(5000, 100, 1000))
         assertEquals(0, TrafficFormat.rate(0, 100, 0))
     }
-    @Test fun uptimeFormat() {
-        assertEquals("00:12:34", TrafficFormat.uptime(754))
-        assertEquals("100:00:01", TrafficFormat.uptime(360001))
-        assertEquals("00:00:00", TrafficFormat.uptime(-3))
+    @Test fun durationFormat() {
+        assertEquals("00:00", TrafficFormat.duration(0))
+        assertEquals("00:05", TrafficFormat.duration(5))
+        assertEquals("12:34", TrafficFormat.duration(754))
+        assertEquals("59:59", TrafficFormat.duration(3599))
+        assertEquals("1:00:00", TrafficFormat.duration(3600))
+        assertEquals("1:02:03", TrafficFormat.duration(3723))
+        assertEquals("100:00:01", TrafficFormat.duration(360001))
+        assertEquals("00:00", TrafficFormat.duration(-3))
     }
 }

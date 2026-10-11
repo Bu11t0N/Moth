@@ -15,9 +15,10 @@ object TrafficFormat {
     /** Bytes per second between two samples [elapsedMs] apart; never negative. */
     fun rate(previous: Long, current: Long, elapsedMs: Long): Long =
         if (elapsedMs <= 0 || current < previous) 0 else (current - previous) * 1000 / elapsedMs
-    /** "00:12:34", hours keep growing past 99. */
-    fun uptime(seconds: Long): String {
+    /** "00:05", "12:34" below one hour; "1:02:03", "100:00:01" from one hour (hours keep growing). */
+    fun duration(seconds: Long): String {
         val s = seconds.coerceAtLeast(0)
-        return String.format(Locale.ROOT, "%02d:%02d:%02d", s / 3600, s / 60 % 60, s % 60)
+        return if (s < 3600) String.format(Locale.ROOT, "%02d:%02d", s / 60, s % 60)
+        else String.format(Locale.ROOT, "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60)
     }
 }
