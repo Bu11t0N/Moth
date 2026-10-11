@@ -170,7 +170,11 @@ import org.mothvpn.core.VersionLabel
                     OutlinedTextField(draft.userAgent, { applySettings(draft.copy(userAgent = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_user_agent_109)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text(tr(R.string.msg_providers_may_select_the_subscription_format_110), style = MaterialTheme.typography.bodySmall)
                 }
-                tr(R.string.dev_for_developers) -> DeveloperSection({ logPage = 1 }, { logPage = 2 })
+                tr(R.string.dev_for_developers) -> {
+                    DeveloperSection({ logPage = 1 }, { logPage = 2 })
+                    SettingsToggle(tr(R.string.dev_detailed_icons), draft.detailedIcons) { applySettings(draft.copy(detailedIcons = it)) }
+                    Text(tr(R.string.dev_detailed_icons_hint), style = MaterialTheme.typography.bodySmall)
+                }
                 tr(R.string.msg_about_78) -> {
                     Text(VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleLarge)
                     Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111))

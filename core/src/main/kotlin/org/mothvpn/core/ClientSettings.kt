@@ -16,7 +16,9 @@ data class ClientSettings(
     val probeMode: String = "auto", val bootstrapDns: String = "https://1.1.1.1/dns-query",
     val probeParallel: Int = 5, val probeTimeoutMs: Int = 5000,
     /** "release", "beta" or "" (not chosen yet: the default follows the installed build, see UpdateChannel.effective). */
-    val updateChannel: String = ""
+    val updateChannel: String = "",
+    /** Developer option: small icons with explanations instead of the red dash for failed server checks. */
+    val detailedIcons: Boolean = false
 ) {
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
@@ -45,7 +47,7 @@ data class ClientSettings(
         .put("deviceInfo", deviceInfo).put("userAgent", userAgent).put("serverSort", serverSort)
         .put("compactServers", compactServers).put("hideUnavailable", hideUnavailable)
         .put("probeMode", probeMode).put("bootstrapDns", bootstrapDns)
-        .put("probeParallel", probeParallel).put("probeTimeoutMs", probeTimeoutMs).put("updateChannel", updateChannel)
+        .put("probeParallel", probeParallel).put("probeTimeoutMs", probeTimeoutMs).put("updateChannel", updateChannel).put("detailedIcons", detailedIcons)
     companion object {
         fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
             j.optString("dns", "https://1.1.1.1/dns-query"), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
@@ -57,7 +59,8 @@ data class ClientSettings(
             j.optInt("probeParallel", 5).coerceIn(1, 16),
             (if (j.has("probeTimeoutMs")) j.getInt("probeTimeoutMs") else if (j.has("probeTimeoutSeconds")) j.getInt("probeTimeoutSeconds") * 1000
                 else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(500, 30000),
-            j.optString("updateChannel", "").takeIf { it in setOf("release", "beta") } ?: "").validate()
+            j.optString("updateChannel", "").takeIf { it in setOf("release", "beta") } ?: "",
+            j.optBoolean("detailedIcons", false)).validate()
     }
 }
 

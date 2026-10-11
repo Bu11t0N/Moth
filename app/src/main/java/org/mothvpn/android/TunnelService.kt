@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import org.mothvpn.core.ClientSettings
 import org.mothvpn.core.Profile
+import org.mothvpn.core.ProbeErrorKind
 import org.mothvpn.core.TunnelConfig
 import org.mothvpn.core.LocalProxyConfig
 import org.mothvpn.core.ProbePolicy
@@ -196,8 +197,8 @@ class TunnelService : VpnService(), PlatformInterface {
                 if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) return
                 val key = "${access.kind}:${profile.id}"
                 val method = if (!speed && settings.probeMode == "tcp") "TCP" else "HTTPS"
-                fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false) = Diagnostics.result(key,
-                    ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled))
+                fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false, kind: ProbeErrorKind? = null) = Diagnostics.result(key,
+                    ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled, kind = kind))
                 if (!speed) result(checking = true)
                 val label = describe(profile)
                 var stage = "start"
@@ -208,7 +209,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     if (method == "TCP") {
                         val endpoint = ProbePolicy.tcpEndpoint(profile)
                         stage = "tcp"
-                        if (endpoint == null) result(error = tr(R.string.msg_udp_protocol_choose_an_https_check_129))
+                        if (endpoint == null) result(error = tr(R.string.msg_udp_protocol_choose_an_https_check_129), kind = ProbeErrorKind.UDP_PROTOCOL)
                         else { val ms = tcpProbe(endpoint, settings.probeTimeoutMs.toLong(), cancelled); Logger.i("Probe", "TCP ok in $ms ms ($label)"); if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) result(ms = ms) }
                         return
                     }
@@ -250,12 +251,12 @@ class TunnelService : VpnService(), PlatformInterface {
                     Logger.e("Probe", "probe failed at stage '$stage' method=$method network=${access.kind} cancelled=${cancelled.get()} ($label)", e)
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
                         if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_speed_test_failed_131)
-                        else result(error = Diagnostics.friendly(e))
+                        else result(error = Diagnostics.friendly(e), kind = ProbeErrorKind.of(e))
                     }
                 } finally {
                     if (allocated != 0) releasePort(allocated)
                     runCatching { local?.close() }.onFailure { Logger.w("Probe", "closing the local core failed", it) }; runCatching { xr?.close() }.onFailure { Logger.w("Probe", "closing the local xray failed", it) }
-                    if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = tr(R.string.msg_check_cancelled_46), wasCancelled = true)
+                    if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = tr(R.string.msg_check_cancelled_46), wasCancelled = true, kind = ProbeErrorKind.CANCELLED)
                 }
             }
             val futures = profiles.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }
