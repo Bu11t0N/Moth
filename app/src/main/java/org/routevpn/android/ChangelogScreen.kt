@@ -76,7 +76,11 @@ object ChangelogRepository {
                 LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     sections.forEach { section ->
                         item(key = "h-" + section.title) { Text(section.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp, bottom = 2.dp)) }
-                        items(section.items) { Row { Text("•  "); Text(it, style = MaterialTheme.typography.bodyMedium) } }
+                        section.groups.forEachIndexed { gi, group ->
+                            group.title?.let { t -> item(key = "g-${section.title}-$gi") { Text(t, style = MaterialTheme.typography.labelLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp)) } }
+                            items(group.items) { Row { Text("•  "); Text(it, style = MaterialTheme.typography.bodyMedium) } }
+                        }
                     }
                     item { Spacer(Modifier.height(8.dp)) }
                 }
