@@ -171,7 +171,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 saved = result.first
                 Logger.i("Import", "subscription saved: ${result.first.profiles.size} server(s) in ${System.currentTimeMillis() - started} ms (trigger=$trigger)")
-                message = tr(R.string.msg_servers_added_result_first_profiles_size_34, result.first.profiles.size) + if (result.second > 0) tr(R.string.msg_unsupported_profiles_skipped_result_second_35, result.second) else ""
+                message = "" // the import result is only logged, not shown
             } catch (e: Exception) {
                 // Logger redacts links and addresses from the exception text.
                 Logger.e("Import", "subscription import failed (trigger=$trigger, host=${LogFacts.hostTag(url)}, ${System.currentTimeMillis() - started} ms)", e)

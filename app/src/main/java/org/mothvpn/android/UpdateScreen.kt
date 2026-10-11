@@ -5,9 +5,11 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -79,12 +81,32 @@ import java.io.File
             if (message.isNotEmpty()) Text(message)
         }
         Button(enabled = !busy, onClick = { check() }, modifier = Modifier.fillMaxWidth()) { Text(tr(R.string.update_check)) }
-        Text(tr(R.string.update_channel), style = MaterialTheme.typography.titleSmall)
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta)).forEachIndexed { i, (value, label) ->
-                SegmentedButton(selected = channel == value, enabled = !busy, shape = SegmentedButtonDefaults.itemShape(i, 2),
-                    onClick = { if (channel != value) { Logger.i("Settings", "update channel changed: ${channel.id} -> ${value.id}"); selectChannel(value.id) } }) { Text(label) }
+        val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
+        var channelDialog by remember { mutableStateOf(false) }
+        Card(Modifier.fillMaxWidth().clickable(enabled = !busy) { channelDialog = true }) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(tr(R.string.update_channel), style = MaterialTheme.typography.titleMedium)
+                    Text(channels.first { it.first == channel }.second, style = MaterialTheme.typography.bodySmall)
+                }
+                Text("›", modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
             }
+        }
+        if (channelDialog) {
+            val pick = { value: UpdateChannel ->
+                channelDialog = false
+                if (channel != value) { Logger.i("Settings", "update channel changed: ${channel.id} -> ${value.id}"); selectChannel(value.id) }
+            }
+            AlertDialog(onDismissRequest = { channelDialog = false }, title = { Text(tr(R.string.update_channel)) },
+                text = { Column {
+                    channels.forEach { (value, label) ->
+                        Row(Modifier.fillMaxWidth().clickable { pick(value) }, verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(channel == value, { pick(value) })
+                            Text(label)
+                        }
+                    }
+                } },
+                confirmButton = { TextButton(onClick = { channelDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
         }
         if (channel == UpdateChannel.BETA) Text(tr(R.string.update_channel_beta_note), style = MaterialTheme.typography.bodySmall)
     }

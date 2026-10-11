@@ -96,8 +96,6 @@ import org.mothvpn.core.VersionLabel
                     }
                     SettingsToggle(tr(R.string.msg_compact_server_rows_83), draft.compactServers) { applySettings(draft.copy(compactServers = it)) }
                     SettingsToggle(tr(R.string.msg_sort_by_latency_84), draft.sortByLatency) { applySettings(draft.copy(sortByLatency = it)) }
-                    SettingsToggle(tr(R.string.msg_hide_unavailable_servers_85), draft.hideUnavailable) { applySettings(draft.copy(hideUnavailable = it)) }
-                    Text(tr(R.string.msg_servers_with_failed_checks_in_the_last_15_min_86), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.msg_connection_75) -> {
                     if (locked) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))

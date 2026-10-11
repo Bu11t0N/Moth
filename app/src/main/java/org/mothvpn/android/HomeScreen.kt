@@ -57,7 +57,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
         if (saved != null) Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 val host = remember(saved.url) { runCatching { URI(saved.url).host }.getOrNull().orEmpty() }
-                Text(saved.providerName.ifBlank { host }, style = MaterialTheme.typography.titleMedium)
+                if (saved.providerName.isNotBlank() && saved.providerName != host) Text(saved.providerName, style = MaterialTheme.typography.titleMedium)
                 var showLink by remember { mutableStateOf(false) }
                 val clipboard = LocalClipboardManager.current
                 TextButton(onClick = { showLink = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
