@@ -62,6 +62,7 @@ class XrayJsonSubscriptionsTest {
         assertFalse(b.getJSONObject("strategy").getJSONObject("settings").has("evil"))
         assertFalse(g.getJSONObject("burstObservatory").getJSONObject("pingConfig").has("connectivity"))
         assertTrue(r.reasons.any { it.contains("Hysteria") })
+        assertEquals(1, r.rejected)
         assertNull(ProbePolicy.tcpEndpoint(p))
     }
     @Test fun groupXrayConfigIsSafe() {
@@ -105,5 +106,64 @@ class XrayJsonSubscriptionsTest {
     @Test fun clashJsonStillGoesToClashPath() {
         assertFalse(XrayJsonSubscriptions.looksLike("{\"proxies\":[{\"name\":\"a\",\"type\":\"vless\"}]}"))
         assertTrue(XrayJsonSubscriptions.looksLike("[{\"outbounds\":[]}]"))
+    }
+
+    @Test fun backgroundDurationsAreBoundedNumerically() {
+        fun ping(interval: String, timeout: String): JSONObject {
+            val doc = JSONObject(F.balancerDocument())
+            doc.getJSONObject("burstObservatory").getJSONObject("pingConfig").put("interval", interval).put("timeout", timeout)
+            val profile = Subscriptions.parse(doc.toString()).profiles.single()
+            return JSONObject(LocalProxyConfig.xray(profile, 18085, "u", "pw")).getJSONObject("burstObservatory").getJSONObject("pingConfig")
+        }
+        for (value in listOf("1ms", "0ms", "1s")) {
+            assertEquals("10000ms", ping(value, "5s").getString("interval"), value)
+        }
+        assertEquals("10000ms", ping("10s", "5s").getString("interval"))
+        assertEquals("1800000ms", ping("30m", "5s").getString("interval"))
+        assertEquals("86400000ms", ping("86400000ms", "5s").getString("interval"))
+        assertEquals("86400000ms", ping("999999h", "5s").getString("interval"))
+        for (value in listOf("invalid", "-1s", "999999999999999999h")) {
+            val result = ping(value, value)
+            assertEquals("300000ms", result.getString("interval"))
+            assertEquals("5000ms", result.getString("timeout"))
+        }
+        assertEquals("500ms", ping("30m", "0ms").getString("timeout"))
+        assertEquals("500ms", ping("30m", "500ms").getString("timeout"))
+        assertEquals("30000ms", ping("30m", "30s").getString("timeout"))
+        assertEquals("30000ms", ping("30m", "999999h").getString("timeout"))
+    }
+
+    @Test fun largerGroupsHaveAnAggregateProbeBudget() {
+        for (size in listOf(30, 300)) {
+            val members = (1..size).map { F.tcpReality("proxy-$it", "node-$it.example.com") }.toTypedArray()
+            val doc = F.config("Group", *members, balancer = true)
+            // The fixture also adds two infrastructure outbounds; the parser's document limit is 300.
+            doc.getJSONArray("outbounds").let { it.remove(it.length() - 1); it.remove(it.length() - 1) }
+            doc.getJSONObject("burstObservatory").getJSONObject("pingConfig").put("interval", "1ms").put("sampling", 20)
+            val profile = Subscriptions.parse(doc.toString()).profiles.single()
+            val ping = out(profile).getJSONObject("burstObservatory").getJSONObject("pingConfig")
+            assertEquals("${size * 1000}ms", ping.getString("interval"))
+            assertEquals(20, ping.getInt("sampling"))
+        }
+    }
+
+    @Test fun partialRejectionsCountEachUnsupportedOutbound() {
+        val unsupported = JSONObject().put("tag", "bad").put("protocol", "vmess")
+        val partial = parse(F.config("Mixed", F.tcpReality(), unsupported))
+        assertEquals(1, partial.profiles.size)
+        assertEquals(1, partial.rejected)
+        val allBad = parse(F.config("Bad", unsupported, JSONObject(unsupported.toString())), F.config("Good", F.tcpReality()))
+        assertEquals(1, allBad.profiles.size)
+        assertEquals(2, allBad.rejected) // No extra rejection for the containing document.
+    }
+
+    @Test fun groupCountsExcludedMembersAndInvalidOutbounds() {
+        val doc = JSONObject(F.balancerDocument())
+        doc.getJSONArray("outbounds").put(F.tcpReality("outside", "outside.example.com"))
+            .put(JSONObject().put("tag", "proxy-bad").put("protocol", "vmess"))
+        val result = Subscriptions.parse(doc.toString())
+        assertEquals(1, result.profiles.size)
+        assertEquals(4, out(result.profiles.single()).getJSONArray("outbounds").length())
+        assertEquals(3, result.rejected) // Hysteria, non-selected VLESS, unsupported VMess.
     }
 }

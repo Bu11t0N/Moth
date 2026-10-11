@@ -26,6 +26,17 @@ object XrayJsonSubscriptions {
 
     private class Reject(message: String) : Exception(message)
     private fun reject(message: String): Nothing = throw Reject(message)
+    private data class Conversion(val profiles: List<Profile>, val rejected: Int)
+
+    /** Bound provider-controlled background work, including total probe frequency across a group. */
+    private fun boundedDuration(value: String, defaultMs: Long, minMs: Long, maxMs: Long): String {
+        val match = Regex("(\\d{1,9})(ms|s|m|h)").matchEntire(value)
+        val millis = match?.let {
+            val multiplier = when (it.groupValues[2]) { "ms" -> 1L; "s" -> 1000L; "m" -> 60_000L; else -> 3_600_000L }
+            it.groupValues[1].toLong() * multiplier
+        } ?: defaultMs
+        return "${millis.coerceIn(minMs, maxMs)}ms"
+    }
     private class Member(val tag: String, val outbound: JSONObject, val label: String, val address: String) {
         /** Display fallback when there are no remarks: a meaningful tag, else the address. */
         val fallbackName get() = tag.takeUnless { Regex("proxy(-\\d+)?").matches(it) } ?: address
@@ -72,7 +83,11 @@ object XrayJsonSubscriptions {
         val reasons = mutableListOf<String>()
         val profiles = mutableListOf<Profile>()
         docs.forEachIndexed { index, doc ->
-            try { profiles += convertDocument(doc, index, reasons).also { if (it.isEmpty()) rejected++ } }
+            try {
+                val converted = convertDocument(doc, index, reasons)
+                profiles += converted.profiles
+                rejected += converted.rejected
+            }
             catch (e: Reject) { rejected++; reasons += "document $index: ${e.message}" }
             catch (e: Exception) { rejected++; reasons += "document $index: ${e.javaClass.simpleName}" }
         }
@@ -83,7 +98,7 @@ object XrayJsonSubscriptions {
 
     private fun sha(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
 
-    private fun convertDocument(doc: JSONObject, index: Int, reasons: MutableList<String>): List<Profile> {
+    private fun convertDocument(doc: JSONObject, index: Int, reasons: MutableList<String>): Conversion {
         val remarks = doc.optString("remarks").trim()
         val outbounds = doc.optJSONArray("outbounds") ?: reject("нет outbounds")
         require(outbounds.length() <= MAX_OUTBOUNDS) { "Слишком много outbounds" }
@@ -111,7 +126,9 @@ object XrayJsonSubscriptions {
             val members = xray.filter { m -> selector.isEmpty() || selector.any { m.tag.startsWith(it) } }
             if (members.size >= 2) {
                 if (others.isNotEmpty()) reasons += "document $index: ${others.size} Hysteria member(s) skipped in balancer group"
-                return listOf(group(remarks, members, balancer, doc.optJSONObject("burstObservatory")))
+                val excluded = xray.size - members.size + others.size
+                if (xray.size > members.size) reasons += "document $index: ${xray.size - members.size} proxy member(s) outside balancer selector skipped"
+                return Conversion(listOf(group(remarks, members, balancer, doc.optJSONObject("burstObservatory"))), rejectedOutbounds + excluded)
             }
         }
         val result = mutableListOf<Profile>()
@@ -121,7 +138,8 @@ object XrayJsonSubscriptions {
             result += Profile(sha(remarks + "|" + m.outbound.toString()), name.take(160), "vless · ${m.label}".lowercase(), m.outbound.put("tag", "proxy").toString(), "xray")
         }
         others.forEach { (tag, p) -> result += if (multiple) p.copy(name = listOf(remarks, tag).filter { it.isNotBlank() }.joinToString(" · ").take(160)) else p }
-        return result.also { if (rejectedOutbounds > 0 && it.isNotEmpty()) reasons += "document $index: $rejectedOutbounds outbound(s) rejected" }
+        if (rejectedOutbounds > 0 && result.isNotEmpty()) reasons += "document $index: $rejectedOutbounds outbound(s) rejected"
+        return Conversion(result, rejectedOutbounds)
     }
 
     private fun group(remarks: String, members: List<Member>, balancer: JSONObject, burst: JSONObject?): Profile {
@@ -145,8 +163,10 @@ object XrayJsonSubscriptions {
         val ping = burst?.optJSONObject("pingConfig")
         val pingClean = JSONObject().put("destination", "https://www.gstatic.com/generate_204").put("interval", "5m").put("sampling", 2).put("timeout", "5s")
         ping?.optString("destination")?.takeIf { it.startsWith("https://") && it.length <= 200 && !it.substringAfter("://").substringBefore('/').contains('@') && it.none(Char::isWhitespace) }?.let { pingClean.put("destination", it) }
-        ping?.optString("interval")?.takeIf { durationRegex.matches(it) }?.let { pingClean.put("interval", it) }
-        ping?.optString("timeout")?.takeIf { durationRegex.matches(it) }?.let { pingClean.put("timeout", it) }
+        // At least 10 seconds between probes per member, and at most one per second on average across the group.
+        // Xray's own interval guard is insufficient in the pinned version; enforce the bounds here.
+        pingClean.put("interval", boundedDuration(ping?.optString("interval").orEmpty(), 300_000L, maxOf(10_000L, members.size * 1000L), 86_400_000L))
+        pingClean.put("timeout", boundedDuration(ping?.optString("timeout").orEmpty(), 5000L, 500L, 30_000L))
         if (ping?.has("sampling") == true) ping.optInt("sampling", -1).takeIf { it in 1..20 }?.let { pingClean.put("sampling", it) }
         val g = JSONObject().put("group", true).put("outbounds", outbounds)
             .put("balancer", JSONObject().put("tag", "balancer").put("selector", JSONArray(tags)).put("fallbackTag", fallback).put("strategy", strategy))
