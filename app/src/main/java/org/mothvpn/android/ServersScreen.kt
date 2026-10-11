@@ -8,6 +8,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -61,7 +64,7 @@ import org.mothvpn.core.ClientSettings
             }.let { if (settings.sortByLatency) it.sortedBy { p -> results["$k:${p.id}"]?.latencyMs ?: Long.MAX_VALUE } else it }
         }
         if (visibleK.isEmpty()) Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(if (saved == null) tr(R.string.msg_add_a_subscription_58) else tr(R.string.msg_no_servers_found_59))
+            if (saved != null) Text(tr(R.string.msg_no_servers_found_59))
             if (saved == null) TextButton(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
             else TextButton(onClick = { search = ""; preferences(settings.copy(hideUnavailable = false)) }) { Text(tr(R.string.msg_show_all_60)) }
         } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
@@ -120,7 +123,9 @@ import org.mothvpn.core.ClientSettings
         val pager = rememberPagerState(initialPage = if (kind == "wifi") 0 else 1) { 2 }
         LaunchedEffect(pager.currentPage) { kind = if (pager.currentPage == 0) "wifi" else "mobile" }
         LaunchedEffect(kind) { val i = if (kind == "wifi") 0 else 1; if (pager.currentPage != i) pager.animateScrollToPage(i) }
-        HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { KindPage(if (it == 0) "wifi" else "mobile") }
+        // Fast snap: while a page is still settling the pager owns the touch and the list cannot scroll yet.
+        HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top,
+            flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = spring(stiffness = Spring.StiffnessHigh))) { KindPage(if (it == 0) "wifi" else "mobile") }
     }
     if (delete) AlertDialog(onDismissRequest = { delete = false }, title = { Text(tr(R.string.msg_remove_subscription_67)) }, text = { Text(tr(R.string.msg_the_subscription_link_will_need_to_be_added_a_68)) }, confirmButton = { TextButton(enabled = !locked, onClick = { delete = false; remove() }) { Text(tr(R.string.msg_remove_69)) } }, dismissButton = { TextButton(onClick = { delete = false }) { Text(tr(R.string.msg_cancel_32)) } })
 }

@@ -188,7 +188,7 @@
     <string name="dev_share_log">Share log</string>
     <string name="dev_clear_log">Clear log</string>
     <string name="dev_refresh">Refresh</string>
-    <string name="dev_log_is_off">Logging is off. Select a level in Settings → For developers.</string>
+    <string name="dev_log_is_off">Logging is off.</string>
     <string name="dev_log_empty">The log is empty</string>
     <string name="dev_crash_log">Crash log</string>
     <string name="dev_showing_last_lines">Showing the last %1$d lines; Share exports the whole file.</string>
@@ -205,7 +205,6 @@
     <string name="msg_probe_timeout_range">Ping timeout: from 500 to 30000 ms</string>
     <string name="update_title">Updates</string>
     <string name="update_current">Installed version: %1$s</string>
-    <string name="update_optional">Updates are optional. Check and download when you choose. Android asks you to confirm installation.</string>
     <string name="update_check">Check for updates</string>
     <string name="update_latest">You have the latest stable version.</string>
     <string name="update_available">Available version: %1$s</string>
@@ -215,4 +214,13 @@
     <string name="update_failed">Could not check, download or install the update. Check your connection and try again.</string>
     <string name="update_permission_ready">Permission granted. Tap Install update to continue.</string>
     <string name="update_permission_needed">To install, allow updates from Moth in Android settings.</string>
+    <string name="sub_link_title">Subscription link</string>
+    <string name="sub_link_copy">Copy</string>
+    <string name="sub_link_close">Close</string>
+    <string name="sub_link_show">Show the full subscription link</string>
+    <string name="update_latest_any">You have the latest version.</string>
+    <string name="update_channel">Update channel</string>
+    <string name="update_channel_release">Release</string>
+    <string name="update_channel_beta">Beta</string>
+    <string name="update_channel_beta_note">Beta also offers test builds, which may be unstable.</string>
 </resources>

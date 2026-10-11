@@ -11,7 +11,10 @@ import androidx.core.os.LocaleListCompat
 import java.util.Locale
 
 class MothApplication : Application() {
-    override fun onCreate() { super.onCreate(); instance = this; CrashLog.install(this) }
+    override fun onCreate() {
+        super.onCreate(); instance = this; CrashLog.install(this)
+        Logger.i("App", "process started: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) pid=${android.os.Process.myPid()}")
+    }
     companion object { lateinit var instance: MothApplication; private set }
 }
 
@@ -23,6 +26,7 @@ object AppLanguage {
         else app.getSharedPreferences("language", Context.MODE_PRIVATE).getString("tag", "system") ?: "system"
     fun select(tag: String) {
         require(tag in setOf("system", "en", "ru"))
+        Logger.i("Settings", "language changed: $tag")
         // Non-sensitive preference also makes the language available to a cold-started tile on Android 8–12.
         app.getSharedPreferences("language", Context.MODE_PRIVATE).edit().putString("tag", tag).apply()
         AppCompatDelegate.setApplicationLocales(if (tag == "system") LocaleListCompat.getEmptyLocaleList()

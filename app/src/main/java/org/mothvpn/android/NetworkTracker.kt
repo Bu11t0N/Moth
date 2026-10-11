@@ -14,13 +14,20 @@ class NetworkTracker(context: Context) : AutoCloseable {
     private val manager = context.getSystemService(ConnectivityManager::class.java)
     private val mutable = MutableStateFlow(read(manager))
     val state = mutable.asStateFlow()
-    private val callback = object : ConnectivityManager.NetworkCallback() {
-        override fun onAvailable(network: Network) { mutable.value = read(manager) }
-        override fun onLost(network: Network) { mutable.value = read(manager) }
-        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) { mutable.value = read(manager) }
+    private fun update(reason: String) {
+        val next = read(manager)
+        val previous = mutable.value
+        if (previous.kind != next.kind || previous.available != next.available || previous.handle != next.handle)
+            Logger.i("Network", "$reason: ${if (previous.available) previous.kind else "none"} -> ${if (next.available) next.kind else "none"}${if (previous.handle != next.handle) " (network changed)" else ""}")
+        mutable.value = next
     }
-    init { manager.registerDefaultNetworkCallback(callback, Handler(Looper.getMainLooper())) }
-    override fun close() { manager.unregisterNetworkCallback(callback) }
+    private val callback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) { update("available") }
+        override fun onLost(network: Network) { update("lost") }
+        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) { update("capabilities changed") }
+    }
+    init { Logger.i("Network", "tracking started: ${mutable.value.let { if (it.available) it.kind else "none" }}"); manager.registerDefaultNetworkCallback(callback, Handler(Looper.getMainLooper())) }
+    override fun close() { Logger.d("Network", "tracking stopped"); manager.unregisterNetworkCallback(callback) }
     companion object {
         fun physical(manager: ConnectivityManager): Network? {
             val caps = manager.getNetworkCapabilities(manager.activeNetwork)

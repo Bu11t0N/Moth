@@ -14,6 +14,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import org.mothvpn.core.ClientSettings
+import org.mothvpn.core.VersionLabel
 
 @Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit) {
     var draft by remember(initial) { mutableStateOf(initial) }
@@ -31,18 +32,18 @@ import org.mothvpn.core.ClientSettings
     fun applySettings(next: ClientSettings) {
         draft = next
         try { save(next.validate()); error = "" }
-        catch (e: Exception) { error = if (e is java.net.URISyntaxException) tr(R.string.msg_enter_a_valid_https_url_70) else e.message?.let(::localizedError) ?: tr(R.string.msg_check_your_settings_71) }
+        catch (e: Exception) { Logger.w("Settings", "invalid value rejected: ${e.javaClass.simpleName}: ${e.message}"); error = if (e is java.net.URISyntaxException) tr(R.string.msg_enter_a_valid_https_url_70) else e.message?.let(::localizedError) ?: tr(R.string.msg_check_your_settings_71) }
     }
     fun number(text: String, field: String) {
         val n = text.toIntOrNull()
-        if (n == null) { error = tr(R.string.msg_enter_a_whole_number_72); return }
+        if (n == null) { Logger.w("Settings", "not a number for $field"); error = tr(R.string.msg_enter_a_whole_number_72); return }
         applySettings(when (field) { "mtu" -> draft.copy(mtu = n); "timeout" -> draft.copy(timeoutMs = n); "pingTimeout" -> draft.copy(probeTimeoutMs = n); "parallel" -> draft.copy(probeParallel = n); else -> draft.copy(healthIntervalSeconds = n) })
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); else -> (section ?: tr(R.string.msg_settings_28)) }, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f).padding(top = 12.dp))
         }
-        if (logPage == 3) ChangelogPage(Modifier.weight(1f)) else if (logPage != 0) LogPage(crash = logPage == 2, modifier = Modifier.weight(1f)) else Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (section == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.weight(1f).padding(bottom = 8.dp)) else if (logPage == 3) ChangelogPage(Modifier.weight(1f)) else if (logPage != 0) LogPage(crash = logPage == 2, modifier = Modifier.weight(1f)) else Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (section) {
                 null -> {
                     SettingsCategory(tr(R.string.msg_appearance_74)) { section = tr(R.string.msg_appearance_74) }
@@ -54,21 +55,30 @@ import org.mothvpn.core.ClientSettings
                     SettingsCategory(tr(R.string.msg_about_78)) { section = tr(R.string.msg_about_78) }
                     SettingsCategory(tr(R.string.dev_for_developers)) { section = tr(R.string.dev_for_developers) }
                 }
-                tr(R.string.update_title) -> UpdatePage()
                 tr(R.string.msg_appearance_74) -> {
-                    Text(tr(R.string.language), style = MaterialTheme.typography.titleMedium)
                     val language = AppLanguage.tag().substringBefore(',').substringBefore('-')
                     val languages = listOf("system" to tr(R.string.msg_system_default_80), "en" to "English", "ru" to "Русский")
-                    var languageMenu by remember { mutableStateOf(false) }
-                    Box {
-                        OutlinedButton(onClick = { languageMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                            Text(languages.firstOrNull { it.first == language }?.second ?: languages[0].second, modifier = Modifier.weight(1f))
-                            Text("▾")
-                        }
-                        DropdownMenu(languageMenu, { languageMenu = false }) {
-                            languages.forEach { (value, label) -> DropdownMenuItem(text = { Text(label) }, onClick = { languageMenu = false; AppLanguage.select(value) }) }
+                    var languageDialog by remember { mutableStateOf(false) }
+                    val currentLanguage = languages.firstOrNull { it.first == language }?.second ?: languages[0].second
+                    Card(Modifier.fillMaxWidth().clickable { languageDialog = true }) {
+                        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(tr(R.string.language), style = MaterialTheme.typography.titleMedium)
+                                Text(currentLanguage, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Text("›", modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
                         }
                     }
+                    if (languageDialog) AlertDialog(onDismissRequest = { languageDialog = false }, title = { Text(tr(R.string.language)) },
+                        text = { Column {
+                            languages.forEach { (value, label) ->
+                                Row(Modifier.fillMaxWidth().clickable { languageDialog = false; AppLanguage.select(value) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                    RadioButton(language == value || (value == "system" && languages.none { it.first == language }), { languageDialog = false; AppLanguage.select(value) })
+                                    Text(label)
+                                }
+                            }
+                        } },
+                        confirmButton = { TextButton(onClick = { languageDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
                     if (android.os.Build.VERSION.SDK_INT >= 33) {
                         val context = LocalContext.current
                         TextButton(onClick = {
@@ -86,8 +96,6 @@ import org.mothvpn.core.ClientSettings
                     }
                     SettingsToggle(tr(R.string.msg_compact_server_rows_83), draft.compactServers) { applySettings(draft.copy(compactServers = it)) }
                     SettingsToggle(tr(R.string.msg_sort_by_latency_84), draft.sortByLatency) { applySettings(draft.copy(sortByLatency = it)) }
-                    SettingsToggle(tr(R.string.msg_hide_unavailable_servers_85), draft.hideUnavailable) { applySettings(draft.copy(hideUnavailable = it)) }
-                    Text(tr(R.string.msg_servers_with_failed_checks_in_the_last_15_min_86), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.msg_connection_75) -> {
                     if (locked) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
@@ -131,7 +139,7 @@ import org.mothvpn.core.ClientSettings
                 }
                 tr(R.string.dev_for_developers) -> DeveloperSection({ logPage = 1 }, { logPage = 2 })
                 tr(R.string.msg_about_78) -> {
-                    Text("${tr(R.string.app_name)} ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleLarge)
+                    Text(VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleLarge)
                     Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111))
                 }
             }

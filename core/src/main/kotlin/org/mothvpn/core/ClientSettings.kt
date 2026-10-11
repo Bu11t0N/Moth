@@ -14,13 +14,16 @@ data class ClientSettings(
     val sortByLatency: Boolean = false,
     val compactServers: Boolean = true, val hideUnavailable: Boolean = false,
     val probeMode: String = "auto", val bootstrapDns: String = "https://1.1.1.1/dns-query",
-    val probeParallel: Int = 5, val probeTimeoutMs: Int = 5000
+    val probeParallel: Int = 5, val probeTimeoutMs: Int = 5000,
+    /** "release", "beta" or "" (not chosen yet: the default follows the installed build, see UpdateChannel.effective). */
+    val updateChannel: String = ""
 ) {
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
         if (Regex("Moth(/[0-9][0-9.]*)?").matches(userAgent)) copy(userAgent = "Moth/$version") else this
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
+        require(updateChannel in setOf("", "release", "beta")) { "Неверный канал обновлений" }
         require(probeMode in setOf("auto", "https", "tcp")) { "Неверный способ проверки" }
         require(mtu in 1280..9000) { "MTU: от 1280 до 9000" }
         require(probeParallel in 1..16) { "Параллельных проверок: от 1 до 16" }
@@ -41,7 +44,7 @@ data class ClientSettings(
         .put("deviceInfo", deviceInfo).put("userAgent", userAgent).put("sortByLatency", sortByLatency)
         .put("compactServers", compactServers).put("hideUnavailable", hideUnavailable)
         .put("probeMode", probeMode).put("bootstrapDns", bootstrapDns)
-        .put("probeParallel", probeParallel).put("probeTimeoutMs", probeTimeoutMs)
+        .put("probeParallel", probeParallel).put("probeTimeoutMs", probeTimeoutMs).put("updateChannel", updateChannel)
     companion object {
         fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
             j.optString("dns", "https://1.1.1.1/dns-query"), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
@@ -52,7 +55,8 @@ data class ClientSettings(
             j.optString("probeMode", "auto"), j.optString("bootstrapDns", "https://1.1.1.1/dns-query"),
             j.optInt("probeParallel", 5).coerceIn(1, 16),
             (if (j.has("probeTimeoutMs")) j.getInt("probeTimeoutMs") else if (j.has("probeTimeoutSeconds")) j.getInt("probeTimeoutSeconds") * 1000
-                else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(500, 30000)).validate()
+                else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(500, 30000),
+            j.optString("updateChannel", "").takeIf { it in setOf("release", "beta") } ?: "").validate()
     }
 }
 

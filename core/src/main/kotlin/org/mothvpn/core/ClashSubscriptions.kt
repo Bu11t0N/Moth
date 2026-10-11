@@ -16,9 +16,17 @@ object ClashSubscriptions {
         val proxies = root["proxies"] as? List<*> ?: error("Clash: нужен встроенный список proxies; proxy-providers пока не поддерживаются")
         require(proxies.size <= 2000) { "Слишком много серверов" }
         var rejected = 0
-        val profiles = proxies.mapNotNull { entry -> runCatching { convert(entry as Map<*, *>) }.getOrElse { rejected++; null } }.distinctBy { it.id }
+        val reasons = mutableListOf<String>()
+        val converted = proxies.mapIndexedNotNull { index, entry ->
+            runCatching { convert(entry as Map<*, *>) }.getOrElse { e ->
+                rejected++
+                if (reasons.size < 100) reasons += "proxy ${index + 1} (${((entry as? Map<*, *>)?.get("type")?.toString() ?: "?").take(12).lowercase()}): ${rejectReason(e)}"
+                null
+            }
+        }
+        val (profiles, duplicates) = dedupe(converted, "proxy")
         require(profiles.isNotEmpty()) { "Clash: нет совместимых серверов; проверь протоколы и параметры TLS" }
-        return ImportResult(profiles, rejected)
+        return ImportResult(profiles, rejected, reasons, duplicates, 0, converted.size)
     }
     private fun convert(p: Map<*, *>): Profile {
         fun value(key: String, default: String = "") = p[key]?.toString() ?: default

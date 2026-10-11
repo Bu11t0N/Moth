@@ -23,6 +23,8 @@ import kotlinx.coroutines.withContext
 import org.mothvpn.core.Subscriptions
 import org.mothvpn.core.TunnelConfig
 import org.mothvpn.core.ClientSettings
+import org.mothvpn.core.LogFacts
+import org.mothvpn.core.UpdateChannel
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -35,7 +37,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var store: SubscriptionStore
     private var saved by mutableStateOf<SavedSubscription?>(null)
     private var busy by mutableStateOf(false)
-    private var message by mutableStateOf("")
+    private var messageState by mutableStateOf("")
+    /** Every message shown to the user is also written to the log (the text is redacted by Logger). */
+    private var message: String
+        get() = messageState
+        set(value) { messageState = value; if (value.isNotBlank()) Logger.i("UI", "message shown: $value") }
     private var settings by mutableStateOf(ClientSettings())
     private lateinit var networks: NetworkTracker
     private val settingsQueue = Channel<ClientSettings>(Channel.CONFLATED)
@@ -43,9 +49,12 @@ class MainActivity : AppCompatActivity() {
     private var pendingAction: Intent? = null
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val action = pendingAction; pendingAction = null
+        Logger.i("Permission", "VPN permission result: ${if (result.resultCode == RESULT_OK) "granted" else "denied (code ${result.resultCode})"} pendingAction=${action?.action}")
         if (result.resultCode == RESULT_OK && action != null) launchService(action) else message = tr(R.string.msg_vpn_permission_was_not_granted_22)
     }
-    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        Logger.i("Permission", "notification permission ${if (granted) "granted" else "denied"}")
+    }
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         @Suppress("DEPRECATION")
@@ -56,10 +65,10 @@ class MainActivity : AppCompatActivity() {
         networks = NetworkTracker(this)
         busy = true
         lifecycleScope.launch {
-            runCatching { withContext(Dispatchers.IO) { store.load() } }.onSuccess { saved = it }
-                .onFailure { message = tr(R.string.msg_could_not_read_the_saved_subscription_add_it_23) }
-            runCatching { withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).load() } }.onSuccess { settings = it }
-                .onFailure { message = tr(R.string.msg_could_not_read_settings_24) }
+            runCatching { withContext(Dispatchers.IO) { store.load() } }.onSuccess { saved = it; Logger.i("Store", "saved subscription loaded: ${it?.let { s -> "${s.profiles.size} server(s) host=${LogFacts.hostTag(s.url)}" } ?: "none"}") }
+                .onFailure { Logger.e("Store", "reading the saved subscription failed", it); message = tr(R.string.msg_could_not_read_the_saved_subscription_add_it_23) }
+            runCatching { withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).load() } }.onSuccess { settings = it; Logger.i("Store", "settings loaded: channel=${UpdateChannel.effective(it.updateChannel, BuildConfig.VERSION_NAME).id} theme=${it.theme}") }
+                .onFailure { Logger.e("Store", "reading settings failed", it); message = tr(R.string.msg_could_not_read_settings_24) }
             busy = false
             var persisted = settings
             var commit = 0L
@@ -69,8 +78,10 @@ class MainActivity : AppCompatActivity() {
                 for (next in settingsQueue) {
                     try {
                         withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).save(next) }
+                        LogFacts.settingsChanges(persisted, next).takeIf { it.isNotEmpty() }?.let { Logger.i("Settings", "saved: ${it.joinToString(", ")}") }
                         persisted = next
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        Logger.e("Store", "saving settings failed", e)
                         if (settings == next) settings = persisted
                         message = tr(R.string.msg_could_not_apply_settings_25)
                     }
@@ -94,7 +105,7 @@ class MainActivity : AppCompatActivity() {
                                     add = { url = ""; dialog = true },
                                     connect = { if (TunnelStatus.state.value == TunnelState.RUNNING) stop() else connect() }, servers = { tab = 1 })
                                 1 -> ServersScreen(saved, settings, network, busy, message,
-                                    add = { url = ""; dialog = true }, refresh = { saved?.let { import(it.url) } }, remove = { removeSubscription() },
+                                    add = { url = ""; dialog = true }, refresh = { saved?.let { import(it.url, "refresh") } }, remove = { removeSubscription() },
                                     select = { id, kind -> select(id, kind) }, probe = { kind -> diagnose(null, false, kind) },
                                     speedTest = { kind -> diagnose(saved?.selection(kind), true, kind) },
                                     cancel = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("CANCEL_PROBES")) },
@@ -124,22 +135,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun saveSettings(next: ClientSettings) {
-        if (busy) return
+        if (busy) { Logger.w("Settings", "change ignored: another operation is in progress"); return }
         if (next == settings) return
+        Logger.d("Settings", "change requested: ${LogFacts.settingsChanges(settings, next).joinToString(", ")}")
         settings = next.validate()
         settingsQueue.trySend(next)
     }
-    private fun import(url: String) {
-        if (busy) return
+    private fun import(url: String, trigger: String = "add") {
+        if (busy) { Logger.w("Import", "ignored: another operation is in progress (trigger=$trigger)"); return }
         busy = true; message = tr(R.string.msg_downloading_servers_33)
+        val started = System.currentTimeMillis()
+        Logger.i("Import", "subscription ${if (trigger == "refresh") "refresh" else "download"} started (trigger=$trigger, host=${LogFacts.hostTag(url)})")
         lifecycleScope.launch {
             try {
                 val previous = saved
                 val result = withContext(Dispatchers.IO) {
                     val response = SubscriptionDownload.fetchDetails(url, settings)
                     val parsed = Subscriptions.parse(response.body)
-                    Logger.i("Import", "parsed ${parsed.profiles.size} profile(s), rejected ${parsed.rejected}")
-                    parsed.reasons.forEach { Logger.w("Import", "rejected: $it") }
+                    Logger.i("Import", "${parsed.summary()}, comment lines skipped ${parsed.comments}, kept ${parsed.profiles.size}")
+                    parsed.duplicates.forEach { Logger.d("Import", "dropped: $it") }
+                    parsed.reasons.forEach { Logger.w("Import", "skipped: $it") }
+                    previous?.takeIf { it.url == url.trim() }?.let { old ->
+                        val gone = old.profiles.count { o -> parsed.profiles.none { it.id == o.id } }
+                        val added = parsed.profiles.count { n -> old.profiles.none { it.id == n.id } }
+                        Logger.i("Import", "refresh result: servers ${old.profiles.size} -> ${parsed.profiles.size} (added $added, removed $gone)")
+                    }
                     val selected = previous?.selected?.takeIf { id -> parsed.profiles.any { it.id == id } } ?: parsed.profiles.first().id
                     val sameProvider = previous?.url == url.trim()
                     fun keep(id: String?) = id?.takeIf { n -> parsed.profiles.any { it.id == n } } ?: selected
@@ -150,8 +170,11 @@ class MainActivity : AppCompatActivity() {
                     next to parsed.rejected
                 }
                 saved = result.first
-                message = tr(R.string.msg_servers_added_result_first_profiles_size_34, result.first.profiles.size) + if (result.second > 0) tr(R.string.msg_unsupported_profiles_skipped_result_second_35, result.second) else ""
+                Logger.i("Import", "subscription saved: ${result.first.profiles.size} server(s) in ${System.currentTimeMillis() - started} ms (trigger=$trigger)")
+                message = "" // the import result is only logged, not shown
             } catch (e: Exception) {
+                // Logger redacts links and addresses from the exception text.
+                Logger.e("Import", "subscription import failed (trigger=$trigger, host=${LogFacts.hostTag(url)}, ${System.currentTimeMillis() - started} ms)", e)
                 message = when(e) {
                     is java.net.SocketTimeoutException -> tr(R.string.msg_subscription_service_timed_out_36)
                     is java.net.UnknownHostException -> tr(R.string.msg_could_not_find_the_subscription_service_check_37)
@@ -167,8 +190,11 @@ class MainActivity : AppCompatActivity() {
         val next = saved?.let { if (kind == "mobile") it.copy(selected = id, mobileSelected = id) else it.copy(selected = id, wifiSelected = id) } ?: return
         busy = true
         lifecycleScope.launch {
-            try { withContext(Dispatchers.IO) { store.save(next) }; saved = next }
-            catch (_: Exception) { message = tr(R.string.msg_could_not_save_the_selected_server_41) }
+            try {
+                withContext(Dispatchers.IO) { store.save(next) }; saved = next
+                Logger.i("Store", "selected server ($kind): ${next.profiles.firstOrNull { it.id == id }?.let(LogFacts::profileTag)}")
+            }
+            catch (e: Exception) { Logger.e("Store", "saving the selected server failed", e); message = tr(R.string.msg_could_not_save_the_selected_server_41) }
             finally { busy = false }
         }
     }
@@ -176,18 +202,20 @@ class MainActivity : AppCompatActivity() {
         if (busy) return
         busy = true
         lifecycleScope.launch {
-            try { withContext(Dispatchers.IO) { store.clear() }; saved = null; message = tr(R.string.msg_subscription_removed_42) }
-            catch (_: Exception) { message = tr(R.string.msg_could_not_remove_the_subscription_43) }
+            try { withContext(Dispatchers.IO) { store.clear() }; Logger.i("Store", "subscription removed by the user"); saved = null; message = tr(R.string.msg_subscription_removed_42) }
+            catch (e: Exception) { Logger.e("Store", "removing the subscription failed", e); message = tr(R.string.msg_could_not_remove_the_subscription_43) }
             finally { busy = false }
         }
     }
     private fun connect() {
+        Logger.i("Tunnel", "connect tapped (network=${networks.state.value.kind}, available=${networks.state.value.available})")
         if (!networks.state.value.available) { message = tr(R.string.msg_no_network_20); return }
         val subscription = saved ?: return
-        val profile = subscription.profiles.firstOrNull { it.id == subscription.selection(networks.state.value.kind) } ?: return
+        val profile = subscription.profiles.firstOrNull { it.id == subscription.selection(networks.state.value.kind) } ?: run { Logger.w("Tunnel", "connect ignored: the selected server is missing"); return }
         authorize(Intent(this, TunnelService::class.java).setAction("START").putExtra("profile", profile.id))
     }
     private fun diagnose(id: String?, speed: Boolean, kind: String) {
+        Logger.i("Probe", "${if (speed) "speed test" else "check"} tapped (kind=$kind, network=${networks.state.value.kind}, available=${networks.state.value.available})")
         if (!networks.state.value.available || networks.state.value.kind != kind) { message = tr(R.string.msg_switch_networks_to_run_this_check_44); return }
         authorize(Intent(this, TunnelService::class.java).setAction(if (speed) "SPEED" else "PROBE").putExtra("network", kind).apply { if (id != null) putExtra("profile", id) })
     }
@@ -202,9 +230,9 @@ class MainActivity : AppCompatActivity() {
         if (action.action == "START") TunnelStatus.mutable.value = TunnelState.STARTING
         if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         try { startForegroundService(action) }
-        catch (_: Exception) { if (action.action == "START") TunnelStatus.mutable.value = TunnelState.ERROR; message = tr(R.string.msg_could_not_start_the_check_or_vpn_45) }
+        catch (e: Exception) { Logger.e("Service", "starting the service failed (${action.action})", e); if (action.action == "START") TunnelStatus.mutable.value = TunnelState.ERROR; message = tr(R.string.msg_could_not_start_the_check_or_vpn_45) }
     }
-    private fun stop() { startService(Intent(this, TunnelService::class.java).setAction("STOP")) }
+    private fun stop() { Logger.i("Tunnel", "disconnect tapped"); startService(Intent(this, TunnelService::class.java).setAction("STOP")) }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -217,9 +245,10 @@ class MainActivity : AppCompatActivity() {
     private fun consumeTileRequest() {
         if (!intent.getBooleanExtra(CONNECT_FROM_TILE, false)) return
         intent.removeExtra(CONNECT_FROM_TILE)
+        Logger.i("Tile", "connect request from the tile (subscription=${saved != null}, state=${TunnelStatus.state.value})")
         if (saved == null) message = tr(R.string.tile_setup)
         else if (TunnelStatus.state.value in setOf(TunnelState.OFF, TunnelState.ERROR) && !Diagnostics.running.value) connect()
     }
-    override fun onDestroy() { networks.close(); settingsQueue.close(); super.onDestroy() }
+    override fun onDestroy() { Logger.d("App", "activity destroyed (finishing=$isFinishing)"); networks.close(); settingsQueue.close(); super.onDestroy() }
 }
 

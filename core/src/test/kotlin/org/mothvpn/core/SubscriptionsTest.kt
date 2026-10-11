@@ -19,6 +19,24 @@ class SubscriptionsTest {
         val result = Subscriptions.parse(input)
         assertEquals(1, result.profiles.size); assertEquals(1, result.rejected)
     }
+    @Test fun importSummaryCountsDuplicatesAndComments() {
+        val result = Subscriptions.parse("# comment\n$vless\n\n# another\n$vless\nunsupported://server")
+        assertEquals("parsed 2, duplicates 1, rejected 1", result.summary())
+        assertEquals(2, result.comments)
+        assertEquals(1, result.duplicates.size)
+        val note = result.duplicates[0]
+        assertTrue(note.startsWith("link 2 (vless): duplicate of link 1, id ") && !note.contains("://") && !note.contains("vpn.example"), note)
+        assertEquals(result.profiles[0].id.take(8), note.takeLast(8))
+    }
+    @Test fun rejectionReasonsAreReportedWithoutLinks() {
+        val bad = "trojan://password@vpn.example:443?allowInsecure=1"
+        val result = Subscriptions.parse("$vless\n$bad\nunsupported://server.example")
+        assertEquals(2, result.rejected); assertEquals(2, result.reasons.size)
+        assertTrue(result.reasons.all { it.startsWith("link ") && !it.contains("://") && !it.contains("password") }, result.reasons.toString())
+        val clash = ClashSubscriptions.parse("proxies:\n  - {name: a, type: trojan, server: s.example, port: 443, password: pw, skip-cert-verify: true}\n  - {name: b, type: ss, server: t.example, port: 8388, cipher: aes-128-gcm, password: pw}\n")
+        assertEquals(1, clash.rejected); assertEquals(1, clash.reasons.size)
+        assertTrue(clash.reasons[0].startsWith("proxy 1 (trojan): "), clash.reasons[0])
+    }
     @Test fun unsupportedTransportIsRejectedRatherThanChanged() {
         assertFails { Subscriptions.parseLink(vless.replace("type=tcp", "type=xhttp")) }
         assertFails { Subscriptions.parse("<html>service error</html>") }

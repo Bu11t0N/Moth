@@ -53,13 +53,15 @@ class TunnelService : VpnService(), PlatformInterface {
     @Volatile private var stopped = false
     private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Logger.d("Tunnel", "onStartCommand action=${intent?.action} state=${TunnelStatus.state.value}")
         if (intent?.action == "STOP") {
             Logger.i("Tunnel", "stop requested (state=${TunnelStatus.state.value})")
             cancelProbes()
             TunnelStatus.mutable.value = TunnelState.STOPPING
-            executor.execute { closeTunnel(); Logger.i("Tunnel", "tunnel stopped"); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf(startId) }
+            executor.execute { closeTunnel(); Logger.i("Tunnel", "VPN disconnected (tunnel stopped)"); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf(startId) }
         } else if (intent?.action == "START") {
-            val id = intent.getStringExtra("profile") ?: return START_NOT_STICKY
+            val id = intent.getStringExtra("profile") ?: run { Logger.w("Tunnel", "START without a profile ignored"); return START_NOT_STICKY }
+            Logger.i("Tunnel", "VPN connect requested (previous state=${TunnelStatus.state.value})")
             foreground()
             TunnelStatus.mutable.value = TunnelState.STARTING
             executor.execute {
@@ -86,7 +88,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     box = Libbox.newService(config, this)
                     stage = "BoxService.start"
                     box!!.start()
-                    Logger.i("Tunnel", "tunnel running (stopped=$stopped)")
+                    Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
                     if (!stopped) {
                         TunnelStatus.mutable.value = TunnelState.RUNNING
                         TunnelStatus.activeMutable.value = id
@@ -94,7 +96,7 @@ class TunnelService : VpnService(), PlatformInterface {
                         if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
                     }
                 } catch (t: Throwable) {
-                    Logger.e("Tunnel", "start failed at stage '$stage'", t)
+                    Logger.e("Tunnel", "VPN connect failed at stage '$stage' (state -> ERROR)", t)
                     closeTunnel()
                     TunnelStatus.mutable.value = TunnelState.ERROR
                     stopSelf(startId)
@@ -105,7 +107,7 @@ class TunnelService : VpnService(), PlatformInterface {
         } else if (intent?.action == "CANCEL_PROBES") {
             cancelProbes()
         } else if (intent?.action in setOf("PROBE", "SPEED")) {
-            if (Diagnostics.running.value) return START_NOT_STICKY
+            if (Diagnostics.running.value) { Logger.w("Probe", "request ignored: a check is already running"); return START_NOT_STICKY }
             foreground(tr(R.string.msg_checking_vpn_servers_manage_in_the_app_122))
             probeCancel = AtomicBoolean(false)
             val cancel = probeCancel
@@ -136,9 +138,9 @@ class TunnelService : VpnService(), PlatformInterface {
         generation.incrementAndGet(); healthTask?.cancel(true); healthTask = null
         TunnelStatus.activeMutable.value = ""
         Diagnostics.healthMutable.value = HealthResult()
-        runCatching { box?.close() }; box = null
-        runCatching { tun?.close() }; tun = null
-        runCatching { xray?.close() }; xray = null
+        runCatching { box?.close() }.onFailure { Logger.w("Core", "closing the core failed", it) }; box = null
+        runCatching { tun?.close() }.onFailure { Logger.w("Tunnel", "closing the tun device failed", it) }; tun = null
+        runCatching { xray?.close() }.onFailure { Logger.w("Core", "closing the xray core failed", it) }; xray = null
     }
     private fun initCore() {
         if (initialized) return
@@ -174,6 +176,7 @@ class TunnelService : VpnService(), PlatformInterface {
                 catch (e: Exception) { Logger.w("Health", "check via ${Diagnostics.describeUrl(url)} failed", e) }
             }
             check(ms != null)
+            if (previous.failures > 0) Logger.i("Health", "internet access through the VPN recovered after ${previous.failures} failed check(s)")
             HealthResult(latencyMs = ms, message = tr(R.string.msg_internet_access_through_vpn_is_available_127))
         } catch (e: Exception) { Logger.e("Health", "internet check through VPN failed (consecutive failures=${previous.failures + 1})", e); HealthResult(message = tr(R.string.msg_internet_check_through_vpn_failed_128), failures = previous.failures + 1) }
         if (generation.get() == current && TunnelStatus.state.value == TunnelState.RUNNING) Diagnostics.healthMutable.value = next
@@ -248,7 +251,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     }
                 } finally {
                     if (allocated != 0) releasePort(allocated)
-                    runCatching { local?.close() }; runCatching { xr?.close() }
+                    runCatching { local?.close() }.onFailure { Logger.w("Probe", "closing the local core failed", it) }; runCatching { xr?.close() }.onFailure { Logger.w("Probe", "closing the local xray failed", it) }
                     if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = tr(R.string.msg_check_cancelled_46), wasCancelled = true)
                 }
             }
@@ -291,8 +294,9 @@ class TunnelService : VpnService(), PlatformInterface {
         }
     }
     private fun describe(profile: Profile) = "protocol=${profile.protocol} engine=${profile.engine}"
-    override fun onRevoke() { stopped = true; cancelProbes(); executor.execute { closeTunnel(); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf() } }
+    override fun onRevoke() { Logger.w("Tunnel", "VPN revoked by the system or another VPN app (state=${TunnelStatus.state.value})"); stopped = true; cancelProbes(); executor.execute { closeTunnel(); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf() } }
     override fun onDestroy() {
+        Logger.i("Tunnel", "service destroyed (state=${TunnelStatus.state.value})")
         stopped = true
         cancelProbes(); healthExecutor.shutdownNow(); lookupExecutor.shutdownNow(); probes.shutdown()
         executor.execute { closeTunnel(); if (TunnelStatus.mutable.value != TunnelState.ERROR) TunnelStatus.mutable.value = TunnelState.OFF }
@@ -308,7 +312,8 @@ class TunnelService : VpnService(), PlatformInterface {
         addAddresses(options.inet4Address); addAddresses(options.inet6Address)
         addRoutes(options.inet4RouteRange); addRoutes(options.inet6RouteRange)
         b.addDnsServer(options.dnsServerAddress.value)
-        tun = b.establish() ?: error("VPN permission unavailable")
+        tun = b.establish() ?: run { Logger.e("Tunnel", "establish() returned null: VPN permission revoked or unavailable"); error("VPN permission unavailable") }
+        Logger.i("Tunnel", "tun device established (mtu=${options.mtu})")
         return tun!!.fd
     }
     override fun usePlatformAutoDetectInterfaceControl() = true
@@ -327,7 +332,8 @@ class TunnelService : VpnService(), PlatformInterface {
     override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
         val network = NetworkTracker.physical(connectivity)
         val name = network?.let { connectivity.getLinkProperties(it)?.interfaceName }.orEmpty()
-        val index = runCatching { JavaInterface.getByName(name)?.index ?: -1 }.getOrDefault(-1)
+        val index = runCatching { JavaInterface.getByName(name)?.index ?: -1 }.onFailure { Logger.w("Core", "interface lookup failed", it) }.getOrDefault(-1)
+        Logger.d("Core", "default interface monitor: ${if (network == null) "no physical network" else "found"} index=$index")
         listener.updateDefaultInterface(name, index, network?.let { connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) } == true, false)
     }
     override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener?) = Unit
