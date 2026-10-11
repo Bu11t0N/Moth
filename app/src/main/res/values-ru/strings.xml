@@ -195,6 +195,6 @@
     <string name="dev_download_log">Скачать</string>
     <string name="dev_saved_to_downloads">Сохранено в Загрузки</string>
     <string name="dev_save_failed">Не удалось сохранить файл</string>
-    <string name="set_ping_timeout">Таймаут пинга · 3–30 секунд</string>
-    <string name="set_ping_parallel">Серверов пингуется параллельно · 1–8</string>
+    <string name="set_ping_timeout">Таймаут пинга, мс · 500–30000</string>
+    <string name="set_ping_parallel">Серверов пингуется параллельно · 1–16</string>
 </resources>

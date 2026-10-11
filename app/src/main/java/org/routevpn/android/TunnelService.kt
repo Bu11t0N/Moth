@@ -203,7 +203,7 @@ class TunnelService : VpnService(), PlatformInterface {
                         val endpoint = ProbePolicy.tcpEndpoint(profile)
                         stage = "tcp"
                         if (endpoint == null) result(error = tr(R.string.msg_udp_protocol_choose_an_https_check_129))
-                        else { val ms = tcpProbe(endpoint, settings.probeTimeoutSeconds, cancelled); Logger.i("Probe", "TCP ok in $ms ms ($label)"); if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) result(ms = ms) }
+                        else { val ms = tcpProbe(endpoint, settings.probeTimeoutMs.toLong(), cancelled); Logger.i("Probe", "TCP ok in $ms ms ($label)"); if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) result(ms = ms) }
                         return
                     }
                     stage = "free port"
@@ -224,7 +224,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     var last: Throwable? = null
                     for (url in if (speed) listOf("https://speed.cloudflare.com/__down?bytes=1048576") else ProbePolicy.urls(settings)) {
                         if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
-                        val test = ProxyRequest(this, port, user, password, if (speed) 30 else settings.probeTimeoutSeconds, cancelled)
+                        val test = ProxyRequest(this, port, user, password, if (speed) 30_000L else settings.probeTimeoutMs.toLong(), cancelled)
                         requests.add(test); registered = test
                         stage = "request ${Diagnostics.describeUrl(url)}"
                         try { measured = test.run(url, if (speed) 1048576 else 0); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} ${measured?.first}${if (speed) " bytes" else " ms"} ($label)"); break }
@@ -262,11 +262,11 @@ class TunnelService : VpnService(), PlatformInterface {
             if (TunnelStatus.state.value in setOf(TunnelState.OFF, TunnelState.ERROR)) stopSelf()
         }
     }
-    private fun tcpProbe(endpoint: Pair<String, Int>, timeoutSeconds: Int, cancelled: AtomicBoolean): Long {
+    private fun tcpProbe(endpoint: Pair<String, Int>, timeoutMs: Long, cancelled: AtomicBoolean): Long {
         val network = NetworkTracker.physical(connectivity) ?: run { Logger.w("Probe", "tcpProbe: no physical network"); error(tr(R.string.msg_no_network_20)) }
         var stage = "dns lookup"
         val start = System.nanoTime()
-        val deadline = start + timeoutSeconds * 1_000_000_000L
+        val deadline = start + timeoutMs * 1_000_000L
         fun remaining() = ((deadline - System.nanoTime()) / 1_000_000).toInt().also { if (it <= 0 || cancelled.get()) throw java.net.SocketTimeoutException() }
         val lookup = lookupExecutor.submit<java.net.InetAddress?> { network.getAllByName(endpoint.first).let { addresses -> addresses.firstOrNull { it is java.net.Inet4Address } ?: addresses.firstOrNull() } }
         try {
@@ -285,7 +285,7 @@ class TunnelService : VpnService(), PlatformInterface {
                 finally { tcpSockets.remove(socket) }
             }
         } catch (t: Throwable) {
-            Logger.w("Probe", "tcpProbe failed at stage '$stage' after ${(System.nanoTime() - start) / 1_000_000} ms (timeout=${timeoutSeconds}s)", t)
+            Logger.w("Probe", "tcpProbe failed at stage '$stage' after ${(System.nanoTime() - start) / 1_000_000} ms (timeout=${timeoutMs}ms)", t)
             throw t
         }
     }

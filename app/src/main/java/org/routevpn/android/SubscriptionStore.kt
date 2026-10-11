@@ -61,7 +61,7 @@ class SubscriptionStore(context: Context, filename: String = "subscription.enc")
 
 class SettingsStore(context: Context) {
     private val store = SubscriptionStore(context, "settings.enc")
-    fun load(): ClientSettings = ClientSettings.from(store.readOrInitialize { ClientSettings().json() })
+    fun load(): ClientSettings = ClientSettings.from(store.readOrInitialize { ClientSettings().json() }).withAppVersion(BuildConfig.VERSION_NAME)
     fun save(value: ClientSettings) = store.writeJson(value.validate().json())
 }
 

@@ -21,7 +21,7 @@ import org.routevpn.core.ClientSettings
     var logPage by remember { mutableStateOf(0) } // 0 none, 1 log, 2 crash log
     var mtu by remember(initial) { mutableStateOf(initial.mtu.toString()) }
     var timeout by remember(initial) { mutableStateOf(initial.timeoutSeconds.toString()) }
-    var pingTimeout by remember(initial) { mutableStateOf(initial.probeTimeoutSeconds.toString()) }
+    var pingTimeout by remember(initial) { mutableStateOf(initial.probeTimeoutMs.toString()) }
     var parallel by remember(initial) { mutableStateOf(initial.probeParallel.toString()) }
     var showHwid by remember { mutableStateOf(false) }
     var interval by remember(initial) { mutableStateOf(initial.healthIntervalSeconds.toString()) }
@@ -36,7 +36,7 @@ import org.routevpn.core.ClientSettings
     fun number(text: String, field: String) {
         val n = text.toIntOrNull()
         if (n == null) { error = tr(R.string.msg_enter_a_whole_number_72); return }
-        applySettings(when (field) { "mtu" -> draft.copy(mtu = n); "timeout" -> draft.copy(timeoutSeconds = n); "pingTimeout" -> draft.copy(probeTimeoutSeconds = n); "parallel" -> draft.copy(probeParallel = n); else -> draft.copy(healthIntervalSeconds = n) })
+        applySettings(when (field) { "mtu" -> draft.copy(mtu = n); "timeout" -> draft.copy(timeoutSeconds = n); "pingTimeout" -> draft.copy(probeTimeoutMs = n); "parallel" -> draft.copy(probeParallel = n); else -> draft.copy(healthIntervalSeconds = n) })
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

@@ -60,7 +60,7 @@ object Diagnostics {
 
 /** No system DNS lookup: the destination hostname is sent to the authenticated SOCKS server. */
 class ProxyRequest(private val service: VpnService, private val port: Int, private val user: String, private val password: String,
-                   private val timeoutSeconds: Int, private val cancelled: AtomicBoolean) {
+                   private val timeoutMs: Long, private val cancelled: AtomicBoolean) {
     @Volatile private var socket: Socket? = null
     /** Last handshake stage reached by run(); only for diagnostics. */
     @Volatile var stage = "not started"; private set
@@ -69,7 +69,7 @@ class ProxyRequest(private val service: VpnService, private val port: Int, priva
         val url = URL(address)
         require(url.protocol == "https" && url.userInfo == null)
         val start = System.nanoTime()
-        val deadline = start + timeoutSeconds * 1_000_000_000L
+        val deadline = start + timeoutMs * 1_000_000L
         fun timeout(): Int {
             check(!cancelled.get())
             val left = (deadline - System.nanoTime()) / 1_000_000

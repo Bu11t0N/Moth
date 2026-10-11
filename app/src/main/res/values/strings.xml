@@ -195,6 +195,6 @@
     <string name="dev_download_log">Download</string>
     <string name="dev_saved_to_downloads">Saved to Downloads</string>
     <string name="dev_save_failed">Could not save the file</string>
-    <string name="set_ping_timeout">Ping timeout · 3–30 seconds</string>
-    <string name="set_ping_parallel">Servers pinged in parallel · 1–8</string>
+    <string name="set_ping_timeout">Ping timeout, ms · 500–30000</string>
+    <string name="set_ping_parallel">Servers pinged in parallel · 1–16</string>
 </resources>
