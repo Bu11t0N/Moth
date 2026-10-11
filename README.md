@@ -121,4 +121,4 @@ Issues should include reproducible steps, Android version, device model and prot
 
 Moth is licensed under [GPL-3.0-or-later](LICENSE). sing-box uses GPL-3.0-or-later with an additional naming/non-association condition; Xray uses MPL-2.0. Moth is an independent project and is not an official SagerNet client.
 
-See [THIRD_PARTY.md](THIRD_PARTY.md) and [licenses/](licenses/) for notices and source details. The unchanged native core's corresponding source and Go dependencies are available with the [0.2 release](https://github.com/Bu11t0N/Moth/releases/tag/v0.2.0-alpha.1); subsequent releases include their own app source archive.
+See [THIRD_PARTY.md](THIRD_PARTY.md) and [licenses/](licenses/) for notices and source details. The unchanged native core's corresponding source and Go dependencies are available with the [0.2 release](https://github.com/Bu11t0N/Moth/releases/tag/v0.2.0-beta.1); subsequent releases include their own app source archive.
