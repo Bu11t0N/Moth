@@ -208,11 +208,10 @@
     <string name="update_check">Check for updates</string>
     <string name="update_latest">You have the latest stable version.</string>
     <string name="update_available">Available version: %1$s</string>
-    <string name="update_download">Download update</string>
     <string name="update_install">Install update</string>
     <string name="update_cancel">Cancel</string>
     <string name="update_failed">Could not check, download or install the update. Check your connection and try again.</string>
-    <string name="update_permission_ready">Permission granted. Tap Install update to continue.</string>
+    <string name="update_permission_ready">Permission granted. Continuing the installation.</string>
     <string name="update_permission_needed">To install, allow updates from Moth in Android settings.</string>
     <string name="sub_link_title">Subscription link</string>
     <string name="sub_link_copy">Copy</string>
@@ -223,4 +222,11 @@
     <string name="update_channel_release">Release</string>
     <string name="update_channel_beta">Beta</string>
     <string name="update_channel_beta_note">Beta also offers test builds, which may be unstable.</string>
+    <string name="update_unknown_title">Allow installing updates</string>
+    <string name="update_unknown_body">To update Moth, Android needs your permission to install apps from this source. Tap OK: the Android settings for Moth will open. Turn on “Allow from this source”, then return to Moth — the installation will continue automatically.</string>
+    <string name="update_unknown_ok">OK</string>
+    <string name="update_downloading">Downloading update…</string>
+    <string name="set_sort_servers">Sort servers by</string>
+    <string name="set_sort_name">Name</string>
+    <string name="set_sort_latency">Latency</string>
 </resources>

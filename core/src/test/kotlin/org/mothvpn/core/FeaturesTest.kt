@@ -99,7 +99,7 @@ class FeaturesTest {
         assertFails { s.copy(hwid = "short").validate() }
     }
     @Test fun settingsFromPreviousReleaseKeepHwidAndConnectionOptions() {
-        val previous = ClientSettings(mtu = 1280, ipv6 = false, theme = "dark", sortByLatency = true, deviceInfo = true)
+        val previous = ClientSettings(mtu = 1280, ipv6 = false, theme = "dark", serverSort = "latency", deviceInfo = true)
         val json = previous.json().apply { remove("compactServers"); remove("hideUnavailable"); remove("probeMode"); remove("bootstrapDns") }
         val migrated = ClientSettings.from(json)
         assertEquals(previous, migrated)

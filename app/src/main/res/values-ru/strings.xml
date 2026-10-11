@@ -208,11 +208,10 @@
     <string name="update_check">Проверить обновления</string>
     <string name="update_latest">Установлена последняя стабильная версия.</string>
     <string name="update_available">Доступна версия: %1$s</string>
-    <string name="update_download">Скачать обновление</string>
     <string name="update_install">Установить обновление</string>
     <string name="update_cancel">Отмена</string>
     <string name="update_failed">Не удалось проверить, скачать или установить обновление. Проверьте соединение и повторите попытку.</string>
-    <string name="update_permission_ready">Разрешение получено. Нажмите «Установить обновление», чтобы продолжить.</string>
+    <string name="update_permission_ready">Разрешение получено. Продолжаем установку.</string>
     <string name="update_permission_needed">Для установки разрешите обновления из Moth в настройках Android.</string>
     <string name="sub_link_title">Ссылка подписки</string>
     <string name="sub_link_copy">Копировать</string>
@@ -223,4 +222,11 @@
     <string name="update_channel_release">Релиз</string>
     <string name="update_channel_beta">Бета</string>
     <string name="update_channel_beta_note">В бете также предлагаются тестовые сборки, они могут работать нестабильно.</string>
+    <string name="update_unknown_title">Разрешите установку обновлений</string>
+    <string name="update_unknown_body">Чтобы обновить Moth, Android должен разрешить установку приложений из этого источника. Нажмите OK: откроются настройки Android для Moth. Включите «Разрешить установку из этого источника» и вернитесь в Moth — установка продолжится автоматически.</string>
+    <string name="update_unknown_ok">OK</string>
+    <string name="update_downloading">Скачиваем обновление…</string>
+    <string name="set_sort_servers">Сортировать серверы</string>
+    <string name="set_sort_name">Название</string>
+    <string name="set_sort_latency">Задержка</string>
 </resources>

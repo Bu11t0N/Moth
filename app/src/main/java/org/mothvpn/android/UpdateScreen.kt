@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import kotlinx.coroutines.*
 import org.mothvpn.core.AppRelease
 import org.mothvpn.core.UpdateChannel
@@ -25,14 +24,22 @@ import java.io.File
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var release by remember { mutableStateOf<AppRelease?>(null) }
-    var apk by remember { mutableStateOf<File?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var progress by remember { mutableStateOf<Float?>(null) }
     var message by remember { mutableStateOf("") }
     var job by remember { mutableStateOf<Job?>(null) }
+    var warning by remember { mutableStateOf<File?>(null) }
+    var waiting by remember { mutableStateOf<Pair<AppRelease, File>?>(null) }
+    fun install(file: File) {
+        Logger.i("Update", "install requested: ${file.length()} bytes")
+        try { AppUpdater.install(context, file) } catch (e: Exception) { Logger.w("Update", "install failed", e); message = tr(R.string.update_failed) }
+    }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         val granted = context.packageManager.canRequestPackageInstalls()
         Logger.i("Update", "install-unknown-apps permission ${if (granted) "granted" else "not granted"}")
-        message = tr(if (granted) R.string.update_permission_ready else R.string.update_permission_needed)
+        val pending = waiting; waiting = null
+        if (granted && pending != null) { message = tr(R.string.update_permission_ready); install(pending.second) }
+        else message = tr(R.string.update_permission_needed)
     }
     fun action(block: suspend () -> Unit) {
         job = scope.launch {
@@ -40,47 +47,55 @@ import java.io.File
             try { block() }
             catch (e: CancellationException) { Logger.i("Update", "update action cancelled"); throw e }
             catch (e: Exception) { Logger.w("Update", "update action failed", e); message = tr(R.string.update_failed) }
-            finally { busy = false }
+            finally { busy = false; progress = null }
         }
     }
-    fun check() = action {
-        apk = null; release = null
-        release = withContext(Dispatchers.IO) { AppUpdater.check(channel) }
-        if (release == null) message = tr(if (channel == UpdateChannel.BETA) R.string.update_latest_any else R.string.update_latest)
+    /** Reuses the verified saved download or downloads it, then installs (asking for the permission first when needed). */
+    suspend fun proceed(available: AppRelease) {
+        val file = AppUpdater.saved(context, available) ?: run {
+            message = tr(R.string.update_downloading)
+            withContext(Dispatchers.IO) { AppUpdater.download(context, available) { progress = it } }
+        }
+        message = ""
+        if (!context.packageManager.canRequestPackageInstalls()) {
+            Logger.i("Update", "install-unknown-apps permission missing, showing the explanation")
+            waiting = available to file; warning = file
+        } else install(file)
     }
-    // Checked automatically when the screen is opened and whenever the channel changes.
+    fun check() = action {
+        release = null
+        withContext(Dispatchers.IO) { AppUpdater.cleanup(context) }
+        release = withContext(Dispatchers.IO) { AppUpdater.check(channel) }
+        val found = release
+        if (found == null) { message = tr(if (channel == UpdateChannel.BETA) R.string.update_latest_any else R.string.update_latest); withContext(Dispatchers.IO) { AppUpdater.cleanup(context) } }
+        else proceed(found)
+    }
+    // Checked automatically when the screen is opened and whenever the channel changes; a found update is downloaded and installed without more taps.
     LaunchedEffect(channel) { check() }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(tr(R.string.update_current, BuildConfig.VERSION_NAME))
-            release?.let { available ->
-                Text(tr(R.string.update_available, available.version))
-                if (apk == null) Button(enabled = !busy, onClick = { action {
-                    Logger.i("Update", "download started: ${available.version}")
-                    apk = withContext(Dispatchers.IO) { AppUpdater.download(context, available) }
-                    Logger.i("Update", "download verified: ${available.version}")
-                } }) { Text(tr(R.string.update_download)) }
-                else Button(enabled = !busy, onClick = { action {
-                        if (!context.packageManager.canRequestPackageInstalls()) {
-                            Logger.i("Update", "asking for the install-unknown-apps permission")
-                            permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
-                        } else {
-                            val file = apk ?: error("APK unavailable")
-                            withContext(Dispatchers.IO) { AppUpdater.verify(context, file, available.version) }
-                            Logger.i("Update", "handing the verified APK ${available.version} to the system installer")
-                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", file)
-                            context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
-                        }
-                } }) { Text(tr(R.string.update_install)) }
-            }
+            release?.let { Text(tr(R.string.update_available, it.version)) }
             if (busy) {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
+                progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
                 TextButton(onClick = { job?.cancel() }) { Text(tr(R.string.update_cancel)) }
             }
             if (message.isNotEmpty()) Text(message)
         }
+        release?.let { available ->
+            Button(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.fillMaxWidth()) { Text(tr(R.string.update_install)) }
+        }
         Button(enabled = !busy, onClick = { check() }, modifier = Modifier.fillMaxWidth()) { Text(tr(R.string.update_check)) }
+        warning?.let {
+            AlertDialog(onDismissRequest = { warning = null; waiting = null }, title = { Text(tr(R.string.update_unknown_title)) },
+                text = { Text(tr(R.string.update_unknown_body)) },
+                confirmButton = { TextButton(onClick = {
+                    warning = null
+                    Logger.i("Update", "opening the unknown-sources settings for the app")
+                    permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
+                }) { Text(tr(R.string.update_unknown_ok)) } },
+                dismissButton = { TextButton(onClick = { warning = null; waiting = null }) { Text(tr(R.string.update_cancel)) } })
+        }
         val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
         var channelDialog by remember { mutableStateOf(false) }
         Card(Modifier.fillMaxWidth().clickable(enabled = !busy) { channelDialog = true }) {
