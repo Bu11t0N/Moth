@@ -7,19 +7,25 @@ import java.util.UUID
 data class ClientSettings(
     val theme: String = "system", val mtu: Int = 1400, val ipv6: Boolean = true,
     val dns: String = "https://1.1.1.1/dns-query",
-    val probeUrl: String = "https://www.gstatic.com/generate_204", val timeoutSeconds: Int = 10,
+    val probeUrl: String = "https://www.gstatic.com/generate_204", val timeoutMs: Int = 10000,
     val healthEnabled: Boolean = true, val healthIntervalSeconds: Int = 60,
     val hwidEnabled: Boolean = true, val hwid: String = UUID.randomUUID().toString(),
-    val deviceInfo: Boolean = false, val userAgent: String = "Moth/0.2",
+    val deviceInfo: Boolean = false, val userAgent: String = "Moth",
     val sortByLatency: Boolean = false,
     val compactServers: Boolean = true, val hideUnavailable: Boolean = false,
-    val probeMode: String = "auto", val bootstrapDns: String = "https://1.1.1.1/dns-query"
+    val probeMode: String = "auto", val bootstrapDns: String = "https://1.1.1.1/dns-query",
+    val probeParallel: Int = 5, val probeTimeoutMs: Int = 5000
 ) {
+    /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
+    fun withAppVersion(version: String): ClientSettings =
+        if (Regex("Moth(/[0-9][0-9.]*)?").matches(userAgent)) copy(userAgent = "Moth/$version") else this
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
         require(probeMode in setOf("auto", "https", "tcp")) { "Неверный способ проверки" }
         require(mtu in 1280..9000) { "MTU: от 1280 до 9000" }
-        require(timeoutSeconds in 3..30) { "Тайм-аут: от 3 до 30 секунд" }
+        require(probeParallel in 1..16) { "Параллельных проверок: от 1 до 16" }
+        require(probeTimeoutMs in 500..30000) { "Таймаут пинга: от 500 до 30000 мс" }
+        require(timeoutMs in 1000..60000) { "Тайм-аут: от 1000 до 60000 мс" }
         require(healthIntervalSeconds in 30..600) { "Интервал проверки: от 30 до 600 секунд" }
         require(hwid.matches(Regex("[a-zA-Z0-9=-]{10,64}"))) { "HWID: 10–64 символа, буквы, цифры, = или -" }
         require(userAgent.isNotBlank() && userAgent.length <= 160 && userAgent.all { it.code in 32..126 }) { "User-Agent должен содержать печатные латинские символы" }
@@ -30,19 +36,23 @@ data class ClientSettings(
         return this
     }
     fun json(): JSONObject = JSONObject().put("theme", theme).put("mtu", mtu).put("ipv6", ipv6).put("dns", dns)
-        .put("probeUrl", probeUrl).put("timeoutSeconds", timeoutSeconds).put("healthEnabled", healthEnabled)
+        .put("probeUrl", probeUrl).put("timeoutMs", timeoutMs).put("healthEnabled", healthEnabled)
         .put("healthIntervalSeconds", healthIntervalSeconds).put("hwidEnabled", hwidEnabled).put("hwid", hwid)
         .put("deviceInfo", deviceInfo).put("userAgent", userAgent).put("sortByLatency", sortByLatency)
         .put("compactServers", compactServers).put("hideUnavailable", hideUnavailable)
         .put("probeMode", probeMode).put("bootstrapDns", bootstrapDns)
+        .put("probeParallel", probeParallel).put("probeTimeoutMs", probeTimeoutMs)
     companion object {
         fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
             j.optString("dns", "https://1.1.1.1/dns-query"), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
-            j.optInt("timeoutSeconds", 10), j.optBoolean("healthEnabled", true), j.optInt("healthIntervalSeconds", 60),
+            (if (j.has("timeoutMs")) j.getInt("timeoutMs") else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(1000, 60000), j.optBoolean("healthEnabled", true), j.optInt("healthIntervalSeconds", 60),
             j.optBoolean("hwidEnabled", true), j.getString("hwid"), j.optBoolean("deviceInfo", false),
-            j.optString("userAgent", "Moth/0.2"), j.optBoolean("sortByLatency", false),
+            j.optString("userAgent", "Moth"), j.optBoolean("sortByLatency", false),
             j.optBoolean("compactServers", true), j.optBoolean("hideUnavailable", false),
-            j.optString("probeMode", "auto"), j.optString("bootstrapDns", "https://1.1.1.1/dns-query")).validate()
+            j.optString("probeMode", "auto"), j.optString("bootstrapDns", "https://1.1.1.1/dns-query"),
+            j.optInt("probeParallel", 5).coerceIn(1, 16),
+            (if (j.has("probeTimeoutMs")) j.getInt("probeTimeoutMs") else if (j.has("probeTimeoutSeconds")) j.getInt("probeTimeoutSeconds") * 1000
+                else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(500, 30000)).validate()
     }
 }
 

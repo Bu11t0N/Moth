@@ -11,7 +11,7 @@ import androidx.core.os.LocaleListCompat
 import java.util.Locale
 
 class MothApplication : Application() {
-    override fun onCreate() { super.onCreate(); instance = this }
+    override fun onCreate() { super.onCreate(); instance = this; CrashLog.install(this) }
     companion object { lateinit var instance: MothApplication; private set }
 }
 
@@ -200,7 +200,7 @@ private val errorResources = mapOf(
         "Неверная тема" to R.string.msg_invalid_theme_144,
         "Неверный способ проверки" to R.string.msg_invalid_check_method_145,
         "MTU: от 1280 до 9000" to R.string.msg_mtu_must_be_between_1280_and_9000_146,
-        "Тайм-аут: от 3 до 30 секунд" to R.string.msg_timeout_must_be_between_3_and_30_seconds_147,
+        "Тайм-аут: от 1000 до 60000 мс" to R.string.msg_timeout_must_be_between_3_and_30_seconds_147,
         "Интервал проверки: от 30 до 600 секунд" to R.string.msg_check_interval_must_be_between_30_and_600_sec_148,
         "HWID: 10–64 символа, буквы, цифры, = или -" to R.string.msg_hwid_10_64_letters_digits_or_149,
         "User-Agent должен содержать печатные латинские символы" to R.string.msg_user_agent_must_contain_printable_ascii_chara_150,

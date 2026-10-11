@@ -30,7 +30,11 @@ import java.net.URI
     val transition = tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(tr(R.string.app_name), style = MaterialTheme.typography.headlineLarge, modifier = Modifier.fillMaxWidth().padding(top = 20.dp))
+        Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.Bottom) {
+            Text(tr(R.string.app_name), style = MaterialTheme.typography.headlineLarge)
+            // Empty in release builds (no -PversionSuffix), so nothing is drawn there.
+            if (BuildConfig.VERSION_LABEL.isNotEmpty()) Text(BuildConfig.VERSION_LABEL, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 10.dp, bottom = 6.dp))
+        }
         Spacer(Modifier.weight(1f))
         Button(onClick = connect, enabled = !busy && (!probing || running) && !transition && selected != null,
             shape = androidx.compose.foundation.shape.CircleShape, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(148.dp)
@@ -73,6 +77,8 @@ import java.net.URI
             "check" -> { line(.12f,.6f,.3f,.6f); line(.3f,.6f,.42f,.25f); line(.42f,.25f,.58f,.8f); line(.58f,.8f,.72f,.45f); line(.72f,.45f,.9f,.45f) }
             "speed" -> { drawArc(color,180f,180f,false,Offset(w*.12f,h*.2f),androidx.compose.ui.geometry.Size(w*.76f,h*.76f),style=s); line(.5f,.62f,.75f,.32f); line(.15f,.68f,.85f,.68f) }
             "add" -> { line(.5f,.15f,.5f,.85f); line(.15f,.5f,.85f,.5f) }
+            "eye" -> { val p = Path().apply { moveTo(w*.06f,h*.5f); quadraticBezierTo(w*.5f,h*.05f,w*.94f,h*.5f); quadraticBezierTo(w*.5f,h*.95f,w*.06f,h*.5f) }; drawPath(p,color,style=s); drawCircle(color,w*.14f,Offset(w*.5f,h*.5f),style=s) }
+            "eye_off" -> { val p = Path().apply { moveTo(w*.06f,h*.5f); quadraticBezierTo(w*.5f,h*.05f,w*.94f,h*.5f); quadraticBezierTo(w*.5f,h*.95f,w*.06f,h*.5f) }; drawPath(p,color,style=s); line(.15f,.9f,.85f,.1f) }
             "stop" -> drawRect(color,Offset(w*.25f,h*.25f),size*.5f)
             else -> for(i in 0..2) { val y=.23f+i*.27f; line(.18f,y,.82f,y) }
         }
