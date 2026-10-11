@@ -145,15 +145,13 @@ class TunnelService : VpnService(), PlatformInterface {
         val stop = PendingIntent.getService(this, 1, Intent(this, TunnelService::class.java).setAction("STOP"), PendingIntent.FLAG_IMMUTABLE)
         val name = serverName
         val builder = Notification.Builder(this, "vpn").setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentIntent(open).setOngoing(true)
+            .setContentIntent(open).setOngoing(true).setShowWhen(false)
             .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build())
         when (TunnelStatus.state.value) {
             TunnelState.RUNNING -> {
-                // Collapsed: title = server name, text = speed, and on the right of the header row a clock glyph (sub text)
-                // followed by the system chronometer counting from the connect time (mm:ss, then h:mm:ss; ticks by itself).
-                // Expanded: the same title, then speed, total and time lines.
+                // Collapsed: title = server name, text = speed; the header shows only the system app-name line (no sub text, no time).
+                // Expanded: the same title, then speed, total and time lines (the Time line ticks via the 1 Hz update).
                 builder.setContentTitle(name.ifBlank { tr(R.string.msg_vpn_connection_125) })
-                if (connectStartMillis > 0) builder.setWhen(connectStartMillis).setShowWhen(true).setUsesChronometer(true).setSubText("\uD83D\uDD52")
                 lastDetails?.let { builder.setContentText(it.speed).setStyle(Notification.BigTextStyle().bigText(it.expanded)) }
             }
             TunnelState.STARTING -> { builder.setContentTitle(tr(R.string.notif_connecting)); if (name.isNotBlank()) builder.setContentText(name) }
@@ -169,7 +167,7 @@ class TunnelService : VpnService(), PlatformInterface {
     private var statsTask: java.util.concurrent.ScheduledFuture<*>? = null
     private val statsLock = Any()
     private var statsActive = false
-    @Volatile private var connectStartMillis = 0L // wall-clock time of the connection; the notification chronometer base, reset on every connect
+    @Volatile private var connectStartMillis = 0L // wall-clock time of the connection, reset on every connect
     private var baseTx = 0L; private var baseRx = 0L; private var lastTx = 0L; private var lastRx = 0L; private var lastAt = 0L; private var startedAt = 0L
     /** Traffic is measured with TrafficStats for this app's uid (the core's sockets to the server), relative to the moment of connecting. libbox status is not wired up in this app. */
     private fun startStats(): Unit = synchronized(statsLock) {

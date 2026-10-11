@@ -11,7 +11,7 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - A failed or cancelled check now shows a red dash on the right of the row instead of gray text; the "port is reachable" note is gone from the list.
 - New developer option, Settings → For developers → "Show detailed icons": small gray icons instead of the red dash; tap an icon to see the reason.
 - The VPN notification shows the server name as its title (no repeated app name), with the Disconnect button below; it also shows Connecting…, Disconnecting… and Checking servers.
-- While connected, the collapsed VPN notification shows the current speed under the server name ("Speed: ↑ upload ↓ download") and, on the right of the header, a clock icon with the connection time (mm:ss, then h:mm:ss). Expanded, it lists Speed, Total (sent ↑ and received ↓) and Time. Statistics update once per second; the time restarts on every reconnect.
+- While connected, the collapsed VPN notification shows the current speed under the server name ("Speed: ↑ upload ↓ download"). Expanded, it lists Speed, Total (sent ↑ and received ↓) and Time. Statistics update once per second; the time restarts on every reconnect.
 - The main button is now red when disconnected and green when connected.
 - A green arrow appears in the top-right corner of the home screen when an app update is available (checked silently on every launch, using the update channel); tap it to open Updates.
 
