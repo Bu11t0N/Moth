@@ -12,6 +12,8 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - New developer option, Settings → For developers → "Show detailed icons": small gray icons instead of the red dash; tap an icon to see the reason.
 - The VPN notification now shows only the selected server name while connected (no repeated app name), with the Disconnect button below; it also shows Connecting…, Disconnecting… and Checking servers.
 - The main button is now red when disconnected and green when connected.
+- A green arrow appears in the top-right corner of the home screen when an app update is available (checked silently on every launch, using the update channel); tap it to open Updates.
+- While connected, the VPN notification shows the current speed under the server name (↑ upload, ↓ download); expand it to see total sent and received data and the uptime. It updates once per second.
 
 ## 0.4.6
 

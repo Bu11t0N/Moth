@@ -19,9 +19,10 @@ import androidx.compose.ui.unit.dp
 import org.mothvpn.core.ClientSettings
 import org.mothvpn.core.VersionLabel
 
-@Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit) {
+@Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}) {
     var draft by remember(initial) { mutableStateOf(initial) }
-    var section by remember { mutableStateOf<String?>(null) }
+    var section by remember { mutableStateOf<String?>(if (startUpdates) tr(R.string.update_title) else null) }
+    LaunchedEffect(Unit) { if (startUpdates) started() }
     var logPage by remember { mutableStateOf(0) } // 0 none, 1 log, 2 crash log
     var mtu by remember(initial) { mutableStateOf(initial.mtu.toString()) }
     var timeout by remember(initial) { mutableStateOf(initial.timeoutMs.toString()) }

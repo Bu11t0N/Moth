@@ -24,7 +24,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 
 /** No server list or probe-result subscription here: checks cannot redraw the home screen. */
 @Composable fun HomeScreen(saved: SavedSubscription?, network: AccessNetwork, busy: Boolean, message: String,
-    add: () -> Unit, connect: () -> Unit, servers: () -> Unit) {
+    add: () -> Unit, connect: () -> Unit, servers: () -> Unit, updateAvailable: Boolean = false, openUpdates: () -> Unit = {}) {
     val tunnel by TunnelStatus.state.collectAsState()
     val health by Diagnostics.health.collectAsState()
     val probing by Diagnostics.running.collectAsState()
@@ -46,6 +46,11 @@ import androidx.compose.foundation.text.selection.SelectionContainer
             val name = tr(R.string.app_name)
             Text(name, style = MaterialTheme.typography.headlineLarge)
             Text(about.removePrefix(name).trim(), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 10.dp, bottom = 6.dp))
+            Spacer(Modifier.weight(1f))
+            // Green download arrow, only while the launch-time check found an update; opens the Updates screen.
+            if (updateAvailable) IconButton(onClick = openUpdates, modifier = Modifier.semantics { contentDescription = tr(R.string.update_available_arrow) }) {
+                CompositionLocalProvider(LocalContentColor provides connectedColor) { MothIcon("update", Modifier.size(28.dp)) }
+            }
         }
         Spacer(Modifier.weight(1f))
         Button(onClick = connect, enabled = !busy && (!probing || running) && !transition && selected != null,
@@ -98,6 +103,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
             "delete" -> { line(.15f,.25f,.85f,.25f); line(.4f,.1f,.6f,.1f); line(.25f,.3f,.3f,.88f); line(.3f,.88f,.7f,.88f); line(.7f,.88f,.75f,.3f); line(.43f,.42f,.43f,.72f); line(.57f,.42f,.57f,.72f) }
             "check" -> { line(.12f,.6f,.3f,.6f); line(.3f,.6f,.42f,.25f); line(.42f,.25f,.58f,.8f); line(.58f,.8f,.72f,.45f); line(.72f,.45f,.9f,.45f) }
             "speed" -> { drawArc(color,180f,180f,false,Offset(w*.12f,h*.2f),androidx.compose.ui.geometry.Size(w*.76f,h*.76f),style=s); line(.5f,.62f,.75f,.32f); line(.15f,.68f,.85f,.68f) }
+            "update" -> { line(.5f,.1f,.5f,.68f); line(.5f,.68f,.25f,.43f); line(.5f,.68f,.75f,.43f); line(.18f,.9f,.82f,.9f) }
             "add" -> { line(.5f,.15f,.5f,.85f); line(.15f,.5f,.85f,.5f) }
             "eye" -> { val p = Path().apply { moveTo(w*.06f,h*.5f); quadraticBezierTo(w*.5f,h*.05f,w*.94f,h*.5f); quadraticBezierTo(w*.5f,h*.95f,w*.06f,h*.5f) }; drawPath(p,color,style=s); drawCircle(color,w*.14f,Offset(w*.5f,h*.5f),style=s) }
             "eye_off" -> { val p = Path().apply { moveTo(w*.06f,h*.5f); quadraticBezierTo(w*.5f,h*.05f,w*.94f,h*.5f); quadraticBezierTo(w*.5f,h*.95f,w*.06f,h*.5f) }; drawPath(p,color,style=s); line(.15f,.9f,.85f,.1f) }

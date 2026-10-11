@@ -232,4 +232,10 @@
     <string name="notif_connecting">Connecting…</string>
     <string name="notif_disconnecting">Disconnecting…</string>
     <string name="notif_checking">Checking servers</string>
+    <string name="notif_units">B|KB|MB|GB|TB</string>
+    <string name="notif_speed">↑ %1$s/s  ↓ %2$s/s</string>
+    <string name="notif_sent">↑ %1$s sent</string>
+    <string name="notif_received">↓ %1$s received</string>
+    <string name="notif_uptime">Uptime %1$s</string>
+    <string name="update_available_arrow">Update available. Open Updates</string>
 </resources>

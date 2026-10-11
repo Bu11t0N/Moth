@@ -232,4 +232,10 @@
     <string name="notif_connecting">Подключение…</string>
     <string name="notif_disconnecting">Отключение…</string>
     <string name="notif_checking">Проверяем серверы</string>
+    <string name="notif_units">Б|КБ|МБ|ГБ|ТБ</string>
+    <string name="notif_speed">↑ %1$s/с  ↓ %2$s/с</string>
+    <string name="notif_sent">↑ отправлено %1$s</string>
+    <string name="notif_received">↓ получено %1$s</string>
+    <string name="notif_uptime">Время работы %1$s</string>
+    <string name="update_available_arrow">Доступно обновление. Открыть «Обновления»</string>
 </resources>
