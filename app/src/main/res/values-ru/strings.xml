@@ -310,4 +310,25 @@
     <string name="expiry_today">Подписка заканчивается сегодня.</string>
     <string name="expiry_toggle">Напоминать об окончании подписки</string>
     <string name="expiry_toggle_hint">Уведомление за 3 дня и в последний день, если провайдер передаёт дату окончания.</string>
+    <string name="set_cat_routing">Маршрутизация и DNS</string>
+    <string name="set_cat_subscription">Подписка</string>
+    <string name="set_head_health">Проверка туннеля</string>
+    <string name="set_head_logs">Журналы</string>
+    <string name="set_head_probes">Проверка серверов</string>
+    <string name="set_head_display">Отображение</string>
+    <string name="set_short_auto">Автовыбор</string>
+    <string name="set_short_ks">Kill switch</string>
+    <string name="set_short_boot">Автозапуск</string>
+    <string name="set_short_health">Проверка туннеля</string>
+    <string name="set_short_ru">РФ напрямую</string>
+    <string name="set_short_expiry">Напоминания</string>
+    <string name="set_theme_auto">Системная тема</string>
+    <string name="set_split_off">Выключено</string>
+    <string name="set_split_only">Только выбранные приложения: %d</string>
+    <string name="set_split_bypass">Приложения в обход VPN: %d</string>
+    <string name="set_sum_defaults">Настройки по умолчанию</string>
+    <string name="set_sum_version">Установлена %s</string>
+    <string name="set_sum_about">Версия, лицензии и список изменений</string>
+    <string name="set_sum_changelog">Что менялось в каждой версии</string>
+    <string name="set_sum_dev">Журналы, параметры проверки серверов, значки диагностики</string>
 </resources>

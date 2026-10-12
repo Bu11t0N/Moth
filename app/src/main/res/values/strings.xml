@@ -75,7 +75,7 @@
     <string name="msg_check_your_settings_71" formatted="false">"Check your settings"</string>
     <string name="msg_enter_a_whole_number_72" formatted="false">"Enter a whole number"</string>
     <string name="msg_back_73" formatted="false">"Back"</string>
-    <string name="msg_appearance_74" formatted="false">"Appearance"</string>
+    <string name="msg_appearance_74" formatted="false">"Interface"</string>
     <string name="msg_connection_75" formatted="false">"Connection"</string>
     <string name="msg_checks_76" formatted="false">"Checks"</string>
     <string name="msg_subscription_and_hwid_77" formatted="false">"Subscription and HWID"</string>
@@ -310,4 +310,25 @@
     <string name="expiry_today">Your subscription ends today.</string>
     <string name="expiry_toggle">Remind before the subscription ends</string>
     <string name="expiry_toggle_hint">A notification 3 days before and on the last day, if the provider sends the end date.</string>
+    <string name="set_cat_routing">Routing and DNS</string>
+    <string name="set_cat_subscription">Subscription</string>
+    <string name="set_head_health">Tunnel health check</string>
+    <string name="set_head_logs">Logs</string>
+    <string name="set_head_probes">Server checks</string>
+    <string name="set_head_display">Display</string>
+    <string name="set_short_auto">Auto-select</string>
+    <string name="set_short_ks">Kill switch</string>
+    <string name="set_short_boot">Start on boot</string>
+    <string name="set_short_health">Health check</string>
+    <string name="set_short_ru">Russian sites directly</string>
+    <string name="set_short_expiry">End reminders</string>
+    <string name="set_theme_auto">System theme</string>
+    <string name="set_split_off">Off</string>
+    <string name="set_split_only">Only selected apps: %d</string>
+    <string name="set_split_bypass">Apps bypassing VPN: %d</string>
+    <string name="set_sum_defaults">Default settings</string>
+    <string name="set_sum_version">Installed %s</string>
+    <string name="set_sum_about">Version, licenses and changelog</string>
+    <string name="set_sum_changelog">What changed in each version</string>
+    <string name="set_sum_dev">Logs, server check options, diagnostic icons</string>
 </resources>

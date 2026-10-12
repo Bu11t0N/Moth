@@ -4,8 +4,8 @@ require(versionSuffix.matches(Regex("[A-Za-z0-9.-]*"))) { "versionSuffix: letter
 android {
     namespace = "org.mothvpn.android"
     compileSdk = 34
-    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 31; versionName = "0.5.1$versionSuffix"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
-        // versionCode: every build that can be offered as an update must exceed the previous one (0.4.7 beta.1 = 17, beta.2 = 18, beta.3 = 19, beta.4 = 20, beta.5 = 21, beta.6 = 22, stable 0.4.7 = 23, 0.5.0 beta.1 = 24, beta.2 = 25, beta.3 = 26, beta.4 = 27, beta.5 = 28, stable 0.5.0 = 29, 0.5.1 beta.1 = 30, 0.5.1 beta.2 = 31).
+    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 32; versionName = "0.5.1$versionSuffix"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
+        // versionCode: every build that can be offered as an update must exceed the previous one (0.4.7 beta.1 = 17, beta.2 = 18, beta.3 = 19, beta.4 = 20, beta.5 = 21, beta.6 = 22, stable 0.4.7 = 23, 0.5.0 beta.1 = 24, beta.2 = 25, beta.3 = 26, beta.4 = 27, beta.5 = 28, stable 0.5.0 = 29, 0.5.1 beta.1 = 30, 0.5.1 beta.2 = 31, beta.3 = 32).
         // Test builds: -PversionSuffix=-beta.1 gives versionName 0.5.1-beta.1 ; no property gives 0.5.1.
     buildTypes {
         getByName("release") {
@@ -35,6 +35,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.compose.material3:material3:1.2.0")
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("androidx.work:work-runtime-ktx:2.9.1")

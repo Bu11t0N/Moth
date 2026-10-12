@@ -28,6 +28,8 @@ object Diagnostics {
     val running = runningMutable.asStateFlow()
     internal val speedMutable = MutableStateFlow("")
     val speed = speedMutable.asStateFlow()
+    /** Puts back [previous] (or removes the entry) after a check was cancelled. */
+    @Synchronized fun restore(id: String, previous: ProbeResult?) { resultsMutable.value = if (previous != null) resultsMutable.value + (id to previous) else resultsMutable.value - id }
     @Synchronized fun result(id: String, value: ProbeResult) { resultsMutable.value = resultsMutable.value + (id to value) }
     /** Built-in probe URLs are public and logged verbatim; a user-supplied URL is only reported as "custom". */
     fun describeUrl(url: String): String = if (url in setOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204", "https://www.google.com/generate_204", "https://speed.cloudflare.com/__down?bytes=1048576")) url else "custom"

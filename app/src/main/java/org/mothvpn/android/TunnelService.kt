@@ -412,6 +412,7 @@ class TunnelService : VpnService(), PlatformInterface {
                 val method = if (!speed && settings.probeMode == "tcp") "TCP" else "HTTPS"
                 fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false, kind: ProbeErrorKind? = null) = Diagnostics.result(key,
                     ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled, kind = kind))
+                val before = Diagnostics.results.value[key]?.takeIf { !it.checking && !it.cancelled && it.networkHandle == access.handle }
                 if (!speed) result(checking = true)
                 val label = describe(profile)
                 var stage = "start"
@@ -464,12 +465,14 @@ class TunnelService : VpnService(), PlatformInterface {
                     Logger.e("Probe", "probe failed at stage '$stage' method=$method network=${access.kind} cancelled=${cancelled.get()} ($label)", e)
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
                         if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_speed_test_failed_131)
+                        else if (ProbeErrorKind.of(e) == ProbeErrorKind.CANCELLED) Diagnostics.restore(key, before)
                         else result(error = Diagnostics.friendly(e), kind = ProbeErrorKind.of(e))
                     }
                 } finally {
                     if (allocated != 0) releasePort(allocated)
                     runCatching { local?.close() }.onFailure { Logger.w("Probe", "closing the local core failed", it) }; runCatching { xr?.close() }.onFailure { Logger.w("Probe", "closing the local xray failed", it) }
-                    if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = tr(R.string.msg_check_cancelled_46), wasCancelled = true, kind = ProbeErrorKind.CANCELLED)
+                    // An interrupted check is not a failure: restore the last completed result from this network, or show nothing.
+                    if (!speed && Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, before)
                 }
             }
             val futures = profiles.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }

@@ -8,6 +8,8 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 - Traffic statistics (Settings → Statistics): cards for today, this week and this month, and a daily traffic chart for 7 or 30 days — tap a bar to see sent and received traffic for that day.
 - Reminder before the subscription ends: a notification 3 days before and on the last day, if the provider sends the end date (Settings → Subscription, on by default).
+- Settings are grouped into clear sections — Connection, Split tunneling, Routing and DNS, Subscription, Statistics, Interface, Updates, About and For developers — each with an icon and a short summary of the current state.
+- A server check that was cancelled (by you, by connecting or by a network change) no longer shows a red dash as if the server were down.
 
 ## 0.5.0
 

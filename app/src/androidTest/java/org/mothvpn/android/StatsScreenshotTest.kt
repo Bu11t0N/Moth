@@ -42,4 +42,18 @@ class StatsScreenshotTest {
         device.takeScreenshot(File(context.externalCacheDir, "stats.png"))
         device.pressBack(); Thread.sleep(500)
     }
+
+    @Test fun settingsScreens() {
+        context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        assertNotNull(device.wait(Until.findObject(By.text("Settings")), 20_000)); Thread.sleep(800)
+        device.findObject(By.text("Settings")).click()
+        assertNotNull(device.wait(Until.findObject(By.text("Routing and DNS")), 10_000)); Thread.sleep(1000)
+        device.takeScreenshot(File(context.externalCacheDir, "settings.png"))
+        var dev = device.findObject(By.text("For developers"))
+        repeat(5) { if (dev == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); dev = device.findObject(By.text("For developers")) } }
+        assertNotNull("developer menu entry", dev); dev!!.click()
+        assertNotNull(device.wait(Until.findObject(By.text("Server checks")), 10_000)); Thread.sleep(1000)
+        device.takeScreenshot(File(context.externalCacheDir, "dev.png"))
+        device.pressBack(); Thread.sleep(500)
+    }
 }

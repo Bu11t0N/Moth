@@ -137,8 +137,10 @@ jobs:
             adb logcat -d > e2e-logcat.txt 2>&1 || true
             adb pull /sdcard/Android/data/org.mothvpn.android/cache/e2e-window.xml . > /dev/null 2>&1 || true
             adb pull /sdcard/Android/data/org.mothvpn.android/cache/stats.png . > /dev/null 2>&1 || true
+            adb pull /sdcard/Android/data/org.mothvpn.android/cache/settings.png . > /dev/null 2>&1 || true
+            adb pull /sdcard/Android/data/org.mothvpn.android/cache/dev.png . > /dev/null 2>&1 || true
             cat e2e-result.txt
-            grep -q "OK (2 tests)" e2e-result.txt
+            grep -q "OK (3 tests)" e2e-result.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -149,3 +151,5 @@ jobs:
             e2e-window.xml
             e2e-server.log
             stats.png
+            settings.png
+            dev.png
