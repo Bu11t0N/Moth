@@ -106,7 +106,12 @@ class E2ETest {
             assertNull("traffic leaked outside the tunnel while the server was down", seen)
             Thread.sleep(1000)
         }
-        assertNotNull("VPN should stay on while the server is down", device.findObject(By.desc("Disconnect VPN")))
+        // The tunnel must stay up (the kill switch may show the blocked state instead of "VPN is on").
+        val cm = InstrumentationRegistry.getInstrumentation().targetContext.getSystemService(android.net.ConnectivityManager::class.java)
+        @Suppress("DEPRECATION") val vpnUp = cm.allNetworks.any { cm.getNetworkCapabilities(it)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true }
+        if (!vpnUp) dump()
+        assertTrue("VPN tunnel should stay up while the server is down", vpnUp)
+        log("tunnel stays up; button: " + (device.findObject(By.desc("Disconnect VPN"))?.let { "Disconnect" } ?: "Connect (blocked state)"))
         awaitSource(sources.getValue("trojan"), 90_000)
         log("recovered after the server came back")
 
