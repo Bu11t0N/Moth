@@ -268,7 +268,7 @@
     <string name="auto_select_hint">On connect, all servers are checked and the fastest one is used. If the internet check fails 3 times in a row, Moth switches to the next fastest server.</string>
     <string name="boot_connect">Start VPN when the phone turns on</string>
     <string name="boot_connect_hint">Connects to the last server after a restart. Android\'s Always-on VPN (system VPN settings) is also supported.</string>
-    <string name="dns_plain_cloudflare">Cloudflare 1.1.1.1 (plain DNS)</string>
+    <string name="dns_plain_cloudflare">Cloudflare (1.1.1.1)</string>
     <string name="dns_server">DNS server</string>
     <string name="dns_custom">Custom</string>
     <string name="dns_custom_hint">https://…/dns-query (DoH), tls://host (DoT) or an IPv4 address. DNS requests always go through the VPN.</string>

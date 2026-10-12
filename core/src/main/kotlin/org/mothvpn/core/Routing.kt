@@ -24,7 +24,9 @@ object SplitTunnel {
 
 /** Subscription auto-update interval choices (hours, 0 = off). */
 object SubscriptionSchedule {
-    val intervals = listOf(0, 6, 12, 24)
+    val intervals = listOf(0, 1, 2, 3, 6, 12, 24)
+    /** Maps any saved value to a supported interval (nearest not-shorter one; 0 stays off). */
+    fun normalize(hours: Int): Int = if (hours <= 0) 0 else intervals.firstOrNull { it >= hours } ?: 24
     /** Whether a subscription saved at [updatedAt] is due at [now] (with 10 % slack for WorkManager timing). */
     fun due(hours: Int, updatedAt: Long, now: Long): Boolean = hours > 0 && now - updatedAt >= hours * 3_600_000L * 9 / 10
 }

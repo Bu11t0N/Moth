@@ -268,7 +268,7 @@
     <string name="auto_select_hint">При подключении проверяются все серверы и выбирается самый быстрый. Если проверка интернета не проходит 3 раза подряд, Мотылёк переключается на следующий по скорости сервер.</string>
     <string name="boot_connect">Запускать VPN при включении телефона</string>
     <string name="boot_connect_hint">После перезагрузки подключается к последнему серверу. Также поддерживается постоянный VPN Android (системные настройки VPN).</string>
-    <string name="dns_plain_cloudflare">Cloudflare 1.1.1.1 (обычный DNS)</string>
+    <string name="dns_plain_cloudflare">Cloudflare (1.1.1.1)</string>
     <string name="dns_server">DNS-сервер</string>
     <string name="dns_custom">Свой</string>
     <string name="dns_custom_hint">https://…/dns-query (DoH), tls://адрес (DoT) или IPv4-адрес. DNS-запросы всегда идут через VPN.</string>

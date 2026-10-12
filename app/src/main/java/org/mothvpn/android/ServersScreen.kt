@@ -81,7 +81,7 @@ import org.mothvpn.core.ServerOrder
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]
                 Surface(color = if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().combinedClickable(onLongClick = { menuFor = p }) { if (!locked) select(p.id, k) }
+                    shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
                         .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
                     Row(Modifier.padding(horizontal = 14.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {

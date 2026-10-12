@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
         Logger.i("Import", "QR scan ${if (text == null) "cancelled" else "finished"}")
         if (text != null) { if (ImportInput.classify(text) is ImportInput.Kind.Invalid) message = tr(R.string.import_invalid) else import(text, "qr") }
     }
-    private fun scanQr() = scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(tr(R.string.import_scan_prompt)).setBeepEnabled(false).setOrientationLocked(false))
+    private fun scanQr() = scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(tr(R.string.import_scan_prompt)).setBeepEnabled(false).setOrientationLocked(true).setCaptureActivity(PortraitCaptureActivity::class.java))
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         @Suppress("DEPRECATION")
@@ -224,13 +224,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun select(id: String, kind: String) {
-        if (busy || Diagnostics.running.value || TunnelStatus.state.value in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING)) return
+        if (busy || Diagnostics.running.value || TunnelStatus.state.value == TunnelState.STOPPING) return
+        val switching = TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING) && kind == networks.state.value.kind && id != TunnelStatus.activeProfile.value
         val next = saved?.let { if (kind == "mobile") it.copy(selected = id, mobileSelected = id) else it.copy(selected = id, wifiSelected = id) } ?: return
         busy = true
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) { store.save(next) }; saved = next
                 Logger.i("Store", "selected server ($kind): ${next.profiles.firstOrNull { it.id == id }?.let(LogFacts::profileTag)}")
+                if (switching && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING)) {
+                    TunnelStatus.mutable.value = TunnelState.STARTING
+                    try { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("SWITCH").putExtra("profile", id)) }
+                    catch (e: Exception) { Logger.e("Service", "switching the server failed", e); message = tr(R.string.msg_could_not_start_the_check_or_vpn_45) }
+                }
             }
             catch (e: Exception) { Logger.e("Store", "saving the selected server failed", e); message = tr(R.string.msg_could_not_save_the_selected_server_41) }
             finally { busy = false }

@@ -84,8 +84,20 @@ class TunnelService : VpnService(), PlatformInterface {
             serverName = ""
             TunnelStatus.mutable.value = TunnelState.STARTING
             try { foreground() } catch (e: Exception) { Logger.e("Tunnel", "could not enter the foreground", e) }
-            ranking = emptyList(); tried.clear()
+            ranking = emptyList(); tried.clear(); manualPick = false
             executor.execute { startTunnel(id, startId, pickBest = true) }
+        } else if (intent?.action == "SWITCH") {
+            // Manual server pick while connected: restart the core on the new server without stopping the service.
+            // The user's choice overrides auto-select (no re-measuring, no failover) until the next regular connect.
+            val id = intent.getStringExtra("profile")
+            if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING) return START_NOT_STICKY
+            Logger.i("Tunnel", "server switch requested (state=${TunnelStatus.state.value})")
+            cancelProbes()
+            manualPick = true; ranking = emptyList(); tried.clear()
+            serverName = ""; stopped = false
+            TunnelStatus.mutable.value = TunnelState.STARTING
+            try { foreground() } catch (e: Exception) { Logger.e("Tunnel", "could not enter the foreground", e) }
+            executor.execute { if (TunnelStatus.state.value == TunnelState.STARTING) startTunnel(id, startId, pickBest = false) }
         } else if (intent?.action == "HEALTH") {
             if (TunnelStatus.state.value == TunnelState.RUNNING) healthExecutor.execute { checkHealth(SettingsStore(this).load()) }
         } else if (intent?.action == "CANCEL_PROBES") {
@@ -109,6 +121,7 @@ class TunnelService : VpnService(), PlatformInterface {
         return START_NOT_STICKY
     }
     @Volatile private var ranking = emptyList<String>()
+    @Volatile private var manualPick = false // set by a manual server switch while connected: auto-select is paused for this session
     private val tried = java.util.Collections.synchronizedSet(HashSet<String>())
     @Volatile private var activeSettings = ClientSettings()
     /** Runs on [executor]. [pickBest]: with auto-select on, measure all servers first (existing probe code) and use the fastest. */
@@ -302,7 +315,7 @@ class TunnelService : VpnService(), PlatformInterface {
         } catch (e: Exception) { Logger.e("Health", "internet check through VPN failed (consecutive failures=${previous.failures + 1})", e); HealthResult(message = tr(R.string.msg_internet_check_through_vpn_failed_128), failures = previous.failures + 1) }
         if (generation.get() == current && TunnelStatus.state.value == TunnelState.RUNNING) {
             Diagnostics.healthMutable.value = next
-            if (settings.autoSelect && next.failures >= ServerPicker.failoverAfter) failover(current)
+            if (settings.autoSelect && !manualPick && next.failures >= ServerPicker.failoverAfter) failover(current)
         }
     }
     private fun probeProfiles(id: String?, speed: Boolean, cancelled: AtomicBoolean, wantedNetwork: String?, shownOrder: List<String>) {

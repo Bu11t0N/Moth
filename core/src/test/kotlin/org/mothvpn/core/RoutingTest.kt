@@ -21,7 +21,10 @@ class RoutingTest {
         assertEquals(s, ClientSettings.from(s.json()))
         val old = d.json().apply { listOf("splitMode", "splitApps", "directRu", "subUpdateHours", "autoSelect", "bootConnect", "dnsLeakProtection").forEach { remove(it) } }
         assertEquals(d, ClientSettings.from(old))
-        assertFailsWith<IllegalArgumentException> { d.copy(subUpdateHours = 3).validate() }
+        assertFailsWith<IllegalArgumentException> { d.copy(subUpdateHours = 5).validate() }
+        assertEquals(listOf(0, 1, 2, 3, 6, 12, 24), SubscriptionSchedule.intervals)
+        assertEquals(listOf(0, 0, 1, 3, 6, 12, 24, 24), listOf(-1, 0, 1, 3, 4, 7, 13, 48).map(SubscriptionSchedule::normalize))
+        assertEquals(6, ClientSettings.from(d.json().put("subUpdateHours", 5)).subUpdateHours)
     }
     @Test fun dnsAddresses() {
         listOf("https://1.1.1.1/dns-query", "tls://dns.google", "1.1.1.1").forEach { assertTrue(DnsServers.valid(it), it) }

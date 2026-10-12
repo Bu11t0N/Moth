@@ -82,7 +82,7 @@ data class ClientSettings(
             splitMode = j.optString("splitMode", "off").takeIf { it in SplitTunnel.modes } ?: "off",
             splitApps = j.optJSONArray("splitApps")?.let { a -> (0 until a.length()).map { a.getString(it) }.filter(SplitTunnel::validPackage).distinct() }.orEmpty(),
             directRu = j.optBoolean("directRu", false),
-            subUpdateHours = j.optInt("subUpdateHours", 0).takeIf { it in SubscriptionSchedule.intervals } ?: 0,
+            subUpdateHours = SubscriptionSchedule.normalize(j.optInt("subUpdateHours", 0)),
             autoSelect = j.optBoolean("autoSelect", false), bootConnect = j.optBoolean("bootConnect", false),
             dnsLeakProtection = j.optBoolean("dnsLeakProtection", true)).validate()
     }
