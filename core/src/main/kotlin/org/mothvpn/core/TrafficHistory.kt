@@ -21,6 +21,19 @@ data class TrafficHistory(val days: Map<String, Pair<Long, Long>> = emptyMap()) 
          * Bytes since the previous sample of a per-uid counter. A smaller value means the counter was reset
          * (reboot or uid stats cleared): the new value is counted from zero. Unsupported (-1) counts as nothing.
          */
+        fun weekStart(today: LocalDate, firstDay: java.time.DayOfWeek = java.time.DayOfWeek.MONDAY): LocalDate =
+            today.minusDays(((today.dayOfWeek.value - firstDay.value + 7) % 7).toLong())
+        /** Rounded chart maximum (1, 2, 2.5, 5 x 10^n in the given unit base) at or above [value]. */
+        fun niceMax(value: Long, base: Long = 1024): Long {
+            if (value <= 0) return 1
+            var scale = 1L
+            while (scale * base <= value && scale <= Long.MAX_VALUE / base) scale *= base
+            val v = value.toDouble() / scale
+            var mag = 1.0
+            while (mag * 10 < v) mag *= 10
+            val step = listOf(1.0, 2.0, 2.5, 5.0, 10.0).first { it * mag >= v }
+            return Math.ceil(step * mag * scale).toLong()
+        }
         fun delta(previous: Long, current: Long): Long = when {
             current < 0 || previous < 0 -> 0
             current >= previous -> current - previous
@@ -41,6 +54,11 @@ data class TrafficHistory(val days: Map<String, Pair<Long, Long>> = emptyMap()) 
         .fold(0L to 0L) { acc, e -> acc.first + e.value.first to acc.second + e.value.second }
     fun day(date: LocalDate) = days[date.toString()] ?: (0L to 0L)
     fun month(today: LocalDate) = sum { it.year == today.year && it.month == today.month && !it.isAfter(today) }
+    /** Calendar week containing [today], starting on [firstDay] (locale-dependent: Monday in Russia), up to today. */
+    fun week(today: LocalDate, firstDay: java.time.DayOfWeek = java.time.DayOfWeek.MONDAY): Pair<Long, Long> {
+        val start = weekStart(today, firstDay)
+        return sum { !it.isBefore(start) && !it.isAfter(today) }
+    }
     fun lastDays(today: LocalDate, count: Int = 30) = sum { !it.isAfter(today) && it.isAfter(today.minusDays(count.toLong())) }
     /** [count] days ending today, oldest first, with zero for days without traffic. */
     fun series(today: LocalDate, count: Int = 30): List<Pair<LocalDate, Pair<Long, Long>>> =

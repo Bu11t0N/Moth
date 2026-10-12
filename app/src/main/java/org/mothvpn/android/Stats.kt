@@ -7,8 +7,15 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.drawText
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -48,6 +55,10 @@ object TrafficRecorder {
         mutable.value = history!!
         if (System.currentTimeMillis() - lastFlush >= 60_000) flushLocked(context)
     }
+    /** Test hook: replaces the stored history (used by the instrumented screenshot test). */
+    internal fun replaceForTest(context: Context, value: TrafficHistory) = synchronized(lock) {
+        history = value; dirty = true; flushLocked(context)
+    }
     fun flush(context: Context) = synchronized(lock) { flushLocked(context) }
     private fun flushLocked(context: Context) {
         lastFlush = System.currentTimeMillis()
@@ -66,31 +77,130 @@ object TrafficRecorder {
     LaunchedEffect(Unit) { while (true) { delay(60_000); today = LocalDate.now() } }
     val locale = AppLanguage.context().resources.configuration.locales[0]
     val units = tr(R.string.notif_units).split("|")
-    fun fmt(p: Pair<Long, Long>) = tr(R.string.stats_updown, TrafficFormat.bytes(p.first, units, locale), TrafficFormat.bytes(p.second, units, locale))
-    val series = remember(history, today) { history.series(today, 30).reversed() }
-    val max = series.maxOfOrNull { it.second.first + it.second.second }?.coerceAtLeast(1) ?: 1
-    val dayFormat = remember(locale) { java.time.format.DateTimeFormatter.ofPattern("d MMM", locale) }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val firstDay = remember(locale) { java.time.temporal.WeekFields.of(locale).firstDayOfWeek }
+    var range by rememberSaveable { mutableIntStateOf(7) }
+    var selected by remember(range) { mutableStateOf<LocalDate?>(null) }
+    val series = remember(history, today, range) { history.series(today, range) }
+    Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard(tr(R.string.stats_today), history.day(today), units, locale, Modifier.weight(1f))
+            StatCard(tr(R.string.stats_week), history.week(today, firstDay), units, locale, Modifier.weight(1f))
+            StatCard(tr(R.string.stats_month), history.month(today), units, locale, Modifier.weight(1f))
+        }
         Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(tr(R.string.stats_today) + ": " + fmt(history.day(today)))
-                Text(tr(R.string.stats_month) + ": " + fmt(history.month(today)))
-                Text(tr(R.string.stats_30_days) + ": " + fmt(history.lastDays(today, 30)))
-                Text(tr(R.string.stats_hint), style = MaterialTheme.typography.bodySmall)
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(tr(R.string.stats_chart), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    listOf(7 to R.string.stats_range_7, 30 to R.string.stats_range_30).forEach { (days, label) ->
+                        FilterChip(selected = range == days, onClick = { range = days }, label = { Text(tr(label)) },
+                            modifier = Modifier.padding(start = 6.dp))
+                    }
+                }
+                val sel = selected?.let { d -> series.firstOrNull { it.first == d } }
+                Column(Modifier.fillMaxWidth().heightIn(min = 40.dp)) {
+                    if (sel == null) Text(tr(R.string.stats_tap_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else {
+                        Text(sel.first.format(java.time.format.DateTimeFormatter.ofPattern("EEEE, d MMMM", locale)).replaceFirstChar { it.titlecase(locale) },
+                            style = MaterialTheme.typography.labelLarge)
+                        Text(tr(R.string.stats_updown, TrafficFormat.bytes(sel.second.first, units, locale), TrafficFormat.bytes(sel.second.second, units, locale)),
+                            style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                TrafficChart(series, selected, { selected = if (selected == it) null else it }, units, locale)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Legend(MaterialTheme.colorScheme.primary, tr(R.string.stats_received))
+                    Legend(MaterialTheme.colorScheme.tertiary, tr(R.string.stats_sent))
+                }
             }
         }
-        LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            items(series, key = { it.first.toString() }) { (day, v) ->
-                val total = v.first + v.second
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(day.format(dayFormat), style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(64.dp))
-                    Box(Modifier.weight(1f).height(14.dp)) {
-                        if (total > 0) Box(Modifier.fillMaxHeight().fillMaxWidth((total.toFloat() / max).coerceIn(0.02f, 1f))
-                            .clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.primary))
+        Text(tr(R.string.stats_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable private fun Legend(color: androidx.compose.ui.graphics.Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(10.dp).clip(RoundedCornerShape(3.dp)).background(color))
+        Text(label, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 6.dp))
+    }
+}
+
+@Composable private fun StatCard(title: String, value: Pair<Long, Long>, units: List<String>, locale: java.util.Locale, modifier: Modifier) {
+    ElevatedCard(modifier) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, minLines = 2)
+            Text(TrafficFormat.bytes(value.first + value.second, units, locale), style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary, maxLines = 1)
+            Text("↑ " + TrafficFormat.bytes(value.first, units, locale), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            Text("↓ " + TrafficFormat.bytes(value.second, units, locale), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        }
+    }
+}
+
+@Composable private fun TrafficChart(series: List<Pair<LocalDate, Pair<Long, Long>>>, selected: LocalDate?, onSelect: (LocalDate) -> Unit,
+                                     units: List<String>, locale: java.util.Locale) {
+    val maxValue = series.maxOfOrNull { it.second.first + it.second.second } ?: 0L
+    val top = TrafficHistory.niceMax(maxValue)
+    val grow = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(series.size) { grow.snapTo(0f); grow.animateTo(1f, androidx.compose.animation.core.tween(600, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
+    val scale by androidx.compose.animation.core.animateFloatAsState(top.toFloat(), androidx.compose.animation.core.tween(400), label = "scale")
+    val rx = MaterialTheme.colorScheme.primary
+    val tx = MaterialTheme.colorScheme.tertiary
+    val faint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+    val grid = MaterialTheme.colorScheme.outlineVariant
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = labelColor)
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val dayLabel = remember(locale, series.size) {
+        if (series.size <= 7) java.time.format.DateTimeFormatter.ofPattern("EE", locale) else java.time.format.DateTimeFormatter.ofPattern("d.MM", locale)
+    }
+    val desc = tr(R.string.stats_chart)
+    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(220.dp)
+        .semantics { contentDescription = desc }
+        .pointerInput(series) {
+            detectTapGestures { pos ->
+                val left = 48.dp.toPx()
+                val slot = (size.width - left) / series.size
+                val i = ((pos.x - left) / slot).toInt()
+                if (pos.x >= left && i in series.indices) onSelect(series[i].first)
+            }
+        }) {
+        val left = 48.dp.toPx(); val bottomPad = 22.dp.toPx(); val topPad = 8.dp.toPx()
+        val h = size.height - bottomPad - topPad
+        val slot = (size.width - left) / series.size
+        val barW = (slot * if (series.size <= 7) 0.55f else 0.7f).coerceAtMost(36.dp.toPx())
+        val radius = androidx.compose.ui.geometry.CornerRadius(minOf(barW / 2, 6.dp.toPx()))
+        for (k in 0..2) {
+            val y = topPad + h - h * k / 2f
+            drawLine(grid, androidx.compose.ui.geometry.Offset(left, y), androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 1.dp.toPx(),
+                pathEffect = if (k == 0) null else androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f, 6f)))
+            val text = if (k == 0) "0" else TrafficFormat.bytes((top * k / 2), units, locale)
+            val m = measurer.measure(text, labelStyle)
+            drawText(m, topLeft = androidx.compose.ui.geometry.Offset(left - m.size.width - 6.dp.toPx(), y - m.size.height / 2f))
+        }
+        series.forEachIndexed { i, (day, v) ->
+            val x = left + slot * i + (slot - barW) / 2
+            val total = v.first + v.second
+            val dim = selected != null && selected != day
+            val base = topPad + h
+            if (total <= 0) {
+                val e = 3.dp.toPx()
+                drawRoundRect(faint, androidx.compose.ui.geometry.Offset(x, base - e), androidx.compose.ui.geometry.Size(barW, e), androidx.compose.ui.geometry.CornerRadius(e / 2))
+            } else {
+                val full = (h * total / scale * grow.value).coerceAtLeast(3.dp.toPx())
+                val rxH = full * v.second / total
+                val alpha = if (dim) 0.35f else 1f
+                // whole bar in the "sent" colour with the "received" part drawn over its lower section
+                drawRoundRect(tx.copy(alpha = alpha), androidx.compose.ui.geometry.Offset(x, base - full), androidx.compose.ui.geometry.Size(barW, full), radius)
+                if (rxH > 0) {
+                    clipRect(left = x, top = base - rxH, right = x + barW, bottom = base) {
+                        drawRoundRect(rx.copy(alpha = alpha), androidx.compose.ui.geometry.Offset(x, base - full), androidx.compose.ui.geometry.Size(barW, full), radius)
                     }
-                    Text(if (total > 0) TrafficFormat.bytes(total, units, locale) else "—", style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(start = 8.dp).width(76.dp))
                 }
+            }
+            val showLabel = series.size <= 7 || i == series.lastIndex || (series.lastIndex - i) % 7 == 0
+            if (showLabel) {
+                val m = measurer.measure(day.format(dayLabel), labelStyle.copy(color = if (day == selected) rx else labelColor))
+                drawText(m, topLeft = androidx.compose.ui.geometry.Offset((x + barW / 2 - m.size.width / 2f).coerceIn(left - 8f, size.width - m.size.width), base + 4.dp.toPx()))
             }
         }
     }

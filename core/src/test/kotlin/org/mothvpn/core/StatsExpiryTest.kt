@@ -5,6 +5,33 @@ import java.time.ZoneId
 import kotlin.test.*
 
 class TrafficHistoryTest {
+    @Test fun weekStartsOnMondayOrLocaleDay() {
+        val wed = LocalDate.of(2026, 10, 14)
+        assertEquals(LocalDate.of(2026, 10, 12), TrafficHistory.weekStart(wed))
+        assertEquals(LocalDate.of(2026, 10, 12), TrafficHistory.weekStart(LocalDate.of(2026, 10, 12)))
+        assertEquals(LocalDate.of(2026, 10, 12), TrafficHistory.weekStart(LocalDate.of(2026, 10, 18)))
+        assertEquals(LocalDate.of(2026, 10, 11), TrafficHistory.weekStart(wed, java.time.DayOfWeek.SUNDAY))
+    }
+    @Test fun weekAndMonthAggregation() {
+        val today = LocalDate.of(2026, 10, 14) // Wednesday
+        val h = TrafficHistory().add(today, 1, 10).add(LocalDate.of(2026, 10, 12), 2, 20)
+            .add(LocalDate.of(2026, 10, 11), 4, 40).add(LocalDate.of(2026, 9, 30), 8, 80).add(today.plusDays(1), 100, 100)
+        assertEquals(3L to 30L, h.week(today))
+        assertEquals(7L to 70L, h.week(today, java.time.DayOfWeek.SUNDAY))
+        assertEquals(7L to 70L, h.month(today))
+        // a week across a month boundary
+        val oct1 = LocalDate.of(2026, 10, 1) // Thursday; week starts Sep 28
+        assertEquals(8L to 80L, h.week(oct1))
+        assertEquals(0L to 0L, h.month(oct1))
+    }
+    @Test fun niceChartScale() {
+        assertEquals(1, TrafficHistory.niceMax(0))
+        assertEquals(5, TrafficHistory.niceMax(4))
+        assertEquals(1000, TrafficHistory.niceMax(999))
+        assertEquals(2L * 1024 * 1024, TrafficHistory.niceMax(1_500_000))
+        assertEquals(250L * 1024 * 1024, TrafficHistory.niceMax(230L * 1024 * 1024))
+    }
+
     private val today = LocalDate.of(2026, 10, 12)
     @Test fun counterDeltasHandleResets() {
         assertEquals(100, TrafficHistory.delta(50, 150))

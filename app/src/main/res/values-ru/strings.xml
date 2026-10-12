@@ -294,8 +294,14 @@
     <string name="sub_expires">Действует до %1$s</string>
     <string name="stats_title">Статистика</string>
     <string name="stats_today">Сегодня</string>
-    <string name="stats_month">В этом месяце</string>
-    <string name="stats_30_days">За 30 дней</string>
+    <string name="stats_month">За этот месяц</string>
+    <string name="stats_week">На этой неделе</string>
+    <string name="stats_chart">Трафик по дням</string>
+    <string name="stats_range_7">7 дней</string>
+    <string name="stats_range_30">30 дней</string>
+    <string name="stats_tap_hint">Нажмите на столбец, чтобы увидеть день.</string>
+    <string name="stats_sent">Отправлено</string>
+    <string name="stats_received">Получено</string>
     <string name="stats_updown">↑ %1$s · ↓ %2$s</string>
     <string name="stats_hint">Трафик VPN на этом устройстве, включая служебные данные протокола. Хранится 90 дней.</string>
     <string name="expiry_channel">Напоминания о подписке</string>
