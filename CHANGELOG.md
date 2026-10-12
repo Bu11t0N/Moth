@@ -18,7 +18,8 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - You can now pick another server while the VPN is on: Moth reconnects to it right away. A manual pick pauses auto-select until the next connection.
 - The QR code scanner now stays in portrait orientation.
 - Kill switch (Settings → Connection, off by default): if the connection fails, traffic is blocked until Moth reconnects or you disconnect.
-- Faster reconnect when switching between Wi-Fi and mobile data.
+- More reliable reconnect after switching between Wi-Fi and mobile data: Moth follows the new network and restarts the connection if the internet does not come back within a few seconds.
+- The kill switch can now be turned on or off while the VPN is connected.
 - Favorite servers: long-press a server → "Add to favorites". Favorites are marked with a heart and always shown at the top.
 - The Servers screen shows the traffic left and the subscription end date when the provider sends them.
 - The notification icon is now the moth.

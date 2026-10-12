@@ -87,3 +87,44 @@ class Beta3Test {
         assertNull(ShareLinks.of(group))
     }
 }
+
+class NetworkSwitchTest {
+    @Test fun initialStateIsNotASwitch() {
+        val s = DefaultNetworkState(); s.available(1, "wlan0")
+        assertEquals(DefaultNetworkState.Action.NONE, s.settle())
+        assertEquals(DefaultNetworkState.Action.NONE, s.settle())
+    }
+    @Test fun newNetworkBeforeOldLost() {
+        val s = DefaultNetworkState(); s.available(1, "wlan0"); s.settle()
+        s.available(2, "rmnet0"); s.lost(1) // old network lost after the switch: ignored
+        assertEquals(DefaultNetworkState.Action.SWITCHED, s.settle())
+        assertEquals(2L, s.current?.handle)
+    }
+    @Test fun lostWithoutReplacementThenNewNetwork() {
+        val s = DefaultNetworkState(); s.available(1, "wlan0"); s.settle()
+        s.lost(1); assertEquals(DefaultNetworkState.Action.LOST, s.settle())
+        s.available(2, "rmnet0"); assertEquals(DefaultNetworkState.Action.SWITCHED, s.settle())
+    }
+    @Test fun flapWithinDebounceBackToSameIsNoop() {
+        val s = DefaultNetworkState(); s.available(1, "wlan0"); s.settle()
+        s.lost(1); s.available(1, "wlan0")
+        assertEquals(DefaultNetworkState.Action.NONE, s.settle())
+    }
+    @Test fun burstOfEventsIsNotDropped() {
+        val s = DefaultNetworkState(); s.available(1, "wlan0"); s.settle()
+        s.available(2, "rmnet0"); s.linkChanged(2, "rmnet1"); s.linkChanged(1, "wlan9")
+        assertEquals(DefaultNetworkState.Action.SWITCHED, s.settle())
+        assertEquals(DefaultNetworkState.Snapshot(2, "rmnet1"), s.current)
+    }
+    @Test fun sameHandleNewInterfaceIsASwitch() {
+        val s = DefaultNetworkState(); s.available(1, "rmnet0"); s.settle()
+        s.linkChanged(1, "rmnet1"); assertEquals(DefaultNetworkState.Action.SWITCHED, s.settle())
+        s.linkChanged(1, "rmnet1"); assertEquals(DefaultNetworkState.Action.NONE, s.settle())
+    }
+    @Test fun recoveryPolicy() {
+        assertEquals(NetworkRecovery.Step.RESTART, NetworkRecovery.afterSwitch("xray"))
+        assertEquals(NetworkRecovery.Step.RESET, NetworkRecovery.afterSwitch("sing-box"))
+        assertNull(NetworkRecovery.afterVerify(true))
+        assertEquals(NetworkRecovery.Step.RESTART, NetworkRecovery.afterVerify(false))
+    }
+}

@@ -177,9 +177,12 @@ class MainActivity : AppCompatActivity() {
         if (next == settings) return
         Logger.d("Settings", "change requested: ${LogFacts.settingsChanges(settings, next).joinToString(", ")}")
         val hours = settings.subUpdateHours
+        val kill = settings.killSwitch
         settings = next.validate()
         settingsQueue.trySend(next)
         if (next.subUpdateHours != hours) SubscriptionUpdates.schedule(this, next.subUpdateHours)
+        if (next.killSwitch != kill && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED))
+            runCatching { startService(Intent(this, TunnelService::class.java).setAction("KILL_SWITCH").putExtra("on", next.killSwitch)) }.onFailure { Logger.w("Settings", "kill switch update not delivered", it) }
     }
     private fun import(url: String, trigger: String = "add") {
         if (busy) { Logger.w("Import", "ignored: another operation is in progress (trigger=$trigger)"); return }
