@@ -73,19 +73,18 @@ import org.mothvpn.core.SubscriptionSchedule
                     val today = stats.day(java.time.LocalDate.now())
                     val onOff = listOfNotNull(tr(R.string.set_short_auto).takeIf { draft.autoSelect }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
                         tr(R.string.set_short_boot).takeIf { draft.bootConnect }, tr(R.string.set_short_health).takeIf { draft.healthEnabled })
-                    val language = when (AppLanguage.tag().substringBefore(',').substringBefore('-')) { "en" -> "English"; "ru" -> "Русский"; else -> tr(R.string.msg_system_default_80) }
-                    val theme = when (draft.theme) { "dark" -> tr(R.string.msg_dark_81); "light" -> tr(R.string.msg_light_82); else -> tr(R.string.set_theme_auto) }
+                    val theme = when (draft.theme) { "dark" -> tr(R.string.set_theme_dark); "light" -> tr(R.string.set_theme_light); else -> tr(R.string.set_theme_auto) }
                     val split = when (draft.splitMode) { "only" -> tr(R.string.set_split_only, draft.splitApps.size); "bypass" -> tr(R.string.set_split_bypass, draft.splitApps.size); else -> tr(R.string.set_split_off) }
-                    val subAuto = if (draft.subUpdateHours == 0) tr(R.string.sub_auto_off) else tr(R.string.sub_auto_hours, draft.subUpdateHours)
+                    val subAuto = if (draft.subUpdateHours == 0) tr(R.string.set_sum_sub_off) else tr(R.string.set_sum_sub_hours, draft.subUpdateHours)
                     SettingsCategory(tr(R.string.msg_connection_75), onOff.joinToString(" · ").ifEmpty { tr(R.string.set_sum_defaults) }, "connection") { section = tr(R.string.msg_connection_75) }
                     SettingsCategory(tr(R.string.split_title), split, "split") { section = tr(R.string.split_title) }
                     SettingsCategory(tr(R.string.set_cat_routing), listOfNotNull(DnsServers.presetOf(draft.dns)?.label ?: tr(R.string.dns_custom), tr(R.string.set_short_ru).takeIf { draft.directRu }).joinToString(" · "), "routing") { section = tr(R.string.set_cat_routing) }
-                    SettingsCategory(tr(R.string.set_cat_subscription), listOfNotNull(subAuto, tr(R.string.set_short_expiry).takeIf { draft.expiryWarning }, "HWID".takeIf { draft.hwidEnabled }).joinToString(" · "), "subscription") { section = tr(R.string.set_cat_subscription) }
+                    SettingsCategory(tr(R.string.set_cat_subscription), subAuto, "subscription") { section = tr(R.string.set_cat_subscription) }
                     SettingsCategory(tr(R.string.stats_title), tr(R.string.stats_today) + ": " + org.mothvpn.core.TrafficFormat.bytes(today.first + today.second, units, loc), "stats") { section = tr(R.string.stats_title) }
-                    SettingsCategory(tr(R.string.msg_appearance_74), "$language · $theme", "interface") { section = tr(R.string.msg_appearance_74) }
+                    SettingsCategory(tr(R.string.msg_appearance_74), theme, "interface") { section = tr(R.string.msg_appearance_74) }
                     SettingsCategory(tr(R.string.update_title), tr(R.string.set_sum_version, BuildConfig.VERSION_NAME), "updates") { section = tr(R.string.update_title) }
                     SettingsCategory(tr(R.string.msg_about_78), tr(R.string.set_sum_about), "about") { section = tr(R.string.msg_about_78) }
-                    SettingsCategory(tr(R.string.dev_for_developers), tr(R.string.set_sum_dev), "dev") { section = tr(R.string.dev_for_developers) }
+                    SettingsCategory(tr(R.string.dev_for_developers), tr(R.string.set_sum_dev, if (Logger.level == LogLevel.OFF) tr(R.string.dev_level_off) else Logger.level.name), "dev") { section = tr(R.string.dev_for_developers) }
                 }
                 tr(R.string.msg_connection_75) -> {
                     if (locked) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
@@ -101,6 +100,19 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsToggle(tr(R.string.msg_check_the_active_tunnel_94), draft.healthEnabled, !locked) { applySettings(draft.copy(healthEnabled = it)) }
                     OutlinedTextField(interval, { interval = it; number(it, "interval") }, enabled = !locked, label = { Text(tr(R.string.msg_interval_30_600_seconds_95)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(timeout, { timeout = it; number(it, "timeout") }, enabled = !locked, label = { Text(tr(R.string.msg_timeout_3_30_seconds_96)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    SectionHeader(tr(R.string.set_head_probes))
+                    OutlinedTextField(draft.probeUrl, { applySettings(draft.copy(probeUrl = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_https_check_url_97)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Text(tr(R.string.msg_latency_includes_establishing_an_https_connec_98), style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(pingTimeout, { pingTimeout = it; number(it, "pingTimeout") }, enabled = !locked, label = { Text(tr(R.string.set_ping_timeout)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(parallel, { parallel = it; number(it, "parallel") }, enabled = !locked, label = { Text(tr(R.string.set_ping_parallel)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Text(tr(R.string.msg_check_method_99), style = MaterialTheme.typography.titleMedium)
+                    listOf("auto" to tr(R.string.msg_https_multiple_urls_100), "https" to tr(R.string.msg_https_custom_url_101), "tcp" to tr(R.string.msg_tcp_port_reachability_102)).forEach { (value, label) ->
+                        Row(Modifier.fillMaxWidth().clickable(enabled = !locked) { applySettings(draft.copy(probeMode = value)) }) {
+                            RadioButton(draft.probeMode == value, { applySettings(draft.copy(probeMode = value)) }, enabled = !locked)
+                            Text(label, modifier = Modifier.padding(top = 13.dp))
+                        }
+                    }
+                    Text(tr(R.string.msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.set_cat_routing) -> {
                     if (locked) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
@@ -207,27 +219,11 @@ import org.mothvpn.core.SubscriptionSchedule
                         }
                     }
                     SettingsToggle(tr(R.string.msg_compact_server_rows_83), draft.compactServers) { applySettings(draft.copy(compactServers = it)) }
-                }
-                tr(R.string.dev_for_developers) -> {
-                    SectionHeader(tr(R.string.set_head_logs))
-                    DeveloperSection({ logPage = 1 }, { logPage = 2 })
-                    SectionHeader(tr(R.string.set_head_probes))
-                    if (locked) Text(tr(R.string.msg_disconnect_vpn_and_finish_checks_to_change_th_93))
-                    OutlinedTextField(draft.probeUrl, { applySettings(draft.copy(probeUrl = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_https_check_url_97)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    Text(tr(R.string.msg_latency_includes_establishing_an_https_connec_98), style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(pingTimeout, { pingTimeout = it; number(it, "pingTimeout") }, enabled = !locked, label = { Text(tr(R.string.set_ping_timeout)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(parallel, { parallel = it; number(it, "parallel") }, enabled = !locked, label = { Text(tr(R.string.set_ping_parallel)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    Text(tr(R.string.msg_check_method_99), style = MaterialTheme.typography.titleMedium)
-                    listOf("auto" to tr(R.string.msg_https_multiple_urls_100), "https" to tr(R.string.msg_https_custom_url_101), "tcp" to tr(R.string.msg_tcp_port_reachability_102)).forEach { (value, label) ->
-                        Row(Modifier.fillMaxWidth().clickable(enabled = !locked) { applySettings(draft.copy(probeMode = value)) }) {
-                            RadioButton(draft.probeMode == value, { applySettings(draft.copy(probeMode = value)) }, enabled = !locked)
-                            Text(label, modifier = Modifier.padding(top = 13.dp))
-                        }
-                    }
-                    Text(tr(R.string.msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103), style = MaterialTheme.typography.bodySmall)
-                    SectionHeader(tr(R.string.set_head_display))
                     SettingsToggle(tr(R.string.dev_detailed_icons), draft.detailedIcons) { applySettings(draft.copy(detailedIcons = it)) }
                     Text(tr(R.string.dev_detailed_icons_hint), style = MaterialTheme.typography.bodySmall)
+                }
+                tr(R.string.dev_for_developers) -> {
+                    DeveloperSection({ logPage = 1 }, { logPage = 2 })
                 }
                 tr(R.string.msg_about_78) -> {
                     Text(VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleLarge)

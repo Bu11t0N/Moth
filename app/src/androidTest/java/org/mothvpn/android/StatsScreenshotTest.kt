@@ -52,7 +52,7 @@ class StatsScreenshotTest {
         var dev = device.findObject(By.text("For developers"))
         repeat(5) { if (dev == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); dev = device.findObject(By.text("For developers")) } }
         assertNotNull("developer menu entry", dev); dev!!.click()
-        assertNotNull(device.wait(Until.findObject(By.text("Server checks")), 10_000)); Thread.sleep(1000)
+        assertNotNull(device.wait(Until.findObject(By.text("Crash log")), 10_000)); Thread.sleep(1000)
         device.takeScreenshot(File(context.externalCacheDir, "dev.png"))
         device.pressBack(); Thread.sleep(500)
     }

@@ -4,8 +4,8 @@ require(versionSuffix.matches(Regex("[A-Za-z0-9.-]*"))) { "versionSuffix: letter
 android {
     namespace = "org.mothvpn.android"
     compileSdk = 34
-    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 32; versionName = "0.5.1$versionSuffix"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
-        // versionCode: every build that can be offered as an update must exceed the previous one (0.4.7 beta.1 = 17, beta.2 = 18, beta.3 = 19, beta.4 = 20, beta.5 = 21, beta.6 = 22, stable 0.4.7 = 23, 0.5.0 beta.1 = 24, beta.2 = 25, beta.3 = 26, beta.4 = 27, beta.5 = 28, stable 0.5.0 = 29, 0.5.1 beta.1 = 30, 0.5.1 beta.2 = 31, beta.3 = 32).
+    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 33; versionName = "0.5.1$versionSuffix"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
+        // versionCode: every build that can be offered as an update must exceed the previous one (0.4.7 beta.1 = 17, beta.2 = 18, beta.3 = 19, beta.4 = 20, beta.5 = 21, beta.6 = 22, stable 0.4.7 = 23, 0.5.0 beta.1 = 24, beta.2 = 25, beta.3 = 26, beta.4 = 27, beta.5 = 28, stable 0.5.0 = 29, 0.5.1 beta.1 = 30, 0.5.1 beta.2 = 31, beta.3 = 32, beta.4 = 33).
         // Test builds: -PversionSuffix=-beta.1 gives versionName 0.5.1-beta.1 ; no property gives 0.5.1.
     buildTypes {
         getByName("release") {
