@@ -44,6 +44,15 @@ class E2ETest {
     }
     private fun tab(name: String) { wait(By.text(name)).click(); Thread.sleep(800) }
 
+    private fun scrollTo(text: String): UiObject2 {
+        repeat(10) {
+            device.findObject(By.text(text))?.let { return it }
+            device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.7f)
+            Thread.sleep(400)
+        }
+        return wait(By.text(text), 2_000)
+    }
+
     private fun toggleNear(label: UiObject2): UiObject2? {
         val y = label.visibleBounds.centerY()
         return device.findObjects(By.checkable(true)).firstOrNull { it.visibleBounds.top <= y && it.visibleBounds.bottom >= y }
@@ -83,11 +92,11 @@ class E2ETest {
         // 4. Kill switch on (live, while connected); stop the server: nothing may leave outside the tunnel.
         tab("Settings")
         wait(By.text("Connection")).click()
-        val label = wait(By.text("Kill switch"))
+        val label = scrollTo("Kill switch")
         val toggle = toggleNear(label) ?: run { dump(); throw AssertionError("kill switch toggle not found") }
         if (!toggle.isChecked) toggle.click()
         Thread.sleep(800)
-        assertTrue("kill switch should be on", toggleNear(wait(By.text("Kill switch")))!!.isChecked)
+        assertTrue("kill switch should be on", toggleNear(scrollTo("Kill switch"))!!.isChecked)
         device.pressBack(); Thread.sleep(500); tab("Home")
         assertEquals("paused", fetch("/pause=25"))
         Thread.sleep(4000)
