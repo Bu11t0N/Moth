@@ -20,6 +20,7 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - Kill switch (Settings → Connection, off by default): if the connection fails, traffic is blocked until Moth reconnects or you disconnect.
 - More reliable reconnect after switching between Wi-Fi and mobile data: Moth follows the new network and restarts the connection if the internet does not come back within a few seconds.
 - The kill switch can now be turned on or off while the VPN is connected.
+- When the network type changes while connected (Wi-Fi ↔ mobile data), Moth switches to the server selected for that network (or auto-selects on its list when auto-select is on).
 - Favorite servers: long-press a server → "Add to favorites". Favorites are marked with a heart and always shown at the top.
 - The Servers screen shows the traffic left and the subscription end date when the provider sends them.
 - The notification icon is now the moth.

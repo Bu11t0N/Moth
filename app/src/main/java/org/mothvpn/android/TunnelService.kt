@@ -139,7 +139,7 @@ class TunnelService : VpnService(), PlatformInterface {
     private fun startTunnel(requested: String, startId: Int?, pickBest: Boolean) {
         var id = requested
         var stage = "init"
-        targetId = requested
+        targetId = requested; activeKind = trackedKind()
         try {
             // Kill switch: hold a blocking interface while the core restarts so traffic never leaves outside the tunnel.
             if (tun != null && killSwitchOn()) openBlock()
@@ -151,7 +151,7 @@ class TunnelService : VpnService(), PlatformInterface {
             if (settings.autoSelect && pickBest && subscription.profiles.size > 1 && !stopped) { stage = "auto select"; id = pickFastest(subscription, settings) ?: id }
             if (stopped || TunnelStatus.state.value != TunnelState.STARTING) { Logger.i("Tunnel", "start abandoned (state=${TunnelStatus.state.value})"); return }
             var profile = subscription.profiles.firstOrNull { it.id == id } ?: error("Missing profile")
-            activeEngine = profile.engine
+            activeEngine = profile.engine; activeKind = trackedKind()
             serverName = profile.name; foreground() // the name is shown in the notification only, never logged
             Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled} split=${settings.splitMode} directRu=${settings.directRu} auto=${settings.autoSelect}")
             val ruleSets = if (settings.directRu) { stage = "rule sets"; RuleSetCache.prepare(this, connectivity) } else emptyMap()
@@ -563,6 +563,10 @@ class TunnelService : VpnService(), PlatformInterface {
     private var networkTask: java.util.concurrent.ScheduledFuture<*>? = null
     private var verifyTask: java.util.concurrent.ScheduledFuture<*>? = null
     @Volatile private var activeEngine = "sing-box"
+    @Volatile private var activeKind = "" // network type ("wifi"/"mobile") the core was started on
+    /** Type of the real underlying network from the default-network callback (never the VPN); falls back to the tracker. */
+    private fun trackedKind(): String = networkState.current?.let { networks[it.handle] }?.let { n ->
+        connectivity.getNetworkCapabilities(n)?.let { if (it.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) "mobile" else "wifi" } } ?: NetworkTracker.read(connectivity).kind
     private var defaultCallback: ConnectivityManager.NetworkCallback? = null
     private fun iface(network: android.net.Network) = connectivity.getLinkProperties(network)?.interfaceName.orEmpty()
     private fun defaultNetwork(): android.net.Network? = networkState.current?.let { networks[it.handle] } ?: NetworkTracker.physical(connectivity)
@@ -605,7 +609,30 @@ class TunnelService : VpnService(), PlatformInterface {
         val kind = network?.let { if (connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) "mobile" else "wifi" } ?: "none"
         Logger.i("Tunnel", "default network ${if (action == org.mothvpn.core.DefaultNetworkState.Action.LOST) "lost" else "switched to $kind"} (state=${TunnelStatus.state.value}, engine=$activeEngine)")
         if (action == org.mothvpn.core.DefaultNetworkState.Action.LOST) return
-        when (TunnelStatus.state.value) {
+        // Wi-Fi and mobile data have their own server selection: follow it when the network type changed.
+        val state = TunnelStatus.state.value
+        if (state == TunnelState.RUNNING || state == TunnelState.BLOCKED) {
+            val previous = activeKind
+            val subscription = runCatching { SubscriptionStore(this).load() }.getOrNull()
+            val decision = if (subscription == null || previous.isEmpty() || kind == "none") org.mothvpn.core.NetworkServerChoice.Decision.Keep
+                else org.mothvpn.core.NetworkServerChoice.decide(previous, kind, TunnelStatus.activeProfile.value.ifBlank { targetId }, subscription.selection(kind),
+                    subscription.profiles.map { it.id }.toSet(), runCatching { SettingsStore(this).load().autoSelect }.getOrDefault(activeSettings.autoSelect), manualPick)
+            if (decision !is org.mothvpn.core.NetworkServerChoice.Decision.Keep) {
+                Logger.i("Tunnel", "network type $previous -> $kind: ${if (decision is org.mothvpn.core.NetworkServerChoice.Decision.Switch) "switching to the server selected for $kind" else "auto-selecting on the $kind list"}")
+                val id = (decision as? org.mothvpn.core.NetworkServerChoice.Decision.Switch)?.id ?: TunnelStatus.activeProfile.value.ifBlank { targetId }
+                val auto = decision is org.mothvpn.core.NetworkServerChoice.Decision.AutoSelect
+                activeKind = kind; targetId = id
+                val current = generation.get()
+                executor.execute {
+                    if (generation.get() != current || stopped || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.BLOCKED)) return@execute
+                    if (auto) { ranking = emptyList(); tried.clear() }
+                    serverName = ""; TunnelStatus.mutable.value = TunnelState.STARTING; runCatching { foreground() }
+                    startTunnel(id, null, pickBest = auto)
+                }
+                return
+            }
+        }
+        when (state) {
             TunnelState.BLOCKED -> retryBlocked("network changed")
             TunnelState.RUNNING -> {
                 if (org.mothvpn.core.NetworkRecovery.afterSwitch(activeEngine) == org.mothvpn.core.NetworkRecovery.Step.RESTART) restartSameServer("network changed (xray)")

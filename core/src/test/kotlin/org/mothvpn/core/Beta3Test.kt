@@ -128,3 +128,25 @@ class NetworkSwitchTest {
         assertEquals(NetworkRecovery.Step.RESTART, NetworkRecovery.afterVerify(false))
     }
 }
+
+class NetworkServerChoiceTest {
+    private val all = setOf("w", "m", "x")
+    private fun d(prev: String, next: String, active: String, sel: String?, auto: Boolean = false, manual: Boolean = false) =
+        NetworkServerChoice.decide(prev, next, active, sel, all, auto, manual)
+    @Test fun wifiToMobileSwitchesToMobileSelection() = assertEquals(NetworkServerChoice.Decision.Switch("m"), d("wifi", "mobile", "w", "m"))
+    @Test fun mobileToWifiSwitchesBack() = assertEquals(NetworkServerChoice.Decision.Switch("w"), d("mobile", "wifi", "m", "w"))
+    @Test fun sameServerOrSameTypeKeeps() {
+        assertEquals(NetworkServerChoice.Decision.Keep, d("wifi", "mobile", "w", "w"))
+        assertEquals(NetworkServerChoice.Decision.Keep, d("wifi", "wifi", "w", "m"))
+    }
+    @Test fun missingOrRemovedSelectionKeeps() {
+        assertEquals(NetworkServerChoice.Decision.Keep, d("wifi", "mobile", "w", null))
+        assertEquals(NetworkServerChoice.Decision.Keep, d("wifi", "mobile", "w", ""))
+        assertEquals(NetworkServerChoice.Decision.Keep, d("wifi", "mobile", "w", "gone"))
+    }
+    @Test fun autoSelectMeasuresUnlessManualPick() {
+        assertEquals(NetworkServerChoice.Decision.AutoSelect, d("wifi", "mobile", "w", "m", auto = true))
+        assertEquals(NetworkServerChoice.Decision.Switch("m"), d("wifi", "mobile", "w", "m", auto = true, manual = true))
+        assertEquals(NetworkServerChoice.Decision.Keep, NetworkServerChoice.decide("wifi", "mobile", "w", null, setOf("w"), true, false))
+    }
+}
