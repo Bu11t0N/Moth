@@ -326,7 +326,6 @@
     <string name="set_sum_defaults">Default settings</string>
     <string name="set_sum_version">Installed %s</string>
     <string name="set_sum_about">Version, licenses and changelog</string>
-    <string name="set_sum_changelog">What changed in each version</string>
     <string name="set_sum_dev">Log and crash log · level: %s</string>
     <string name="set_theme_light">Light theme</string>
     <string name="set_theme_dark">Dark theme</string>

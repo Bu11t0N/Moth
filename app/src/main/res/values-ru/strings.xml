@@ -326,7 +326,6 @@
     <string name="set_sum_defaults">Настройки по умолчанию</string>
     <string name="set_sum_version">Установлена %s</string>
     <string name="set_sum_about">Версия, лицензии и список изменений</string>
-    <string name="set_sum_changelog">Что менялось в каждой версии</string>
     <string name="set_sum_dev">Журнал и журнал сбоев · уровень: %s</string>
     <string name="set_theme_light">Светлая тема</string>
     <string name="set_theme_dark">Тёмная тема</string>

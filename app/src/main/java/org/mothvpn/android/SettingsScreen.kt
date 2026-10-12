@@ -228,7 +228,7 @@ import org.mothvpn.core.SubscriptionSchedule
                 tr(R.string.msg_about_78) -> {
                     Text(VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleLarge)
                     Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111))
-                    SettingsCategory(tr(R.string.set_changelog), tr(R.string.set_sum_changelog), "changelog") { section = tr(R.string.set_changelog); logPage = 3 }
+                    SettingsCategory(tr(R.string.set_changelog), "", "changelog") { section = tr(R.string.set_changelog); logPage = 3 }
                 }
             }
             AnimatedVisibility(error.isNotEmpty()) { Text(error, color = MaterialTheme.colorScheme.error) }
