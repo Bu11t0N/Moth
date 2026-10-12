@@ -34,10 +34,19 @@ private class AppEntry(val packageName: String, val label: String, val system: B
     LaunchedEffect(Unit) {
         apps = withContext(Dispatchers.IO) {
             runCatching {
+                // Only apps with a launcher icon are visible to Moth (<queries> MAIN/LAUNCHER in the manifest, no QUERY_ALL_PACKAGES).
                 @Suppress("DEPRECATION")
-                pm.getInstalledPackages(PackageManager.GET_PERMISSIONS).filter { p ->
-                    p.packageName != context.packageName && p.applicationInfo != null && p.requestedPermissions?.contains(android.Manifest.permission.INTERNET) == true
-                }.map { p -> AppEntry(p.packageName, p.applicationInfo!!.loadLabel(pm).toString(), p.applicationInfo!!.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0) }
+                val launchable = pm.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER), 0)
+                    .map { it.activityInfo.packageName }.toSet()
+                val found = launchable.filter { it != context.packageName }.mapNotNull { name ->
+                    @Suppress("DEPRECATION")
+                    val p = runCatching { pm.getPackageInfo(name, PackageManager.GET_PERMISSIONS) }.getOrNull() ?: return@mapNotNull null
+                    val info = p.applicationInfo ?: return@mapNotNull null
+                    if (p.requestedPermissions?.contains(android.Manifest.permission.INTERNET) != true) return@mapNotNull null
+                    AppEntry(p.packageName, info.loadLabel(pm).toString(), info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0)
+                }
+                // Apps chosen earlier that are no longer visible (no launcher icon) stay in the list so they can be unchecked.
+                (found + settings.splitApps.filter { id -> found.none { it.packageName == id } }.map { AppEntry(it, it, false) })
                     .sortedWith(compareBy({ it.packageName !in settings.splitApps }, { it.label.lowercase() }))
             }.onFailure { Logger.w("Split", "listing apps failed", it) }.getOrDefault(emptyList())
         }

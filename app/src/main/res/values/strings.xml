@@ -259,16 +259,15 @@
     <string name="split_mode_off">Off: all apps use the VPN</string>
     <string name="split_mode_only">Only selected apps use the VPN</string>
     <string name="split_mode_bypass">Selected apps bypass the VPN</string>
-    <string name="split_hint">Changes apply on the next connection.</string>
+    <string name="split_hint">Changes apply on the next connection. Only apps with an icon in the app list are shown.</string>
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
     <string name="direct_ru">Russian sites and IPs directly</string>
     <string name="direct_ru_hint">Russian sites (.ru, .su, .рф and the geosite category-ru list) and Russian IP addresses (geoip:ru) open without the VPN. Lists are downloaded from SagerNet and updated weekly.</string>
     <string name="auto_select">Auto-select the best server</string>
-    <string name="auto_select_hint">On connect, all servers are checked and the fastest one is used. If the internet check fails 3 times in a row, Moth switches to the next fastest server.</string>
+    <string name="auto_select_hint">On connect, the fastest server is used (results of a check made in the last 5 minutes are reused, otherwise all servers are checked). If the internet check fails 3 times in a row, Moth switches to the next fastest server.</string>
     <string name="boot_connect">Start VPN when the phone turns on</string>
     <string name="boot_connect_hint">Connects to the last server after a restart. Android\'s Always-on VPN (system VPN settings) is also supported.</string>
-    <string name="dns_plain_cloudflare">Cloudflare (1.1.1.1)</string>
     <string name="dns_server">DNS server</string>
     <string name="dns_custom">Custom</string>
     <string name="dns_custom_hint">https://…/dns-query (DoH), tls://host (DoT) or an IPv4 address. DNS requests always go through the VPN.</string>
@@ -281,4 +280,16 @@
     <string name="msg_err_sub_interval">Invalid subscription update interval</string>
     <string name="msg_err_split_apps">Invalid app list</string>
     <string name="msg_err_dns">Invalid DNS server</string>
+    <string name="kill_switch">Kill switch</string>
+    <string name="kill_switch_hint">If the connection to the server fails, the VPN stays on and blocks all traffic until Moth reconnects or you disconnect. For full protection (also while the app is not running), turn on Always-on VPN and \"Block connections without VPN\" in the system VPN settings.</string>
+    <string name="kill_switch_system">Open system VPN settings</string>
+    <string name="notif_blocked">Traffic blocked: no connection</string>
+    <string name="notif_blocked_text">Kill switch is on. Reconnecting…</string>
+    <string name="msg_blocked">Traffic blocked</string>
+    <string name="tile_blocked">Blocked</string>
+    <string name="fav_add">Add to favorites</string>
+    <string name="fav_remove">Remove from favorites</string>
+    <string name="fav_mark">Favorite</string>
+    <string name="sub_left">Traffic left: %1$s of %2$s</string>
+    <string name="sub_expires">Expires on %1$s</string>
 </resources>

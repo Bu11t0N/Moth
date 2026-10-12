@@ -259,16 +259,15 @@
     <string name="split_mode_off">Выключено: все приложения через VPN</string>
     <string name="split_mode_only">Только выбранные через VPN</string>
     <string name="split_mode_bypass">Выбранные в обход VPN</string>
-    <string name="split_hint">Изменения применяются при следующем подключении.</string>
+    <string name="split_hint">Изменения применяются при следующем подключении. Показываются только приложения со значком в списке приложений.</string>
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
     <string name="direct_ru_hint">Российские сайты (.ru, .su, .рф и список geosite category-ru) и российские IP-адреса (geoip:ru) открываются без VPN. Списки скачиваются у SagerNet и обновляются раз в неделю.</string>
     <string name="auto_select">Автовыбор лучшего сервера</string>
-    <string name="auto_select_hint">При подключении проверяются все серверы и выбирается самый быстрый. Если проверка интернета не проходит 3 раза подряд, Мотылёк переключается на следующий по скорости сервер.</string>
+    <string name="auto_select_hint">При подключении выбирается самый быстрый сервер (используются результаты проверки за последние 5 минут, иначе проверяются все серверы). Если проверка интернета не проходит 3 раза подряд, Мотылёк переключается на следующий по скорости сервер.</string>
     <string name="boot_connect">Запускать VPN при включении телефона</string>
     <string name="boot_connect_hint">После перезагрузки подключается к последнему серверу. Также поддерживается постоянный VPN Android (системные настройки VPN).</string>
-    <string name="dns_plain_cloudflare">Cloudflare (1.1.1.1)</string>
     <string name="dns_server">DNS-сервер</string>
     <string name="dns_custom">Свой</string>
     <string name="dns_custom_hint">https://…/dns-query (DoH), tls://адрес (DoT) или IPv4-адрес. DNS-запросы всегда идут через VPN.</string>
@@ -281,4 +280,16 @@
     <string name="msg_err_sub_interval">Неверный интервал обновления подписки</string>
     <string name="msg_err_split_apps">Неверный список приложений</string>
     <string name="msg_err_dns">Неверный DNS-сервер</string>
+    <string name="kill_switch">Kill switch</string>
+    <string name="kill_switch_hint">Если связь с сервером пропала, VPN остаётся включённым и блокирует весь трафик, пока Мотылёк не переподключится или вы не отключитесь. Для полной защиты (и когда приложение не запущено) включите «Постоянную VPN» и «Блокировать подключения без VPN» в системных настройках VPN.</string>
+    <string name="kill_switch_system">Открыть системные настройки VPN</string>
+    <string name="notif_blocked">Трафик заблокирован: нет связи</string>
+    <string name="notif_blocked_text">Kill switch включён. Переподключение…</string>
+    <string name="msg_blocked">Трафик заблокирован</string>
+    <string name="tile_blocked">Заблокировано</string>
+    <string name="fav_add">Добавить в избранное</string>
+    <string name="fav_remove">Убрать из избранного</string>
+    <string name="fav_mark">Избранное</string>
+    <string name="sub_left">Осталось трафика: %1$s из %2$s</string>
+    <string name="sub_expires">Действует до %1$s</string>
 </resources>

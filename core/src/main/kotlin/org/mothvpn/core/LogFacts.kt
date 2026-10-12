@@ -24,6 +24,7 @@ object LogFacts {
         plain("directRu", old.directRu, new.directRu); plain("subUpdateHours", old.subUpdateHours, new.subUpdateHours)
         plain("autoSelect", old.autoSelect, new.autoSelect); plain("bootConnect", old.bootConnect, new.bootConnect)
         plain("dnsLeakProtection", old.dnsLeakProtection, new.dnsLeakProtection)
+        plain("killSwitch", old.killSwitch, new.killSwitch); plain("favorites", old.favorites.size, new.favorites.size)
         return out
     }
 

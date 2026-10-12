@@ -143,13 +143,16 @@ import org.mothvpn.core.SubscriptionSchedule
                     Text(tr(R.string.direct_ru_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsToggle(tr(R.string.auto_select), draft.autoSelect, !locked) { applySettings(draft.copy(autoSelect = it)) }
                     Text(tr(R.string.auto_select_hint), style = MaterialTheme.typography.bodySmall)
+                    SettingsToggle(tr(R.string.kill_switch), draft.killSwitch, !locked) { applySettings(draft.copy(killSwitch = it)) }
+                    Text(tr(R.string.kill_switch_hint), style = MaterialTheme.typography.bodySmall)
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    TextButton(onClick = { runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS)) }.onFailure { Logger.w("Settings", "system VPN settings unavailable", it) } }) { Text(tr(R.string.kill_switch_system)) }
                     SettingsToggle(tr(R.string.boot_connect), draft.bootConnect) { applySettings(draft.copy(bootConnect = it)) }
                     Text(tr(R.string.boot_connect_hint), style = MaterialTheme.typography.bodySmall)
                     var dnsDialog by remember { mutableStateOf(false) }
                     var customDns by remember { mutableStateOf(false) }
-                    val dnsNames = mapOf("cloudflare" to "Cloudflare (DoH)", "google" to "Google (DoH)", "quad9" to "Quad9 (DoH)", "adguard" to "AdGuard (DoH)", "cloudflare-udp" to tr(R.string.dns_plain_cloudflare))
-                    DialogRow(tr(R.string.dns_server), DnsServers.presetOf(draft.dns)?.let { dnsNames.getValue(it.id) } ?: (tr(R.string.dns_custom) + ": " + draft.dns), !locked) { dnsDialog = true }
-                    if (dnsDialog) ChoiceDialog(tr(R.string.dns_server), DnsServers.presets.map { it.address to dnsNames.getValue(it.id) } + ("" to tr(R.string.dns_custom)),
+                    DialogRow(tr(R.string.dns_server), DnsServers.presetOf(draft.dns)?.label ?: (tr(R.string.dns_custom) + ": " + draft.dns), !locked) { dnsDialog = true }
+                    if (dnsDialog) ChoiceDialog(tr(R.string.dns_server), DnsServers.presets.map { it.address to it.label } + ("" to tr(R.string.dns_custom)),
                         if (DnsServers.presetOf(draft.dns) != null) draft.dns else "", { dnsDialog = false }) { if (it.isEmpty()) customDns = true else applySettings(draft.copy(dns = it)) }
                     if (customDns) {
                         var text by remember { mutableStateOf(draft.dns) }

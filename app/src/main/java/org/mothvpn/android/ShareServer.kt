@@ -27,7 +27,8 @@ fun qrBitmap(text: String, size: Int = 720): Bitmap {
 @Composable fun ShareServerDialog(profile: Profile, close: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
-    val bitmap = remember(profile.link) { profile.link.takeIf { it.isNotEmpty() }?.let { runCatching { qrBitmap(it) }.onFailure { e -> Logger.w("Share", "QR encoding failed", e) }.getOrNull() } }
+    val link = remember(profile) { org.mothvpn.core.ShareLinks.of(profile).orEmpty() } // generated for servers imported without a link (Clash/Xray JSON)
+    val bitmap = remember(link) { link.takeIf { it.isNotEmpty() }?.let { runCatching { qrBitmap(it) }.onFailure { e -> Logger.w("Share", "QR encoding failed", e) }.getOrNull() } }
     AlertDialog(onDismissRequest = close, title = { Text(tr(R.string.server_share)) }, text = {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             if (bitmap == null) Text(tr(R.string.share_unavailable))
@@ -38,5 +39,5 @@ fun qrBitmap(text: String, size: Int = 720): Bitmap {
             }
         }
     }, confirmButton = { TextButton(onClick = close) { Text(tr(R.string.share_close)) } },
-        dismissButton = { if (bitmap != null) TextButton(onClick = { clipboard.setText(AnnotatedString(profile.link)); copied = true }) { Text(tr(R.string.share_copy)) } })
+        dismissButton = { if (bitmap != null) TextButton(onClick = { clipboard.setText(AnnotatedString(link)); copied = true }) { Text(tr(R.string.share_copy)) } })
 }

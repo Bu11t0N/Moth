@@ -33,14 +33,17 @@ object SubscriptionSchedule {
 
 /** DNS server choices for the tunnel. All of them are reached through the VPN server. */
 object DnsServers {
-    data class Preset(val id: String, val address: String)
+    /** [label]: provider and the server address the DoH URL points to, shown in the DNS dialog. */
+    data class Preset(val id: String, val address: String, val label: String)
     val presets = listOf(
-        Preset("cloudflare", "https://1.1.1.1/dns-query"),
-        Preset("google", "https://8.8.8.8/dns-query"),
-        Preset("quad9", "https://9.9.9.9/dns-query"),
-        Preset("adguard", "https://94.140.14.14/dns-query"),
-        Preset("cloudflare-udp", "1.1.1.1"),
+        Preset("cloudflare", "https://1.1.1.1/dns-query", "Cloudflare (1.1.1.1)"),
+        Preset("google", "https://8.8.8.8/dns-query", "Google (8.8.8.8)"),
+        Preset("quad9", "https://9.9.9.9/dns-query", "Quad9 (9.9.9.9)"),
+        Preset("adguard", "https://94.140.14.14/dns-query", "AdGuard (94.140.14.14)"),
     )
+    const val DEFAULT = "https://1.1.1.1/dns-query"
+    /** The removed "plain Cloudflare" preset (classic DNS to 1.1.1.1) becomes the Cloudflare DoH default. */
+    fun migrate(address: String): String = if (address == "1.1.1.1") DEFAULT else address
     fun presetOf(address: String) = presets.firstOrNull { it.address == address }
     private val ipv4 = Regex("(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])){3}")
     /** "https://host/path" (DNS over HTTPS), "tls://host" (DNS over TLS) or a plain IPv4 address (classic DNS, still sent through the tunnel). */
@@ -78,6 +81,43 @@ object ServerPicker {
     fun next(ranking: List<String>, current: String, tried: Set<String>): String? = ranking.firstOrNull { it != current && it !in tried }
     /** Consecutive failed health checks before switching servers. */
     const val failoverAfter = 3
+    /** Probe results younger than this are reused by auto-select instead of measuring every server again. */
+    const val freshMs = 5 * 60_000L
+    /**
+     * Ranking from recent measurements, or null when they are stale: every server must have a finished result
+     * (success or failure) newer than [maxAgeMs] on the current network and at least one must have answered.
+     * [results]: id to (latency or null for a failure, checkedAt).
+     */
+    fun recentRanking(order: List<String>, results: Map<String, Pair<Long?, Long>>, now: Long, maxAgeMs: Long = freshMs): List<String>? {
+        if (order.isEmpty() || order.any { id -> results[id]?.let { now - it.second in 0..maxAgeMs } != true }) return null
+        return ranking(order, order.associateWith { results[it]?.first }).takeIf { it.isNotEmpty() }
+    }
+}
+
+/** Favorite servers: always shown first, in the current sort order; persisted by the server's stable id. */
+object Favorites {
+    private val idPattern = Regex("[0-9a-f]{16,64}")
+    fun valid(ids: List<String>) = ids.size <= 5000 && ids.all { idPattern.matches(it) } && ids.distinct().size == ids.size
+    fun toggle(ids: List<String>, id: String): List<String> = if (id in ids) ids - id else ids + id
+    fun <T> first(items: List<T>, favorites: Collection<String>, id: (T) -> String): List<T> {
+        if (favorites.isEmpty()) return items
+        val set = favorites.toHashSet()
+        val (fav, rest) = items.partition { id(it) in set }
+        return fav + rest
+    }
+}
+
+/** Data left and expiry from the provider's subscription-userinfo header. */
+object SubscriptionQuota {
+    /** Bytes left, or null when the provider gave no limit. */
+    fun remaining(used: Long, total: Long): Long? = if (total <= 0) null else (total - used).coerceAtLeast(0)
+    /** Expiry in epoch seconds when it is a real date (0 means "no expiry"). */
+    fun expiry(expires: Long): Long? = expires.takeIf { it in 1..253402300799L }
+    /** Parses "upload=1; download=2; total=3; expire=4". Unknown or malformed parts are ignored. */
+    fun parse(header: String): Map<String, Long> = header.split(';').mapNotNull {
+        val pair = it.trim().split('=', limit = 2)
+        if (pair.size == 2) pair[1].trim().toLongOrNull()?.coerceAtLeast(0)?.let { n -> pair[0].trim().lowercase() to n } else null
+    }.toMap()
 }
 
 /** What a pasted or scanned text is. */

@@ -13,10 +13,18 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - New option "Start VPN when the phone turns on". Android's Always-on VPN is also supported.
 - Add a subscription or a server by scanning a QR code or pasting from the clipboard.
 - Share a server as a QR code or a copied link: long-press a server in the list.
-- DNS settings: choose a DNS server (Cloudflare, Google, Quad9, AdGuard or your own; DoH, DoT or plain) and DNS leak protection.
+- DNS settings: choose a DNS server (Cloudflare, Google, Quad9, AdGuard or your own address) and DNS leak protection.
 - Speed test now downloads 10 MB and can be run for any server from its long-press menu.
 - You can now pick another server while the VPN is on: Moth reconnects to it right away. A manual pick pauses auto-select until the next connection.
 - The QR code scanner now stays in portrait orientation.
+- Kill switch (Settings → Connection, off by default): if the connection fails, traffic is blocked until Moth reconnects or you disconnect.
+- Faster reconnect when switching between Wi-Fi and mobile data.
+- Favorite servers: long-press a server → "Add to favorites". Favorites are marked with a heart and always shown at the top.
+- The Servers screen shows the traffic left and the subscription end date when the provider sends them.
+- The notification icon is now the moth.
+- Auto-select uses check results from the last 5 minutes instead of checking all servers again.
+- Servers from Clash and Xray JSON subscriptions can now be shared as a QR code or link.
+- Split tunneling no longer needs access to the full list of installed apps; apps with an icon in the app list are shown.
 
 ## 0.4.7
 

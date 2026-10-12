@@ -124,7 +124,7 @@ class MainActivity : AppCompatActivity() {
                             when (shown) {
                                 0 -> HomeScreen(saved, network, busy, message,
                                     add = { url = ""; dialog = true },
-                                    connect = { if (TunnelStatus.state.value == TunnelState.RUNNING) stop() else connect() }, servers = { tab = 1 },
+                                    connect = { if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED)) stop() else connect() }, servers = { tab = 1 },
                                     updateAvailable = updateAvailable, openUpdates = { openUpdates = true; tab = 2 })
                                 1 -> ServersScreen(saved, settings, network, busy, message,
                                     add = { url = ""; dialog = true }, refresh = { saved?.takeIf { !it.local }?.let { import(it.url, "refresh") } }, remove = { removeSubscription() },
@@ -135,7 +135,7 @@ class MainActivity : AppCompatActivity() {
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
-                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, probing || tunnel in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false })
+                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, probing || tunnel in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING, TunnelState.BLOCKED), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false })
                                 }
                             }
                             }
@@ -225,14 +225,14 @@ class MainActivity : AppCompatActivity() {
     }
     private fun select(id: String, kind: String) {
         if (busy || Diagnostics.running.value || TunnelStatus.state.value == TunnelState.STOPPING) return
-        val switching = TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING) && kind == networks.state.value.kind && id != TunnelStatus.activeProfile.value
+        val switching = TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED) && kind == networks.state.value.kind && id != TunnelStatus.activeProfile.value
         val next = saved?.let { if (kind == "mobile") it.copy(selected = id, mobileSelected = id) else it.copy(selected = id, wifiSelected = id) } ?: return
         busy = true
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) { store.save(next) }; saved = next
                 Logger.i("Store", "selected server ($kind): ${next.profiles.firstOrNull { it.id == id }?.let(LogFacts::profileTag)}")
-                if (switching && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING)) {
+                if (switching && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED)) {
                     TunnelStatus.mutable.value = TunnelState.STARTING
                     try { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("SWITCH").putExtra("profile", id)) }
                     catch (e: Exception) { Logger.e("Service", "switching the server failed", e); message = tr(R.string.msg_could_not_start_the_check_or_vpn_45) }

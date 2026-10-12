@@ -39,7 +39,7 @@ class BootReceiver : BroadcastReceiver() {
         val settings = runCatching { SettingsStore(context).load() }.getOrNull() ?: return
         if (!settings.bootConnect) return
         Logger.i("Boot", "connect on boot is on")
-        if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING)) return
+        if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED)) return
         val id = VpnLauncher.lastProfileId(context) ?: run { Logger.w("Boot", "no saved server"); return }
         if (VpnService.prepare(context) != null) { Logger.w("Boot", "VPN permission is not granted; showing a notification"); askToOpen(context); return }
         try { context.startForegroundService(Intent(context, TunnelService::class.java).setAction("START").putExtra("profile", id)) }
@@ -51,7 +51,7 @@ class BootReceiver : BroadcastReceiver() {
         val open = PendingIntent.getActivity(context, 42, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra(MainActivity.CONNECT_FROM_TILE, true), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         runCatching {
-            manager.notify(2, android.app.Notification.Builder(context, "boot").setSmallIcon(android.R.drawable.ic_lock_lock)
+            manager.notify(2, android.app.Notification.Builder(context, "boot").setSmallIcon(R.drawable.ic_moth_notification)
                 .setContentTitle(tr(R.string.boot_permission_title)).setContentText(tr(R.string.boot_permission_text)).setContentIntent(open).setAutoCancel(true).build())
         }.onFailure { Logger.w("Boot", "notification failed", it) }
     }
