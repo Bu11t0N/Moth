@@ -12,6 +12,7 @@ import android.net.VpnService
 import android.os.Process
 import android.os.SystemClock
 import org.mothvpn.core.TrafficFormat
+import org.mothvpn.core.TrafficHistory
 import android.os.ParcelFileDescriptor
 import io.nekohasekai.libbox.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -329,7 +330,7 @@ class TunnelService : VpnService(), PlatformInterface {
         statsTask?.cancel(false)
         statsTask = statsExecutor.scheduleWithFixedDelay({ runCatching { tickStats() }.onFailure { Logger.w("Tunnel", "notification update failed", it) } }, 1, 1, TimeUnit.SECONDS)
     }
-    private fun stopStats() = synchronized(statsLock) { statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0 }
+    private fun stopStats() = synchronized(statsLock) { if (statsActive) runCatching { TrafficRecorder.flush(this) }; statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0 }
     private fun tickStats(): Unit = synchronized(statsLock) {
         if (!statsActive || TunnelStatus.state.value != TunnelState.RUNNING) return
         val now = SystemClock.elapsedRealtime()
@@ -339,6 +340,7 @@ class TunnelService : VpnService(), PlatformInterface {
         val speed = tr(R.string.notif_speed, TrafficFormat.bytes(TrafficFormat.rate(lastTx, tx, now - lastAt), units, locale), TrafficFormat.bytes(TrafficFormat.rate(lastRx, rx, now - lastAt), units, locale))
         val expanded = listOf(speed, tr(R.string.notif_total, TrafficFormat.bytes(tx - baseTx, units, locale), TrafficFormat.bytes(rx - baseRx, units, locale)),
             tr(R.string.notif_uptime, TrafficFormat.duration((now - startedAt) / 1000))).joinToString("\n")
+        TrafficRecorder.add(this, TrafficHistory.delta(lastTx, tx), TrafficHistory.delta(lastRx, rx))
         lastTx = tx; lastRx = rx; lastAt = now
         if (lastDetails?.expanded == expanded) return // nothing changed (uptime changes every second, so this only skips duplicate ticks)
         lastDetails = Details(speed, expanded)
@@ -410,6 +412,7 @@ class TunnelService : VpnService(), PlatformInterface {
                 val method = if (!speed && settings.probeMode == "tcp") "TCP" else "HTTPS"
                 fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false, kind: ProbeErrorKind? = null) = Diagnostics.result(key,
                     ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled, kind = kind))
+                val before = Diagnostics.results.value[key]?.takeIf { !it.checking && !it.cancelled && it.networkHandle == access.handle }
                 if (!speed) result(checking = true)
                 val label = describe(profile)
                 var stage = "start"
@@ -462,12 +465,14 @@ class TunnelService : VpnService(), PlatformInterface {
                     Logger.e("Probe", "probe failed at stage '$stage' method=$method network=${access.kind} cancelled=${cancelled.get()} ($label)", e)
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
                         if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_speed_test_failed_131)
+                        else if (ProbeErrorKind.of(e) == ProbeErrorKind.CANCELLED) Diagnostics.restore(key, before)
                         else result(error = Diagnostics.friendly(e), kind = ProbeErrorKind.of(e))
                     }
                 } finally {
                     if (allocated != 0) releasePort(allocated)
                     runCatching { local?.close() }.onFailure { Logger.w("Probe", "closing the local core failed", it) }; runCatching { xr?.close() }.onFailure { Logger.w("Probe", "closing the local xray failed", it) }
-                    if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = tr(R.string.msg_check_cancelled_46), wasCancelled = true, kind = ProbeErrorKind.CANCELLED)
+                    // An interrupted check is not a failure: restore the last completed result from this network, or show nothing.
+                    if (!speed && Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, before)
                 }
             }
             val futures = profiles.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }

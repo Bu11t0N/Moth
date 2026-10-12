@@ -1,7 +1,7 @@
 name: Android
 on:
   push:
-    branches: [main]
+    branches: [main, 'release/**']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -86,3 +86,70 @@ jobs:
           path: |
             core/build/reports/tests/
             app/build/reports/lint-results-release.*
+
+  e2e:
+    # Emulator end-to-end test: real VPN against local sing-box servers on the runner (see scripts/e2e/).
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Moth-native-core
+          path: .
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Build debug and test APKs
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon
+      - name: Start test servers on the host
+        run: |
+          sudo ip addr add 10.0.2.2/32 dev lo
+          curl -fsSL -o sb.tgz https://github.com/SagerNet/sing-box/releases/download/v1.11.15/sing-box-1.11.15-linux-amd64.tar.gz
+          tar xzf sb.tgz
+          nohup python3 scripts/e2e/server.py "$PWD/sing-box-1.11.15-linux-amd64/sing-box" > e2e-server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8081/health && break; sleep 1; done
+          curl -fs --cacert scripts/e2e/ca.pem https://10.0.2.2:8443/sub > /dev/null
+      - name: Run E2E tests on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
+          script: |
+            adb install -r -t app/build/outputs/apk/debug/app-x86_64-debug.apk
+            adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell appops set org.mothvpn.android ACTIVATE_VPN allow
+            adb logcat -c
+            adb shell am instrument -w -r org.mothvpn.android.test/androidx.test.runner.AndroidJUnitRunner > e2e-result.txt 2>&1 || true
+            adb logcat -d > e2e-logcat.txt 2>&1 || true
+            adb pull /sdcard/Android/data/org.mothvpn.android/cache/e2e-window.xml . > /dev/null 2>&1 || true
+            adb pull /sdcard/Android/data/org.mothvpn.android/cache/stats.png . > /dev/null 2>&1 || true
+            adb pull /sdcard/Android/data/org.mothvpn.android/cache/settings.png . > /dev/null 2>&1 || true
+            adb pull /sdcard/Android/data/org.mothvpn.android/cache/dev.png . > /dev/null 2>&1 || true
+            cat e2e-result.txt
+            grep -q "OK (3 tests)" e2e-result.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-reports
+          path: |
+            e2e-result.txt
+            e2e-logcat.txt
+            e2e-window.xml
+            e2e-server.log
+            stats.png
+            settings.png
+            dev.png

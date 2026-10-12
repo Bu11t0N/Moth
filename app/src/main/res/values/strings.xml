@@ -75,7 +75,7 @@
     <string name="msg_check_your_settings_71" formatted="false">"Check your settings"</string>
     <string name="msg_enter_a_whole_number_72" formatted="false">"Enter a whole number"</string>
     <string name="msg_back_73" formatted="false">"Back"</string>
-    <string name="msg_appearance_74" formatted="false">"Appearance"</string>
+    <string name="msg_appearance_74" formatted="false">"Interface"</string>
     <string name="msg_connection_75" formatted="false">"Connection"</string>
     <string name="msg_checks_76" formatted="false">"Checks"</string>
     <string name="msg_subscription_and_hwid_77" formatted="false">"Subscription and HWID"</string>
@@ -292,4 +292,43 @@
     <string name="fav_mark">Favorite</string>
     <string name="sub_left">Traffic left: %1$s of %2$s</string>
     <string name="sub_expires">Expires on %1$s</string>
+    <string name="stats_title">Statistics</string>
+    <string name="stats_today">Today</string>
+    <string name="stats_month">This month</string>
+    <string name="stats_week">This week</string>
+    <string name="stats_chart">Daily traffic</string>
+    <string name="stats_range_7">7 days</string>
+    <string name="stats_range_30">30 days</string>
+    <string name="stats_tap_hint">Tap a bar to see that day.</string>
+    <string name="stats_sent">Sent</string>
+    <string name="stats_received">Received</string>
+    <string name="stats_updown">↑ %1$s · ↓ %2$s</string>
+    <string name="stats_hint">VPN traffic counted on this device, including protocol overhead. Kept for 90 days.</string>
+    <string name="expiry_channel">Subscription reminders</string>
+    <string name="expiry_title">Subscription ends soon</string>
+    <string name="expiry_soon">Your subscription ends in %1$d day(s), on %2$s.</string>
+    <string name="expiry_today">Your subscription ends today.</string>
+    <string name="expiry_toggle">Remind before the subscription ends</string>
+    <string name="expiry_toggle_hint">A notification 3 days before and on the last day, if the provider sends the end date.</string>
+    <string name="set_cat_routing">Routing and DNS</string>
+    <string name="set_cat_subscription">Subscription</string>
+    <string name="set_head_health">Tunnel health check</string>
+    <string name="set_head_probes">Server checks</string>
+    <string name="set_short_auto">Auto-select</string>
+    <string name="set_short_ks">Kill switch</string>
+    <string name="set_short_boot">Start on boot</string>
+    <string name="set_short_health">Health check</string>
+    <string name="set_short_ru">Russian sites directly</string>
+    <string name="set_theme_auto">System theme</string>
+    <string name="set_split_off">Off</string>
+    <string name="set_split_only">Only selected apps: %d</string>
+    <string name="set_split_bypass">Apps bypassing VPN: %d</string>
+    <string name="set_sum_defaults">Default settings</string>
+    <string name="set_sum_version">Installed %s</string>
+    <string name="set_sum_about">Version, licenses and changelog</string>
+    <string name="set_sum_dev">Log and crash log · level: %s</string>
+    <string name="set_theme_light">Light theme</string>
+    <string name="set_theme_dark">Dark theme</string>
+    <string name="set_sum_sub_hours">Updates every %d h</string>
+    <string name="set_sum_sub_off">Auto-update off</string>
 </resources>

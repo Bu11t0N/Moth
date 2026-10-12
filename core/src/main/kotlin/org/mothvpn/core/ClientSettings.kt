@@ -34,7 +34,9 @@ data class ClientSettings(
     /** Kill switch: if the connection fails, keep the VPN interface up and block all traffic until it reconnects or the user disconnects. */
     val killSwitch: Boolean = false,
     /** Favorite server ids (stable: sha256 of the link without the name). */
-    val favorites: List<String> = emptyList()
+    val favorites: List<String> = emptyList(),
+    /** Notify 3 days before and on the day the subscription ends (when the provider sends an end date). */
+    val expiryWarning: Boolean = true
 ) {
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
@@ -71,7 +73,7 @@ data class ClientSettings(
         .put("probeParallel", probeParallel).put("probeTimeoutMs", probeTimeoutMs).put("updateChannel", updateChannel).put("detailedIcons", detailedIcons)
         .put("splitMode", splitMode).put("splitApps", org.json.JSONArray(splitApps)).put("directRu", directRu).put("subUpdateHours", subUpdateHours)
         .put("autoSelect", autoSelect).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
-        .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites))
+        .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
     companion object {
         fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
             DnsServers.migrate(j.optString("dns", "https://1.1.1.1/dns-query")), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
@@ -92,7 +94,8 @@ data class ClientSettings(
             autoSelect = j.optBoolean("autoSelect", false), bootConnect = j.optBoolean("bootConnect", false),
             dnsLeakProtection = j.optBoolean("dnsLeakProtection", true),
             killSwitch = j.optBoolean("killSwitch", false),
-            favorites = j.optJSONArray("favorites")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { Regex("[0-9a-f]{16,64}").matches(it) }.distinct().take(5000) }.orEmpty()).validate()
+            favorites = j.optJSONArray("favorites")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { Regex("[0-9a-f]{16,64}").matches(it) }.distinct().take(5000) }.orEmpty(),
+            expiryWarning = j.optBoolean("expiryWarning", true)).validate()
     }
 }
 
