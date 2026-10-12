@@ -292,4 +292,16 @@
     <string name="fav_mark">Избранное</string>
     <string name="sub_left">Осталось трафика: %1$s из %2$s</string>
     <string name="sub_expires">Действует до %1$s</string>
+    <string name="stats_title">Статистика</string>
+    <string name="stats_today">Сегодня</string>
+    <string name="stats_month">В этом месяце</string>
+    <string name="stats_30_days">За 30 дней</string>
+    <string name="stats_updown">↑ %1$s · ↓ %2$s</string>
+    <string name="stats_hint">Трафик VPN на этом устройстве, включая служебные данные протокола. Хранится 90 дней.</string>
+    <string name="expiry_channel">Напоминания о подписке</string>
+    <string name="expiry_title">Подписка скоро закончится</string>
+    <string name="expiry_soon">Подписка закончится через %1$d дн., %2$s.</string>
+    <string name="expiry_today">Подписка заканчивается сегодня.</string>
+    <string name="expiry_toggle">Напоминать об окончании подписки</string>
+    <string name="expiry_toggle_hint">Уведомление за 3 дня и в последний день, если провайдер передаёт дату окончания.</string>
 </resources>

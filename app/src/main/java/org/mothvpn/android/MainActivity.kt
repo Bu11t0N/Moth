@@ -85,6 +85,7 @@ class MainActivity : AppCompatActivity() {
                 .onFailure { Logger.e("Store", "reading settings failed", it); message = tr(R.string.msg_could_not_read_settings_24) }
             busy = false
             SubscriptionUpdates.schedule(this@MainActivity, settings.subUpdateHours)
+            runCatching { ExpiryReminder.schedule(this@MainActivity) }.onFailure { Logger.w("Expiry", "scheduling failed", it) }
             launch { VpnLauncher.changed.collect { if (it > 0) runCatching { withContext(Dispatchers.IO) { store.load() } }.onSuccess { s -> if (s != null) saved = s } } }
             checkForUpdate() // on every launch, silently
             var persisted = settings

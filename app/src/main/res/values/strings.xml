@@ -292,4 +292,16 @@
     <string name="fav_mark">Favorite</string>
     <string name="sub_left">Traffic left: %1$s of %2$s</string>
     <string name="sub_expires">Expires on %1$s</string>
+    <string name="stats_title">Statistics</string>
+    <string name="stats_today">Today</string>
+    <string name="stats_month">This month</string>
+    <string name="stats_30_days">Last 30 days</string>
+    <string name="stats_updown">↑ %1$s · ↓ %2$s</string>
+    <string name="stats_hint">VPN traffic counted on this device, including protocol overhead. Kept for 90 days.</string>
+    <string name="expiry_channel">Subscription reminders</string>
+    <string name="expiry_title">Subscription ends soon</string>
+    <string name="expiry_soon">Your subscription ends in %1$d day(s), on %2$s.</string>
+    <string name="expiry_today">Your subscription ends today.</string>
+    <string name="expiry_toggle">Remind before the subscription ends</string>
+    <string name="expiry_toggle_hint">A notification 3 days before and on the last day, if the provider sends the end date.</string>
 </resources>

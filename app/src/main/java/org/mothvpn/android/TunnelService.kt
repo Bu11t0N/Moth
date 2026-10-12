@@ -12,6 +12,7 @@ import android.net.VpnService
 import android.os.Process
 import android.os.SystemClock
 import org.mothvpn.core.TrafficFormat
+import org.mothvpn.core.TrafficHistory
 import android.os.ParcelFileDescriptor
 import io.nekohasekai.libbox.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -329,7 +330,7 @@ class TunnelService : VpnService(), PlatformInterface {
         statsTask?.cancel(false)
         statsTask = statsExecutor.scheduleWithFixedDelay({ runCatching { tickStats() }.onFailure { Logger.w("Tunnel", "notification update failed", it) } }, 1, 1, TimeUnit.SECONDS)
     }
-    private fun stopStats() = synchronized(statsLock) { statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0 }
+    private fun stopStats() = synchronized(statsLock) { if (statsActive) runCatching { TrafficRecorder.flush(this) }; statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0 }
     private fun tickStats(): Unit = synchronized(statsLock) {
         if (!statsActive || TunnelStatus.state.value != TunnelState.RUNNING) return
         val now = SystemClock.elapsedRealtime()
@@ -339,6 +340,7 @@ class TunnelService : VpnService(), PlatformInterface {
         val speed = tr(R.string.notif_speed, TrafficFormat.bytes(TrafficFormat.rate(lastTx, tx, now - lastAt), units, locale), TrafficFormat.bytes(TrafficFormat.rate(lastRx, rx, now - lastAt), units, locale))
         val expanded = listOf(speed, tr(R.string.notif_total, TrafficFormat.bytes(tx - baseTx, units, locale), TrafficFormat.bytes(rx - baseRx, units, locale)),
             tr(R.string.notif_uptime, TrafficFormat.duration((now - startedAt) / 1000))).joinToString("\n")
+        TrafficRecorder.add(this, TrafficHistory.delta(lastTx, tx), TrafficHistory.delta(lastRx, rx))
         lastTx = tx; lastRx = rx; lastAt = now
         if (lastDetails?.expanded == expanded) return // nothing changed (uptime changes every second, so this only skips duplicate ticks)
         lastDetails = Details(speed, expanded)

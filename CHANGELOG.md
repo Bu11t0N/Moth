@@ -2,6 +2,13 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.5.1
+
+### Changes
+
+- Traffic statistics (Settings → Statistics): VPN traffic today, this month and over the last 30 days, with a daily chart.
+- Reminder before the subscription ends: a notification 3 days before and on the last day, if the provider sends the end date (Settings → Subscription, on by default).
+
 ## 0.5.0
 
 ### Changes

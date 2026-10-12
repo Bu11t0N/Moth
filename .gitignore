@@ -9,3 +9,4 @@ local.properties
 *.jks
 *.keystore
 *.password
+scripts/e2e/sing-box-e2e.json

@@ -36,6 +36,7 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_LOCKED_BOOT_COMPLETED) return
         if (intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED) return // storage keys are not available yet; wait for BOOT_COMPLETED
         SubscriptionUpdates.schedule(context, runCatching { SettingsStore(context).load().subUpdateHours }.getOrDefault(0))
+        runCatching { ExpiryReminder.schedule(context) }
         val settings = runCatching { SettingsStore(context).load() }.getOrNull() ?: return
         if (!settings.bootConnect) return
         Logger.i("Boot", "connect on boot is on")

@@ -25,6 +25,7 @@ object LogFacts {
         plain("autoSelect", old.autoSelect, new.autoSelect); plain("bootConnect", old.bootConnect, new.bootConnect)
         plain("dnsLeakProtection", old.dnsLeakProtection, new.dnsLeakProtection)
         plain("killSwitch", old.killSwitch, new.killSwitch); plain("favorites", old.favorites.size, new.favorites.size)
+        plain("expiryWarning", old.expiryWarning, new.expiryWarning)
         return out
     }
 
