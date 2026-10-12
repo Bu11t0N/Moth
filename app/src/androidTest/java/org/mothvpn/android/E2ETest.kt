@@ -42,7 +42,13 @@ class E2ETest {
         while (System.currentTimeMillis() < end) { last = tryFetch(); if (last == expected) return; Thread.sleep(1500) }
         dump(); throw AssertionError("traffic did not arrive via $expected (last=$last)")
     }
-    private fun tab(name: String) { wait(By.text(name).clickable(true)).click(); Thread.sleep(800) }
+    private fun tab(name: String) { wait(By.text(name)).click(); Thread.sleep(800) }
+
+    private fun toggleNear(label: UiObject2): UiObject2? {
+        val y = label.visibleBounds.centerY()
+        return device.findObjects(By.checkable(true)).firstOrNull { it.visibleBounds.top <= y && it.visibleBounds.bottom >= y }
+            ?: label.parent?.findObject(By.checkable(true))
+    }
 
     @Test fun importConnectSwitchKillSwitchDisconnect() {
         System.setProperty("http.keepAlive", "false")
@@ -54,9 +60,9 @@ class E2ETest {
 
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         // 1. Import the HTTPS subscription (the test CA is trusted in debug builds only).
-        wait(By.text("Add subscription").clickable(true)).click()
+        wait(By.text("Add subscription")).click()
         wait(By.clazz("android.widget.EditText")).text = "https://$host:8443/sub"
-        wait(By.text("Add").clickable(true)).click()
+        wait(By.text("Add")).click()
         wait(By.text("E2E VLESS"), 60_000)
         log("subscription imported")
 
@@ -76,12 +82,12 @@ class E2ETest {
 
         // 4. Kill switch on (live, while connected); stop the server: nothing may leave outside the tunnel.
         tab("Settings")
-        wait(By.text("Connection").clickable(true)).click()
+        wait(By.text("Connection")).click()
         val label = wait(By.text("Kill switch"))
-        val toggle = label.parent.findObject(By.checkable(true)) ?: run { dump(); throw AssertionError("kill switch toggle not found") }
+        val toggle = toggleNear(label) ?: run { dump(); throw AssertionError("kill switch toggle not found") }
         if (!toggle.isChecked) toggle.click()
         Thread.sleep(800)
-        assertTrue("kill switch should be on", wait(By.text("Kill switch")).parent.findObject(By.checkable(true)).isChecked)
+        assertTrue("kill switch should be on", toggleNear(wait(By.text("Kill switch")))!!.isChecked)
         device.pressBack(); Thread.sleep(500); tab("Home")
         assertEquals("paused", fetch("/pause=25"))
         Thread.sleep(4000)
