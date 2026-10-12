@@ -2,6 +2,20 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.5.0
+
+### Changes
+
+- Split tunneling: choose apps that use the VPN only, or apps that bypass it (Settings → Connection → Split tunneling).
+- New option "Russian sites and IPs directly": Russian sites and addresses open without the VPN. Off by default.
+- Automatic subscription update every 6, 12 or 24 hours (Settings → Subscription). Off by default.
+- New option "Auto-select the best server": connects to the fastest server and switches to the next one if the internet stops working.
+- New option "Start VPN when the phone turns on". Android's Always-on VPN is also supported.
+- Add a subscription or a server by scanning a QR code or pasting from the clipboard.
+- Share a server as a QR code or a copied link: long-press a server in the list.
+- DNS settings: choose a DNS server (Cloudflare, Google, Quad9, AdGuard or your own; DoH, DoT or plain) and DNS leak protection.
+- Speed test now downloads 10 MB and can be run for any server from its long-press menu.
+
 ## 0.4.7
 
 ### Changes

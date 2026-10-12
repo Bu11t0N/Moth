@@ -9,7 +9,8 @@ import java.security.MessageDigest
 import java.util.Base64
 import java.util.UUID
 
-data class Profile(val id: String, val name: String, val protocol: String, val outbound: String, val engine: String = "sing-box")
+/** [link]: the original share link (empty for Clash / Xray JSON servers); used only to export the server as a QR code. */
+data class Profile(val id: String, val name: String, val protocol: String, val outbound: String, val engine: String = "sing-box", val link: String = "")
 /**
  * [duplicates]: one safe note per dropped duplicate ("link 5 (vless): same id as kept 3f2a9c01"); [comments]: skipped '#' / empty lines;
  * [parsed]: entries that converted successfully before duplicates were removed.
@@ -73,7 +74,8 @@ object Subscriptions {
         require(profiles.isNotEmpty()) { "Нет поддерживаемых серверов. Нужен список ссылок VLESS, VMess, Trojan или Shadowsocks." }
         return ImportResult(profiles, rejected, reasons, duplicates, comments, converted.size)
     }
-    fun parseLink(link: String): Profile {
+    fun parseLink(link: String): Profile = parseLinkOnly(link).copy(link = link.trim())
+    private fun parseLinkOnly(link: String): Profile {
         val scheme = link.substringBefore("://").lowercase()
         if (scheme in setOf("hy2", "hysteria2", "hysteria", "tuic")) return ExtraProtocols.parse(link)
         if (scheme in setOf("vless", "trojan") && URI(link).rawQuery.orEmpty().split('&').any { it in setOf("type=xhttp", "type=splithttp") }) return ExtraProtocols.xhttp(link)
@@ -147,7 +149,11 @@ object Subscriptions {
 }
 
 object TunnelConfig {
-    fun create(profile: Profile, settings: ClientSettings = ClientSettings()): String = JSONObject()
+    /**
+     * [ruleSets]: rule-set tag -> local .srs file path, used only when [ClientSettings.directRu] is on (missing files are skipped;
+     * the built-in .ru/.su/.рф domain rule still applies).
+     */
+    fun create(profile: Profile, settings: ClientSettings = ClientSettings(), ruleSets: Map<String, String> = emptyMap()): String = JSONObject()
         .put("log", JSONObject().put("disabled", true))
         .put("dns", JSONObject().put("servers", JSONArray()
             .put(JSONObject().put("tag", "remote").put("address", "https://1.1.1.1/dns-query").put("detour", "proxy"))
@@ -157,10 +163,20 @@ object TunnelConfig {
                 getJSONArray("servers").getJSONObject(0).put("address", settings.dns).put("address_resolver", "bootstrap")
             })
         .put("inbounds", JSONArray().put(JSONObject().put("type", "tun").put("tag", "tun-in").put("address", JSONArray(listOf("172.19.0.1/30", "fdfe:dcba:9876::1/126")))
-            .put("mtu", settings.mtu).put("auto_route", true).put("strict_route", true).put("stack", "gvisor")))
+            .put("mtu", settings.mtu).put("auto_route", true).put("strict_route", settings.dnsLeakProtection).put("stack", "gvisor")))
         .put("outbounds", JSONArray().put(JSONObject(profile.outbound)).put(JSONObject().put("type", "direct").put("tag", "direct")))
-        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").put("rules", JSONArray().put(JSONObject().put("port", 53).put("action", "hijack-dns")).apply {
+        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").put("rules", JSONArray().apply {
+            if (settings.directRu) put(JSONObject().put("action", "sniff"))
+            put(JSONObject().put("port", 53).put("action", "hijack-dns"))
             if (!settings.ipv6) put(JSONObject().put("ip_version", 6).put("action", "reject"))
-        }))
+            if (settings.directRu) {
+                put(JSONObject().put("domain_suffix", JSONArray(DirectRoutes.suffixes)).put("outbound", "direct"))
+                if (ruleSets.isNotEmpty()) put(JSONObject().put("rule_set", JSONArray(ruleSets.keys.sorted())).put("outbound", "direct"))
+            }
+        }).apply {
+            if (settings.directRu && ruleSets.isNotEmpty()) put("rule_set", JSONArray().apply {
+                ruleSets.toSortedMap().forEach { (tag, path) -> put(JSONObject().put("type", "local").put("tag", tag).put("format", "binary").put("path", path)) }
+            })
+        })
         .toString()
 }

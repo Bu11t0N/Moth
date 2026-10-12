@@ -20,6 +20,10 @@ object LogFacts {
         plain("hideUnavailable", old.hideUnavailable, new.hideUnavailable); plain("probeMode", old.probeMode, new.probeMode)
         plain("probeParallel", old.probeParallel, new.probeParallel); plain("probeTimeoutMs", old.probeTimeoutMs, new.probeTimeoutMs)
         plain("updateChannel", old.updateChannel.ifEmpty { "auto" }, new.updateChannel.ifEmpty { "auto" })
+        plain("splitMode", old.splitMode, new.splitMode); plain("splitApps", old.splitApps.size, new.splitApps.size)
+        plain("directRu", old.directRu, new.directRu); plain("subUpdateHours", old.subUpdateHours, new.subUpdateHours)
+        plain("autoSelect", old.autoSelect, new.autoSelect); plain("bootConnect", old.bootConnect, new.bootConnect)
+        plain("dnsLeakProtection", old.dnsLeakProtection, new.dnsLeakProtection)
         return out
     }
 

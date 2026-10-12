@@ -5,6 +5,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Split tunneling lists the installed apps so the user can choose which ones use the VPN. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" xmlns:tools="http://schemas.android.com/tools" tools:ignore="QueryAllPackagesPermission" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application android:name=".MothApplication" android:label="@string/app_name" android:localeConfig="@xml/locales_config" android:icon="@mipmap/ic_launcher" android:theme="@style/AppTheme" android:allowBackup="false" android:dataExtractionRules="@xml/backup_rules" android:usesCleartextTraffic="false" android:supportsRtl="true">
         <service android:name="androidx.appcompat.app.AppLocalesMetadataHolderService" android:enabled="false" android:exported="false">
             <meta-data android:name="autoStoreLocales" android:value="true" />
@@ -16,6 +21,9 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/log_paths" />
         </provider>
         <receiver android:name=".InstallReceiver" android:exported="false" />
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
+        </receiver>
         <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.updates" android:exported="false" android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_paths" />
         </provider>

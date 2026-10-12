@@ -18,6 +18,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import org.mothvpn.core.ClientSettings
 import org.mothvpn.core.VersionLabel
+import org.mothvpn.core.DnsServers
+import org.mothvpn.core.SubscriptionSchedule
 
 @Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}) {
     var draft by remember(initial) { mutableStateOf(initial) }
@@ -32,7 +34,7 @@ import org.mothvpn.core.VersionLabel
     var interval by remember(initial) { mutableStateOf(initial.healthIntervalSeconds.toString()) }
     var error by remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
-    BackHandler(enabled = section != null) { if (logPage == 3) { logPage = 0; section = null } else if (logPage != 0) logPage = 0 else section = null }
+    BackHandler(enabled = section != null) { if (section == tr(R.string.split_title)) section = tr(R.string.msg_connection_75) else if (logPage == 3) { logPage = 0; section = null } else if (logPage != 0) logPage = 0 else section = null }
     fun applySettings(next: ClientSettings) {
         draft = next
         try { save(next.validate()); error = "" }
@@ -57,7 +59,7 @@ import org.mothvpn.core.VersionLabel
             (fadeIn(tween(220, delayMillis = 60)) + slideInHorizontally(tween(260)) { it / 8 * dir }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(260)) { -it / 8 * dir })
         }, label = "settingsPage") { page ->
             val sec = page.first; val lp = page.second
-        if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.weight(1f)) else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.weight(1f)) else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (sec) {
                 null -> {
                     SettingsCategory(tr(R.string.msg_appearance_74)) { section = tr(R.string.msg_appearance_74) }
@@ -136,7 +138,30 @@ import org.mothvpn.core.VersionLabel
                     OutlinedTextField(mtu, { mtu = it; number(it, "mtu") }, enabled = !locked, label = { Text("MTU · 1280–9000") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     SettingsToggle(tr(R.string.msg_ipv6_through_vpn_89), draft.ipv6, !locked) { applySettings(draft.copy(ipv6 = it)) }
                     Text(tr(R.string.msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90), style = MaterialTheme.typography.bodySmall)
-                    OutlinedTextField(draft.dns, { applySettings(draft.copy(dns = it)) }, enabled = !locked, label = { Text("DNS over HTTPS") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    val splitModes = mapOf("off" to tr(R.string.split_mode_off), "only" to tr(R.string.split_mode_only), "bypass" to tr(R.string.split_mode_bypass))
+                    DialogRow(tr(R.string.split_title), splitModes.getValue(draft.splitMode) + if (draft.splitMode != "off") " · ${draft.splitApps.size}" else "") { section = tr(R.string.split_title) }
+                    SettingsToggle(tr(R.string.direct_ru), draft.directRu, !locked) { applySettings(draft.copy(directRu = it)) }
+                    Text(tr(R.string.direct_ru_hint), style = MaterialTheme.typography.bodySmall)
+                    SettingsToggle(tr(R.string.auto_select), draft.autoSelect, !locked) { applySettings(draft.copy(autoSelect = it)) }
+                    Text(tr(R.string.auto_select_hint), style = MaterialTheme.typography.bodySmall)
+                    SettingsToggle(tr(R.string.boot_connect), draft.bootConnect) { applySettings(draft.copy(bootConnect = it)) }
+                    Text(tr(R.string.boot_connect_hint), style = MaterialTheme.typography.bodySmall)
+                    var dnsDialog by remember { mutableStateOf(false) }
+                    var customDns by remember { mutableStateOf(false) }
+                    val dnsNames = mapOf("cloudflare" to "Cloudflare (DoH)", "google" to "Google (DoH)", "quad9" to "Quad9 (DoH)", "adguard" to "AdGuard (DoH)", "cloudflare-udp" to tr(R.string.dns_plain_cloudflare))
+                    DialogRow(tr(R.string.dns_server), DnsServers.presetOf(draft.dns)?.let { dnsNames.getValue(it.id) } ?: (tr(R.string.dns_custom) + ": " + draft.dns), !locked) { dnsDialog = true }
+                    if (dnsDialog) ChoiceDialog(tr(R.string.dns_server), DnsServers.presets.map { it.address to dnsNames.getValue(it.id) } + ("" to tr(R.string.dns_custom)),
+                        if (DnsServers.presetOf(draft.dns) != null) draft.dns else "", { dnsDialog = false }) { if (it.isEmpty()) customDns = true else applySettings(draft.copy(dns = it)) }
+                    if (customDns) {
+                        var text by remember { mutableStateOf(draft.dns) }
+                        AlertDialog(onDismissRequest = { customDns = false }, title = { Text(tr(R.string.dns_custom)) }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(text, { text = it.trim() }, singleLine = true, isError = !DnsServers.valid(text), modifier = Modifier.fillMaxWidth())
+                            Text(tr(R.string.dns_custom_hint), style = MaterialTheme.typography.bodySmall)
+                        } }, confirmButton = { TextButton(enabled = DnsServers.valid(text), onClick = { customDns = false; applySettings(draft.copy(dns = text)) }) { Text("OK") } },
+                            dismissButton = { TextButton(onClick = { customDns = false }) { Text(tr(R.string.msg_cancel_32)) } })
+                    }
+                    SettingsToggle(tr(R.string.dns_leak), draft.dnsLeakProtection, !locked) { applySettings(draft.copy(dnsLeakProtection = it)) }
+                    Text(tr(R.string.dns_leak_hint), style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(draft.bootstrapDns, { applySettings(draft.copy(bootstrapDns = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_server_bootstrap_dns_91)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text(tr(R.string.msg_this_dns_is_used_directly_to_connect_to_serve_92), style = MaterialTheme.typography.bodySmall)
                 }
@@ -160,6 +185,10 @@ import org.mothvpn.core.VersionLabel
                 }
                 tr(R.string.msg_subscription_and_hwid_77) -> {
                     if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104))
+                    var subDialog by remember { mutableStateOf(false) }
+                    val subOptions = SubscriptionSchedule.intervals.map { it to if (it == 0) tr(R.string.sub_auto_off) else tr(R.string.sub_auto_hours, it) }
+                    DialogRow(tr(R.string.sub_auto), subOptions.first { it.first == draft.subUpdateHours }.second) { subDialog = true }
+                    if (subDialog) ChoiceDialog(tr(R.string.sub_auto), subOptions, draft.subUpdateHours, { subDialog = false }) { applySettings(draft.copy(subUpdateHours = it)) }
                     SettingsToggle(tr(R.string.msg_send_hwid_to_the_provider_105), draft.hwidEnabled, !locked) { applySettings(draft.copy(hwidEnabled = it)) }
                     Text(tr(R.string.msg_a_persistent_installation_identifier_without_106), style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(draft.hwid, { applySettings(draft.copy(hwid = it)) }, enabled = !locked, label = { Text("HWID · x-hwid") }, singleLine = true,

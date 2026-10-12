@@ -4,9 +4,9 @@ require(versionSuffix.matches(Regex("[A-Za-z0-9.-]*"))) { "versionSuffix: letter
 android {
     namespace = "org.mothvpn.android"
     compileSdk = 34
-    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 23; versionName = "0.4.7$versionSuffix" }
-        // versionCode: every build that can be offered as an update must exceed the previous one (0.4.7 beta.1 = 17, beta.2 = 18, beta.3 = 19, beta.4 = 20, beta.5 = 21, beta.6 = 22, stable 0.4.7 = 23).
-        // Test builds: -PversionSuffix=-beta.1 gives versionName 0.4.7-beta.1 ; no property gives 0.4.7.
+    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 24; versionName = "0.5.0$versionSuffix" }
+        // versionCode: every build that can be offered as an update must exceed the previous one (0.4.7 beta.1 = 17, beta.2 = 18, beta.3 = 19, beta.4 = 20, beta.5 = 21, beta.6 = 22, stable 0.4.7 = 23, 0.5.0 beta.1 = 24).
+        // Test builds: -PversionSuffix=-beta.1 gives versionName 0.5.0-beta.1 ; no property gives 0.5.0.
     buildTypes {
         getByName("release") {
             signingConfig = if (providers.gradleProperty("unsignedValidation").orNull == "true") null else signingConfigs.create("mothRelease") {
@@ -37,5 +37,8 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.2.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0") { isTransitive = false }
+    implementation("com.google.zxing:core:3.5.3")
 }
 

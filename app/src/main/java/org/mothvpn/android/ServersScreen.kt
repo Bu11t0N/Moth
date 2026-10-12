@@ -2,6 +2,7 @@ package org.mothvpn.android
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -37,7 +38,7 @@ import org.mothvpn.core.ServerOrder
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable fun ServersScreen(saved: SavedSubscription?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
     add: () -> Unit, refresh: () -> Unit, remove: () -> Unit, select: (String, String) -> Unit, probe: (String, List<String>) -> Unit,
-    speedTest: (String) -> Unit, cancel: () -> Unit, preferences: (ClientSettings) -> Unit) {
+    speedTest: (String, String?) -> Unit, cancel: () -> Unit, preferences: (ClientSettings) -> Unit) {
     // Probe results arrive in bursts; apply at most one update per 250 ms so the list does not recompose constantly.
     var results by remember { mutableStateOf(Diagnostics.results.value) }
     LaunchedEffect(Unit) { Diagnostics.results.collect { results = it; delay(250) } }
@@ -47,6 +48,8 @@ import org.mothvpn.core.ServerOrder
     var kind by rememberSaveable { mutableStateOf(network.kind) }
     var search by rememberSaveable { mutableStateOf("") }
     var delete by remember { mutableStateOf(false) }
+    var menuFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
+    var shareFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(results) { now = System.currentTimeMillis(); while (true) { delay(60_000); now = System.currentTimeMillis() } }
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
@@ -78,7 +81,7 @@ import org.mothvpn.core.ServerOrder
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]
                 Surface(color = if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().clickable(enabled = !locked) { select(p.id, k) }
+                    shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().combinedClickable(onLongClick = { menuFor = p }) { if (!locked) select(p.id, k) }
                         .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
                     Row(Modifier.padding(horizontal = 14.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -118,9 +121,9 @@ import org.mothvpn.core.ServerOrder
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             ActionIcon("add", if (saved == null) tr(R.string.msg_add_subscription_16) else tr(R.string.msg_replace_subscription_47), !locked, add)
-            ActionIcon("refresh", tr(R.string.msg_update_subscription_48), saved != null && !locked, refresh)
+            ActionIcon("refresh", tr(R.string.msg_update_subscription_48), saved != null && !saved.local && !locked, refresh)
             ActionIcon(if (probing) "stop" else "check", if (probing) tr(R.string.msg_cancel_checks_49) else tr(R.string.msg_check_servers_50), probing || canCheck) { if (probing) cancel() else probe(kind, visible.map { it.id }) } // snapshot of the displayed order at the moment of the tap
-            ActionIcon("speed", tr(R.string.msg_measure_speed_download_up_to_1_mib_51), canCheck) { speedTest(kind) }
+            ActionIcon("speed", tr(R.string.msg_measure_speed_download_up_to_1_mib_51), canCheck) { speedTest(kind, null) }
             ActionIcon("delete", tr(R.string.msg_remove_subscription_52), saved != null && !locked) { delete = true }
         }
         TabRow(selectedTabIndex = if (kind == "wifi") 0 else 1) {
@@ -143,6 +146,15 @@ import org.mothvpn.core.ServerOrder
         HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top,
             flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = spring(stiffness = Spring.StiffnessHigh))) { KindPage(if (it == 0) "wifi" else "mobile") }
     }
+    menuFor?.let { p ->
+        AlertDialog(onDismissRequest = { menuFor = null }, title = { Text(p.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
+            Column {
+                TextButton(enabled = canCheck, onClick = { menuFor = null; speedTest(kind, p.id) }) { Text(tr(R.string.server_speed_test)) }
+                TextButton(onClick = { menuFor = null; shareFor = p }) { Text(tr(R.string.server_share)) }
+            }
+        }, confirmButton = { TextButton(onClick = { menuFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
+    }
+    shareFor?.let { p -> ShareServerDialog(p) { shareFor = null } }
     if (delete) AlertDialog(onDismissRequest = { delete = false }, title = { Text(tr(R.string.msg_remove_subscription_67)) }, text = { Text(tr(R.string.msg_the_subscription_link_will_need_to_be_added_a_68)) }, confirmButton = { TextButton(enabled = !locked, onClick = { delete = false; remove() }) { Text(tr(R.string.msg_remove_69)) } }, dismissButton = { TextButton(onClick = { delete = false }) { Text(tr(R.string.msg_cancel_32)) } })
 }
 
