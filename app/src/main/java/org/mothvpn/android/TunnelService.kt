@@ -7,7 +7,11 @@ import android.app.Notification
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.TrafficStats
 import android.net.VpnService
+import android.os.Process
+import android.os.SystemClock
+import org.mothvpn.core.TrafficFormat
 import android.os.ParcelFileDescriptor
 import io.nekohasekai.libbox.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import org.mothvpn.core.ClientSettings
 import org.mothvpn.core.Profile
+import org.mothvpn.core.ProbeErrorKind
 import org.mothvpn.core.TunnelConfig
 import org.mothvpn.core.LocalProxyConfig
 import org.mothvpn.core.ProbePolicy
@@ -60,12 +65,14 @@ class TunnelService : VpnService(), PlatformInterface {
             Logger.i("Tunnel", "stop requested (state=${TunnelStatus.state.value})")
             cancelProbes()
             TunnelStatus.mutable.value = TunnelState.STOPPING
+            stopStats(); foreground()
             executor.execute { closeTunnel(); Logger.i("Tunnel", "VPN disconnected (tunnel stopped)"); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf(startId) }
         } else if (intent?.action == "START") {
             val id = intent.getStringExtra("profile") ?: run { Logger.w("Tunnel", "START without a profile ignored"); return START_NOT_STICKY }
             Logger.i("Tunnel", "VPN connect requested (previous state=${TunnelStatus.state.value})")
-            foreground()
+            serverName = ""
             TunnelStatus.mutable.value = TunnelState.STARTING
+            foreground()
             executor.execute {
                 var stage = "init"
                 try {
@@ -74,6 +81,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     stage = "load settings/profile"
                     val settings = SettingsStore(this).load()
                     var profile = SubscriptionStore(this).load()?.profiles?.firstOrNull { it.id == id } ?: error("Missing profile")
+                    serverName = profile.name; foreground() // the name is shown in the notification only, never logged
                     Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled}")
                     if (profile.engine == "xray") {
                         stage = "xray start"
@@ -93,6 +101,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
                     if (!stopped) {
                         TunnelStatus.mutable.value = TunnelState.RUNNING
+                        startStats(); foreground() // startStats first: it sets the connect time the notification chronometer counts from
                         TunnelStatus.activeMutable.value = id
                         Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) tr(R.string.msg_checking_internet_access_through_vpn_120) else tr(R.string.msg_checks_are_disabled_in_settings_121))
                         if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
@@ -110,7 +119,7 @@ class TunnelService : VpnService(), PlatformInterface {
             cancelProbes()
         } else if (intent?.action in setOf("PROBE", "SPEED")) {
             if (Diagnostics.running.value) { Logger.w("Probe", "request ignored: a check is already running"); return START_NOT_STICKY }
-            foreground(tr(R.string.msg_checking_vpn_servers_manage_in_the_app_122))
+            foreground() // while connected the notification keeps showing the server name
             probeCancel = AtomicBoolean(false)
             val cancel = probeCancel
             val id = intent?.getStringExtra("profile")
@@ -126,18 +135,68 @@ class TunnelService : VpnService(), PlatformInterface {
         }
         return START_NOT_STICKY
     }
-    private fun foreground(text: String = tr(R.string.msg_vpn_is_running_manage_in_the_app_124)) {
+    @Volatile private var serverName = ""
+    /** Posts (or re-posts) the foreground notification for the current state. The app name comes only from the system app-name line. */
+    private fun foreground() = startForeground(1, buildNotification())
+    private fun buildNotification(): Notification {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("vpn", tr(R.string.msg_vpn_connection_125), NotificationManager.IMPORTANCE_LOW))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 1, Intent(this, TunnelService::class.java).setAction("STOP"), PendingIntent.FLAG_IMMUTABLE)
-        val notification = Notification.Builder(this, "vpn").setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle(tr(R.string.app_name))
-            .setContentText(text).setContentIntent(open).setOngoing(true)
-            .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build()).build()
-        startForeground(1, notification)
+        val name = serverName
+        val builder = Notification.Builder(this, "vpn").setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setContentIntent(open).setOngoing(true).setShowWhen(false)
+            .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build())
+        when (TunnelStatus.state.value) {
+            TunnelState.RUNNING -> {
+                // Collapsed: title = server name, text = speed; the header shows only the system app-name line (no sub text, no time).
+                // Expanded: the same title, then speed, total and time lines (the Time line ticks via the 1 Hz update).
+                builder.setContentTitle(name.ifBlank { tr(R.string.msg_vpn_connection_125) })
+                lastDetails?.let { builder.setContentText(it.speed).setStyle(Notification.BigTextStyle().bigText(it.expanded)) }
+            }
+            TunnelState.STARTING -> { builder.setContentTitle(tr(R.string.notif_connecting)); if (name.isNotBlank()) builder.setContentText(name) }
+            TunnelState.STOPPING -> builder.setContentTitle(tr(R.string.notif_disconnecting))
+            else -> builder.setContentTitle(tr(R.string.notif_checking))
+        }
+        return builder.build()
+    }
+    // ---- live traffic statistics in the notification (at most once per second, only while connected) ----
+    private class Details(val speed: String, val expanded: String)
+    @Volatile private var lastDetails: Details? = null
+    private val statsExecutor = Executors.newSingleThreadScheduledExecutor()
+    private var statsTask: java.util.concurrent.ScheduledFuture<*>? = null
+    private val statsLock = Any()
+    private var statsActive = false
+    @Volatile private var connectStartMillis = 0L // wall-clock time of the connection, reset on every connect
+    private var baseTx = 0L; private var baseRx = 0L; private var lastTx = 0L; private var lastRx = 0L; private var lastAt = 0L; private var startedAt = 0L
+    /** Traffic is measured with TrafficStats for this app's uid (the core's sockets to the server), relative to the moment of connecting. libbox status is not wired up in this app. */
+    private fun startStats(): Unit = synchronized(statsLock) {
+        connectStartMillis = System.currentTimeMillis()
+        val tx = TrafficStats.getUidTxBytes(Process.myUid()); val rx = TrafficStats.getUidRxBytes(Process.myUid())
+        if (tx == TrafficStats.UNSUPPORTED.toLong() || rx == TrafficStats.UNSUPPORTED.toLong()) { Logger.w("Tunnel", "traffic statistics are unavailable on this device"); return }
+        baseTx = tx; baseRx = rx; lastTx = tx; lastRx = rx; lastAt = SystemClock.elapsedRealtime(); startedAt = lastAt
+        statsActive = true; lastDetails = null
+        statsTask?.cancel(false)
+        statsTask = statsExecutor.scheduleWithFixedDelay({ runCatching { tickStats() }.onFailure { Logger.w("Tunnel", "notification update failed", it) } }, 1, 1, TimeUnit.SECONDS)
+    }
+    private fun stopStats() = synchronized(statsLock) { statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0 }
+    private fun tickStats(): Unit = synchronized(statsLock) {
+        if (!statsActive || TunnelStatus.state.value != TunnelState.RUNNING) return
+        val now = SystemClock.elapsedRealtime()
+        val tx = TrafficStats.getUidTxBytes(Process.myUid()); val rx = TrafficStats.getUidRxBytes(Process.myUid())
+        if (tx < 0 || rx < 0) return
+        val units = tr(R.string.notif_units).split("|"); val locale = AppLanguage.context().resources.configuration.locales[0]
+        val speed = tr(R.string.notif_speed, TrafficFormat.bytes(TrafficFormat.rate(lastTx, tx, now - lastAt), units, locale), TrafficFormat.bytes(TrafficFormat.rate(lastRx, rx, now - lastAt), units, locale))
+        val expanded = listOf(speed, tr(R.string.notif_total, TrafficFormat.bytes(tx - baseTx, units, locale), TrafficFormat.bytes(rx - baseRx, units, locale)),
+            tr(R.string.notif_uptime, TrafficFormat.duration((now - startedAt) / 1000))).joinToString("\n")
+        lastTx = tx; lastRx = rx; lastAt = now
+        if (lastDetails?.expanded == expanded) return // nothing changed (uptime changes every second, so this only skips duplicate ticks)
+        lastDetails = Details(speed, expanded)
+        getSystemService(NotificationManager::class.java).notify(1, buildNotification())
     }
     private fun closeTunnel() {
         Logger.d("Tunnel", "closeTunnel (box=${box != null}, xray=${xray != null})")
+        stopStats()
         generation.incrementAndGet(); healthTask?.cancel(true); healthTask = null
         TunnelStatus.activeMutable.value = ""
         Diagnostics.healthMutable.value = HealthResult()
@@ -196,8 +255,8 @@ class TunnelService : VpnService(), PlatformInterface {
                 if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) return
                 val key = "${access.kind}:${profile.id}"
                 val method = if (!speed && settings.probeMode == "tcp") "TCP" else "HTTPS"
-                fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false) = Diagnostics.result(key,
-                    ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled))
+                fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false, kind: ProbeErrorKind? = null) = Diagnostics.result(key,
+                    ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled, kind = kind))
                 if (!speed) result(checking = true)
                 val label = describe(profile)
                 var stage = "start"
@@ -208,7 +267,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     if (method == "TCP") {
                         val endpoint = ProbePolicy.tcpEndpoint(profile)
                         stage = "tcp"
-                        if (endpoint == null) result(error = tr(R.string.msg_udp_protocol_choose_an_https_check_129))
+                        if (endpoint == null) result(error = tr(R.string.msg_udp_protocol_choose_an_https_check_129), kind = ProbeErrorKind.UDP_PROTOCOL)
                         else { val ms = tcpProbe(endpoint, settings.probeTimeoutMs.toLong(), cancelled); Logger.i("Probe", "TCP ok in $ms ms ($label)"); if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) result(ms = ms) }
                         return
                     }
@@ -250,12 +309,12 @@ class TunnelService : VpnService(), PlatformInterface {
                     Logger.e("Probe", "probe failed at stage '$stage' method=$method network=${access.kind} cancelled=${cancelled.get()} ($label)", e)
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
                         if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_speed_test_failed_131)
-                        else result(error = Diagnostics.friendly(e))
+                        else result(error = Diagnostics.friendly(e), kind = ProbeErrorKind.of(e))
                     }
                 } finally {
                     if (allocated != 0) releasePort(allocated)
                     runCatching { local?.close() }.onFailure { Logger.w("Probe", "closing the local core failed", it) }; runCatching { xr?.close() }.onFailure { Logger.w("Probe", "closing the local xray failed", it) }
-                    if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = tr(R.string.msg_check_cancelled_46), wasCancelled = true)
+                    if (!speed && Diagnostics.results.value[key]?.checking == true) result(error = tr(R.string.msg_check_cancelled_46), wasCancelled = true, kind = ProbeErrorKind.CANCELLED)
                 }
             }
             val futures = profiles.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }
@@ -301,7 +360,7 @@ class TunnelService : VpnService(), PlatformInterface {
     override fun onDestroy() {
         Logger.i("Tunnel", "service destroyed (state=${TunnelStatus.state.value})")
         stopped = true
-        cancelProbes(); healthExecutor.shutdownNow(); lookupExecutor.shutdownNow(); probes.shutdown()
+        cancelProbes(); stopStats(); statsExecutor.shutdownNow(); healthExecutor.shutdownNow(); lookupExecutor.shutdownNow(); probes.shutdown()
         executor.execute { closeTunnel(); if (TunnelStatus.mutable.value != TunnelState.ERROR) TunnelStatus.mutable.value = TunnelState.OFF }
         executor.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)

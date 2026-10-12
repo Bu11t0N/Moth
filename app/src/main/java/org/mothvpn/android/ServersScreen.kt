@@ -1,6 +1,10 @@
 package org.mothvpn.android
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import org.mothvpn.core.LatencyBand
+import org.mothvpn.core.ProbeErrorKind
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -78,21 +83,31 @@ import org.mothvpn.core.ServerOrder
                     Row(Modifier.padding(horizontal = 14.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(p.name, maxLines = if (settings.compactServers) 1 else 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
-                            Text(p.protocol.uppercase() + if (r?.latencyMs != null && r.method == "TCP") " · TCP" else "", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            if (r?.latencyMs != null && r.method == "TCP") Text(tr(R.string.msg_port_is_reachable_vpn_traffic_has_not_been_ch_65), style = MaterialTheme.typography.labelSmall)
+                            Text(p.protocol.uppercase(), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (r != null && !r.checking && r.networkHandle != network.handle) Text(tr(R.string.msg_checked_on_a_different_network_66), style = MaterialTheme.typography.labelSmall)
                         }
                         val dark = isSystemInDarkTheme()
+                        val detailed = settings.detailedIcons
+                        val red = if (dark) Color(0xFFFF6B6B) else Color(0xFFC62828)
                         when {
                             r?.checking == true -> CircularProgressIndicator(Modifier.padding(start = 12.dp).size(20.dp), strokeWidth = 2.dp) // only actively probed rows; queued rows show nothing
-                            r?.latencyMs != null -> Text("${r.latencyMs} ms", fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, modifier = Modifier.padding(start = 12.dp),
-                                color = when (LatencyBand.of(r.latencyMs)) {
-                                    LatencyBand.GOOD -> if (dark) Color(0xFF66DD88) else Color(0xFF1B7F3A)
-                                    LatencyBand.MEDIUM -> if (dark) Color(0xFFFFC247) else Color(0xFFB36B00)
-                                    LatencyBand.POOR -> if (dark) Color(0xFFFF6B6B) else Color(0xFFC62828)
-                                })
-                            r?.error != null -> Text(localizedError(r.error), style = MaterialTheme.typography.labelSmall, color = Color.Gray, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.End, modifier = Modifier.padding(start = 12.dp).widthIn(max = 120.dp))
+                            r?.latencyMs != null -> {
+                                if (detailed && r.method == "TCP") DetailBadge(DetailIcon.TCP_OK, tr(R.string.msg_port_is_reachable_vpn_traffic_has_not_been_ch_65), "TCP")
+                                Text("${r.latencyMs} ms", fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, modifier = Modifier.padding(start = 6.dp),
+                                    color = when (LatencyBand.of(r.latencyMs)) {
+                                        LatencyBand.GOOD -> if (dark) Color(0xFF66DD88) else Color(0xFF1B7F3A)
+                                        LatencyBand.MEDIUM -> if (dark) Color(0xFFFFC247) else Color(0xFFB36B00)
+                                        LatencyBand.POOR -> red
+                                    })
+                            }
+                            r?.error != null -> if (detailed) {
+                                val kind = r.kind ?: ProbeErrorKind.FAILED
+                                val text = when (kind) {
+                                    ProbeErrorKind.DNS_TIMEOUT, ProbeErrorKind.DNS_UNRESOLVED -> Diagnostics.kindText(ProbeErrorKind.DNS_TIMEOUT) + "\n" + Diagnostics.kindText(ProbeErrorKind.DNS_UNRESOLVED)
+                                    else -> Diagnostics.kindText(kind)
+                                }
+                                DetailBadge(DetailIcon.of(kind), text, null)
+                            } else Text("—", color = red, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(start = 12.dp))
                         }
                     }
                 }
@@ -133,4 +148,48 @@ import org.mothvpn.core.ServerOrder
 
 @Composable private fun ActionIcon(icon: String, label: String, enabled: Boolean, action: () -> Unit) {
     IconButton(enabled = enabled, onClick = action, modifier = Modifier.size(40.dp).semantics { contentDescription = label }) { MothIcon(icon) }
+}
+
+private enum class DetailIcon {
+    TIMEOUT, DNS, PORT, TLS, FAILED, CANCELLED, TCP_OK, INFO;
+    companion object {
+        fun of(k: ProbeErrorKind) = when (k) {
+            ProbeErrorKind.TIMEOUT -> TIMEOUT
+            ProbeErrorKind.DNS_TIMEOUT, ProbeErrorKind.DNS_UNRESOLVED -> DNS
+            ProbeErrorKind.PORT_CLOSED -> PORT
+            ProbeErrorKind.TLS -> TLS
+            ProbeErrorKind.FAILED -> FAILED
+            ProbeErrorKind.CANCELLED -> CANCELLED
+            ProbeErrorKind.UDP_PROTOCOL -> INFO
+        }
+    }
+}
+
+/** Small gray icon (optionally with a short label); a tap shows [text] in a popup. Only used when "Show detailed icons" is on. */
+@Composable private fun DetailBadge(icon: DetailIcon, text: String, label: String?) {
+    var open by remember { mutableStateOf(false) }
+    val gray = Color.Gray.copy(alpha = if (icon == DetailIcon.CANCELLED) 0.55f else 1f)
+    Row(Modifier.padding(start = 12.dp).clickable { open = true }.semantics { contentDescription = text }, verticalAlignment = Alignment.CenterVertically) {
+        Canvas(Modifier.size(22.dp)) {
+            val w = size.width; val h = size.height; val sw = 1.8.dp.toPx(); val st = Stroke(sw, cap = StrokeCap.Round)
+            fun line(x: Float, y: Float, x2: Float, y2: Float) = drawLine(gray, Offset(w * x, h * y), Offset(w * x2, h * y2), sw, StrokeCap.Round)
+            fun ring() = drawCircle(gray, w * .42f, Offset(w / 2, h / 2), style = st)
+            when (icon) {
+                DetailIcon.TIMEOUT -> { ring(); line(.5f, .25f, .5f, .5f); line(.5f, .5f, .68f, .62f) }
+                DetailIcon.DNS -> { ring(); drawOval(gray, Offset(w * .32f, h * .08f), androidx.compose.ui.geometry.Size(w * .36f, h * .84f), style = st); line(.08f, .5f, .92f, .5f); line(.15f, .9f, .85f, .1f) }
+                DetailIcon.PORT -> { ring(); line(.2f, .8f, .8f, .2f) }
+                DetailIcon.TLS -> { drawRect(gray, Offset(w * .2f, h * .45f), androidx.compose.ui.geometry.Size(w * .6f, h * .45f), style = st); drawArc(gray, 180f, 180f, false, Offset(w * .3f, h * .12f), androidx.compose.ui.geometry.Size(w * .4f, h * .66f), style = st); line(.5f, .56f, .5f, .7f); drawCircle(gray, sw * .6f, Offset(w * .5f, h * .8f)) }
+                DetailIcon.FAILED -> { ring(); line(.5f, .26f, .5f, .56f); drawCircle(gray, sw * .6f, Offset(w * .5f, h * .72f)) }
+                DetailIcon.CANCELLED -> { ring(); line(.34f, .34f, .66f, .66f); line(.66f, .34f, .34f, .66f) }
+                DetailIcon.TCP_OK -> { ring(); line(.3f, .52f, .45f, .67f); line(.45f, .67f, .72f, .35f) }
+                DetailIcon.INFO -> { ring(); line(.5f, .45f, .5f, .74f); drawCircle(gray, sw * .6f, Offset(w * .5f, h * .28f)) }
+            }
+        }
+        if (label != null) Text(label, style = MaterialTheme.typography.labelSmall, color = gray, modifier = Modifier.padding(start = 2.dp))
+    }
+    if (open) androidx.compose.ui.window.Popup(alignment = Alignment.BottomEnd, onDismissRequest = { open = false }) {
+        Surface(shape = RoundedCornerShape(8.dp), tonalElevation = 6.dp, shadowElevation = 4.dp, modifier = Modifier.clickable { open = false }) {
+            Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).widthIn(max = 240.dp))
+        }
+    }
 }

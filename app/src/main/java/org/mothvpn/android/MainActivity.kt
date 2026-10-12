@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,6 +39,8 @@ class MainActivity : AppCompatActivity() {
     companion object { const val CONNECT_FROM_TILE = "org.mothvpn.android.CONNECT_FROM_TILE" }
     private lateinit var store: SubscriptionStore
     private var saved by mutableStateOf<SavedSubscription?>(null)
+    private var updateAvailable by mutableStateOf(false)
+    private var openUpdates by mutableStateOf(false)
     private var busy by mutableStateOf(false)
     private var messageState by mutableStateOf("")
     /** Every message shown to the user is also written to the log (the text is redacted by Logger). */
@@ -72,6 +75,7 @@ class MainActivity : AppCompatActivity() {
             runCatching { withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).load() } }.onSuccess { settings = it; Logger.i("Store", "settings loaded: channel=${UpdateChannel.effective(it.updateChannel, BuildConfig.VERSION_NAME).id} theme=${it.theme}") }
                 .onFailure { Logger.e("Store", "reading settings failed", it); message = tr(R.string.msg_could_not_read_settings_24) }
             busy = false
+            checkForUpdate() // on every launch, silently
             var persisted = settings
             var commit = 0L
             settingsApplied.value = commit to persisted
@@ -109,7 +113,8 @@ class MainActivity : AppCompatActivity() {
                             when (shown) {
                                 0 -> HomeScreen(saved, network, busy, message,
                                     add = { url = ""; dialog = true },
-                                    connect = { if (TunnelStatus.state.value == TunnelState.RUNNING) stop() else connect() }, servers = { tab = 1 })
+                                    connect = { if (TunnelStatus.state.value == TunnelState.RUNNING) stop() else connect() }, servers = { tab = 1 },
+                                    updateAvailable = updateAvailable, openUpdates = { openUpdates = true; tab = 2 })
                                 1 -> ServersScreen(saved, settings, network, busy, message,
                                     add = { url = ""; dialog = true }, refresh = { saved?.let { import(it.url, "refresh") } }, remove = { removeSubscription() },
                                     select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(null, false, kind, order) },
@@ -119,7 +124,7 @@ class MainActivity : AppCompatActivity() {
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
-                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, probing || tunnel in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 })
+                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, probing || tunnel in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false })
                                 }
                             }
                             }
@@ -139,6 +144,15 @@ class MainActivity : AppCompatActivity() {
                     }, confirmButton = { TextButton(enabled = url.isNotBlank(), onClick = { dialog = false; import(url); url = "" }) { Text(tr(R.string.msg_add_31)) } }, dismissButton = { TextButton(onClick = { dialog = false; url = "" }) { Text(tr(R.string.msg_cancel_32)) } })
                 }
             }
+        }
+    }
+    /** Silent launch-time update check using the saved channel; a failure is only logged and shows nothing. */
+    private fun checkForUpdate() {
+        val channel = UpdateChannel.effective(settings.updateChannel, BuildConfig.VERSION_NAME)
+        lifecycleScope.launch {
+            try { updateAvailable = withContext(Dispatchers.IO) { AppUpdater.check(channel) } != null }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { updateAvailable = false; Logger.w("Update", "launch update check failed", e) }
         }
     }
     private fun saveSettings(next: ClientSettings) {

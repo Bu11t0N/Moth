@@ -3,6 +3,7 @@ package org.mothvpn.android
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.VpnService
+import org.mothvpn.core.ProbeErrorKind
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.BufferedInputStream
@@ -16,7 +17,7 @@ import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 
-data class ProbeResult(val checking: Boolean = false, val latencyMs: Long? = null, val error: String? = null, val checkedAt: Long = System.currentTimeMillis(), val method: String = "HTTPS", val networkHandle: Long = 0, val cancelled: Boolean = false)
+data class ProbeResult(val checking: Boolean = false, val latencyMs: Long? = null, val error: String? = null, val checkedAt: Long = System.currentTimeMillis(), val method: String = "HTTPS", val networkHandle: Long = 0, val cancelled: Boolean = false, val kind: ProbeErrorKind? = null)
 data class HealthResult(val checking: Boolean = false, val latencyMs: Long? = null, val message: String = tr(R.string.msg_connection_has_not_been_checked_yet_0), val failures: Int = 0)
 object Diagnostics {
     internal val resultsMutable = MutableStateFlow<Map<String, ProbeResult>>(emptyMap())
@@ -30,13 +31,17 @@ object Diagnostics {
     @Synchronized fun result(id: String, value: ProbeResult) { resultsMutable.value = resultsMutable.value + (id to value) }
     /** Built-in probe URLs are public and logged verbatim; a user-supplied URL is only reported as "custom". */
     fun describeUrl(url: String): String = if (url in setOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204", "https://www.google.com/generate_204", "https://speed.cloudflare.com/__down?bytes=1048576")) url else "custom"
-    fun friendly(e: Throwable) = when (e) {
-        is java.net.SocketTimeoutException -> tr(R.string.msg_server_timed_out_1)
-        is java.util.concurrent.TimeoutException -> tr(R.string.msg_dns_lookup_timed_out_2)
-        is java.net.UnknownHostException -> tr(R.string.msg_could_not_resolve_the_server_address_3)
-        is java.net.ConnectException -> tr(R.string.msg_server_port_is_not_responding_4)
-        is javax.net.ssl.SSLException -> tr(R.string.msg_could_not_verify_https_5)
-        else -> tr(R.string.msg_check_failed_6)
+    fun friendly(e: Throwable) = kindText(ProbeErrorKind.of(e))
+    /** Localized text for an outcome code (used for the log-free tooltip of the detailed icons). */
+    fun kindText(k: ProbeErrorKind) = when (k) {
+        ProbeErrorKind.TIMEOUT -> tr(R.string.msg_server_timed_out_1)
+        ProbeErrorKind.DNS_TIMEOUT -> tr(R.string.msg_dns_lookup_timed_out_2)
+        ProbeErrorKind.DNS_UNRESOLVED -> tr(R.string.msg_could_not_resolve_the_server_address_3)
+        ProbeErrorKind.PORT_CLOSED -> tr(R.string.msg_server_port_is_not_responding_4)
+        ProbeErrorKind.TLS -> tr(R.string.msg_could_not_verify_https_5)
+        ProbeErrorKind.FAILED -> tr(R.string.msg_check_failed_6)
+        ProbeErrorKind.CANCELLED -> tr(R.string.msg_check_cancelled_46)
+        ProbeErrorKind.UDP_PROTOCOL -> tr(R.string.msg_udp_protocol_choose_an_https_check_129)
     }
     fun checkTunnel(manager: ConnectivityManager, address: String, timeoutMs: Long): Long {
         val network = manager.allNetworks.firstOrNull { manager.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true }
