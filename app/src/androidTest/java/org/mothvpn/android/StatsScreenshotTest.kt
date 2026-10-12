@@ -32,6 +32,7 @@ class StatsScreenshotTest {
         device.wait(Until.findObject(By.text("Statistics")), 10_000).click()
         val chart = device.wait(Until.findObject(By.desc("Daily traffic")), 10_000)
         assertNotNull("chart not shown", chart)
+        device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.25f)
         Thread.sleep(1200)
         val b = chart.visibleBounds
         val left = b.left + (48 * context.resources.displayMetrics.density).toInt()
@@ -39,5 +40,6 @@ class StatsScreenshotTest {
         Thread.sleep(800)
         assertNotNull("tap detail not shown", device.findObject(By.textContains("↑")))
         device.takeScreenshot(File(context.externalCacheDir, "stats.png"))
+        device.pressBack(); Thread.sleep(500)
     }
 }

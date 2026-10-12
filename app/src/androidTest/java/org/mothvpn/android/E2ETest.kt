@@ -45,10 +45,10 @@ class E2ETest {
     private fun tab(name: String) { wait(By.text(name)).click(); Thread.sleep(800) }
 
     private fun scrollTo(text: String): UiObject2 {
-        repeat(10) {
+        for (dir in listOf(androidx.test.uiautomator.Direction.DOWN, androidx.test.uiautomator.Direction.UP)) repeat(14) {
             device.findObject(By.text(text))?.let { return it }
-            device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.7f)
-            Thread.sleep(400)
+            device.findObject(By.scrollable(true))?.scroll(dir, 0.35f)
+            Thread.sleep(500)
         }
         return wait(By.text(text), 2_000)
     }
