@@ -21,7 +21,6 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - DNS settings: choose a DNS server (Cloudflare, Google, Quad9, AdGuard or your own address) and DNS leak protection.
 - Speed test now downloads 10 MB and can be run for any server from its long-press menu.
 - The notification icon is now the moth.
-- Split tunneling no longer needs access to the full list of installed apps.
 
 ## 0.4.7
 
