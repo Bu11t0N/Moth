@@ -103,10 +103,7 @@ object SubscriptionDownload {
                         val title = connection.getHeaderField("profile-title").orEmpty().let { text ->
                             if (text.startsWith("base64:")) runCatching { String(android.util.Base64.decode(text.removePrefix("base64:"), android.util.Base64.DEFAULT), Charsets.UTF_8) }.onFailure { Logger.w("Download", "profile-title base64 decoding failed", it) }.getOrDefault("") else text
                         }.take(120)
-                        val info = connection.getHeaderField("subscription-userinfo").orEmpty().split(';').mapNotNull {
-                            val pair = it.trim().split('=', limit = 2)
-                            if (pair.size == 2) pair[1].toLongOrNull()?.coerceAtLeast(0)?.let { n -> pair[0] to n } else null
-                        }.toMap()
+                        val info = org.mothvpn.core.SubscriptionQuota.parse(connection.getHeaderField("subscription-userinfo").orEmpty())
                         val used = (info["upload"] ?: 0).let { u -> val d = info["download"] ?: 0; if (Long.MAX_VALUE - u < d) Long.MAX_VALUE else u + d }
                         return Response(String(bytes, Charsets.UTF_8), title, info["expire"] ?: 0, used, info["total"] ?: 0)
                     }

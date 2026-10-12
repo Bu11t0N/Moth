@@ -52,7 +52,7 @@
     <string name="msg_update_subscription_48" formatted="false">"Update subscription"</string>
     <string name="msg_cancel_checks_49" formatted="false">"Cancel checks"</string>
     <string name="msg_check_servers_50" formatted="false">"Check servers"</string>
-    <string name="msg_measure_speed_download_up_to_1_mib_51" formatted="false">"Measure speed: download up to 1 MiB"</string>
+    <string name="msg_measure_speed_download_up_to_1_mib_51" formatted="false">"Measure speed: download 10 MB"</string>
     <string name="msg_remove_subscription_52" formatted="false">"Remove subscription"</string>
     <string name="msg_no_network_available_for_this_check_53" formatted="false">"No network available for this check"</string>
     <string name="msg_to_check_mobile_data_enable_it_and_turn_off_w_54" formatted="false">"To check mobile data, enable it and turn off Wi-Fi"</string>
@@ -123,7 +123,7 @@
     <string name="msg_too_many_redirects_119" formatted="false">"Too many redirects"</string>
     <string name="msg_checking_internet_access_through_vpn_120" formatted="false">"Checking internet access through VPN…"</string>
     <string name="msg_checks_are_disabled_in_settings_121" formatted="false">"Checks are disabled in settings"</string>
-    <string name="msg_download_test_up_to_1_mib_123" formatted="false">"Download test: up to 1 MiB…"</string>
+    <string name="msg_download_test_up_to_1_mib_123" formatted="false">"Download test: 10 MB…"</string>
     <string name="msg_vpn_connection_125" formatted="false">"VPN connection"</string>
     <string name="msg_disconnect_126" formatted="false">"Disconnect"</string>
     <string name="msg_internet_access_through_vpn_is_available_127" formatted="false">"Internet access through VPN is available"</string>
@@ -237,4 +237,59 @@
     <string name="notif_total">Total: ↑ %1$s  ↓ %2$s</string>
     <string name="notif_uptime">Time: %1$s</string>
     <string name="update_available_arrow">Update available. Open Updates</string>
+    <string name="boot_channel">VPN start</string>
+    <string name="boot_permission_title">Moth did not connect</string>
+    <string name="boot_permission_text">Open the app to allow the VPN connection.</string>
+    <string name="import_local_name">My servers</string>
+    <string name="import_invalid">This is not a subscription link (https://) or a server link (vless://, vmess://, trojan://, ss://, hy2://, tuic://).</string>
+    <string name="import_scan_prompt">Point the camera at a QR code with a subscription or server link</string>
+    <string name="import_clipboard_empty">The clipboard is empty</string>
+    <string name="import_paste">Paste</string>
+    <string name="import_scan">Scan QR</string>
+    <string name="import_hint">You can also paste or scan a single server link: such servers are added to “My servers”.</string>
+    <string name="server_speed_test">Speed test (download 10 MB)</string>
+    <string name="server_share">Share server</string>
+    <string name="share_unavailable">There is no share link for this server. Servers from Clash or Xray JSON subscriptions cannot be shared; for other servers, update the subscription first.</string>
+    <string name="share_warning">The link contains the server key. Share it only with people you trust.</string>
+    <string name="share_copied">Link copied</string>
+    <string name="share_close">Close</string>
+    <string name="share_copy">Copy link</string>
+    <string name="split_title">Split tunneling</string>
+    <string name="split_mode">Mode</string>
+    <string name="split_mode_off">Off: all apps use the VPN</string>
+    <string name="split_mode_only">Only selected apps use the VPN</string>
+    <string name="split_mode_bypass">Selected apps bypass the VPN</string>
+    <string name="split_hint">Changes apply on the next connection. Only apps with an icon in the app list are shown.</string>
+    <string name="split_search">Search apps</string>
+    <string name="split_show_system">Show system apps</string>
+    <string name="direct_ru">Russian sites and IPs directly</string>
+    <string name="direct_ru_hint">Russian sites (.ru, .su, .рф and the geosite category-ru list) and Russian IP addresses (geoip:ru) open without the VPN. Lists are downloaded from SagerNet and updated weekly.</string>
+    <string name="auto_select">Auto-select the best server</string>
+    <string name="auto_select_hint">On connect, the fastest server is used (results of a check made in the last 5 minutes are reused, otherwise all servers are checked). If the internet check fails 3 times in a row, Moth switches to the next fastest server.</string>
+    <string name="boot_connect">Start VPN when the phone turns on</string>
+    <string name="boot_connect_hint">Connects to the last server after a restart. Android\'s Always-on VPN (system VPN settings) is also supported.</string>
+    <string name="dns_server">DNS server</string>
+    <string name="dns_custom">Custom</string>
+    <string name="dns_custom_hint">https://…/dns-query (DoH), tls://host (DoT) or an IPv4 address. DNS requests always go through the VPN.</string>
+    <string name="dns_leak">DNS leak protection</string>
+    <string name="dns_leak_hint">All DNS requests and traffic stay inside the tunnel and cannot bypass it.</string>
+    <string name="sub_auto">Update subscription automatically</string>
+    <string name="sub_auto_off">Off</string>
+    <string name="sub_auto_hours">Every %1$d h</string>
+    <string name="msg_err_split_mode">Invalid split tunneling mode</string>
+    <string name="msg_err_sub_interval">Invalid subscription update interval</string>
+    <string name="msg_err_split_apps">Invalid app list</string>
+    <string name="msg_err_dns">Invalid DNS server</string>
+    <string name="kill_switch">Kill switch</string>
+    <string name="kill_switch_hint">If the connection to the server fails, the VPN stays on and blocks all traffic until Moth reconnects or you disconnect. For full protection (also while the app is not running), turn on Always-on VPN and \"Block connections without VPN\" in the system VPN settings.</string>
+    <string name="kill_switch_system">Open system VPN settings</string>
+    <string name="notif_blocked">Traffic blocked: no connection</string>
+    <string name="notif_blocked_text">Kill switch is on. Reconnecting…</string>
+    <string name="msg_blocked">Traffic blocked</string>
+    <string name="tile_blocked">Blocked</string>
+    <string name="fav_add">Add to favorites</string>
+    <string name="fav_remove">Remove from favorites</string>
+    <string name="fav_mark">Favorite</string>
+    <string name="sub_left">Traffic left: %1$s of %2$s</string>
+    <string name="sub_expires">Expires on %1$s</string>
 </resources>

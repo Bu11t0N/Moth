@@ -2,6 +2,27 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.5.0
+
+### Changes
+
+- Split tunneling: choose apps that use the VPN only, or apps that bypass it (Settings → Split tunneling).
+- New option "Russian sites and IPs directly": Russian sites and addresses open without the VPN. Off by default.
+- Automatic subscription update every 1, 2, 3, 6, 12 or 24 hours (Settings → Subscription). Off by default.
+- New option "Auto-select the best server": connects to the fastest server (reusing check results from the last 5 minutes) and switches to the next one if the internet stops working.
+- New option "Start VPN when the phone turns on". Android's Always-on VPN is also supported.
+- Kill switch (Settings → Connection, off by default): if the connection fails, traffic is blocked until Moth reconnects or you disconnect. It can be changed while connected.
+- Pick another server while the VPN is on: Moth reconnects to it right away.
+- Reliable reconnect when switching between Wi-Fi and mobile data; Moth uses the server selected for the new network.
+- Favorite servers: long-press a server → "Add to favorites". Favorites are marked with a heart and always shown at the top.
+- The Servers screen shows the traffic left and the subscription end date when the provider sends them.
+- Add a subscription or a server by scanning a QR code or pasting from the clipboard.
+- Share any server as a QR code or link (long-press a server), including servers from Clash and Xray JSON subscriptions.
+- DNS settings: choose a DNS server (Cloudflare, Google, Quad9, AdGuard or your own address) and DNS leak protection.
+- Speed test now downloads 10 MB and can be run for any server from its long-press menu.
+- The notification icon is now the moth.
+- Split tunneling no longer needs access to the full list of installed apps.
+
 ## 0.4.7
 
 ### Changes

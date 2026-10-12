@@ -52,7 +52,7 @@
     <string name="msg_update_subscription_48" formatted="false">"Обновить подписку"</string>
     <string name="msg_cancel_checks_49" formatted="false">"Отменить проверки"</string>
     <string name="msg_check_servers_50" formatted="false">"Проверить серверы"</string>
-    <string name="msg_measure_speed_download_up_to_1_mib_51" formatted="false">"Измерить скорость: загрузка до 1 МиБ"</string>
+    <string name="msg_measure_speed_download_up_to_1_mib_51" formatted="false">"Измерить скорость: загрузка 10 МБ"</string>
     <string name="msg_remove_subscription_52" formatted="false">"Удалить подписку"</string>
     <string name="msg_no_network_available_for_this_check_53" formatted="false">"Нет сети для проверки"</string>
     <string name="msg_to_check_mobile_data_enable_it_and_turn_off_w_54" formatted="false">"Для проверки включи мобильные данные и отключи Wi-Fi"</string>
@@ -123,7 +123,7 @@
     <string name="msg_too_many_redirects_119" formatted="false">"Слишком много перенаправлений"</string>
     <string name="msg_checking_internet_access_through_vpn_120" formatted="false">"Проверяем интернет через VPN…"</string>
     <string name="msg_checks_are_disabled_in_settings_121" formatted="false">"Проверка отключена в настройках"</string>
-    <string name="msg_download_test_up_to_1_mib_123" formatted="false">"Тест загрузки: до 1 МиБ…"</string>
+    <string name="msg_download_test_up_to_1_mib_123" formatted="false">"Тест загрузки: 10 МБ…"</string>
     <string name="msg_vpn_connection_125" formatted="false">"VPN-подключение"</string>
     <string name="msg_disconnect_126" formatted="false">"Отключить"</string>
     <string name="msg_internet_access_through_vpn_is_available_127" formatted="false">"Интернет через VPN доступен"</string>
@@ -237,4 +237,59 @@
     <string name="notif_total">Всего: ↑ %1$s  ↓ %2$s</string>
     <string name="notif_uptime">Время: %1$s</string>
     <string name="update_available_arrow">Доступно обновление. Открыть «Обновления»</string>
+    <string name="boot_channel">Запуск VPN</string>
+    <string name="boot_permission_title">Мотылёк не подключился</string>
+    <string name="boot_permission_text">Откройте приложение, чтобы разрешить VPN-подключение.</string>
+    <string name="import_local_name">Мои серверы</string>
+    <string name="import_invalid">Это не ссылка на подписку (https://) и не ссылка на сервер (vless://, vmess://, trojan://, ss://, hy2://, tuic://).</string>
+    <string name="import_scan_prompt">Наведите камеру на QR-код с подпиской или сервером</string>
+    <string name="import_clipboard_empty">Буфер обмена пуст</string>
+    <string name="import_paste">Вставить</string>
+    <string name="import_scan">Сканировать QR</string>
+    <string name="import_hint">Можно вставить или отсканировать и ссылку на отдельный сервер: такие серверы добавляются в «Мои серверы».</string>
+    <string name="server_speed_test">Тест скорости (загрузка 10 МБ)</string>
+    <string name="server_share">Поделиться сервером</string>
+    <string name="share_unavailable">Для этого сервера нет ссылки. Серверы из подписок Clash или Xray JSON поделиться нельзя; для остальных сначала обновите подписку.</string>
+    <string name="share_warning">Ссылка содержит ключ сервера. Делитесь ею только с теми, кому доверяете.</string>
+    <string name="share_copied">Ссылка скопирована</string>
+    <string name="share_close">Закрыть</string>
+    <string name="share_copy">Копировать ссылку</string>
+    <string name="split_title">Раздельное туннелирование</string>
+    <string name="split_mode">Режим</string>
+    <string name="split_mode_off">Выключено: все приложения через VPN</string>
+    <string name="split_mode_only">Только выбранные через VPN</string>
+    <string name="split_mode_bypass">Выбранные в обход VPN</string>
+    <string name="split_hint">Изменения применяются при следующем подключении. Показываются только приложения со значком в списке приложений.</string>
+    <string name="split_search">Поиск приложений</string>
+    <string name="split_show_system">Показывать системные</string>
+    <string name="direct_ru">Российские сайты и IP напрямую</string>
+    <string name="direct_ru_hint">Российские сайты (.ru, .su, .рф и список geosite category-ru) и российские IP-адреса (geoip:ru) открываются без VPN. Списки скачиваются у SagerNet и обновляются раз в неделю.</string>
+    <string name="auto_select">Автовыбор лучшего сервера</string>
+    <string name="auto_select_hint">При подключении выбирается самый быстрый сервер (используются результаты проверки за последние 5 минут, иначе проверяются все серверы). Если проверка интернета не проходит 3 раза подряд, Мотылёк переключается на следующий по скорости сервер.</string>
+    <string name="boot_connect">Запускать VPN при включении телефона</string>
+    <string name="boot_connect_hint">После перезагрузки подключается к последнему серверу. Также поддерживается постоянный VPN Android (системные настройки VPN).</string>
+    <string name="dns_server">DNS-сервер</string>
+    <string name="dns_custom">Свой</string>
+    <string name="dns_custom_hint">https://…/dns-query (DoH), tls://адрес (DoT) или IPv4-адрес. DNS-запросы всегда идут через VPN.</string>
+    <string name="dns_leak">Защита от утечек DNS</string>
+    <string name="dns_leak_hint">Все DNS-запросы и трафик остаются внутри туннеля и не могут пойти в обход.</string>
+    <string name="sub_auto">Обновлять подписку автоматически</string>
+    <string name="sub_auto_off">Выключено</string>
+    <string name="sub_auto_hours">Каждые %1$d ч</string>
+    <string name="msg_err_split_mode">Неверный режим раздельного туннеля</string>
+    <string name="msg_err_sub_interval">Неверный интервал обновления подписки</string>
+    <string name="msg_err_split_apps">Неверный список приложений</string>
+    <string name="msg_err_dns">Неверный DNS-сервер</string>
+    <string name="kill_switch">Kill switch</string>
+    <string name="kill_switch_hint">Если связь с сервером пропала, VPN остаётся включённым и блокирует весь трафик, пока Мотылёк не переподключится или вы не отключитесь. Для полной защиты (и когда приложение не запущено) включите «Постоянную VPN» и «Блокировать подключения без VPN» в системных настройках VPN.</string>
+    <string name="kill_switch_system">Открыть системные настройки VPN</string>
+    <string name="notif_blocked">Трафик заблокирован: нет связи</string>
+    <string name="notif_blocked_text">Kill switch включён. Переподключение…</string>
+    <string name="msg_blocked">Трафик заблокирован</string>
+    <string name="tile_blocked">Заблокировано</string>
+    <string name="fav_add">Добавить в избранное</string>
+    <string name="fav_remove">Убрать из избранного</string>
+    <string name="fav_mark">Избранное</string>
+    <string name="sub_left">Осталось трафика: %1$s из %2$s</string>
+    <string name="sub_expires">Действует до %1$s</string>
 </resources>

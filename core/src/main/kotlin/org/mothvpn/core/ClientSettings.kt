@@ -18,7 +18,23 @@ data class ClientSettings(
     /** "release", "beta" or "" (not chosen yet: the default follows the installed build, see UpdateChannel.effective). */
     val updateChannel: String = "",
     /** Developer option: small icons with explanations instead of the red dash for failed server checks. */
-    val detailedIcons: Boolean = false
+    val detailedIcons: Boolean = false,
+    /** Per-app split tunneling: "off", "only" (only the selected apps use the VPN) or "bypass" (selected apps bypass the VPN). */
+    val splitMode: String = "off", val splitApps: List<String> = emptyList(),
+    /** Russian sites and IP addresses go directly, not through the server. */
+    val directRu: Boolean = false,
+    /** Automatic subscription update interval in hours: 0 (off), 6, 12 or 24. */
+    val subUpdateHours: Int = 0,
+    /** Pick the fastest server on connect and switch to the next one when health checks keep failing. */
+    val autoSelect: Boolean = false,
+    /** Connect to the last server when the phone starts. */
+    val bootConnect: Boolean = false,
+    /** Strict routing: DNS and traffic cannot bypass the tunnel. */
+    val dnsLeakProtection: Boolean = true,
+    /** Kill switch: if the connection fails, keep the VPN interface up and block all traffic until it reconnects or the user disconnects. */
+    val killSwitch: Boolean = false,
+    /** Favorite server ids (stable: sha256 of the link without the name). */
+    val favorites: List<String> = emptyList()
 ) {
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
@@ -35,7 +51,12 @@ data class ClientSettings(
         require(healthIntervalSeconds in 30..600) { "Интервал проверки: от 30 до 600 секунд" }
         require(hwid.matches(Regex("[a-zA-Z0-9=-]{10,64}"))) { "HWID: 10–64 символа, буквы, цифры, = или -" }
         require(userAgent.isNotBlank() && userAgent.length <= 160 && userAgent.all { it.code in 32..126 }) { "User-Agent должен содержать печатные латинские символы" }
-        listOf(dns, probeUrl, bootstrapDns).forEach { value ->
+        require(splitMode in SplitTunnel.modes) { "Неверный режим раздельного туннеля" }
+        require(subUpdateHours in SubscriptionSchedule.intervals) { "Неверный интервал обновления подписки" }
+        require(splitApps.size <= 2000 && splitApps.all { SplitTunnel.validPackage(it) }) { "Неверный список приложений" }
+        require(DnsServers.valid(dns)) { "Неверный DNS-сервер" }
+        require(Favorites.valid(favorites)) { "Неверный список избранного" }
+        listOf(probeUrl, bootstrapDns).forEach { value ->
             val u = URI(value)
             require(u.scheme == "https" && !u.host.isNullOrBlank() && u.rawUserInfo == null && u.fragment == null) { "Нужен корректный HTTPS-адрес" }
         }
@@ -48,9 +69,12 @@ data class ClientSettings(
         .put("compactServers", compactServers).put("hideUnavailable", hideUnavailable)
         .put("probeMode", probeMode).put("bootstrapDns", bootstrapDns)
         .put("probeParallel", probeParallel).put("probeTimeoutMs", probeTimeoutMs).put("updateChannel", updateChannel).put("detailedIcons", detailedIcons)
+        .put("splitMode", splitMode).put("splitApps", org.json.JSONArray(splitApps)).put("directRu", directRu).put("subUpdateHours", subUpdateHours)
+        .put("autoSelect", autoSelect).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
+        .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites))
     companion object {
         fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
-            j.optString("dns", "https://1.1.1.1/dns-query"), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
+            DnsServers.migrate(j.optString("dns", "https://1.1.1.1/dns-query")), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
             (if (j.has("timeoutMs")) j.getInt("timeoutMs") else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(1000, 60000), j.optBoolean("healthEnabled", true), j.optInt("healthIntervalSeconds", 60),
             j.optBoolean("hwidEnabled", true), j.getString("hwid"), j.optBoolean("deviceInfo", false),
             j.optString("userAgent", "Moth"), j.optString("serverSort", if (j.optBoolean("sortByLatency", false)) "latency" else "name").takeIf { it in ServerOrder.all } ?: "name",
@@ -60,7 +84,15 @@ data class ClientSettings(
             (if (j.has("probeTimeoutMs")) j.getInt("probeTimeoutMs") else if (j.has("probeTimeoutSeconds")) j.getInt("probeTimeoutSeconds") * 1000
                 else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(500, 30000),
             j.optString("updateChannel", "").takeIf { it in setOf("release", "beta") } ?: "",
-            j.optBoolean("detailedIcons", false)).validate()
+            j.optBoolean("detailedIcons", false)).copy(
+            splitMode = j.optString("splitMode", "off").takeIf { it in SplitTunnel.modes } ?: "off",
+            splitApps = j.optJSONArray("splitApps")?.let { a -> (0 until a.length()).map { a.getString(it) }.filter(SplitTunnel::validPackage).distinct() }.orEmpty(),
+            directRu = j.optBoolean("directRu", false),
+            subUpdateHours = SubscriptionSchedule.normalize(j.optInt("subUpdateHours", 0)),
+            autoSelect = j.optBoolean("autoSelect", false), bootConnect = j.optBoolean("bootConnect", false),
+            dnsLeakProtection = j.optBoolean("dnsLeakProtection", true),
+            killSwitch = j.optBoolean("killSwitch", false),
+            favorites = j.optJSONArray("favorites")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { Regex("[0-9a-f]{16,64}").matches(it) }.distinct().take(5000) }.orEmpty()).validate()
     }
 }
 

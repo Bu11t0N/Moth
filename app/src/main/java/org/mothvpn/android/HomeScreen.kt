@@ -30,9 +30,9 @@ import androidx.compose.foundation.text.selection.SelectionContainer
     val probing by Diagnostics.running.collectAsState()
     val active by TunnelStatus.activeProfile.collectAsState()
     val selected = remember(saved, network.kind, active, tunnel) {
-        saved?.profiles?.firstOrNull { it.id == if (tunnel == TunnelState.RUNNING) active else saved.selection(network.kind) }
+        saved?.profiles?.firstOrNull { it.id == if (tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) && active.isNotEmpty()) active else saved.selection(network.kind) }
     }
-    val running = tunnel == TunnelState.RUNNING
+    val running = tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED)
     val transition = tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)
     // Red = not connected, green = connected; in-between states keep the neutral disabled look of the button.
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -60,8 +60,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
             if (transition) CircularProgressIndicator(Modifier.size(44.dp), strokeWidth = 3.dp)
             else MothIcon("power", Modifier.size(56.dp))
         }
-        Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14) }, style = MaterialTheme.typography.headlineSmall)
-        if (running) Text(if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message), style = MaterialTheme.typography.bodyMedium)
+        Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall)
+        if (tunnel == TunnelState.RUNNING) Text(if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message), style = MaterialTheme.typography.bodyMedium)
         if (selected != null) TextButton(onClick = servers) { Text(selected.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         if (saved == null) Button(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
         Spacer(Modifier.weight(1f))
@@ -96,6 +96,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
         val w = size.width; val h = size.height; val s = Stroke(2.dp.toPx(), cap = StrokeCap.Round)
         fun line(x: Float, y: Float, x2: Float, y2: Float) = drawLine(color, Offset(w*x,h*y), Offset(w*x2,h*y2), s.width, StrokeCap.Round)
         when (name) {
+            "heart" -> { val p = Path().apply { moveTo(w*.5f,h*.86f); cubicTo(w*.1f,h*.58f,w*.02f,h*.32f,w*.2f,h*.18f); cubicTo(w*.34f,h*.07f,w*.47f,h*.16f,w*.5f,h*.28f); cubicTo(w*.53f,h*.16f,w*.66f,h*.07f,w*.8f,h*.18f); cubicTo(w*.98f,h*.32f,w*.9f,h*.58f,w*.5f,h*.86f); close() }; drawPath(p, color) }
             "power" -> { drawArc(color, -45f, 270f, false, Offset(w*.15f,h*.15f), size*.7f, style=s); line(.5f,.05f,.5f,.45f) }
             "home" -> { val p=Path().apply { moveTo(w*.12f,h*.45f); lineTo(w*.5f,h*.12f); lineTo(w*.88f,h*.45f); moveTo(w*.23f,h*.4f); lineTo(w*.23f,h*.88f); lineTo(w*.77f,h*.88f); lineTo(w*.77f,h*.4f) }; drawPath(p,color,style=s) }
             "settings" -> { for (i in 0..2) { val y=.23f+i*.27f; line(.1f,y,.9f,y); drawCircle(color,w*.09f,Offset(w*(if(i==1).65f else .35f),h*y)) } }

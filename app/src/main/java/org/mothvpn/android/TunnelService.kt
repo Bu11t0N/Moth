@@ -30,10 +30,14 @@ import org.mothvpn.core.ProbePolicy
 import org.mothvpn.core.ProbeOrder
 import kotlin.concurrent.withLock
 import org.mothvpn.core.ProtectPolicy
+import org.mothvpn.core.ServerPicker
+import org.mothvpn.core.SpeedTest
+import org.mothvpn.core.SplitTunnel
 import java.net.ServerSocket
 import java.util.UUID
 
-enum class TunnelState { OFF, STARTING, RUNNING, STOPPING, ERROR }
+/** BLOCKED: kill switch active, the core failed and the VPN interface stays up without a core, so no traffic leaves the phone. */
+enum class TunnelState { OFF, STARTING, RUNNING, STOPPING, ERROR, BLOCKED }
 object TunnelStatus {
     internal val mutable = MutableStateFlow(TunnelState.OFF)
     val state = mutable.asStateFlow()
@@ -66,53 +70,45 @@ class TunnelService : VpnService(), PlatformInterface {
             cancelProbes()
             TunnelStatus.mutable.value = TunnelState.STOPPING
             stopStats(); foreground()
-            executor.execute { closeTunnel(); Logger.i("Tunnel", "VPN disconnected (tunnel stopped)"); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf(startId) }
-        } else if (intent?.action == "START") {
-            val id = intent.getStringExtra("profile") ?: run { Logger.w("Tunnel", "START without a profile ignored"); return START_NOT_STICKY }
-            Logger.i("Tunnel", "VPN connect requested (previous state=${TunnelStatus.state.value})")
+            cancelRetry()
+            executor.execute { closeTunnel(); closeBlock(); Logger.i("Tunnel", "VPN disconnected (tunnel stopped)"); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf(startId) }
+        } else if (intent == null || intent.action == null || intent.action == SERVICE_INTERFACE || intent.action == "START") {
+            // "START" comes from the app, the tile and the boot receiver; a null intent or android.net.VpnService comes from Always-on VPN.
+            val alwaysOn = intent?.action != "START"
+            val id = intent?.getStringExtra("profile") ?: VpnLauncher.lastProfileId(this)
+            if (id == null) {
+                Logger.w("Tunnel", "start without a server ignored (alwaysOn=$alwaysOn)")
+                runCatching { foreground() }; if (TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED)) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(startId) }
+                return START_NOT_STICKY
+            }
+            if (alwaysOn && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED)) { Logger.i("Tunnel", "always-on start ignored: already connected"); return START_NOT_STICKY }
+            Logger.i("Tunnel", "VPN connect requested (previous state=${TunnelStatus.state.value}, alwaysOn=$alwaysOn)")
             serverName = ""
             TunnelStatus.mutable.value = TunnelState.STARTING
-            foreground()
-            executor.execute {
-                var stage = "init"
-                try {
-                    closeTunnel()
-                    initCore()
-                    stage = "load settings/profile"
-                    val settings = SettingsStore(this).load()
-                    var profile = SubscriptionStore(this).load()?.profiles?.firstOrNull { it.id == id } ?: error("Missing profile")
-                    serverName = profile.name; foreground() // the name is shown in the notification only, never logged
-                    Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled}")
-                    if (profile.engine == "xray") {
-                        stage = "xray start"
-                        val port = freePort(); val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
-                        xray = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this)
-                        Logger.d("Tunnel", "xray started")
-                        profile = LocalProxyConfig.bridge(profile, port, user, password)
-                    }
-                    stage = "build config"
-                    val config = TunnelConfig.create(profile, settings)
-                    stage = "Libbox.checkConfig"
-                    Libbox.checkConfig(config)
-                    stage = "Libbox.newService"
-                    box = Libbox.newService(config, this)
-                    stage = "BoxService.start"
-                    box!!.start()
-                    Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
-                    if (!stopped) {
-                        TunnelStatus.mutable.value = TunnelState.RUNNING
-                        startStats(); foreground() // startStats first: it sets the connect time the notification chronometer counts from
-                        TunnelStatus.activeMutable.value = id
-                        Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) tr(R.string.msg_checking_internet_access_through_vpn_120) else tr(R.string.msg_checks_are_disabled_in_settings_121))
-                        if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
-                    }
-                } catch (t: Throwable) {
-                    Logger.e("Tunnel", "VPN connect failed at stage '$stage' (state -> ERROR)", t)
-                    closeTunnel()
-                    TunnelStatus.mutable.value = TunnelState.ERROR
-                    stopSelf(startId)
-                }
-            }
+            try { foreground() } catch (e: Exception) { Logger.e("Tunnel", "could not enter the foreground", e) }
+            ranking = emptyList(); tried.clear(); manualPick = false; cancelRetry(); killSwitchLive = null
+            executor.execute { startTunnel(id, startId, pickBest = true) }
+        } else if (intent?.action == "KILL_SWITCH") {
+            // Toggled in Settings while connected: applies immediately, no reconnect.
+            val on = intent.getBooleanExtra("on", false)
+            killSwitchLive = on
+            Logger.i("Tunnel", "kill switch ${if (on) "on" else "off"} (state=${TunnelStatus.state.value})")
+            if (!on && TunnelStatus.state.value == TunnelState.BLOCKED) {
+                cancelRetry()
+                executor.execute { if (TunnelStatus.state.value == TunnelState.BLOCKED) { closeBlock(); TunnelStatus.mutable.value = TunnelState.ERROR; stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() } }
+            } else if (TunnelStatus.state.value == TunnelState.OFF && !Diagnostics.running.value) stopSelf(startId)
+        } else if (intent?.action == "SWITCH") {
+            // Manual server pick while connected: restart the core on the new server without stopping the service.
+            // The user's choice overrides auto-select (no re-measuring, no failover) until the next regular connect.
+            val id = intent.getStringExtra("profile")
+            if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR, TunnelState.BLOCKED) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING) return START_NOT_STICKY
+            Logger.i("Tunnel", "server switch requested (state=${TunnelStatus.state.value})")
+            cancelProbes()
+            manualPick = true; ranking = emptyList(); tried.clear(); cancelRetry()
+            serverName = ""; stopped = false
+            TunnelStatus.mutable.value = TunnelState.STARTING
+            try { foreground() } catch (e: Exception) { Logger.e("Tunnel", "could not enter the foreground", e) }
+            executor.execute { if (TunnelStatus.state.value == TunnelState.STARTING) startTunnel(id, startId, pickBest = false) }
         } else if (intent?.action == "HEALTH") {
             if (TunnelStatus.state.value == TunnelState.RUNNING) healthExecutor.execute { checkHealth(SettingsStore(this).load()) }
         } else if (intent?.action == "CANCEL_PROBES") {
@@ -135,6 +131,159 @@ class TunnelService : VpnService(), PlatformInterface {
         }
         return START_NOT_STICKY
     }
+    @Volatile private var ranking = emptyList<String>()
+    @Volatile private var manualPick = false // set by a manual server switch while connected: auto-select is paused for this session
+    private val tried = java.util.Collections.synchronizedSet(HashSet<String>())
+    @Volatile private var activeSettings = ClientSettings()
+    /** Runs on [executor]. [pickBest]: with auto-select on, measure all servers first (existing probe code) and use the fastest. */
+    private fun startTunnel(requested: String, startId: Int?, pickBest: Boolean) {
+        var id = requested
+        var stage = "init"
+        targetId = requested; activeKind = trackedKind()
+        try {
+            // Kill switch: hold a blocking interface while the core restarts so traffic never leaves outside the tunnel.
+            if (tun != null && killSwitchOn()) openBlock()
+            closeTunnel()
+            initCore()
+            stage = "load settings/profile"
+            val settings = SettingsStore(this).load(); activeSettings = settings
+            val subscription = SubscriptionStore(this).load() ?: error("Missing subscription")
+            if (settings.autoSelect && pickBest && subscription.profiles.size > 1 && !stopped) { stage = "auto select"; id = pickFastest(subscription, settings) ?: id }
+            if (stopped || TunnelStatus.state.value != TunnelState.STARTING) { Logger.i("Tunnel", "start abandoned (state=${TunnelStatus.state.value})"); return }
+            var profile = subscription.profiles.firstOrNull { it.id == id } ?: error("Missing profile")
+            activeEngine = profile.engine; activeKind = trackedKind()
+            serverName = profile.name; foreground() // the name is shown in the notification only, never logged
+            Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled} split=${settings.splitMode} directRu=${settings.directRu} auto=${settings.autoSelect}")
+            val ruleSets = if (settings.directRu) { stage = "rule sets"; RuleSetCache.prepare(this, connectivity) } else emptyMap()
+            if (profile.engine == "xray") {
+                stage = "xray start"
+                val port = freePort(); val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
+                xray = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this)
+                Logger.d("Tunnel", "xray started")
+                profile = LocalProxyConfig.bridge(profile, port, user, password)
+            }
+            stage = "build config"
+            val config = TunnelConfig.create(profile, settings, ruleSets)
+            stage = "Libbox.checkConfig"
+            Libbox.checkConfig(config)
+            stage = "Libbox.newService"
+            box = Libbox.newService(config, this)
+            stage = "BoxService.start"
+            box!!.start()
+            Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
+            closeBlock(); cancelRetry()
+            if (!stopped) {
+                TunnelStatus.mutable.value = TunnelState.RUNNING
+                startStats(); foreground() // startStats first: it sets the connect time the notification chronometer counts from
+                TunnelStatus.activeMutable.value = id
+                Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) tr(R.string.msg_checking_internet_access_through_vpn_120) else tr(R.string.msg_checks_are_disabled_in_settings_121))
+                if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
+            }
+        } catch (t: Throwable) {
+            val kill = !stopped && TunnelStatus.state.value == TunnelState.STARTING && killSwitchOn()
+            Logger.e("Tunnel", "VPN connect failed at stage '$stage' (state -> ${if (kill) "BLOCKED" else "ERROR"})", t)
+            if (kill && openBlock()) {
+                closeTunnel()
+                TunnelStatus.mutable.value = TunnelState.BLOCKED; serverName = ""
+                runCatching { foreground() }
+                scheduleRetry()
+                return
+            }
+            closeTunnel(); closeBlock()
+            TunnelStatus.mutable.value = TunnelState.ERROR
+            if (startId != null) stopSelf(startId) else stopSelf()
+        }
+    }
+    /** Measures every server with the regular probe (same method as the Servers screen) and returns the fastest one; also saves it as the selection. */
+    private fun pickFastest(subscription: SavedSubscription, settings: ClientSettings): String? {
+        val access = NetworkTracker.read(connectivity)
+        val order = subscription.profiles.map { it.id }
+        val now = System.currentTimeMillis()
+        val recent = ServerPicker.recentRanking(order, Diagnostics.results.value.let { results -> order.mapNotNull { id ->
+            results["${access.kind}:$id"]?.takeIf { r -> !r.checking && !r.cancelled && r.networkHandle == access.handle }?.let { r -> id to (r.latencyMs to r.checkedAt) } }.toMap() }, now)
+        if (recent != null) {
+            ranking = recent
+            Logger.i("Tunnel", "auto select: reusing recent results (${recent.size} of ${order.size} answered), best=${order.indexOf(recent.first())}")
+            saveSelection(recent.first(), access.kind)
+            return recent.first()
+        }
+        if (Diagnostics.running.value) { Logger.w("Tunnel", "auto select skipped: a check is already running"); return null }
+        probeCancel = AtomicBoolean(false)
+        Diagnostics.runningMutable.value = true
+        probeProfiles(null, false, probeCancel, access.kind, order)
+        val results = Diagnostics.results.value
+        ranking = ServerPicker.ranking(order, order.associateWith { results["${access.kind}:$it"]?.takeIf { r -> !r.checking && r.networkHandle == access.handle }?.latencyMs })
+        val best = ranking.firstOrNull()
+        Logger.i("Tunnel", "auto select: ${ranking.size} of ${order.size} server(s) answered, best=${best?.let { order.indexOf(it) } ?: "none"}")
+        if (best != null) saveSelection(best, access.kind)
+        return best
+    }
+    private fun saveSelection(best: String, kind: String) = runCatching {
+        val store = SubscriptionStore(this)
+        store.load()?.let { s -> store.save(if (kind == "mobile") s.copy(selected = best, mobileSelected = best) else s.copy(selected = best, wifiSelected = best)) }
+        VpnLauncher.changed.value++
+    }.onFailure { Logger.w("Tunnel", "saving the auto-selected server failed", it) }
+    // ---- kill switch: a VPN interface without a core drops every packet ----
+    @Volatile private var blockTun: ParcelFileDescriptor? = null
+    @Volatile private var killSwitchLive: Boolean? = null // latest value sent by the app while connected
+    private fun killSwitchOn() = killSwitchLive ?: runCatching { SettingsStore(this).load().killSwitch }.getOrDefault(activeSettings.killSwitch)
+    @Volatile private var targetId = ""
+    private var retryTask: java.util.concurrent.ScheduledFuture<*>? = null
+    /** Establishes (or keeps) an interface that captures all traffic and is never read: nothing leaves the phone outside the tunnel. */
+    @Synchronized private fun openBlock(): Boolean {
+        if (blockTun != null) return true
+        return try {
+            val b = Builder().setSession("Moth").setBlocking(false).setMtu(1400)
+                .addAddress("172.19.0.1", 30).addRoute("0.0.0.0", 0)
+                .addAddress("fdfe:dcba:9876::1", 126).addRoute("::", 0)
+            val plan = SplitTunnel.plan(activeSettings.splitMode, activeSettings.splitApps, packageName)
+            plan.allowed.forEach { runCatching { b.addAllowedApplication(it) } }
+            plan.disallowed.forEach { runCatching { b.addDisallowedApplication(it) } }
+            blockTun = b.establish()
+            Logger.i("Tunnel", "kill switch: blocking interface ${if (blockTun != null) "up" else "unavailable"}")
+            blockTun != null
+        } catch (e: Exception) { Logger.e("Tunnel", "kill switch: could not establish the blocking interface", e); false }
+    }
+    @Synchronized private fun closeBlock() {
+        val b = blockTun ?: return
+        blockTun = null
+        runCatching { b.close() }.onFailure { Logger.w("Tunnel", "closing the blocking interface failed", it) }
+        Logger.d("Tunnel", "kill switch: blocking interface closed")
+    }
+    private fun scheduleRetry(delaySeconds: Long = 15) = synchronized(this) {
+        retryTask?.cancel(false)
+        retryTask = runCatching { healthExecutor.schedule({ retryBlocked("timer") }, delaySeconds, TimeUnit.SECONDS) }.getOrNull()
+    }
+    private fun cancelRetry() = synchronized(this) { retryTask?.cancel(false); retryTask = null }
+    /** While blocked: try the same server again (on a timer and when the network changes). */
+    private fun retryBlocked(reason: String) {
+        if (TunnelStatus.state.value != TunnelState.BLOCKED || stopped) return
+        if (!NetworkTracker.read(connectivity).available) { scheduleRetry(); return }
+        executor.execute {
+            if (TunnelStatus.state.value != TunnelState.BLOCKED || stopped) return@execute
+            Logger.i("Tunnel", "kill switch: reconnecting ($reason)")
+            serverName = ""; TunnelStatus.mutable.value = TunnelState.STARTING; runCatching { foreground() }
+            startTunnel(targetId.ifBlank { VpnLauncher.lastProfileId(this) ?: return@execute }, null, pickBest = false)
+        }
+    }
+    /** Called after repeated failed health checks with auto-select on: switch to the next fastest server (re-measure when all were tried). */
+    private fun failover(current: Long) {
+        val active = TunnelStatus.activeProfile.value
+        tried += active
+        val next = ServerPicker.next(ranking, active, tried)
+        Logger.w("Health", "failover: ${if (next == null) "all ranked servers tried, measuring again" else "switching to the next fastest server"}")
+        if (next == null) tried.clear()
+        executor.execute {
+            if (generation.get() != current || TunnelStatus.state.value != TunnelState.RUNNING || stopped) return@execute
+            serverName = ""; TunnelStatus.mutable.value = TunnelState.STARTING; foreground()
+            if (next != null) runCatching {
+                val store = SubscriptionStore(this); val kind = NetworkTracker.read(connectivity).kind
+                store.load()?.let { s -> store.save(if (kind == "mobile") s.copy(selected = next, mobileSelected = next) else s.copy(selected = next, wifiSelected = next)) }
+                VpnLauncher.changed.value++
+            }
+            startTunnel(next ?: active, null, pickBest = next == null)
+        }
+    }
     @Volatile private var serverName = ""
     /** Posts (or re-posts) the foreground notification for the current state. The app name comes only from the system app-name line. */
     private fun foreground() = startForeground(1, buildNotification())
@@ -144,7 +293,7 @@ class TunnelService : VpnService(), PlatformInterface {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 1, Intent(this, TunnelService::class.java).setAction("STOP"), PendingIntent.FLAG_IMMUTABLE)
         val name = serverName
-        val builder = Notification.Builder(this, "vpn").setSmallIcon(android.R.drawable.ic_lock_lock)
+        val builder = Notification.Builder(this, "vpn").setSmallIcon(R.drawable.ic_moth_notification)
             .setContentIntent(open).setOngoing(true).setShowWhen(false)
             .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build())
         when (TunnelStatus.state.value) {
@@ -156,6 +305,7 @@ class TunnelService : VpnService(), PlatformInterface {
             }
             TunnelState.STARTING -> { builder.setContentTitle(tr(R.string.notif_connecting)); if (name.isNotBlank()) builder.setContentText(name) }
             TunnelState.STOPPING -> builder.setContentTitle(tr(R.string.notif_disconnecting))
+            TunnelState.BLOCKED -> builder.setContentTitle(tr(R.string.notif_blocked)).setContentText(tr(R.string.notif_blocked_text))
             else -> builder.setContentTitle(tr(R.string.notif_checking))
         }
         return builder.build()
@@ -241,7 +391,10 @@ class TunnelService : VpnService(), PlatformInterface {
             if (previous.failures > 0) Logger.i("Health", "internet access through the VPN recovered after ${previous.failures} failed check(s)")
             HealthResult(latencyMs = ms, message = tr(R.string.msg_internet_access_through_vpn_is_available_127))
         } catch (e: Exception) { Logger.e("Health", "internet check through VPN failed (consecutive failures=${previous.failures + 1})", e); HealthResult(message = tr(R.string.msg_internet_check_through_vpn_failed_128), failures = previous.failures + 1) }
-        if (generation.get() == current && TunnelStatus.state.value == TunnelState.RUNNING) Diagnostics.healthMutable.value = next
+        if (generation.get() == current && TunnelStatus.state.value == TunnelState.RUNNING) {
+            Diagnostics.healthMutable.value = next
+            if (settings.autoSelect && !manualPick && next.failures >= ServerPicker.failoverAfter) failover(current)
+        }
     }
     private fun probeProfiles(id: String?, speed: Boolean, cancelled: AtomicBoolean, wantedNetwork: String?, shownOrder: List<String>) {
         try {
@@ -287,12 +440,12 @@ class TunnelService : VpnService(), PlatformInterface {
                     Logger.d("Probe", "local proxy started ($label)")
                     var measured: Pair<Long, Long>? = null
                     var last: Throwable? = null
-                    for (url in if (speed) listOf("https://speed.cloudflare.com/__down?bytes=1048576") else ProbePolicy.urls(settings)) {
+                    for (url in if (speed) listOf(SpeedTest.url) else ProbePolicy.urls(settings)) {
                         if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
-                        val test = ProxyRequest(this, port, user, password, if (speed) 30_000L else settings.probeTimeoutMs.toLong(), cancelled)
+                        val test = ProxyRequest(this, port, user, password, if (speed) 60_000L else settings.probeTimeoutMs.toLong(), cancelled)
                         requests.add(test)
                         stage = "request ${Diagnostics.describeUrl(url)}"
-                        try { measured = test.run(url, if (speed) 1048576 else 0); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} ${measured?.first}${if (speed) " bytes" else " ms"} ($label)"); break }
+                        try { measured = test.run(url, if (speed) SpeedTest.bytes else 0); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} ${measured?.first}${if (speed) " bytes" else " ms"} ($label)"); break }
                         catch (e: Throwable) {
                             last = e
                             Logger.w("Probe", "request failed url=${Diagnostics.describeUrl(url)} handshakeStage=${test.stage} method=$method network=${access.kind} ($label)", e)
@@ -356,12 +509,14 @@ class TunnelService : VpnService(), PlatformInterface {
         }
     }
     private fun describe(profile: Profile) = "protocol=${profile.protocol} engine=${profile.engine}"
-    override fun onRevoke() { Logger.w("Tunnel", "VPN revoked by the system or another VPN app (state=${TunnelStatus.state.value})"); stopped = true; cancelProbes(); executor.execute { closeTunnel(); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf() } }
+    override fun onRevoke() { Logger.w("Tunnel", "VPN revoked by the system or another VPN app (state=${TunnelStatus.state.value})"); stopped = true; cancelProbes(); cancelRetry(); executor.execute { closeTunnel(); closeBlock(); TunnelStatus.mutable.value = TunnelState.OFF; stopSelf() } }
     override fun onDestroy() {
         Logger.i("Tunnel", "service destroyed (state=${TunnelStatus.state.value})")
         stopped = true
         cancelProbes(); stopStats(); statsExecutor.shutdownNow(); healthExecutor.shutdownNow(); lookupExecutor.shutdownNow(); probes.shutdown()
-        executor.execute { closeTunnel(); if (TunnelStatus.mutable.value != TunnelState.ERROR) TunnelStatus.mutable.value = TunnelState.OFF }
+        cancelRetry(); networkExecutor.shutdownNow(); verifyTask?.cancel(false)
+        defaultCallback?.let { runCatching { connectivity.unregisterNetworkCallback(it) } }; defaultCallback = null
+        executor.execute { closeTunnel(); closeBlock(); if (TunnelStatus.mutable.value != TunnelState.ERROR) TunnelStatus.mutable.value = TunnelState.OFF }
         executor.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
@@ -374,8 +529,13 @@ class TunnelService : VpnService(), PlatformInterface {
         addAddresses(options.inet4Address); addAddresses(options.inet6Address)
         addRoutes(options.inet4RouteRange); addRoutes(options.inet6RouteRange)
         b.addDnsServer(options.dnsServerAddress.value)
+        val plan = SplitTunnel.plan(activeSettings.splitMode, activeSettings.splitApps, packageName)
+        plan.allowed.forEach { runCatching { b.addAllowedApplication(it) }.onFailure { Logger.d("Tunnel", "split tunneling: an app is not installed") } }
+        plan.disallowed.forEach { runCatching { b.addDisallowedApplication(it) }.onFailure { Logger.d("Tunnel", "split tunneling: an app is not installed") } }
+        if (plan.allowed.isNotEmpty() || plan.disallowed.isNotEmpty()) Logger.i("Tunnel", "split tunneling: mode=${activeSettings.splitMode} apps=${activeSettings.splitApps.size}")
         tun = b.establish() ?: run { Logger.e("Tunnel", "establish() returned null: VPN permission revoked or unavailable"); error("VPN permission unavailable") }
         Logger.i("Tunnel", "tun device established (mtu=${options.mtu})")
+        closeBlock() // the new interface replaced the blocking one
         return tun!!.fd
     }
     override fun usePlatformAutoDetectInterfaceControl() = true
@@ -391,14 +551,129 @@ class TunnelService : VpnService(), PlatformInterface {
     override fun findConnectionOwner(ipProtocol: Int, sourceAddress: String?, sourcePort: Int, destinationAddress: String?, destinationPort: Int): Int = -1
     override fun packageNameByUid(uid: Int): String = packageManager.getPackagesForUid(uid)?.firstOrNull().orEmpty()
     override fun uidByPackageName(packageName: String): Int = packageManager.getApplicationInfo(packageName, 0).uid
-    override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
-        val network = NetworkTracker.physical(connectivity)
-        val name = network?.let { connectivity.getLinkProperties(it)?.interfaceName }.orEmpty()
-        val index = runCatching { JavaInterface.getByName(name)?.index ?: -1 }.onFailure { Logger.w("Core", "interface lookup failed", it) }.getOrDefault(-1)
-        Logger.d("Core", "default interface monitor: ${if (network == null) "no physical network" else "found"} index=$index")
-        listener.updateDefaultInterface(name, index, network?.let { connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) } == true, false)
+    // ---- default network monitor ----
+    // One requestNetwork / best-matching callback (NOT_VPN + INTERNET) follows the network the system would use without
+    // the VPN. Its state, not activeNetwork (which is the VPN itself for this app), drives sing-box's default interface,
+    // setUnderlyingNetworks and the recovery after Wi-Fi <-> mobile switches.
+    private val networkExecutor = Executors.newSingleThreadScheduledExecutor()
+    private val networkState = org.mothvpn.core.DefaultNetworkState()
+    private val networks = java.util.concurrent.ConcurrentHashMap<Long, android.net.Network>()
+    private val monitors = java.util.concurrent.ConcurrentHashMap.newKeySet<InterfaceUpdateListener>()
+    private val lastInterface = java.util.concurrent.ConcurrentHashMap<InterfaceUpdateListener, String>()
+    private var networkTask: java.util.concurrent.ScheduledFuture<*>? = null
+    private var verifyTask: java.util.concurrent.ScheduledFuture<*>? = null
+    @Volatile private var activeEngine = "sing-box"
+    @Volatile private var activeKind = "" // network type ("wifi"/"mobile") the core was started on
+    /** Type of the real underlying network from the default-network callback (never the VPN); falls back to the tracker. */
+    private fun trackedKind(): String = networkState.current?.let { networks[it.handle] }?.let { n ->
+        connectivity.getNetworkCapabilities(n)?.let { if (it.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) "mobile" else "wifi" } } ?: NetworkTracker.read(connectivity).kind
+    private var defaultCallback: ConnectivityManager.NetworkCallback? = null
+    private fun iface(network: android.net.Network) = connectivity.getLinkProperties(network)?.interfaceName.orEmpty()
+    private fun defaultNetwork(): android.net.Network? = networkState.current?.let { networks[it.handle] } ?: NetworkTracker.physical(connectivity)
+    override fun onCreate() {
+        super.onCreate()
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) { networks[network.networkHandle] = network; networkState.available(network.networkHandle, iface(network)); networkChanged("available") }
+            override fun onLost(network: android.net.Network) { networkState.lost(network.networkHandle); networks.remove(network.networkHandle); networkChanged("lost") }
+            override fun onLinkPropertiesChanged(network: android.net.Network, linkProperties: android.net.LinkProperties) { networkState.linkChanged(network.networkHandle, linkProperties.interfaceName.orEmpty()); networkChanged("link") }
+        }
+        val request = android.net.NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN).build()
+        runCatching {
+            if (android.os.Build.VERSION.SDK_INT >= 31) connectivity.registerBestMatchingNetworkCallback(request, callback, android.os.Handler(android.os.Looper.getMainLooper()))
+            else connectivity.requestNetwork(request, callback)
+            defaultCallback = callback
+        }.onFailure { Logger.w("Network", "default network callback registration failed", it) }
     }
-    override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener?) = Unit
+    private fun pushInterface(listener: InterfaceUpdateListener, network: android.net.Network?): Boolean {
+        val name = network?.let(::iface).orEmpty()
+        val index = runCatching { JavaInterface.getByName(name)?.index ?: -1 }.onFailure { Logger.w("Core", "interface lookup failed", it) }.getOrDefault(-1)
+        val key = "$name/$index/${network?.networkHandle}"
+        if (lastInterface.put(listener, key) == key) return false
+        val cellular = network?.let { connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) } == true
+        Logger.d("Core", "default interface: ${if (network == null) "none" else if (cellular) "mobile" else "wifi"} index=$index")
+        runCatching { listener.updateDefaultInterface(name, index, cellular, false) }.onFailure { Logger.w("Core", "interface update failed", it) }
+        return true
+    }
+    /** Debounced; the decision compares the settled state with the last applied one, so no event is lost. */
+    private fun networkChanged(reason: String) = synchronized(monitors) {
+        Logger.v("Network", "default network callback: $reason")
+        networkTask?.cancel(false)
+        networkTask = runCatching { networkExecutor.schedule({ applyNetwork() }, 500, TimeUnit.MILLISECONDS) }.getOrNull()
+    }
+    private fun applyNetwork() {
+        val action = networkState.settle()
+        val network = networkState.current?.let { networks[it.handle] }
+        runCatching { setUnderlyingNetworks(network?.let { arrayOf(it) }) }.onFailure { Logger.w("Tunnel", "setUnderlyingNetworks failed", it) }
+        monitors.forEach { pushInterface(it, network) }
+        if (action == org.mothvpn.core.DefaultNetworkState.Action.NONE) return
+        val kind = network?.let { if (connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) "mobile" else "wifi" } ?: "none"
+        Logger.i("Tunnel", "default network ${if (action == org.mothvpn.core.DefaultNetworkState.Action.LOST) "lost" else "switched to $kind"} (state=${TunnelStatus.state.value}, engine=$activeEngine)")
+        if (action == org.mothvpn.core.DefaultNetworkState.Action.LOST) return
+        // Wi-Fi and mobile data have their own server selection: follow it when the network type changed.
+        val state = TunnelStatus.state.value
+        if (state == TunnelState.RUNNING || state == TunnelState.BLOCKED) {
+            val previous = activeKind
+            val subscription = runCatching { SubscriptionStore(this).load() }.getOrNull()
+            val decision = if (subscription == null || previous.isEmpty() || kind == "none") org.mothvpn.core.NetworkServerChoice.Decision.Keep
+                else org.mothvpn.core.NetworkServerChoice.decide(previous, kind, TunnelStatus.activeProfile.value.ifBlank { targetId }, subscription.selection(kind),
+                    subscription.profiles.map { it.id }.toSet(), runCatching { SettingsStore(this).load().autoSelect }.getOrDefault(activeSettings.autoSelect), manualPick)
+            if (decision !is org.mothvpn.core.NetworkServerChoice.Decision.Keep) {
+                Logger.i("Tunnel", "network type $previous -> $kind: ${if (decision is org.mothvpn.core.NetworkServerChoice.Decision.Switch) "switching to the server selected for $kind" else "auto-selecting on the $kind list"}")
+                val id = (decision as? org.mothvpn.core.NetworkServerChoice.Decision.Switch)?.id ?: TunnelStatus.activeProfile.value.ifBlank { targetId }
+                val auto = decision is org.mothvpn.core.NetworkServerChoice.Decision.AutoSelect
+                activeKind = kind; targetId = id
+                val current = generation.get()
+                executor.execute {
+                    if (generation.get() != current || stopped || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.BLOCKED)) return@execute
+                    if (auto) { ranking = emptyList(); tried.clear() }
+                    serverName = ""; TunnelStatus.mutable.value = TunnelState.STARTING; runCatching { foreground() }
+                    startTunnel(id, null, pickBest = auto)
+                }
+                return
+            }
+        }
+        when (state) {
+            TunnelState.BLOCKED -> retryBlocked("network changed")
+            TunnelState.RUNNING -> {
+                if (org.mothvpn.core.NetworkRecovery.afterSwitch(activeEngine) == org.mothvpn.core.NetworkRecovery.Step.RESTART) restartSameServer("network changed (xray)")
+                else {
+                    runCatching { box?.resetNetwork() }.onFailure { Logger.w("Core", "resetNetwork failed", it) }
+                    val current = generation.get()
+                    verifyTask?.cancel(false)
+                    verifyTask = runCatching { healthExecutor.schedule({ verifyAfterSwitch(current) }, org.mothvpn.core.NetworkRecovery.verifyAfterSeconds, TimeUnit.SECONDS) }.getOrNull()
+                }
+            }
+            else -> Unit
+        }
+    }
+    /** One internet check through the tunnel after a reset; a failure means stale connections: restart the core. */
+    private fun verifyAfterSwitch(current: Long) {
+        if (generation.get() != current || TunnelStatus.state.value != TunnelState.RUNNING) return
+        val settings = activeSettings
+        val ok = ProbePolicy.urls(settings).any { url -> generation.get() == current && runCatching { Diagnostics.checkTunnel(connectivity, url, minOf(settings.timeoutMs, 5000).toLong()) }.isSuccess }
+        Logger.i("Tunnel", "check after network switch: ${if (ok) "ok" else "failed"}")
+        if (generation.get() == current && org.mothvpn.core.NetworkRecovery.afterVerify(ok) == org.mothvpn.core.NetworkRecovery.Step.RESTART) restartSameServer("check after network switch failed")
+    }
+    /** Fast core restart on the active server without stopping the service (kill switch holds the block meanwhile). */
+    private fun restartSameServer(reason: String) {
+        val current = generation.get()
+        executor.execute {
+            if (generation.get() != current || TunnelStatus.state.value != TunnelState.RUNNING || stopped) return@execute
+            val id = TunnelStatus.activeProfile.value.ifBlank { targetId }
+            if (id.isBlank()) return@execute
+            Logger.i("Tunnel", "restarting the core on the same server ($reason)")
+            serverName = ""; TunnelStatus.mutable.value = TunnelState.STARTING; runCatching { foreground() }
+            startTunnel(id, null, pickBest = false)
+        }
+    }
+    override fun startDefaultInterfaceMonitor(listener: InterfaceUpdateListener) {
+        monitors.add(listener)
+        pushInterface(listener, defaultNetwork())
+    }
+    override fun closeDefaultInterfaceMonitor(listener: InterfaceUpdateListener?) {
+        if (listener == null) return
+        monitors.remove(listener); lastInterface.remove(listener)
+    }
     override fun getInterfaces(): NetworkInterfaceIterator {
         val list = connectivity.allNetworks.mapNotNull { n ->
             val caps = connectivity.getNetworkCapabilities(n) ?: return@mapNotNull null

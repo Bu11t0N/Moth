@@ -33,7 +33,7 @@ class VpnTileService : TileService() {
             label = tr(R.string.app_name)
             icon = Icon.createWithResource(this@VpnTileService, R.drawable.ic_moth_tile)
             this.state = when (state) {
-                TunnelState.RUNNING -> Tile.STATE_ACTIVE
+                TunnelState.RUNNING, TunnelState.BLOCKED -> Tile.STATE_ACTIVE
                 TunnelState.STARTING, TunnelState.STOPPING -> Tile.STATE_UNAVAILABLE
                 else -> Tile.STATE_INACTIVE
             }
@@ -41,6 +41,7 @@ class VpnTileService : TileService() {
                 TunnelState.RUNNING -> R.string.tile_on
                 TunnelState.STARTING -> R.string.tile_starting
                 TunnelState.STOPPING -> R.string.tile_stopping
+                TunnelState.BLOCKED -> R.string.tile_blocked
                 else -> R.string.tile_off
             })
             updateTile()
@@ -54,7 +55,7 @@ class VpnTileService : TileService() {
             toggle = scope.launch {
                 val state = TunnelStatus.state.value
                 if (state in setOf(TunnelState.STARTING, TunnelState.STOPPING)) return@launch
-                if (state == TunnelState.RUNNING) {
+                if (state == TunnelState.RUNNING || state == TunnelState.BLOCKED) {
                     startService(Intent(this@VpnTileService, TunnelService::class.java).setAction("STOP"))
                     return@launch
                 }
