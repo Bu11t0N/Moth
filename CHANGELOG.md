@@ -9,24 +9,19 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - Split tunneling: choose apps that use the VPN only, or apps that bypass it (Settings → Split tunneling).
 - New option "Russian sites and IPs directly": Russian sites and addresses open without the VPN. Off by default.
 - Automatic subscription update every 1, 2, 3, 6, 12 or 24 hours (Settings → Subscription). Off by default.
-- New option "Auto-select the best server": connects to the fastest server and switches to the next one if the internet stops working.
+- New option "Auto-select the best server": connects to the fastest server (reusing check results from the last 5 minutes) and switches to the next one if the internet stops working.
 - New option "Start VPN when the phone turns on". Android's Always-on VPN is also supported.
-- Add a subscription or a server by scanning a QR code or pasting from the clipboard.
-- Share a server as a QR code or a copied link: long-press a server in the list.
-- DNS settings: choose a DNS server (Cloudflare, Google, Quad9, AdGuard or your own address) and DNS leak protection.
-- Speed test now downloads 10 MB and can be run for any server from its long-press menu.
-- You can now pick another server while the VPN is on: Moth reconnects to it right away. A manual pick pauses auto-select until the next connection.
-- The QR code scanner now stays in portrait orientation.
-- Kill switch (Settings → Connection, off by default): if the connection fails, traffic is blocked until Moth reconnects or you disconnect.
-- More reliable reconnect after switching between Wi-Fi and mobile data: Moth follows the new network and restarts the connection if the internet does not come back within a few seconds.
-- The kill switch can now be turned on or off while the VPN is connected.
-- When the network type changes while connected (Wi-Fi ↔ mobile data), Moth switches to the server selected for that network (or auto-selects on its list when auto-select is on).
+- Kill switch (Settings → Connection, off by default): if the connection fails, traffic is blocked until Moth reconnects or you disconnect. It can be changed while connected.
+- Pick another server while the VPN is on: Moth reconnects to it right away.
+- Reliable reconnect when switching between Wi-Fi and mobile data; Moth uses the server selected for the new network.
 - Favorite servers: long-press a server → "Add to favorites". Favorites are marked with a heart and always shown at the top.
 - The Servers screen shows the traffic left and the subscription end date when the provider sends them.
+- Add a subscription or a server by scanning a QR code or pasting from the clipboard.
+- Share any server as a QR code or link (long-press a server), including servers from Clash and Xray JSON subscriptions.
+- DNS settings: choose a DNS server (Cloudflare, Google, Quad9, AdGuard or your own address) and DNS leak protection.
+- Speed test now downloads 10 MB and can be run for any server from its long-press menu.
 - The notification icon is now the moth.
-- Auto-select uses check results from the last 5 minutes instead of checking all servers again.
-- Servers from Clash and Xray JSON subscriptions can now be shared as a QR code or link.
-- Split tunneling no longer needs access to the full list of installed apps; apps with an icon in the app list are shown.
+- Split tunneling no longer needs access to the full list of installed apps.
 
 ## 0.4.7
 
