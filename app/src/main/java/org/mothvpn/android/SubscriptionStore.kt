@@ -84,7 +84,7 @@ object SubscriptionDownload {
             connection.connectTimeout = 15000
             connection.readTimeout = 20000
             connection.instanceFollowRedirects = false
-            SubscriptionHeaders.create(settings, original, url.toURI(), Build.VERSION.RELEASE, "${Build.MANUFACTURER} ${Build.MODEL}")
+            SubscriptionHeaders.create(settings.withAppVersion(BuildConfig.VERSION_NAME), original, url.toURI(), Build.VERSION.RELEASE, "${Build.MANUFACTURER} ${Build.MODEL}")
                 .forEach { (key, value) -> connection.setRequestProperty(key, value) }
             try {
                 val response = connection.responseCode

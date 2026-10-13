@@ -82,8 +82,11 @@ private fun actionLabel(action: String) = when (action) {
                 isError = value.isNotBlank() && normalized == null, modifier = Modifier.fillMaxWidth(),
                 supportingText = { Text(if (value.isNotBlank() && normalized == null) tr(R.string.rules_invalid) else typeExample(type)) })
             Text(tr(R.string.rules_action), style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                CustomRouting.actions.forEach { a -> FilterChip(selected = action == a, onClick = { action = a }, label = { Text(actionLabel(a)) }) }
+            // Same radio list as "Type" above: long labels ("Блокировать") stay on one line.
+            CustomRouting.actions.forEach { a ->
+                Row(Modifier.fillMaxWidth().clickable { action = a }, verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(action == a, { action = a }); Text(actionLabel(a))
+                }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (onDelete != null) TextButton(onClick = onDelete) { Text(tr(R.string.rules_delete), color = MaterialTheme.colorScheme.error) }
