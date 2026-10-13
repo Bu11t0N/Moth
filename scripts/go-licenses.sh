@@ -9,7 +9,7 @@ set -euo pipefail
 # Same Go release as CI, so the generated file (including the standard library entry) matches.
 export GOTOOLCHAIN=go1.24.3
 src="$(cd "$1" && pwd)"
-out="$2"
+out="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"
 tool_dir="$(cd "$(dirname "$0")/go-licenses" && pwd)"
 tags=with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api
 tmp="$(mktemp)"
