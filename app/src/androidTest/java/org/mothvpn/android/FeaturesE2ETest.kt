@@ -183,7 +183,7 @@ class FeaturesE2ETest {
     @Test fun backupRoundTripWithAndWithoutPassword() {
         val first = add(sub1, "First E2E")
         val store = SubscriptionStore(context)
-        val localProfile = Subscriptions.parseLink("trojan://moth-e2e-password@$host:20002?type=tcp&security=none&local=1#Local Trojan")
+        val localProfile = Subscriptions.parseLink("trojan://moth-e2e-password@$host:20002?type=tcp&security=none&local=1#Local%20Trojan")
         store.update { it.upsert(SubscriptionSource(SubscriptionSource.LOCAL_ID, "My servers", SubscriptionRecord.LOCAL_URL, listOf(localProfile))) }
         val profiles = store.loadBook()!!.profiles
         store.save(store.load()!!.copy(selected = profiles[1].id, wifiSelected = profiles[1].id, mobileSelected = localProfile.id))
@@ -246,12 +246,14 @@ class FeaturesE2ETest {
         log("add-tile: ${added.trim().ifEmpty { "ok" }}")
         var subtitleSeen = false
         if (!added.contains("rror") && !added.contains("Unknown")) {
-            device.openQuickSettings(); Thread.sleep(1500)
+            // The first swipe shows the compact row (state label only); the second expands the panel with subtitles.
+            device.openQuickSettings(); Thread.sleep(1200); device.openQuickSettings(); Thread.sleep(1500)
             for (i in 0 until 4) {
                 if (device.findObject(By.text("Traffic blocked")) != null || device.findObject(By.text("Reconnecting…")) != null) { subtitleSeen = true; break }
                 device.findObject(By.scrollable(true))?.swipe(Direction.LEFT, 0.8f); Thread.sleep(800)
             }
             dump("quick-settings")
+            device.findObject(By.desc("Moth"))?.let { tile -> log("tile texts: " + tile.parent?.findObjects(By.textStartsWith(""))?.joinToString { it.text.orEmpty() }) }
             log(if (subtitleSeen) "tile shows the blocked state" else "tile subtitle not visible in Quick Settings (soft check skipped)")
             device.pressBack(); device.pressBack(); Thread.sleep(500)
             // Tapping the tile in the blocked state disconnects and lifts the block.
