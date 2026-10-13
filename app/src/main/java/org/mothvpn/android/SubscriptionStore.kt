@@ -7,6 +7,7 @@ import android.util.AtomicFile
 import org.json.JSONObject
 import org.mothvpn.core.ClientSettings
 import org.mothvpn.core.SubscriptionHeaders
+import org.mothvpn.core.SubscriptionBook
 import android.os.Build
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
@@ -31,9 +32,17 @@ class SubscriptionStore(context: Context, filename: String = "subscription.enc")
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
         }.generateKey()
     }
-    @Synchronized fun save(saved: SavedSubscription) {
-        val json = saved.json()
-        writeJson(json)
+    /** Saves the selected servers of [saved] (the flattened view); the subscriptions themselves are kept. */
+    fun save(saved: SavedSubscription) = synchronized(storageLock) {
+        val book = loadBook() ?: SubscriptionBook.migrate(saved)
+        saveBook(book.withSelection(saved))
+    }
+    /** All subscriptions; a file from 0.5.1 or earlier is read as one subscription (and written in the new format on the next save). */
+    fun loadBook(): SubscriptionBook? = readJson()?.let { SubscriptionBook.from(it) }
+    fun saveBook(book: SubscriptionBook) = writeJson(book.json())
+    /** Read-modify-write under the store lock, so the screen, the service and the scheduled update cannot overwrite each other. */
+    fun update(change: (SubscriptionBook) -> SubscriptionBook): SubscriptionBook = synchronized(storageLock) {
+        change(loadBook() ?: SubscriptionBook(emptyList())).also { saveBook(it) }
     }
     fun writeJson(json: JSONObject) = synchronized(storageLock) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }
@@ -52,10 +61,8 @@ class SubscriptionStore(context: Context, filename: String = "subscription.enc")
     fun readOrInitialize(default: () -> JSONObject): JSONObject = synchronized(storageLock) {
         readJson() ?: default().also { writeJson(it) }
     }
-    @Synchronized fun load(): SavedSubscription? {
-        val json = readJson() ?: return null
-        return SavedSubscription.from(json)
-    }
+    /** Servers of all subscriptions as one list with the shared selection; null when nothing is saved. */
+    fun load(): SavedSubscription? = loadBook()?.record()
     fun clear() = synchronized(storageLock) { file.delete() }
 }
 

@@ -38,7 +38,7 @@ import org.mothvpn.core.SubscriptionSchedule
     var interval by remember(initial) { mutableStateOf(initial.healthIntervalSeconds.toString()) }
     var error by remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
-    BackHandler(enabled = section != null) { if (logPage == 5) logPage = 4 else if (logPage == 3 || logPage == 4) { logPage = 0; section = tr(R.string.msg_about_78) } else if (logPage != 0) logPage = 0 else section = null }
+    BackHandler(enabled = section != null) { if (logPage == 5) logPage = 4 else if (logPage == 3 || logPage == 4) { logPage = 0; section = tr(R.string.msg_about_78) } else if (logPage != 0) logPage = 0 else if (section == tr(R.string.rules_title)) section = tr(R.string.msg_connection_75) else section = null }
     fun applySettings(next: ClientSettings) {
         draft = next
         try { save(next.validate()); error = "" }
@@ -63,7 +63,7 @@ import org.mothvpn.core.SubscriptionSchedule
             (fadeIn(tween(220, delayMillis = 60)) + slideInHorizontally(tween(260)) { it / 8 * dir }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(260)) { -it / 8 * dir })
         }, label = "settingsPage") { page ->
             val sec = page.first; val lp = page.second
-        if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.weight(1f)) else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, !locked, { applySettings(draft.copy(routingRules = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.weight(1f)) else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (sec) {
                 null -> {
                     val ctxMenu = LocalContext.current
@@ -91,6 +91,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     if (locked) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
                     SettingsToggle(tr(R.string.auto_select), draft.autoSelect, !locked) { applySettings(draft.copy(autoSelect = it)) }
                     Text(tr(R.string.auto_select_hint), style = MaterialTheme.typography.bodySmall)
+                    SettingsCategory(tr(R.string.rules_title), if (draft.routingRules.isEmpty()) tr(R.string.rules_sum_none) else tr(R.string.rules_sum_count, draft.routingRules.size), "rules") { section = tr(R.string.rules_title) }
                     SettingsToggle(tr(R.string.kill_switch), draft.killSwitch) { applySettings(draft.copy(killSwitch = it)) }
                     Text(tr(R.string.kill_switch_hint), style = MaterialTheme.typography.bodySmall)
                     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -262,7 +263,7 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
     when (name) {
         "connection" -> PowerSettingsNew; "split" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.CallSplit; "routing" -> Dns
         "subscription" -> CardMembership; "stats" -> BarChart; "interface" -> Palette; "updates" -> SystemUpdate
-        "about" -> Info; "changelog" -> History; "licenses" -> Description; else -> Code
+        "about" -> Info; "rules" -> AltRoute; "changelog" -> History; "licenses" -> Description; else -> Code
     }
 }
 @Composable private fun SectionHeader(text: String) {

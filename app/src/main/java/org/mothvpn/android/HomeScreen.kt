@@ -23,7 +23,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.foundation.text.selection.SelectionContainer
 
 /** No server list or probe-result subscription here: checks cannot redraw the home screen. */
-@Composable fun HomeScreen(saved: SavedSubscription?, network: AccessNetwork, busy: Boolean, message: String,
+@Composable fun HomeScreen(saved: SavedSubscription?, book: org.mothvpn.core.SubscriptionBook?, network: AccessNetwork, busy: Boolean, message: String,
     add: () -> Unit, connect: () -> Unit, servers: () -> Unit, updateAvailable: Boolean = false, openUpdates: () -> Unit = {}) {
     val tunnel by TunnelStatus.state.collectAsState()
     val health by Diagnostics.health.collectAsState()
@@ -32,8 +32,11 @@ import androidx.compose.foundation.text.selection.SelectionContainer
     val selected = remember(saved, network.kind, active, tunnel) {
         saved?.profiles?.firstOrNull { it.id == if (tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) && active.isNotEmpty()) active else saved.selection(network.kind) }
     }
-    val running = tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED)
-    val transition = tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)
+    val blockingTun by TunnelStatus.blocking.collectAsState()
+    // Kill switch holding traffic (also while it retries the connection): the button disconnects and stops blocking.
+    val blocked = TunnelStatus.trafficBlocked(tunnel, blockingTun)
+    val running = tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || blocked
+    val transition = tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING) && !blocked
     // Red = not connected, green = connected; in-between states keep the neutral disabled look of the button.
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val connectedColor = if (dark) Color(0xFF2E9E57) else Color(0xFF1B7F3A)
@@ -53,28 +56,37 @@ import androidx.compose.foundation.text.selection.SelectionContainer
             }
         }
         Spacer(Modifier.weight(1f))
-        Button(onClick = connect, enabled = !busy && (!probing || running) && !transition && selected != null,
+        Button(onClick = connect, enabled = if (blocked) true else !busy && (!probing || running) && !transition && selected != null,
             shape = androidx.compose.foundation.shape.CircleShape, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(148.dp)
                 .semantics { contentDescription = if (running) tr(R.string.msg_disconnect_vpn_8) else tr(R.string.msg_connect_vpn_9) },
-            colors = ButtonDefaults.buttonColors(containerColor = if (running) connectedColor else disconnectedColor, contentColor = androidx.compose.ui.graphics.Color.White)) {
+            colors = ButtonDefaults.buttonColors(containerColor = if (running && !blocked) connectedColor else disconnectedColor, contentColor = androidx.compose.ui.graphics.Color.White)) {
             if (transition) CircularProgressIndicator(Modifier.size(44.dp), strokeWidth = 3.dp)
             else MothIcon("power", Modifier.size(56.dp))
         }
-        Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall)
+        if (blocked) {
+            Text(tr(R.string.home_disconnect), style = MaterialTheme.typography.headlineSmall)
+            Text(tr(R.string.msg_blocked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        } else Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall)
         if (tunnel == TunnelState.RUNNING) Text(if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message), style = MaterialTheme.typography.bodyMedium)
         if (selected != null) TextButton(onClick = servers) { Text(selected.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         if (saved == null) Button(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
         Spacer(Modifier.weight(1f))
-        if (saved != null) Card(Modifier.fillMaxWidth()) {
+        // The card shows the subscription of the selected server (its own link, traffic and end date).
+        val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
+        if (saved != null && source != null) Card(Modifier.fillMaxWidth()) {
+            val saved = source
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 val host = remember(saved.url) { runCatching { URI(saved.url).host }.getOrNull().orEmpty() }
-                if (saved.providerName.isNotBlank() && saved.providerName != host) Text(saved.providerName, style = MaterialTheme.typography.titleMedium)
+                val title = saved.name.ifBlank { saved.providerName }
+                if (title.isNotBlank() && title != host) Text(title, style = MaterialTheme.typography.titleMedium)
+                if ((book?.sources?.size ?: 0) > 1) Text(tr(R.string.sub_count, book?.sources?.size ?: 0), style = MaterialTheme.typography.labelMedium)
                 var showLink by remember { mutableStateOf(false) }
                 val clipboard = LocalClipboardManager.current
-                TextButton(onClick = { showLink = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
+                if (!saved.local) TextButton(onClick = { showLink = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
                     .semantics { contentDescription = tr(R.string.sub_link_show) }) {
                     Text(tr(R.string.msg_host_saved_profiles_size_servers_17, host, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
                 }
+                else Text(tr(R.string.sub_servers_count, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
                 // The link is the user's own; it is shown in full here and is never written to the log.
                 if (showLink) AlertDialog(onDismissRequest = { showLink = false }, title = { Text(tr(R.string.sub_link_title)) },
                     text = { SelectionContainer { Text(saved.url) } },

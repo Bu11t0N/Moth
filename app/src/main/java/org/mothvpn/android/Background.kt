@@ -14,6 +14,8 @@ import org.mothvpn.core.DirectRoutes
 import org.mothvpn.core.LogFacts
 import org.mothvpn.core.SubscriptionSchedule
 import org.mothvpn.core.Subscriptions
+import org.mothvpn.core.SubscriptionBook
+import org.mothvpn.core.SubscriptionSource
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.HttpsURLConnection
@@ -58,46 +60,57 @@ class BootReceiver : BroadcastReceiver() {
     }
 }
 
-/** Downloads a subscription and saves it, keeping the selected servers when they still exist. Shared by the screen and the scheduled update. */
+/** Downloads one subscription and saves it, keeping the other subscriptions and the selected servers. Shared by the screen and the scheduled update. */
 object SubscriptionRefresh {
-    fun run(context: Context, url: String, settings: org.mothvpn.core.ClientSettings, previous: SavedSubscription?, trigger: String): Pair<SavedSubscription, Int> {
-        val response = SubscriptionDownload.fetchDetails(url, settings)
+    /**
+     * [sourceId]: the subscription to refresh or edit; null adds a new one (or refreshes the one with the same link).
+     * [name]: a new name chosen by the user, or null to keep the current one. Returns the saved book, the id and the number of rejected entries.
+     */
+    data class Result(val book: SubscriptionBook, val sourceId: String, val rejected: Int)
+    fun run(context: Context, sourceId: String?, url: String, name: String?, settings: org.mothvpn.core.ClientSettings, trigger: String): Result {
+        val link = url.trim()
+        val response = SubscriptionDownload.fetchDetails(link, settings)
         val parsed = Subscriptions.parse(response.body)
         Logger.i("Import", "${parsed.summary()}, comment lines skipped ${parsed.comments}, kept ${parsed.profiles.size} (trigger=$trigger)")
         parsed.duplicates.forEach { Logger.d("Import", "dropped: $it") }
         parsed.reasons.forEach { Logger.w("Import", "skipped: $it") }
-        previous?.takeIf { it.url == url.trim() }?.let { old ->
-            val gone = old.profiles.count { o -> parsed.profiles.none { it.id == o.id } }
-            val added = parsed.profiles.count { n -> old.profiles.none { it.id == n.id } }
-            Logger.i("Import", "refresh result: servers ${old.profiles.size} -> ${parsed.profiles.size} (added $added, removed $gone)")
+        var id = ""
+        val book = SubscriptionStore(context).update { book ->
+            val old = sourceId?.let(book::source) ?: book.sources.firstOrNull { !it.local && it.url == link }
+            id = old?.id ?: SubscriptionSource.newId(link, System.currentTimeMillis())
+            old?.let { o ->
+                val gone = o.profiles.count { p -> parsed.profiles.none { it.id == p.id } }
+                val added = parsed.profiles.count { n -> o.profiles.none { it.id == n.id } }
+                Logger.i("Import", "refresh result: servers ${o.profiles.size} -> ${parsed.profiles.size} (added $added, removed $gone)")
+            }
+            book.upsert(SubscriptionSource(id, name?.trim() ?: old?.name.orEmpty(), link, parsed.profiles, response.name,
+                response.expires, response.used, response.total, System.currentTimeMillis()))
         }
-        val selected = previous?.selected?.takeIf { id -> parsed.profiles.any { it.id == id } } ?: parsed.profiles.first().id
-        val sameProvider = previous?.url == url.trim()
-        fun keep(id: String?) = id?.takeIf { n -> parsed.profiles.any { it.id == n } } ?: selected
-        val next = SavedSubscription(url.trim(), parsed.profiles, selected,
-            if (sameProvider) keep(previous?.wifiSelected) else selected, if (sameProvider) keep(previous?.mobileSelected) else selected,
-            response.name, response.expires, response.used, response.total, System.currentTimeMillis())
-        SubscriptionStore(context).save(next)
-        return next to parsed.rejected
+        Logger.i("Import", "subscriptions saved: ${book.sources.size} subscription(s), ${book.profiles.size} server(s)")
+        return Result(book, id, parsed.rejected)
     }
 }
 
-/** Scheduled subscription update (WorkManager, only with a network connection). */
+/** Scheduled subscription update (WorkManager, only with a network connection): every subscription that is due is refreshed. */
 class SubscriptionUpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val settings = runCatching { SettingsStore(applicationContext).load() }.getOrNull() ?: return Result.success()
-        val saved = runCatching { SubscriptionStore(applicationContext).load() }.getOrNull() ?: return Result.success()
-        if (settings.subUpdateHours == 0 || saved.local || !saved.url.startsWith("https://")) return Result.success()
-        if (!SubscriptionSchedule.due(settings.subUpdateHours, saved.updatedAt, System.currentTimeMillis())) return Result.success()
-        return try {
-            SubscriptionRefresh.run(applicationContext, saved.url, settings, saved, "schedule")
-            VpnLauncher.changed.value++
-            Logger.i("Import", "scheduled update done (host=${LogFacts.hostTag(saved.url)})")
-            Result.success()
-        } catch (e: Exception) {
-            Logger.w("Import", "scheduled update failed (attempt ${runAttemptCount + 1})", e)
-            if (runAttemptCount < 2) Result.retry() else Result.success()
+        val book = runCatching { SubscriptionStore(applicationContext).loadBook() }.getOrNull() ?: return Result.success()
+        if (settings.subUpdateHours == 0) return Result.success()
+        val now = System.currentTimeMillis()
+        val due = book.sources.filter { !it.local && it.url.startsWith("https://") && SubscriptionSchedule.due(settings.subUpdateHours, it.updatedAt, now) }
+        var failed = 0
+        for (source in due) {
+            try {
+                SubscriptionRefresh.run(applicationContext, source.id, source.url, null, settings, "schedule")
+                VpnLauncher.changed.value++
+                Logger.i("Import", "scheduled update done (host=${LogFacts.hostTag(source.url)})")
+            } catch (e: Exception) {
+                failed++
+                Logger.w("Import", "scheduled update failed (host=${LogFacts.hostTag(source.url)}, attempt ${runAttemptCount + 1})", e)
+            }
         }
+        return if (failed > 0 && runAttemptCount < 2) Result.retry() else Result.success()
     }
 }
 

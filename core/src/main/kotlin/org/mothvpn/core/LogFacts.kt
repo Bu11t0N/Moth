@@ -26,6 +26,7 @@ object LogFacts {
         plain("dnsLeakProtection", old.dnsLeakProtection, new.dnsLeakProtection)
         plain("killSwitch", old.killSwitch, new.killSwitch); plain("favorites", old.favorites.size, new.favorites.size)
         plain("expiryWarning", old.expiryWarning, new.expiryWarning)
+        plain("routingRules", old.routingRules.size, new.routingRules.size)
         return out
     }
 

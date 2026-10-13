@@ -166,9 +166,11 @@ object TunnelConfig {
             .put("mtu", settings.mtu).put("auto_route", true).put("strict_route", settings.dnsLeakProtection).put("stack", "gvisor")))
         .put("outbounds", JSONArray().put(JSONObject(profile.outbound)).put(JSONObject().put("type", "direct").put("tag", "direct")))
         .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").put("rules", JSONArray().apply {
-            if (settings.directRu) put(JSONObject().put("action", "sniff"))
+            if (settings.directRu || CustomRouting.needsSniff(settings.routingRules)) put(JSONObject().put("action", "sniff"))
             put(JSONObject().put("port", 53).put("action", "hijack-dns"))
             if (!settings.ipv6) put(JSONObject().put("ip_version", 6).put("action", "reject"))
+            // User rules come before the built-in "Russian sites directly" rules.
+            CustomRouting.singBox(settings.routingRules).forEach { put(it) }
             if (settings.directRu) {
                 put(JSONObject().put("domain_suffix", JSONArray(DirectRoutes.suffixes)).put("outbound", "direct"))
                 if (ruleSets.isNotEmpty()) put(JSONObject().put("rule_set", JSONArray(ruleSets.keys.sorted())).put("outbound", "direct"))

@@ -214,24 +214,35 @@ object ExpiryReminder {
         work.enqueueUniquePeriodicWork(NAME, ExistingPeriodicWorkPolicy.KEEP, PeriodicWorkRequestBuilder<ExpiryWorker>(1, TimeUnit.DAYS).build())
         work.enqueueUniqueWork("$NAME-now", ExistingWorkPolicy.REPLACE, OneTimeWorkRequestBuilder<ExpiryWorker>().build())
     }
+    /** Each subscription has its own reminder; the provider's end date comes from its subscription-userinfo header. */
     fun check(context: Context) {
         val settings = runCatching { SettingsStore(context).load() }.getOrNull() ?: return
         if (!settings.expiryWarning) return
-        val saved = runCatching { SubscriptionStore(context).load() }.getOrNull() ?: return
+        val book = runCatching { SubscriptionStore(context).loadBook() }.getOrNull() ?: return
         val prefs = context.getSharedPreferences("expiry_warning", Context.MODE_PRIVATE)
         val zone = ZoneId.systemDefault(); val today = LocalDate.now(zone)
-        val shown = prefs.getStringSet("shown", emptySet()).orEmpty()
-        val kind = ExpiryWarning.due(saved.expires, today, zone, shown, prefs.getString("day", "").orEmpty()) ?: return
+        val many = book.sources.count { !it.local } > 1
+        book.sources.filter { !it.local }.forEach { source -> runCatching { remind(context, prefs, source, many, today, zone) }.onFailure { Logger.w("Expiry", "check failed", it) } }
+    }
+    private fun remind(context: Context, prefs: android.content.SharedPreferences, source: org.mothvpn.core.SubscriptionSource, many: Boolean, today: LocalDate, zone: ZoneId) {
+        // The subscription migrated from 0.5.1 keeps the old keys, so a reminder already shown is not repeated.
+        val prefix = if (source.id == org.mothvpn.core.SubscriptionBook.MIGRATED_ID) "" else "${source.id}:"
+        val shownKey = prefix + "shown"; val dayKey = prefix + "day"
+        val shown = prefs.getStringSet(shownKey, emptySet()).orEmpty()
+        val kind = ExpiryWarning.due(source.expires, today, zone, shown, prefs.getString(dayKey, "").orEmpty()) ?: return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("expiry", tr(R.string.expiry_channel), NotificationManager.IMPORTANCE_DEFAULT))
         val open = PendingIntent.getActivity(context, 43, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE)
-        val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, AppLanguage.context().resources.configuration.locales[0]).format(java.util.Date(saved.expires * 1000))
-        val text = if (kind == ExpiryWarning.Kind.TODAY) tr(R.string.expiry_today) else tr(R.string.expiry_soon, ExpiryWarning.daysLeft(saved.expires, today, zone).toInt(), date)
+        val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, AppLanguage.context().resources.configuration.locales[0]).format(java.util.Date(source.expires * 1000))
+        val text = if (kind == ExpiryWarning.Kind.TODAY) tr(R.string.expiry_today) else tr(R.string.expiry_soon, ExpiryWarning.daysLeft(source.expires, today, zone).toInt(), date)
+        // The name is shown only in the notification (it is the user's own subscription) and never logged.
+        val title = if (many && source.title().isNotBlank()) tr(R.string.expiry_title_named, source.title()) else tr(R.string.expiry_title)
+        val notificationId = if (prefix.isEmpty()) 3 else 1000 + (source.id.hashCode() and 0x7fff)
         runCatching {
-            manager.notify(3, android.app.Notification.Builder(context, "expiry").setSmallIcon(R.drawable.ic_moth_notification)
-                .setContentTitle(tr(R.string.expiry_title)).setContentText(text).setStyle(android.app.Notification.BigTextStyle().bigText(text))
+            manager.notify(notificationId, android.app.Notification.Builder(context, "expiry").setSmallIcon(R.drawable.ic_moth_notification)
+                .setContentTitle(title).setContentText(text).setStyle(android.app.Notification.BigTextStyle().bigText(text))
                 .setContentIntent(open).setAutoCancel(true).build())
-            prefs.edit().putStringSet("shown", (shown.filter { it.endsWith(":${saved.expires}") } + ExpiryWarning.key(kind, saved.expires)).toSet()).putString("day", today.toString()).apply()
+            prefs.edit().putStringSet(shownKey, (shown.filter { it.endsWith(":${source.expires}") } + ExpiryWarning.key(kind, source.expires)).toSet()).putString(dayKey, today.toString()).apply()
             Logger.i("Expiry", "reminder shown ($kind)")
         }.onFailure { Logger.w("Expiry", "notification failed", it) }
     }

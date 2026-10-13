@@ -44,6 +44,11 @@ object TunnelStatus {
     val state = mutable.asStateFlow()
     internal val activeMutable = MutableStateFlow("")
     val activeProfile = activeMutable.asStateFlow()
+    /** True while the kill switch's blocking interface is up (BLOCKED, and the reconnect attempts made from it). */
+    internal val blockingMutable = MutableStateFlow(false)
+    val blocking = blockingMutable.asStateFlow()
+    /** Traffic is held by the kill switch: the user sees "Disconnect" and "Traffic blocked", not "Connect". */
+    fun trafficBlocked(state: TunnelState, blocking: Boolean) = state == TunnelState.BLOCKED || (blocking && state == TunnelState.STARTING)
 }
 
 class TunnelService : VpnService(), PlatformInterface {
@@ -241,6 +246,7 @@ class TunnelService : VpnService(), PlatformInterface {
             plan.allowed.forEach { runCatching { b.addAllowedApplication(it) } }
             plan.disallowed.forEach { runCatching { b.addDisallowedApplication(it) } }
             blockTun = b.establish()
+            TunnelStatus.blockingMutable.value = blockTun != null
             Logger.i("Tunnel", "kill switch: blocking interface ${if (blockTun != null) "up" else "unavailable"}")
             blockTun != null
         } catch (e: Exception) { Logger.e("Tunnel", "kill switch: could not establish the blocking interface", e); false }
@@ -248,6 +254,7 @@ class TunnelService : VpnService(), PlatformInterface {
     @Synchronized private fun closeBlock() {
         val b = blockTun ?: return
         blockTun = null
+        TunnelStatus.blockingMutable.value = false
         runCatching { b.close() }.onFailure { Logger.w("Tunnel", "closing the blocking interface failed", it) }
         Logger.d("Tunnel", "kill switch: blocking interface closed")
     }
