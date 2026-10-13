@@ -10,6 +10,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 
 /** Shares the same subscription, per-network selection and VPN service as the app. */
 class VpnTileService : TileService() {
@@ -21,23 +22,25 @@ class VpnTileService : TileService() {
         super.onStartListening()
         listening?.cancel()
         listening = scope.launch {
-            TunnelStatus.state.collectLatest { updateTile(it) }
+            TunnelStatus.state.combine(TunnelStatus.blocking) { st, b -> st to b }.collectLatest { (st, b) -> updateTile(st, b) }
         }
     }
     override fun onStopListening() {
         listening?.cancel()
         super.onStopListening()
     }
-    private fun updateTile(state: TunnelState) {
+    private fun updateTile(state: TunnelState, blocking: Boolean) {
+        // Kill switch holding traffic: active tile; while it reconnects from the blocked state the subtitle says so.
+        val blocked = TunnelStatus.trafficBlocked(state, blocking)
         qsTile?.apply {
             label = tr(R.string.app_name)
             icon = Icon.createWithResource(this@VpnTileService, R.drawable.ic_moth_tile)
-            this.state = when (state) {
+            this.state = if (blocked) Tile.STATE_ACTIVE else when (state) {
                 TunnelState.RUNNING, TunnelState.BLOCKED -> Tile.STATE_ACTIVE
                 TunnelState.STARTING, TunnelState.STOPPING -> Tile.STATE_UNAVAILABLE
                 else -> Tile.STATE_INACTIVE
             }
-            if (Build.VERSION.SDK_INT >= 29) subtitle = tr(when (state) {
+            if (Build.VERSION.SDK_INT >= 29) subtitle = tr(if (blocked) (if (state == TunnelState.STARTING) R.string.tile_reconnecting else R.string.tile_blocked) else when (state) {
                 TunnelState.RUNNING -> R.string.tile_on
                 TunnelState.STARTING -> R.string.tile_starting
                 TunnelState.STOPPING -> R.string.tile_stopping
@@ -54,8 +57,10 @@ class VpnTileService : TileService() {
             if (toggle?.isActive == true) return@unlockAndRun
             toggle = scope.launch {
                 val state = TunnelStatus.state.value
-                if (state in setOf(TunnelState.STARTING, TunnelState.STOPPING)) return@launch
-                if (state == TunnelState.RUNNING || state == TunnelState.BLOCKED) {
+                val blocked = TunnelStatus.trafficBlocked(state, TunnelStatus.blocking.value)
+                if (!blocked && state in setOf(TunnelState.STARTING, TunnelState.STOPPING)) return@launch
+                if (state == TunnelState.RUNNING || blocked) {
+                    // Same as "Disconnect" on the home screen: stops the core and removes the blocking interface.
                     startService(Intent(this@VpnTileService, TunnelService::class.java).setAction("STOP"))
                     return@launch
                 }

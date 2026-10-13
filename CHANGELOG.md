@@ -2,6 +2,14 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.5.3
+
+### Changes
+
+- Backup (Settings → Backup): save all subscriptions, servers, favorites, routing rules and settings to one file, optionally protected with a password, and restore them on another phone or after reinstalling.
+- Routing rules can be exported to a text file and imported from a file or the clipboard, including plain domain lists.
+- The quick settings tile shows "Traffic blocked" while the kill switch blocks traffic and "Reconnecting…" while it reconnects; tapping it disconnects and lifts the block.
+
 ## 0.5.2
 
 ### Changes

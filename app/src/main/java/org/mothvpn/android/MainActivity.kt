@@ -143,7 +143,7 @@ class MainActivity : AppCompatActivity() {
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
-                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, probing || tunnel in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING, TunnelState.BLOCKED), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false })
+                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, probing || tunnel in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING, TunnelState.BLOCKED), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) })
                                 }
                             }
                             }
@@ -288,6 +288,23 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             catch (e: Exception) { Logger.e("Store", "saving the selected server failed", e); message = tr(R.string.msg_could_not_save_the_selected_server_41) }
+            finally { busy = false }
+        }
+    }
+    /** Replaces all subscriptions and settings with a validated backup. Only offered while the VPN is off and no check runs. */
+    private fun restoreBackup(content: org.mothvpn.core.Backup.Content) {
+        if (busy || TunnelStatus.state.value !in setOf(TunnelState.OFF, TunnelState.ERROR) || Diagnostics.running.value) { Logger.w("Backup", "restore ignored: busy or connected"); return }
+        busy = true
+        lifecycleScope.launch {
+            try {
+                val book = withContext(Dispatchers.IO) { if (content.book.sources.isEmpty()) { store.clear(); null } else content.book.also { store.saveBook(it) } }
+                show(book)
+                busy = false
+                // Through the regular settings queue: schedules, kill switch and the persisted copy stay consistent.
+                saveSettings(content.settings.withAppVersion(BuildConfig.VERSION_NAME))
+                runCatching { ExpiryReminder.schedule(this@MainActivity) }
+                Logger.i("Backup", "restored: ${book?.sources?.size ?: 0} subscription(s), ${book?.profiles?.size ?: 0} server(s), ${content.settings.routingRules.size} rule(s)")
+            } catch (e: Exception) { Logger.e("Backup", "restore failed", e); message = tr(R.string.backup_failed) }
             finally { busy = false }
         }
     }

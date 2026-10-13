@@ -30,7 +30,7 @@ object CustomRouting {
             DOMAIN, SUFFIX -> {
                 val bare = if (type == SUFFIX) text.removePrefix("*.").removePrefix(".") else text
                 val ascii = runCatching { java.net.IDN.toASCII(bare).lowercase() }.getOrNull() ?: return null
-                ascii.takeIf { it.length <= 253 && hostPattern.matches(it) }
+                ascii.takeIf { it.length <= 253 && hostPattern.matches(it) && !ipv4.matches(it) } // an IP address is not a domain
             }
             KEYWORD -> text.takeIf { keywordPattern.matches(it) }
             CIDR -> cidr(text)
