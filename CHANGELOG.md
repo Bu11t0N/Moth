@@ -2,6 +2,16 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.5.2
+
+### Changes
+
+- About → Licenses: license texts for Moth and its components, including the full list of Go modules in the VPN core with their versions and licenses.
+- Several subscriptions: add as many as you need, each with its own name and link. Servers are grouped by subscription, and each subscription has its own traffic, end date, reminder and automatic update. Edit, update or delete a subscription with the menu button next to its name in the server list. Your current subscription is kept.
+- Routing rules (Settings → Connection): send a domain, a domain suffix, a domain keyword or an IP address/network through the VPN, directly or block it. Rules apply in your order, before the built-in rules.
+- When the kill switch is blocking traffic, the home screen shows "Disconnect" and "Traffic blocked"; tap the button to stop blocking and disconnect.
+- Fixed the app version reported to subscription providers (it could stay at an older version such as 0.5.0).
+
 ## 0.5.1
 
 ### Changes

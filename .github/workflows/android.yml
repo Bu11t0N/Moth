@@ -38,6 +38,13 @@ jobs:
       - name: Build official mobile core
         if: steps.native-cache.outputs.cache-hit != 'true'
         run: bash scripts/build-libbox.sh
+      - name: Check Go license notices (licenses/go-modules.txt)
+        run: |
+          bash scripts/go-licenses.sh .core-build/sing-box licenses/go-modules.txt
+          if ! git diff --exit-code --stat licenses/go-modules.txt; then
+            echo "::error file=licenses/go-modules.txt::Go license notices are out of date. Run scripts/build-libbox.sh (or MOTH_PREPARE_ONLY=1) and commit licenses/go-modules.txt."
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: Moth-native-core

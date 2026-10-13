@@ -37,10 +37,14 @@ import org.mothvpn.core.ServerOrder
 import org.mothvpn.core.Favorites
 import org.mothvpn.core.SubscriptionQuota
 import org.mothvpn.core.TrafficFormat
+import org.mothvpn.core.ServerGroups
+import org.mothvpn.core.SubscriptionBook
+import org.mothvpn.core.SubscriptionRecord
+import org.mothvpn.core.SubscriptionSource
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-@Composable fun ServersScreen(saved: SavedSubscription?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
-    add: () -> Unit, refresh: () -> Unit, remove: () -> Unit, select: (String, String) -> Unit, probe: (String, List<String>) -> Unit,
+@Composable fun ServersScreen(saved: SavedSubscription?, book: SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
+    add: () -> Unit, refresh: () -> Unit, refreshOne: (String) -> Unit, edit: (String, String, String) -> Unit, remove: (String) -> Unit, select: (String, String) -> Unit, probe: (String, List<String>) -> Unit,
     speedTest: (String, String?) -> Unit, cancel: () -> Unit, preferences: (ClientSettings) -> Unit) {
     // Probe results arrive in bursts; apply at most one update per 250 ms so the list does not recompose constantly.
     var results by remember { mutableStateOf(Diagnostics.results.value) }
@@ -50,7 +54,9 @@ import org.mothvpn.core.TrafficFormat
     val tunnel by TunnelStatus.state.collectAsState()
     var kind by rememberSaveable { mutableStateOf(network.kind) }
     var search by rememberSaveable { mutableStateOf("") }
-    var delete by remember { mutableStateOf(false) }
+    var delete by remember { mutableStateOf<String?>(null) }
+    var actionsFor by remember { mutableStateOf<String?>(null) }
+    var editFor by remember { mutableStateOf<String?>(null) }
     var menuFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
     var shareFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -80,7 +86,14 @@ import org.mothvpn.core.TrafficFormat
             if (saved == null) TextButton(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
             else TextButton(onClick = { search = ""; preferences(settings.copy(hideUnavailable = false)) }) { Text(tr(R.string.msg_show_all_60)) }
         } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
-            items(visibleK, key = { it.id }) { p ->
+            // Favorites first (from every subscription), then one section per subscription.
+            val groups = ServerGroups.of(book ?: SubscriptionBook(emptyList()), visibleK, settings.favorites)
+            groups.forEach { group ->
+            if (book != null) item(key = "header:" + (group.sourceId ?: "favorites")) {
+                val source = group.sourceId?.let(book::source)
+                GroupHeader(source, group.profiles.size) { if (source != null) actionsFor = source.id }
+            }
+            items(group.profiles, key = { it.id }) { p ->
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED } // cancelled checks show no indicator
                 Surface(color = if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
@@ -123,23 +136,22 @@ import org.mothvpn.core.TrafficFormat
                     }
                 }
             }
+            }
         }
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            ActionIcon("add", if (saved == null) tr(R.string.msg_add_subscription_16) else tr(R.string.msg_replace_subscription_47), !locked, add)
-            ActionIcon("refresh", tr(R.string.msg_update_subscription_48), saved != null && !saved.local && !locked, refresh)
+            ActionIcon("add", tr(R.string.msg_add_subscription_16), !locked, add)
+            ActionIcon("refresh", if ((book?.sources?.count { !it.local } ?: 0) > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), book?.sources?.any { !it.local } == true && !locked, refresh)
             ActionIcon(if (probing) "stop" else "check", if (probing) tr(R.string.msg_cancel_checks_49) else tr(R.string.msg_check_servers_50), probing || canCheck) { if (probing) cancel() else probe(kind, visible.map { it.id }) } // snapshot of the displayed order at the moment of the tap
             ActionIcon("speed", tr(R.string.msg_measure_speed_download_up_to_1_mib_51), canCheck) { speedTest(kind, null) }
-            ActionIcon("delete", tr(R.string.msg_remove_subscription_52), saved != null && !locked) { delete = true }
         }
         TabRow(selectedTabIndex = if (kind == "wifi") 0 else 1) {
             Tab(selected = kind == "wifi", onClick = { kind = "wifi" }, text = { Text("Wi-Fi") })
             Tab(selected = kind == "mobile", onClick = { kind = "mobile" }, text = { Text(tr(R.string.msg_mobile_data_21)) })
         }
         if (!network.available || kind != network.kind) Text(if (!network.available) tr(R.string.msg_no_network_available_for_this_check_53) else if (kind == "mobile") tr(R.string.msg_to_check_mobile_data_enable_it_and_turn_off_w_54) else tr(R.string.msg_connect_to_wi_fi_to_run_this_check_55), style = MaterialTheme.typography.bodySmall)
-        if (saved != null) SubscriptionQuotaLine(saved)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${visible.size} / ${profiles.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
             FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text(tr(R.string.msg_hide_unavailable_56)) })
@@ -166,7 +178,36 @@ import org.mothvpn.core.TrafficFormat
         }, confirmButton = { TextButton(onClick = { menuFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
     }
     shareFor?.let { p -> ShareServerDialog(p) { shareFor = null } }
-    if (delete) AlertDialog(onDismissRequest = { delete = false }, title = { Text(tr(R.string.msg_remove_subscription_67)) }, text = { Text(tr(R.string.msg_the_subscription_link_will_need_to_be_added_a_68)) }, confirmButton = { TextButton(enabled = !locked, onClick = { delete = false; remove() }) { Text(tr(R.string.msg_remove_69)) } }, dismissButton = { TextButton(onClick = { delete = false }) { Text(tr(R.string.msg_cancel_32)) } })
+    actionsFor?.let { id -> book?.source(id) }?.let { source ->
+        AlertDialog(onDismissRequest = { actionsFor = null }, title = { Text(source.title(), maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
+            Column {
+                TextButton(enabled = !locked, onClick = { actionsFor = null; editFor = source.id }) { Text(tr(R.string.sub_edit)) }
+                if (!source.local) TextButton(enabled = !locked, onClick = { actionsFor = null; refreshOne(source.id) }) { Text(tr(R.string.sub_update)) }
+                TextButton(enabled = !locked, onClick = { actionsFor = null; delete = source.id }) { Text(tr(R.string.sub_delete)) }
+                if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104), style = MaterialTheme.typography.bodySmall)
+            }
+        }, confirmButton = { TextButton(onClick = { actionsFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
+    }
+    editFor?.let { id -> book?.source(id) }?.let { source ->
+        var name by remember(source.id) { mutableStateOf(source.name.ifBlank { source.providerName }) }
+        var link by remember(source.id) { mutableStateOf(if (source.local) "" else source.url) }
+        val nameOk = org.mothvpn.core.SubscriptionSource.validName(name.trim())
+        val linkOk = source.local || org.mothvpn.core.ImportInput.classify(link) is org.mothvpn.core.ImportInput.Kind.Subscription
+        AlertDialog(onDismissRequest = { editFor = null }, title = { Text(tr(R.string.sub_edit_title)) }, text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(name, { if (it.length <= org.mothvpn.core.SubscriptionSource.MAX_NAME) name = it.replace("\n", " ") }, label = { Text(tr(R.string.sub_name)) }, singleLine = true, isError = !nameOk, modifier = Modifier.fillMaxWidth())
+                if (!source.local) OutlinedTextField(link, { link = it }, label = { Text(tr(R.string.msg_subscription_link_30)) }, singleLine = true, isError = !linkOk,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+            }
+        }, confirmButton = { TextButton(enabled = nameOk && linkOk && !locked, onClick = { editFor = null; edit(source.id, name, if (source.local) source.url else link) }) { Text(tr(R.string.sub_save)) } },
+            dismissButton = { TextButton(onClick = { editFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
+    }
+    delete?.let { id -> book?.source(id) }?.let { source ->
+        AlertDialog(onDismissRequest = { delete = null }, title = { Text(tr(R.string.sub_delete_title, source.title())) },
+            text = { Text(if ((book?.sources?.size ?: 0) > 1) tr(R.string.sub_delete_text) else tr(R.string.msg_the_subscription_link_will_need_to_be_added_a_68)) },
+            confirmButton = { TextButton(enabled = !locked, onClick = { delete = null; remove(source.id) }) { Text(tr(R.string.msg_remove_69)) } },
+            dismissButton = { TextButton(onClick = { delete = null }) { Text(tr(R.string.msg_cancel_32)) } })
+    }
 }
 
 @Composable private fun ActionIcon(icon: String, label: String, enabled: Boolean, action: () -> Unit) {
@@ -214,6 +255,18 @@ private enum class DetailIcon {
         Surface(shape = RoundedCornerShape(8.dp), tonalElevation = 6.dp, shadowElevation = 4.dp, modifier = Modifier.clickable { open = false }) {
             Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).widthIn(max = 240.dp))
         }
+    }
+}
+
+/** Section title in the server list: a subscription (name, traffic and end date, actions button) or the favorites. */
+@Composable private fun GroupHeader(source: SubscriptionSource?, count: Int, actions: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text((source?.title() ?: tr(R.string.fav_group)) + " · " + count, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (source != null) SubscriptionQuotaLine(SubscriptionRecord(source.url, source.profiles, "", usedBytes = source.usedBytes, totalBytes = source.totalBytes, expires = source.expires))
+        }
+        if (source != null) IconButton(onClick = actions, modifier = Modifier.size(36.dp).semantics { contentDescription = tr(R.string.sub_actions) }) { MothIcon("menu", Modifier.size(20.dp)) }
     }
 }
 

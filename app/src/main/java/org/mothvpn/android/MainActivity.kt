@@ -29,6 +29,8 @@ import org.mothvpn.core.ClientSettings
 import org.mothvpn.core.LogFacts
 import org.mothvpn.core.UpdateChannel
 import org.mothvpn.core.ImportInput
+import org.mothvpn.core.SubscriptionBook
+import org.mothvpn.core.SubscriptionSource
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -42,6 +44,9 @@ class MainActivity : AppCompatActivity() {
     companion object { const val CONNECT_FROM_TILE = "org.mothvpn.android.CONNECT_FROM_TILE" }
     private lateinit var store: SubscriptionStore
     private var saved by mutableStateOf<SavedSubscription?>(null)
+    /** All subscriptions; [saved] is the flattened list of their servers with the shared selection. */
+    private var book by mutableStateOf<SubscriptionBook?>(null)
+    private fun show(next: SubscriptionBook?) { book = next?.takeIf { it.sources.isNotEmpty() }; saved = next?.record() }
     private var updateAvailable by mutableStateOf(false)
     private var openUpdates by mutableStateOf(false)
     private var busy by mutableStateOf(false)
@@ -79,14 +84,14 @@ class MainActivity : AppCompatActivity() {
         networks = NetworkTracker(this)
         busy = true
         lifecycleScope.launch {
-            runCatching { withContext(Dispatchers.IO) { store.load() } }.onSuccess { saved = it; Logger.i("Store", "saved subscription loaded: ${it?.let { s -> "${s.profiles.size} server(s) host=${LogFacts.hostTag(s.url)}" } ?: "none"}") }
+            runCatching { withContext(Dispatchers.IO) { store.loadBook() } }.onSuccess { show(it); Logger.i("Store", "saved subscriptions loaded: ${it?.let { b -> "${b.sources.size} subscription(s), ${b.profiles.size} server(s) hosts=${b.sources.joinToString(",") { s -> LogFacts.hostTag(s.url) }}" } ?: "none"}") }
                 .onFailure { Logger.e("Store", "reading the saved subscription failed", it); message = tr(R.string.msg_could_not_read_the_saved_subscription_add_it_23) }
             runCatching { withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).load() } }.onSuccess { settings = it; Logger.i("Store", "settings loaded: channel=${UpdateChannel.effective(it.updateChannel, BuildConfig.VERSION_NAME).id} theme=${it.theme}") }
                 .onFailure { Logger.e("Store", "reading settings failed", it); message = tr(R.string.msg_could_not_read_settings_24) }
             busy = false
             SubscriptionUpdates.schedule(this@MainActivity, settings.subUpdateHours)
             runCatching { ExpiryReminder.schedule(this@MainActivity) }.onFailure { Logger.w("Expiry", "scheduling failed", it) }
-            launch { VpnLauncher.changed.collect { if (it > 0) runCatching { withContext(Dispatchers.IO) { store.load() } }.onSuccess { s -> if (s != null) saved = s } } }
+            launch { VpnLauncher.changed.collect { if (it > 0) runCatching { withContext(Dispatchers.IO) { store.loadBook() } }.onSuccess { b -> if (b != null) show(b) } } }
             checkForUpdate() // on every launch, silently
             var persisted = settings
             var commit = 0L
@@ -113,6 +118,7 @@ class MainActivity : AppCompatActivity() {
             val network by networks.state.collectAsState()
             var dialog by remember { mutableStateOf(false) }
             var url by remember { mutableStateOf("") }
+            var subName by remember { mutableStateOf("") }
             val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
             MaterialTheme(colorScheme = if (dark) darkColorScheme(primary = Color(0xFF83DCC6), background = Color(0xFF101A23), surface = Color(0xFF1C2A35)) else lightColorScheme()) {
                 Surface(Modifier.fillMaxSize()) {
@@ -123,12 +129,13 @@ class MainActivity : AppCompatActivity() {
                                 (fadeIn(tween(220, delayMillis = 60)) + slideInHorizontally(tween(260)) { it / 12 * dir }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(260)) { -it / 12 * dir })
                             }, label = "tab") { shown ->
                             when (shown) {
-                                0 -> HomeScreen(saved, network, busy, message,
-                                    add = { url = ""; dialog = true },
-                                    connect = { if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED)) stop() else connect() }, servers = { tab = 1 },
+                                0 -> HomeScreen(saved, book, network, busy, message,
+                                    add = { url = ""; subName = ""; dialog = true },
+                                    connect = { if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || TunnelStatus.trafficBlocked(TunnelStatus.state.value, TunnelStatus.blocking.value)) stop() else connect() }, servers = { tab = 1 },
                                     updateAvailable = updateAvailable, openUpdates = { openUpdates = true; tab = 2 })
-                                1 -> ServersScreen(saved, settings, network, busy, message,
-                                    add = { url = ""; dialog = true }, refresh = { saved?.takeIf { !it.local }?.let { import(it.url, "refresh") } }, remove = { removeSubscription() },
+                                1 -> ServersScreen(saved, book, settings, network, busy, message,
+                                    add = { url = ""; subName = ""; dialog = true }, refresh = { refreshAll() }, refreshOne = { id -> book?.source(id)?.takeIf { !it.local }?.let { import(it.url, "refresh", id) } },
+                                    edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
                                     select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(null, false, kind, order) },
                                     speedTest = { kind, id -> diagnose(id ?: saved?.selection(kind), true, kind) },
                                     cancel = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("CANCEL_PROBES")) },
@@ -152,6 +159,7 @@ class MainActivity : AppCompatActivity() {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(tr(R.string.msg_paste_the_https_link_from_your_vpn_provider_i_29))
                             OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text(tr(R.string.msg_subscription_link_30)) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+                            OutlinedTextField(value = subName, onValueChange = { if (it.length <= org.mothvpn.core.SubscriptionSource.MAX_NAME) subName = it.replace("\n", " ") }, label = { Text(tr(R.string.sub_name_optional)) }, singleLine = true)
                             val clip = androidx.compose.ui.platform.LocalClipboardManager.current
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = { url = clip.getText()?.text?.trim().orEmpty(); if (url.isEmpty()) message = tr(R.string.import_clipboard_empty) }) { Text(tr(R.string.import_paste)) }
@@ -159,7 +167,7 @@ class MainActivity : AppCompatActivity() {
                             }
                             Text(tr(R.string.import_hint), style = MaterialTheme.typography.bodySmall)
                         }
-                    }, confirmButton = { TextButton(enabled = url.isNotBlank(), onClick = { dialog = false; import(url); url = "" }) { Text(tr(R.string.msg_add_31)) } }, dismissButton = { TextButton(onClick = { dialog = false; url = "" }) { Text(tr(R.string.msg_cancel_32)) } })
+                    }, confirmButton = { TextButton(enabled = url.isNotBlank(), onClick = { dialog = false; import(url, name = subName.trim().ifEmpty { null }); url = ""; subName = "" }) { Text(tr(R.string.msg_add_31)) } }, dismissButton = { TextButton(onClick = { dialog = false; url = ""; subName = "" }) { Text(tr(R.string.msg_cancel_32)) } })
                 }
             }
         }
@@ -185,56 +193,93 @@ class MainActivity : AppCompatActivity() {
         if (next.killSwitch != kill && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED))
             runCatching { startService(Intent(this, TunnelService::class.java).setAction("KILL_SWITCH").putExtra("on", next.killSwitch)) }.onFailure { Logger.w("Settings", "kill switch update not delivered", it) }
     }
-    private fun import(url: String, trigger: String = "add") {
+    /** [sourceId]: refresh or edit that subscription; null adds a new one. [name]: a name chosen by the user (never logged). */
+    private fun import(url: String, trigger: String = "add", sourceId: String? = null, name: String? = null) {
         if (busy) { Logger.w("Import", "ignored: another operation is in progress (trigger=$trigger)"); return }
         busy = true; message = tr(R.string.msg_downloading_servers_33)
         val started = System.currentTimeMillis()
         Logger.i("Import", "subscription ${if (trigger == "refresh") "refresh" else "download"} started (trigger=$trigger, host=${LogFacts.hostTag(url)})")
         lifecycleScope.launch {
             try {
-                val previous = saved
                 val result = withContext(Dispatchers.IO) {
                     when (val input = ImportInput.classify(url)) {
-                        is ImportInput.Kind.Subscription -> SubscriptionRefresh.run(this@MainActivity, input.url, settings, previous, trigger)
+                        is ImportInput.Kind.Subscription -> SubscriptionRefresh.run(this@MainActivity, sourceId, input.url, name, settings, trigger).let { it.book to it.rejected }
                         is ImportInput.Kind.Links -> {
                             val parsed = Subscriptions.parse(input.text)
                             parsed.reasons.forEach { Logger.w("Import", "skipped: $it") }
-                            val base = previous?.takeIf { it.local }
-                            val profiles = ImportInput.merge(base?.profiles.orEmpty(), parsed.profiles)
-                            val first = parsed.profiles.first().id
-                            val next = base?.copy(profiles = profiles, updatedAt = System.currentTimeMillis())
-                                ?: SavedSubscription(SavedSubscription.LOCAL_URL, profiles, first, first, first, tr(R.string.import_local_name), updatedAt = System.currentTimeMillis())
-                            store.save(next)
-                            Logger.i("Import", "added ${profiles.size - (base?.profiles?.size ?: 0)} server(s) from links (trigger=$trigger)")
+                            var added = 0
+                            val next = store.update { b ->
+                                val base = b.source(SubscriptionSource.LOCAL_ID)
+                                val profiles = ImportInput.merge(base?.profiles.orEmpty(), parsed.profiles)
+                                added = profiles.size - (base?.profiles?.size ?: 0)
+                                b.upsert(base?.copy(profiles = profiles, updatedAt = System.currentTimeMillis())
+                                    ?: SubscriptionSource(SubscriptionSource.LOCAL_ID, tr(R.string.import_local_name), SavedSubscription.LOCAL_URL, profiles, updatedAt = System.currentTimeMillis()))
+                            }
+                            Logger.i("Import", "added $added server(s) from links (trigger=$trigger)")
                             next to parsed.rejected
                         }
                         ImportInput.Kind.Invalid -> throw IllegalArgumentException(tr(R.string.import_invalid))
                     }
                 }
-                saved = result.first
+                show(result.first)
                 Logger.i("Import", "subscription saved: ${result.first.profiles.size} server(s) in ${System.currentTimeMillis() - started} ms (trigger=$trigger)")
                 message = "" // the import result is only logged, not shown
             } catch (e: Exception) {
                 // Logger redacts links and addresses from the exception text.
                 Logger.e("Import", "subscription import failed (trigger=$trigger, host=${LogFacts.hostTag(url)}, ${System.currentTimeMillis() - started} ms)", e)
-                message = when(e) {
-                    is java.net.SocketTimeoutException -> tr(R.string.msg_subscription_service_timed_out_36)
-                    is java.net.UnknownHostException -> tr(R.string.msg_could_not_find_the_subscription_service_check_37)
-                    is javax.net.ssl.SSLException -> tr(R.string.msg_could_not_verify_the_secure_connection_to_the_38)
-                    is IllegalArgumentException, is IllegalStateException -> e.message?.takeIf { !it.contains("://") }?.let(::localizedError) ?: tr(R.string.msg_could_not_add_the_subscription_39)
-                    else -> tr(R.string.msg_could_not_download_the_subscription_check_the_40)
-                }
+                message = importError(e)
             } finally { busy = false }
+        }
+    }
+    private fun importError(e: Exception) = when (e) {
+        is java.net.SocketTimeoutException -> tr(R.string.msg_subscription_service_timed_out_36)
+        is java.net.UnknownHostException -> tr(R.string.msg_could_not_find_the_subscription_service_check_37)
+        is javax.net.ssl.SSLException -> tr(R.string.msg_could_not_verify_the_secure_connection_to_the_38)
+        is IllegalArgumentException, is IllegalStateException -> e.message?.takeIf { !it.contains("://") }?.let(::localizedError) ?: tr(R.string.msg_could_not_add_the_subscription_39)
+        else -> tr(R.string.msg_could_not_download_the_subscription_check_the_40)
+    }
+    /** Refreshes every subscription with a link, one after another; one failure does not stop the others. */
+    private fun refreshAll() {
+        if (busy) return
+        val sources = book?.sources.orEmpty().filter { !it.local }
+        if (sources.isEmpty()) return
+        busy = true; message = tr(R.string.msg_downloading_servers_33)
+        lifecycleScope.launch {
+            var error: String? = null
+            for (source in sources) {
+                try { show(withContext(Dispatchers.IO) { SubscriptionRefresh.run(this@MainActivity, source.id, source.url, null, settings, "refresh").book }) }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { Logger.e("Import", "subscription refresh failed (host=${LogFacts.hostTag(source.url)})", e); error = importError(e) } // no subscription name: shown messages are also logged
+            }
+            message = error.orEmpty(); busy = false
+        }
+    }
+    /** Renames a subscription and, when the link changed, downloads it again from the new link (same entry, same position). */
+    private fun editSubscription(id: String, name: String, link: String) {
+        if (busy) return
+        val source = book?.source(id) ?: return
+        val trimmed = name.trim()
+        if (!org.mothvpn.core.SubscriptionSource.validName(trimmed)) { message = tr(R.string.sub_name_invalid); return }
+        if (!source.local && link.trim() != source.url) {
+            if (ImportInput.classify(link) !is ImportInput.Kind.Subscription) { message = tr(R.string.msg_use_an_https_link_without_a_username_or_passw_112); return }
+            import(link.trim(), "edit", id, trimmed); return
+        }
+        busy = true
+        lifecycleScope.launch {
+            try { show(withContext(Dispatchers.IO) { store.update { it.rename(id, trimmed) } }); Logger.i("Store", "subscription renamed") }
+            catch (e: Exception) { Logger.e("Store", "renaming the subscription failed", e); message = tr(R.string.msg_check_your_settings_71) }
+            finally { busy = false }
         }
     }
     private fun select(id: String, kind: String) {
         if (busy || Diagnostics.running.value || TunnelStatus.state.value == TunnelState.STOPPING) return
         val switching = TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED) && kind == networks.state.value.kind && id != TunnelStatus.activeProfile.value
         val next = saved?.let { if (kind == "mobile") it.copy(selected = id, mobileSelected = id) else it.copy(selected = id, wifiSelected = id) } ?: return
+        val nextBook = book?.withSelection(next)
         busy = true
         lifecycleScope.launch {
             try {
-                withContext(Dispatchers.IO) { store.save(next) }; saved = next
+                withContext(Dispatchers.IO) { store.save(next) }; if (nextBook != null) show(nextBook) else saved = next
                 Logger.i("Store", "selected server ($kind): ${next.profiles.firstOrNull { it.id == id }?.let(LogFacts::profileTag)}")
                 if (switching && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED)) {
                     TunnelStatus.mutable.value = TunnelState.STARTING
@@ -246,11 +291,15 @@ class MainActivity : AppCompatActivity() {
             finally { busy = false }
         }
     }
-    private fun removeSubscription() {
+    private fun removeSubscription(id: String) {
         if (busy) return
         busy = true
         lifecycleScope.launch {
-            try { withContext(Dispatchers.IO) { store.clear() }; Logger.i("Store", "subscription removed by the user"); saved = null; message = tr(R.string.msg_subscription_removed_42) }
+            try {
+                val next = withContext(Dispatchers.IO) { store.update { it.remove(id) }.also { if (it.sources.isEmpty()) store.clear() } }
+                show(next.takeIf { it.sources.isNotEmpty() })
+                Logger.i("Store", "subscription removed by the user (${next.sources.size} left)"); message = tr(R.string.msg_subscription_removed_42)
+            }
             catch (e: Exception) { Logger.e("Store", "removing the subscription failed", e); message = tr(R.string.msg_could_not_remove_the_subscription_43) }
             finally { busy = false }
         }

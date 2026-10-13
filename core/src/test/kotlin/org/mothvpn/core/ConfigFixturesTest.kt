@@ -29,6 +29,11 @@ class ConfigFixturesTest {
         File(directory, "custom-probe.json").writeText(LocalProxyConfig.singBox(Subscriptions.parseLink(links[4]), 18083, "test", "test", custom))
         val group = Subscriptions.parse(XrayJsonFixtures.balancerDocument()).profiles.first()
         File(directory, "xray-group.json").writeText(LocalProxyConfig.xray(group, 18085, "test", "test"))
+        val rules = ClientSettings(routingRules = listOf(RoutingRule("domain_suffix", "example.com", "direct"), RoutingRule("ip_cidr", "10.0.0.0/8", "block"),
+            RoutingRule("domain_keyword", "ads", "block"), RoutingRule("domain", "vpn.example.org", "proxy")), directRu = true)
+        File(directory, "rules.json").writeText(TunnelConfig.create(Subscriptions.parseLink(links[1]), rules))
+        File(directory, "xray-rules.json").writeText(LocalProxyConfig.xray(xhttp, 18086, "test", "test", rules))
+        File(directory, "xray-group-rules.json").writeText(LocalProxyConfig.xray(group, 18087, "test", "test", rules))
         File(directory, "xray-custom.json").writeText(LocalProxyConfig.xray(xhttp, 18084, "test", "test", custom))
     }
 }

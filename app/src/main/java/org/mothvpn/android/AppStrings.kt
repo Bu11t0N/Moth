@@ -66,6 +66,7 @@ private val errorResources = mapOf(
         "Неверный интервал обновления подписки" to R.string.msg_err_sub_interval,
         "Неверный список приложений" to R.string.msg_err_split_apps,
         "Неверный DNS-сервер" to R.string.msg_err_dns,
+        "Неверное правило маршрутизации" to R.string.msg_err_routing_rule,
         "Параллельных проверок: от 1 до 16" to R.string.msg_probe_parallel_range,
         "Таймаут пинга: от 500 до 30000 мс" to R.string.msg_probe_timeout_range,
         "Соединение ещё не проверено" to R.string.msg_connection_has_not_been_checked_yet_0,

@@ -36,11 +36,13 @@ data class ClientSettings(
     /** Favorite server ids (stable: sha256 of the link without the name). */
     val favorites: List<String> = emptyList(),
     /** Notify 3 days before and on the day the subscription ends (when the provider sends an end date). */
-    val expiryWarning: Boolean = true
+    val expiryWarning: Boolean = true,
+    /** User routing rules (domain / suffix / keyword / IP CIDR -> proxy, direct or block), applied in order before the built-in rules. */
+    val routingRules: List<RoutingRule> = emptyList()
 ) {
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
-        if (Regex("Moth(/[0-9][0-9.]*)?").matches(userAgent)) copy(userAgent = "Moth/$version") else this
+        if (autoUserAgent.matches(userAgent)) copy(userAgent = "Moth/$version") else this
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
         require(updateChannel in setOf("", "release", "beta")) { "Неверный канал обновлений" }
@@ -58,6 +60,7 @@ data class ClientSettings(
         require(splitApps.size <= 2000 && splitApps.all { SplitTunnel.validPackage(it) }) { "Неверный список приложений" }
         require(DnsServers.valid(dns)) { "Неверный DNS-сервер" }
         require(Favorites.valid(favorites)) { "Неверный список избранного" }
+        require(CustomRouting.valid(routingRules)) { "Неверное правило маршрутизации" }
         listOf(probeUrl, bootstrapDns).forEach { value ->
             val u = URI(value)
             require(u.scheme == "https" && !u.host.isNullOrBlank() && u.rawUserInfo == null && u.fragment == null) { "Нужен корректный HTTPS-адрес" }
@@ -74,7 +77,10 @@ data class ClientSettings(
         .put("splitMode", splitMode).put("splitApps", org.json.JSONArray(splitApps)).put("directRu", directRu).put("subUpdateHours", subUpdateHours)
         .put("autoSelect", autoSelect).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
+        .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } })
     companion object {
+        /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
+        private val autoUserAgent = Regex("Moth(/[0-9][0-9A-Za-z.+-]*)?")
         fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
             DnsServers.migrate(j.optString("dns", "https://1.1.1.1/dns-query")), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
             (if (j.has("timeoutMs")) j.getInt("timeoutMs") else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(1000, 60000), j.optBoolean("healthEnabled", true), j.optInt("healthIntervalSeconds", 60),
@@ -95,7 +101,9 @@ data class ClientSettings(
             dnsLeakProtection = j.optBoolean("dnsLeakProtection", true),
             killSwitch = j.optBoolean("killSwitch", false),
             favorites = j.optJSONArray("favorites")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { Regex("[0-9a-f]{16,64}").matches(it) }.distinct().take(5000) }.orEmpty(),
-            expiryWarning = j.optBoolean("expiryWarning", true)).validate()
+            expiryWarning = j.optBoolean("expiryWarning", true),
+            // Invalid saved rules are dropped instead of failing the whole settings file.
+            routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
 }
 
@@ -136,14 +144,30 @@ object LocalProxyConfig {
             .put("dns", JSONObject().put("servers", org.json.JSONArray().put(settings.bootstrapDns.replaceFirst("https://", "https+local://"))).put("queryStrategy", "UseIPv4"))
             .put("inbounds", org.json.JSONArray().put(JSONObject().put("tag", "moth-in").put("listen", "127.0.0.1").put("port", port).put("protocol", "socks")
                 .put("settings", JSONObject().put("auth", "password").put("udp", true).put("accounts", org.json.JSONArray().put(JSONObject().put("user", username).put("pass", password))))))
-        if (!group) return config.put("outbounds", org.json.JSONArray().put(protectedOutbound(source))).toString()
+        val rules = settings.routingRules
+        if (rules.isNotEmpty() && CustomRouting.needsSniff(rules)) config.getJSONArray("inbounds").getJSONObject(0)
+            .put("sniffing", JSONObject().put("enabled", true).put("destOverride", org.json.JSONArray(listOf("http", "tls", "quic"))).put("routeOnly", true))
+        // User rules: "direct" and "block" outbounds are added only when there are rules, so configs without rules stay as before.
+        fun extra(outbounds: org.json.JSONArray) = outbounds.apply { if (rules.isNotEmpty()) {
+            put(protectedOutbound(JSONObject().put("tag", "direct").put("protocol", "freedom").put("streamSettings", JSONObject())))
+            put(JSONObject().put("tag", "block").put("protocol", "blackhole"))
+        } }
+        if (!group) {
+            val proxyTag = source.optString("tag").ifBlank { "proxy" }.also { source.put("tag", it) }
+            config.put("outbounds", extra(org.json.JSONArray().put(protectedOutbound(source))))
+            if (rules.isNotEmpty()) config.put("routing", JSONObject().put("domainStrategy", "AsIs")
+                .put("rules", org.json.JSONArray(CustomRouting.xray(rules) { it.put("outboundTag", proxyTag) })))
+            return config.toString()
+        }
         // Balancer group: every connection goes through the balancer; there is no direct outbound or direct fallback.
         val outbounds = org.json.JSONArray()
         val members = source.getJSONArray("outbounds")
         for (i in 0 until members.length()) outbounds.put(protectedOutbound(members.getJSONObject(i)))
-        return config.put("outbounds", outbounds)
+        val routing = org.json.JSONArray(CustomRouting.xray(rules) { it.put("balancerTag", "balancer") })
+            .put(JSONObject().put("type", "field").put("inboundTag", org.json.JSONArray().put("moth-in")).put("balancerTag", "balancer"))
+        return config.put("outbounds", extra(outbounds))
             .put("routing", JSONObject().put("domainStrategy", "AsIs").put("balancers", org.json.JSONArray().put(source.getJSONObject("balancer")))
-                .put("rules", org.json.JSONArray().put(JSONObject().put("type", "field").put("inboundTag", org.json.JSONArray().put("moth-in")).put("balancerTag", "balancer"))))
+                .put("rules", routing))
             .put("burstObservatory", source.getJSONObject("burstObservatory")).toString()
     }
 }
