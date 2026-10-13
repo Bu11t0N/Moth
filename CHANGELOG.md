@@ -2,6 +2,12 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.5.2
+
+### Changes
+
+- About → Licenses: license texts for Moth and its components, including the full list of Go modules in the VPN core with their versions and licenses.
+
 ## 0.5.1
 
 ### Changes

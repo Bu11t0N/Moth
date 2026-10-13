@@ -331,4 +331,16 @@
     <string name="set_theme_dark">Тёмная тема</string>
     <string name="set_sum_sub_hours">Обновление раз в %d ч</string>
     <string name="set_sum_sub_off">Автообновление выключено</string>
+    <string name="set_licenses">Лицензии</string>
+    <string name="set_licenses_sum">Тексты лицензий Moth и сторонних компонентов</string>
+    <string name="lic_moth">Moth</string>
+    <string name="lic_moth_sum">GPL-3.0-or-later</string>
+    <string name="lic_singbox">sing-box</string>
+    <string name="lic_singbox_sum">GPL-3.0-or-later с дополнительным условием об имени</string>
+    <string name="lic_xray">Xray-core</string>
+    <string name="lic_xray_sum">MPL-2.0</string>
+    <string name="lic_go_modules">Go-модули ядра</string>
+    <string name="lic_go_modules_sum">Модули Go в составе libbox: версия, лицензия и полный текст лицензии</string>
+    <string name="lic_android">Библиотеки Android и JVM</string>
+    <string name="lic_android_sum">Apache-2.0</string>
 </resources>

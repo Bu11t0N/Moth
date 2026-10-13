@@ -46,6 +46,9 @@ p.write_text(s.replace(old, new))
 PY
 go mod edit -replace github.com/xtls/xray-core=./.moth-xray
 go mod tidy
+# Go dependency license notices (licenses/go-modules.txt); see scripts/go-licenses.sh.
+bash "$project_root/scripts/go-licenses.sh" "$source_path" "$project_root/licenses/go-modules.txt"
+if [ "${MOTH_PREPARE_ONLY:-}" = 1 ]; then exit 0; fi
 go install github.com/sagernet/gomobile/cmd/gomobile
 go install github.com/sagernet/gomobile/cmd/gobind
 go run ./cmd/internal/build_libbox -target android
