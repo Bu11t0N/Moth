@@ -27,6 +27,7 @@ object LogFacts {
         plain("killSwitch", old.killSwitch, new.killSwitch); plain("favorites", old.favorites.size, new.favorites.size)
         plain("expiryWarning", old.expiryWarning, new.expiryWarning)
         plain("routingRules", old.routingRules.size, new.routingRules.size)
+        plain("trafficWarning", old.trafficWarning, new.trafficWarning)
         return out
     }
 

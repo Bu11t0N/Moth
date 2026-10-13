@@ -431,4 +431,10 @@
     <string name="rules_import_duplicates">Пропущено повторов: %1$d</string>
     <string name="rules_import_over_limit">Сверх лимита 500: %1$d</string>
     <string name="rules_import_apply">Добавить %1$d</string>
+    <string name="traffic_warning_setting">Предупреждать, когда трафик заканчивается</string>
+    <string name="traffic_warning_hint">Уведомление, когда подписка израсходовала эту долю трафика (если провайдер сообщает лимит). Один раз для подписки за расчётный период.</string>
+    <string name="traffic_warning_title">Трафик заканчивается</string>
+    <string name="traffic_warning_title_named">Трафик «%1$s» заканчивается</string>
+    <string name="traffic_warning_text">Израсходовано %1$d%%: %2$s из %3$s</string>
+    <string name="msg_err_traffic_warning">Неверный порог предупреждения о трафике</string>
 </resources>

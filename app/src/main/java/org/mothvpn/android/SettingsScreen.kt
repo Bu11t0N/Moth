@@ -148,6 +148,11 @@ import org.mothvpn.core.SubscriptionSchedule
                     val subOptions = SubscriptionSchedule.intervals.map { it to if (it == 0) tr(R.string.sub_auto_off) else tr(R.string.sub_auto_hours, it) }
                     DialogRow(tr(R.string.sub_auto), subOptions.first { it.first == draft.subUpdateHours }.second) { subDialog = true }
                     if (subDialog) ChoiceDialog(tr(R.string.sub_auto), subOptions, draft.subUpdateHours, { subDialog = false }) { applySettings(draft.copy(subUpdateHours = it)) }
+                    var trafficDialog by remember { mutableStateOf(false) }
+                    val trafficOptions = org.mothvpn.core.TrafficWarning.thresholds.map { it to if (it == 0) tr(R.string.sub_auto_off) else "$it%" }
+                    DialogRow(tr(R.string.traffic_warning_setting), trafficOptions.first { it.first == draft.trafficWarning }.second) { trafficDialog = true }
+                    if (trafficDialog) ChoiceDialog(tr(R.string.traffic_warning_setting), trafficOptions, draft.trafficWarning, { trafficDialog = false }) { applySettings(draft.copy(trafficWarning = it)) }
+                    Text(tr(R.string.traffic_warning_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsToggle(tr(R.string.expiry_toggle), draft.expiryWarning) { applySettings(draft.copy(expiryWarning = it)) }
                     Text(tr(R.string.expiry_toggle_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsToggle(tr(R.string.msg_send_hwid_to_the_provider_105), draft.hwidEnabled, !locked) { applySettings(draft.copy(hwidEnabled = it)) }

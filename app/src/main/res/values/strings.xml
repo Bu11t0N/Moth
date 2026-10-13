@@ -431,4 +431,10 @@
     <string name="rules_import_duplicates">Duplicates skipped: %1$d</string>
     <string name="rules_import_over_limit">Over the 500 limit: %1$d</string>
     <string name="rules_import_apply">Add %1$d</string>
+    <string name="traffic_warning_setting">Warn when traffic is running out</string>
+    <string name="traffic_warning_hint">A notification when a subscription has used this share of its traffic (if the provider reports a limit). Once per subscription and billing period.</string>
+    <string name="traffic_warning_title">Traffic is running out</string>
+    <string name="traffic_warning_title_named">Traffic of “%1$s” is running out</string>
+    <string name="traffic_warning_text">%1$d%% used: %2$s of %3$s</string>
+    <string name="msg_err_traffic_warning">Invalid traffic warning threshold</string>
 </resources>

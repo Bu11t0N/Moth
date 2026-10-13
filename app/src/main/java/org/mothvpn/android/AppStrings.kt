@@ -67,6 +67,7 @@ private val errorResources = mapOf(
         "Неверный список приложений" to R.string.msg_err_split_apps,
         "Неверный DNS-сервер" to R.string.msg_err_dns,
         "Неверное правило маршрутизации" to R.string.msg_err_routing_rule,
+        "Неверный порог предупреждения о трафике" to R.string.msg_err_traffic_warning,
         "Это не резервная копия Moth" to R.string.backup_err_not_backup,
         "Резервная копия создана более новой версией Moth" to R.string.backup_err_newer,
         "Неизвестный формат резервной копии" to R.string.backup_err_format,

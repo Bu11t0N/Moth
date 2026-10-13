@@ -38,7 +38,9 @@ data class ClientSettings(
     /** Notify 3 days before and on the day the subscription ends (when the provider sends an end date). */
     val expiryWarning: Boolean = true,
     /** User routing rules (domain / suffix / keyword / IP CIDR -> proxy, direct or block), applied in order before the built-in rules. */
-    val routingRules: List<RoutingRule> = emptyList()
+    val routingRules: List<RoutingRule> = emptyList(),
+    /** Warn when a subscription has used this share of its traffic: 0 (off), 80, 90 or 95 percent. */
+    val trafficWarning: Int = TrafficWarning.DEFAULT
 ) {
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
@@ -60,6 +62,7 @@ data class ClientSettings(
         require(splitApps.size <= 2000 && splitApps.all { SplitTunnel.validPackage(it) }) { "Неверный список приложений" }
         require(DnsServers.valid(dns)) { "Неверный DNS-сервер" }
         require(Favorites.valid(favorites)) { "Неверный список избранного" }
+        require(trafficWarning in TrafficWarning.thresholds) { "Неверный порог предупреждения о трафике" }
         require(CustomRouting.valid(routingRules)) { "Неверное правило маршрутизации" }
         listOf(probeUrl, bootstrapDns).forEach { value ->
             val u = URI(value)
@@ -77,7 +80,7 @@ data class ClientSettings(
         .put("splitMode", splitMode).put("splitApps", org.json.JSONArray(splitApps)).put("directRu", directRu).put("subUpdateHours", subUpdateHours)
         .put("autoSelect", autoSelect).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
-        .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } })
+        .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
     companion object {
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
         private val autoUserAgent = Regex("Moth(/[0-9][0-9A-Za-z.+-]*)?")
@@ -103,6 +106,7 @@ data class ClientSettings(
             favorites = j.optJSONArray("favorites")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { Regex("[0-9a-f]{16,64}").matches(it) }.distinct().take(5000) }.orEmpty(),
             expiryWarning = j.optBoolean("expiryWarning", true),
             // Invalid saved rules are dropped instead of failing the whole settings file.
+            trafficWarning = TrafficWarning.normalize(j.optInt("trafficWarning", TrafficWarning.DEFAULT)),
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
 }
