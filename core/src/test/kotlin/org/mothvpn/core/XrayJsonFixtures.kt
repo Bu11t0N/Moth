@@ -41,4 +41,25 @@ object XrayJsonFixtures {
         return doc
     }
     fun balancerDocument(): String = config(" ⚡ Fastest ", tcpReality("proxy", "a.example.com"), grpcReality("proxy-2", "g.example.com"), ws("proxy-3"), xhttp("proxy-4"), hysteria("proxy-5"), balancer = true).toString()
+    /** One document per protocol: VMess (ws+tls), Trojan (grpc+tls), Shadowsocks, SOCKS with auth, HTTP with TLS, WireGuard. */
+    fun allProtocols(): String {
+        fun doc(remarks: String, o: JSONObject) = JSONObject().put("remarks", remarks).put("outbounds", JSONArray().put(o))
+        fun server(extra: JSONObject.() -> Unit) = JSONObject().put("address", "s.example.com").put("port", 443).apply(extra)
+        val vmess = JSONObject().put("tag", "proxy").put("protocol", "vmess").put("settings", JSONObject().put("vnext", JSONArray().put(server {
+            put("users", JSONArray().put(JSONObject().put("id", UUID1).put("security", "auto").put("alterId", 0))) })))
+            .put("streamSettings", tls("ws") { put("wsSettings", JSONObject().put("path", "/vm")) })
+        val trojan = JSONObject().put("tag", "proxy").put("protocol", "trojan").put("settings", JSONObject().put("servers", JSONArray().put(server { put("password", "pw") })))
+            .put("streamSettings", tls("grpc") { put("grpcSettings", JSONObject().put("serviceName", "tr")) })
+        val ss = JSONObject().put("tag", "proxy").put("protocol", "shadowsocks").put("settings", JSONObject().put("servers", JSONArray().put(server {
+            put("method", "chacha20-ietf-poly1305").put("password", "pw") })))
+        val socks = JSONObject().put("tag", "proxy").put("protocol", "socks").put("settings", JSONObject().put("servers", JSONArray().put(server {
+            put("users", JSONArray().put(JSONObject().put("user", "u").put("pass", "p"))) })))
+        val http = JSONObject().put("tag", "proxy").put("protocol", "http").put("settings", JSONObject().put("servers", JSONArray().put(server {
+            put("users", JSONArray().put(JSONObject().put("user", "u").put("pass", "p"))) }))).put("streamSettings", tls("tcp"))
+        val wg = JSONObject().put("tag", "proxy").put("protocol", "wireguard").put("settings", JSONObject()
+            .put("secretKey", java.util.Base64.getEncoder().encodeToString(ByteArray(32) { 3 })).put("address", JSONArray(listOf("10.8.0.2/32")))
+            .put("peers", JSONArray().put(JSONObject().put("publicKey", java.util.Base64.getEncoder().encodeToString(ByteArray(32) { 4 })).put("endpoint", "wg.example.com:51820")))
+            .put("mtu", 1420).put("reserved", JSONArray(listOf(1, 2, 3))))
+        return JSONArray().put(doc("VMess", vmess)).put(doc("Trojan", trojan)).put(doc("SS", ss)).put(doc("SOCKS", socks)).put(doc("HTTPS", http)).put(doc("WG", wg)).toString()
+    }
 }

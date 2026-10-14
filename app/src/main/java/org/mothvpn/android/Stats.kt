@@ -251,7 +251,7 @@ object ExpiryReminder {
     private fun notifyTraffic(context: Context, source: org.mothvpn.core.SubscriptionSource, percent: Int, many: Boolean): Boolean {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("expiry", tr(R.string.expiry_channel), NotificationManager.IMPORTANCE_DEFAULT))
-        val open = PendingIntent.getActivity(context, 44, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE)
+        val open = PendingIntent.getActivity(context, 44, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
         val locale = AppLanguage.context().resources.configuration.locales[0]
         val units = tr(R.string.notif_units).split("|")
         val text = tr(R.string.traffic_warning_text, percent, org.mothvpn.core.TrafficFormat.bytes(source.usedBytes, units, locale), org.mothvpn.core.TrafficFormat.bytes(source.totalBytes, units, locale))
@@ -270,7 +270,7 @@ object ExpiryReminder {
         val kind = ExpiryWarning.due(source.expires, today, zone, shown, prefs.getString(dayKey, "").orEmpty()) ?: return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("expiry", tr(R.string.expiry_channel), NotificationManager.IMPORTANCE_DEFAULT))
-        val open = PendingIntent.getActivity(context, 43, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE)
+        val open = PendingIntent.getActivity(context, 43, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
         val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, AppLanguage.context().resources.configuration.locales[0]).format(java.util.Date(source.expires * 1000))
         val text = if (kind == ExpiryWarning.Kind.TODAY) tr(R.string.expiry_today) else tr(R.string.expiry_soon, ExpiryWarning.daysLeft(source.expires, today, zone).toInt(), date)
         // The name is shown only in the notification (it is the user's own subscription) and never logged.

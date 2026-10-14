@@ -50,13 +50,15 @@ object Subscriptions {
             .getOrElse { Base64.getUrlDecoder().decode(compact) }
         return String(bytes, StandardCharsets.UTF_8)
     }
-    fun parse(body: String): ImportResult {
+    /** [fetch]: downloads a Clash proxy-provider (HTTPS only); null skips providers. */
+    fun parse(body: String, fetch: ((String) -> String)? = null): ImportResult {
         require(body.length <= 2 * 1024 * 1024) { "Список серверов слишком большой" }
         val text = body.trim().removePrefix("\uFEFF")
+        if (SingBoxSubscriptions.looksLike(text)) return SingBoxSubscriptions.parse(text)
         if (XrayJsonSubscriptions.looksLike(text)) return XrayJsonSubscriptions.parse(text)
-        if (text.startsWith("proxies:") || text.contains("\nproxies:") || text.startsWith("{")) return ClashSubscriptions.parse(text)
+        if (ClashSubscriptions.looksLike(text) || text.startsWith("{")) return ClashSubscriptions.parse(text, fetch)
         val decoded = if (text.contains("://")) text else runCatching { unbase64(text) }.getOrDefault(text)
-        if (decoded.startsWith("proxies:") || decoded.contains("\nproxies:")) return ClashSubscriptions.parse(decoded)
+        if (ClashSubscriptions.looksLike(decoded)) return ClashSubscriptions.parse(decoded, fetch)
         val allLines = decoded.lineSequence().map(String::trim).filter { it.isNotEmpty() }.toList()
         val lines = allLines.filter { !it.startsWith("#") }
         val comments = allLines.size - lines.size
@@ -71,13 +73,15 @@ object Subscriptions {
             }
         }
         val (profiles, duplicates) = dedupe(converted, "link")
-        require(profiles.isNotEmpty()) { "Нет поддерживаемых серверов. Нужен список ссылок VLESS, VMess, Trojan или Shadowsocks." }
+        require(profiles.isNotEmpty()) { "Нет поддерживаемых серверов. Нужны ссылки VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, SOCKS, HTTP, WireGuard или SSH, либо конфигурация Clash, Xray или sing-box." }
         return ImportResult(profiles, rejected, reasons, duplicates, comments, converted.size)
     }
     fun parseLink(link: String): Profile = parseLinkOnly(link).copy(link = link.trim())
     private fun parseLinkOnly(link: String): Profile {
         val scheme = link.substringBefore("://").lowercase()
         if (scheme in setOf("hy2", "hysteria2", "hysteria", "tuic")) return ExtraProtocols.parse(link)
+        if (scheme in setOf("http", "https")) require(ImportInput.proxyLink(link)) { "Ссылка не похожа на прокси-сервер" }
+        if (scheme in ProxyProtocols.schemes) return ProxyProtocols.parse(link)
         if (scheme in setOf("vless", "trojan") && URI(link).rawQuery.orEmpty().split('&').any { it in setOf("type=xhttp", "type=splithttp") }) return ExtraProtocols.xhttp(link)
         val o: JSONObject
         val name: String
@@ -153,21 +157,27 @@ object TunnelConfig {
      * [ruleSets]: rule-set tag -> local .srs file path, used only when [ClientSettings.directRu] is on (missing files are skipped;
      * the built-in .ru/.su/.рф domain rule still applies).
      */
-    fun create(profile: Profile, settings: ClientSettings = ClientSettings(), ruleSets: Map<String, String> = emptyMap()): String = JSONObject()
+    /**
+     * [dpi]: local Xray helper for fragments/noise (sing-box profiles only). [appGuard]: Moth's package name when connection owners
+     * can be resolved (Android 10+): connections from apps that split tunneling keeps out of the VPN but that still reach the tunnel
+     * interface directly (binding to tun0) are rejected, so they cannot use the server.
+     */
+    fun create(profile: Profile, settings: ClientSettings = ClientSettings(), ruleSets: Map<String, String> = emptyMap(), dpi: LocalHop? = null, appGuard: String? = null): String = JSONObject()
         .put("log", JSONObject().put("disabled", true))
         .put("dns", JSONObject().put("servers", JSONArray()
-            .put(JSONObject().put("tag", "remote").put("address", "https://1.1.1.1/dns-query").put("detour", "proxy"))
-            .put(JSONObject().put("tag", "bootstrap").put("address", settings.bootstrapDns).put("detour", "direct")))
-            .put("rules", JSONArray().put(JSONObject().put("outbound", "any").put("server", "bootstrap")))
-            .put("final", "remote").put("strategy", if (settings.ipv6) "prefer_ipv4" else "ipv4_only").apply {
-                getJSONArray("servers").getJSONObject(0).put("address", settings.dns).put("address_resolver", "bootstrap")
-            })
+            .put(SingDns.server("remote", settings.dns, "proxy", "bootstrap"))
+            .put(SingDns.server("bootstrap", settings.bootstrapDns, null, "system"))
+            .put(SingDns.system()))
+            .put("final", "remote").put("strategy", if (settings.ipv6) "prefer_ipv4" else "ipv4_only"))
         .put("inbounds", JSONArray().put(JSONObject().put("type", "tun").put("tag", "tun-in").put("address", JSONArray(listOf("172.19.0.1/30", "fdfe:dcba:9876::1/126")))
             .put("mtu", settings.mtu).put("auto_route", true).put("strict_route", settings.dnsLeakProtection).put("stack", "gvisor")))
-        .put("outbounds", JSONArray().put(JSONObject(profile.outbound)).put(JSONObject().put("type", "direct").put("tag", "direct")))
-        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").put("rules", JSONArray().apply {
+        .put("outbounds", JSONArray())
+        .also { SingBoxOutbounds.install(it, profile.outbound, settings, dpi); it.getJSONArray("outbounds").put(JSONObject().put("type", "direct").put("tag", "direct")) }
+        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy")
+            .put("default_domain_resolver", JSONObject().put("server", "bootstrap")).put("rules", JSONArray().apply {
             if (settings.directRu || CustomRouting.needsSniff(settings.routingRules)) put(JSONObject().put("action", "sniff"))
             put(JSONObject().put("port", 53).put("action", "hijack-dns"))
+            appGuard?.let { self -> appGuardRules(settings, self).forEach { put(it) } }
             if (!settings.ipv6) put(JSONObject().put("ip_version", 6).put("action", "reject"))
             // User rules come before the built-in "Russian sites directly" rules.
             CustomRouting.singBox(settings.routingRules).forEach { put(it) }
@@ -181,4 +191,11 @@ object TunnelConfig {
             })
         })
         .toString()
+    /** Reject rules for apps outside the VPN (by package; DNS is hijacked before, so system lookups keep working). */
+    fun appGuardRules(settings: ClientSettings, self: String): List<JSONObject> {
+        val plan = SplitTunnel.plan(settings.splitMode, settings.splitApps, self)
+        return listOfNotNull(
+            plan.disallowed.takeIf { it.isNotEmpty() }?.let { JSONObject().put("package_name", JSONArray(it)).put("action", "reject") },
+            plan.allowed.takeIf { it.isNotEmpty() }?.let { JSONObject().put("package_name", JSONArray(it)).put("invert", true).put("action", "reject") })
+    }
 }

@@ -51,7 +51,7 @@ class BootReceiver : BroadcastReceiver() {
     private fun askToOpen(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("boot", tr(R.string.boot_channel), NotificationManager.IMPORTANCE_DEFAULT))
-        val open = PendingIntent.getActivity(context, 42, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val open = PendingIntent.getActivity(context, 42, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(MainActivity.CONNECT_FROM_TILE, true), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         runCatching {
             manager.notify(2, android.app.Notification.Builder(context, "boot").setSmallIcon(R.drawable.ic_moth_notification)
@@ -70,7 +70,7 @@ object SubscriptionRefresh {
     fun run(context: Context, sourceId: String?, url: String, name: String?, settings: org.mothvpn.core.ClientSettings, trigger: String): Result {
         val link = url.trim()
         val response = SubscriptionDownload.fetchDetails(link, settings)
-        val parsed = Subscriptions.parse(response.body)
+        val parsed = Subscriptions.parse(response.body) { provider -> SubscriptionDownload.fetchDetails(provider, settings).body }
         Logger.i("Import", "${parsed.summary()}, comment lines skipped ${parsed.comments}, kept ${parsed.profiles.size} (trigger=$trigger)")
         parsed.duplicates.forEach { Logger.d("Import", "dropped: $it") }
         parsed.reasons.forEach { Logger.w("Import", "skipped: $it") }

@@ -112,7 +112,7 @@
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Send device model and Android version"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"Subscription User-Agent"</string>
     <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Providers may select the subscription format by User-Agent. HWID is sent only to the original subscription website."</string>
-    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.11.15 + Xray 25.3.6\nOpen source · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
+    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 25.3.6\nOpen source · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Use an HTTPS link without a username or password in the URL"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Subscription device limit reached. Contact the provider."</string>
     <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"The provider requires HWID. Enable it in settings."</string>
@@ -164,7 +164,7 @@
     <string name="msg_unsupported_xhttp_mode_162" formatted="false">"Unsupported XHTTP mode"</string>
     <string name="msg_xhttp_extra_settings_are_too_large_163" formatted="false">"XHTTP extra settings are too large"</string>
     <string name="msg_reality_public_key_is_missing_164" formatted="false">"REALITY public key is missing"</string>
-    <string name="msg_no_supported_servers_use_vless_vmess_trojan_o_165" formatted="false">"No supported servers. Use VLESS, VMess, Trojan or Shadowsocks links."</string>
+    <string name="msg_no_supported_servers_use_vless_vmess_trojan_o_165" formatted="false">"No supported servers. Use VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, SOCKS, HTTP, WireGuard or SSH links, or a Clash, Xray or sing-box config."</string>
     <string name="msg_vmess_alterid_is_not_supported_166" formatted="false">"VMess alterId is not supported"</string>
     <string name="msg_transport_is_not_supported_167" formatted="false">"Transport is not supported"</string>
     <string name="msg_invalid_server_address_168" formatted="false">"Invalid server address"</string>
@@ -437,4 +437,38 @@
     <string name="traffic_warning_title_named">Traffic of “%1$s” is running out</string>
     <string name="traffic_warning_text">%1$d%% used: %2$s of %3$s</string>
     <string name="msg_err_traffic_warning">Invalid traffic warning threshold</string>
+    <string name="proto_unencrypted">"Unencrypted"</string>
+    <string name="msg_err_fragment">"Invalid fragmentation mode"</string>
+    <string name="msg_err_mux">"Invalid multiplexing mode"</string>
+    <string name="msg_err_amneziawg">"AmneziaWG is not supported"</string>
+    <string name="msg_err_singbox_empty">"No supported servers in the sing-box config"</string>
+    <string name="set_head_dpi">"DPI bypass and multiplexing"</string>
+    <string name="fragment_title">"TLS fragmentation"</string>
+    <string name="fragment_off">"Off"</string>
+    <string name="fragment_tlshello">"TLS ClientHello (recommended)"</string>
+    <string name="fragment_tlshello_small">"TLS ClientHello, small pieces"</string>
+    <string name="fragment_first_packets">"First packets of the connection"</string>
+    <string name="fragment_hint">"Splits the start of TLS connections into pieces so that DPI cannot read the server name. Slightly slower; enable only if servers are blocked."</string>
+    <string name="noise_title">"UDP noise"</string>
+    <string name="noise_hint">"Sends a few random packets before UDP connections (QUIC, Hysteria2, TUIC, WireGuard). Only affects UDP."</string>
+    <string name="mux_title">"Multiplexing (mux)"</string>
+    <string name="mux_off">"Off"</string>
+    <string name="mux_hint">"Carries several connections inside one. The server must support the chosen mode; not used with XTLS flow or XHTTP."</string>
+    <string name="deeplink_sub_title">"Add subscription?"</string>
+    <string name="deeplink_links_title">"Add servers?"</string>
+    <string name="deeplink_sub_text">"Subscription from %1$s will be downloaded and added."</string>
+    <string name="deeplink_name">"Name: %1$s"</string>
+    <string name="deeplink_links_text">"Servers to add to "My servers": %1$d"</string>
+    <string name="deeplink_warning">"Only add servers from sources you trust."</string>
+    <string name="widget_label">"Moth VPN"</string>
+    <string name="widget_description">"Connect or disconnect the VPN"</string>
+    <string name="widget_connect">"Connect"</string>
+    <string name="widget_disconnect">"Disconnect"</string>
+    <string name="group_expand">Expand</string>
+    <string name="group_collapse">Collapse</string>
+    <string name="sub_check">Check servers</string>
+    <string name="sub_all_show">Show all subscriptions</string>
+    <string name="sub_all_title">Subscriptions</string>
+    <string name="sub_updated_on">Updated: %1$s</string>
+    <string name="sub_link_copy_link">Copy link</string>
 </resources>

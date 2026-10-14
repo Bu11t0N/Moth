@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" android:id="@+id/widget_root"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal"
+    android:gravity="center_vertical" android:padding="12dp" android:background="@drawable/widget_background">
+    <ImageView android:id="@+id/widget_icon" android:layout_width="36dp" android:layout_height="36dp"
+        android:src="@drawable/ic_moth_notification" android:tint="#FF83DCC6" tools:ignore="UseAppTint" android:contentDescription="@string/app_name" />
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:layout_marginStart="10dp" android:layout_marginEnd="8dp" android:orientation="vertical">
+        <TextView android:id="@+id/widget_server" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="#FFFFFFFF" android:textSize="14sp" android:maxLines="1" android:ellipsize="end" android:text="@string/app_name" />
+        <TextView android:id="@+id/widget_state" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="#B3FFFFFF" android:textSize="12sp" android:maxLines="1" android:text="@string/tile_off" />
+    </LinearLayout>
+    <Button android:id="@+id/widget_button" android:layout_width="wrap_content" android:layout_height="40dp"
+        android:minWidth="0dp" android:paddingStart="14dp" android:paddingEnd="14dp" android:textSize="13sp"
+        android:textColor="#FF101A23" android:backgroundTint="#FF83DCC6" android:text="@string/widget_connect" />
+</LinearLayout>

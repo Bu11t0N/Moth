@@ -52,7 +52,7 @@ class RoutingTest {
     }
     @Test fun customDnsGoesThroughTheProxy() {
         val dns = JSONObject(TunnelConfig.create(profile, ClientSettings(dns = "tls://dns.google"))).getJSONObject("dns").getJSONArray("servers").getJSONObject(0)
-        assertEquals("tls://dns.google", dns.getString("address")); assertEquals("proxy", dns.getString("detour"))
+        assertEquals("tls", dns.getString("type")); assertEquals("dns.google", dns.getString("server")); assertEquals("proxy", dns.getString("detour")); assertEquals("bootstrap", dns.getString("domain_resolver"))
     }
     @Test fun pickerAndFailover() {
         val order = listOf("a", "b", "c", "d")

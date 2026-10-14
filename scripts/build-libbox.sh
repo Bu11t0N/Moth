@@ -6,15 +6,17 @@ project_root="$(cd "$(dirname "$0")/.." && pwd)"
 source_path="$project_root/.core-build/sing-box"
 mkdir -p "$project_root/.core-build"
 if [ ! -d "$source_path/.git" ]; then
-    git clone --branch v1.11.15 --depth 1 https://github.com/SagerNet/sing-box.git "$source_path"
+    git clone --branch v1.12.25 --depth 1 https://github.com/SagerNet/sing-box.git "$source_path"
 fi
 cd "$source_path"
-test "$(git describe --tags --exact-match)" = v1.11.15
-test "$(git rev-parse HEAD)" = bc35aca01704497c179da1a03e45ad8e32f1a51b
+test "$(git describe --tags --exact-match)" = v1.12.25
+test "$(git rev-parse HEAD)" = 73bfb99ebce7923c485435e4faf8571b412065a9
 
 # XHTTP uses Xray v25.3.6 (2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4).
 cp "$project_root/scripts/native/moth_xray.go" experimental/libbox/moth_xray.go
-go get github.com/xtls/xray-core@2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4
+# Module downloads are checked against sum.golang.org; retry transient network errors (checksums are never skipped).
+retry() { for i in 1 2 3 4 5; do "$@" && return 0; echo "retry $i: $*" >&2; sleep $((i * 15)); done; return 1; }
+retry go get github.com/xtls/xray-core@2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4
 xray_path="$(go list -m -f '{{.Dir}}' github.com/xtls/xray-core)"
 mkdir -p .moth-xray
 cp -R "$xray_path/." .moth-xray/
@@ -45,7 +47,19 @@ assert old in s
 p.write_text(s.replace(old, new))
 PY
 go mod edit -replace github.com/xtls/xray-core=./.moth-xray
-go mod tidy
+# Moth build tags: drop Tailscale (unused). Keep gVisor, QUIC, WireGuard, uTLS, conntrack and the Clash API
+# (libbox always starts the Clash server for its platform log writer, so the VPN cannot start without it).
+python3 - <<'PY2'
+from pathlib import Path
+p = Path('cmd/internal/build_libbox/main.go')
+s = p.read_text()
+old = 'memcTags = append(memcTags, "with_tailscale")'
+assert old in s
+s = s.replace(old, 'memcTags = append(memcTags)')
+assert 'with_tailscale' not in s.split('func init()')[1].split('\n}\n')[0]
+p.write_text(s)
+PY2
+retry go mod tidy
 # Go dependency license notices (licenses/go-modules.txt); see scripts/go-licenses.sh.
 bash "$project_root/scripts/go-licenses.sh" "$source_path" "$project_root/licenses/go-modules.txt"
 if [ "${MOTH_PREPARE_ONLY:-}" = 1 ]; then exit 0; fi

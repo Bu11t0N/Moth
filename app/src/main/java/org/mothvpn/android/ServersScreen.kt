@@ -45,7 +45,7 @@ import org.mothvpn.core.SubscriptionSource
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable fun ServersScreen(saved: SavedSubscription?, book: SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
     add: () -> Unit, refresh: () -> Unit, refreshOne: (String) -> Unit, edit: (String, String, String) -> Unit, remove: (String) -> Unit, select: (String, String) -> Unit, probe: (String, List<String>) -> Unit,
-    speedTest: (String, String?) -> Unit, cancel: () -> Unit, preferences: (ClientSettings) -> Unit) {
+    probeGroup: (String, List<String>) -> Unit = { _, _ -> }, speedTest: (String, String?) -> Unit, cancel: () -> Unit, preferences: (ClientSettings) -> Unit) {
     // Probe results arrive in bursts; apply at most one update per 250 ms so the list does not recompose constantly.
     var results by remember { mutableStateOf(Diagnostics.results.value) }
     LaunchedEffect(Unit) { Diagnostics.results.collect { results = it; delay(250) } }
@@ -59,6 +59,10 @@ import org.mothvpn.core.SubscriptionSource
     var editFor by remember { mutableStateOf<String?>(null) }
     var menuFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
     var shareFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // Collapsed subscription groups (and favorites), saved across restarts.
+    var collapsed by remember { mutableStateOf(CollapsedGroups.load(context)) }
+    fun toggleGroup(key: String) { collapsed = if (key in collapsed) collapsed - key else collapsed + key; CollapsedGroups.save(context, collapsed) }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(results) { now = System.currentTimeMillis(); while (true) { delay(60_000); now = System.currentTimeMillis() } }
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
@@ -89,11 +93,14 @@ import org.mothvpn.core.SubscriptionSource
             // Favorites first (from every subscription), then one section per subscription.
             val groups = ServerGroups.of(book ?: SubscriptionBook(emptyList()), visibleK, settings.favorites)
             groups.forEach { group ->
-            if (book != null) item(key = "header:" + (group.sourceId ?: "favorites")) {
+            val groupKey = group.sourceId ?: "favorites"
+            val folded = book != null && groupKey in collapsed
+            if (book != null) item(key = "header:$groupKey") {
                 val source = group.sourceId?.let(book::source)
-                GroupHeader(source, group.profiles.size) { if (source != null) actionsFor = source.id }
+                val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true }
+                GroupHeader(source, group.profiles.size, folded, checking, toggle = { toggleGroup(groupKey) }) { if (source != null) actionsFor = source.id }
             }
-            items(group.profiles, key = { it.id }) { p ->
+            if (!folded) items(group.profiles, key = { it.id }) { p ->
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED } // cancelled checks show no indicator
                 Surface(color = if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
@@ -107,7 +114,7 @@ import org.mothvpn.core.SubscriptionSource
                                 }
                                 Text(p.name, maxLines = if (settings.compactServers) 1 else 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
                             }
-                            Text(p.protocol.uppercase(), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(p.protocol.uppercase() + if (org.mothvpn.core.ProxyProtocols.unencrypted(p)) " · " + tr(R.string.proto_unencrypted) else "", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (r != null && !r.checking && r.networkHandle != network.handle) Text(tr(R.string.msg_checked_on_a_different_network_66), style = MaterialTheme.typography.labelSmall)
                         }
                         val dark = isSystemInDarkTheme()
@@ -183,6 +190,9 @@ import org.mothvpn.core.SubscriptionSource
             Column {
                 TextButton(enabled = !locked, onClick = { actionsFor = null; editFor = source.id }) { Text(tr(R.string.sub_edit)) }
                 if (!source.local) TextButton(enabled = !locked, onClick = { actionsFor = null; refreshOne(source.id) }) { Text(tr(R.string.sub_update)) }
+                // Checks only this subscription's servers, in the order shown; other groups keep their results.
+                val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }.ifEmpty { source.profiles.map { it.id } }
+                TextButton(enabled = canCheck, onClick = { actionsFor = null; probeGroup(kind, ids) }) { Text(tr(R.string.sub_check)) }
                 TextButton(enabled = !locked, onClick = { actionsFor = null; delete = source.id }) { Text(tr(R.string.sub_delete)) }
                 if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104), style = MaterialTheme.typography.bodySmall)
             }
@@ -197,7 +207,7 @@ import org.mothvpn.core.SubscriptionSource
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(name, { if (it.length <= org.mothvpn.core.SubscriptionSource.MAX_NAME) name = it.replace("\n", " ") }, label = { Text(tr(R.string.sub_name)) }, singleLine = true, isError = !nameOk, modifier = Modifier.fillMaxWidth())
                 if (!source.local) OutlinedTextField(link, { link = it }, label = { Text(tr(R.string.msg_subscription_link_30)) }, singleLine = true, isError = !linkOk,
-                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri, autoCorrect = false), modifier = Modifier.fillMaxWidth())
             }
         }, confirmButton = { TextButton(enabled = nameOk && linkOk && !locked, onClick = { editFor = null; edit(source.id, name, if (source.local) source.url else link) }) { Text(tr(R.string.sub_save)) } },
             dismissButton = { TextButton(onClick = { editFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
@@ -259,13 +269,17 @@ private enum class DetailIcon {
 }
 
 /** Section title in the server list: a subscription (name, traffic and end date, actions button) or the favorites. */
-@Composable private fun GroupHeader(source: SubscriptionSource?, count: Int, actions: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+@Composable private fun GroupHeader(source: SubscriptionSource?, count: Int, collapsed: Boolean, checking: Boolean, toggle: () -> Unit, actions: () -> Unit) {
+    // Tap the header (or the arrow) to collapse or expand the group; a collapsed group keeps its name, count, traffic and end date.
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp).clickable(onClick = toggle).semantics { contentDescription = tr(if (collapsed) R.string.group_expand else R.string.group_collapse) + ": " + (source?.title() ?: tr(R.string.fav_group)) },
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(if (collapsed) "▸" else "▾", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 6.dp))
         Column(Modifier.weight(1f)) {
             Text((source?.title() ?: tr(R.string.fav_group)) + " · " + count, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (source != null) SubscriptionQuotaLine(SubscriptionRecord(source.url, source.profiles, "", usedBytes = source.usedBytes, totalBytes = source.totalBytes, expires = source.expires))
         }
+        if (checking) CircularProgressIndicator(Modifier.padding(horizontal = 8.dp).size(16.dp), strokeWidth = 2.dp)
         if (source != null) IconButton(onClick = actions, modifier = Modifier.size(36.dp).semantics { contentDescription = tr(R.string.sub_actions) }) { MothIcon("menu", Modifier.size(20.dp)) }
     }
 }
@@ -281,4 +295,11 @@ private enum class DetailIcon {
         left?.let { tr(R.string.sub_left, TrafficFormat.bytes(it, units, locale), TrafficFormat.bytes(saved.totalBytes, units, locale)) },
         expiry?.let { tr(R.string.sub_expires, java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, locale).format(java.util.Date(it * 1000))) })
     Text(parts.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
+}
+
+/** Keys of the collapsed groups in the server list (subscription ids, "favorites"); kept in app preferences. */
+object CollapsedGroups {
+    private const val FILE = "server_list"; private const val KEY = "collapsed_groups"
+    fun load(context: android.content.Context): Set<String> = runCatching { context.getSharedPreferences(FILE, 0).getStringSet(KEY, emptySet())!!.toSet() }.getOrDefault(emptySet())
+    fun save(context: android.content.Context, keys: Set<String>) { runCatching { context.getSharedPreferences(FILE, 0).edit().putStringSet(KEY, keys).apply() } }
 }

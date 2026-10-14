@@ -24,8 +24,10 @@ import java.io.File
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var release by remember { mutableStateOf<AppRelease?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf<Float?>(null) }
+    var phase by remember { mutableStateOf<org.mothvpn.core.UpdatePhase>(org.mothvpn.core.UpdatePhase.Idle) }
+    val busy = phase.busy
+    val progress = (phase as? org.mothvpn.core.UpdatePhase.Downloading)?.progress
+    fun on(event: org.mothvpn.core.UpdatePhase.Event, value: Float? = null) { phase = phase.on(event, value) }
     var message by remember { mutableStateOf("") }
     var job by remember { mutableStateOf<Job?>(null) }
     var warning by remember { mutableStateOf<File?>(null) }
@@ -39,24 +41,24 @@ import java.io.File
         Logger.i("Update", "install-unknown-apps permission ${if (granted) "granted" else "not granted"}")
         val pending = waiting; waiting = null
         if (granted && pending != null) { message = tr(R.string.update_permission_ready); install(pending.second) }
-        else message = tr(R.string.update_permission_needed)
+        else { message = tr(R.string.update_permission_needed); on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }
     }
     fun action(block: suspend () -> Unit) {
         job = scope.launch {
-            busy = true; message = ""
+            on(org.mothvpn.core.UpdatePhase.Event.CHECK); message = ""
             try { block() }
-            catch (e: CancellationException) { Logger.i("Update", "update action cancelled"); throw e }
-            catch (e: Exception) { Logger.w("Update", "update action failed", e); message = tr(R.string.update_failed) }
-            finally { busy = false; progress = null }
+            catch (e: CancellationException) { Logger.i("Update", "update action cancelled"); message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED); throw e }
+            catch (e: Exception) { Logger.w("Update", "update action failed", e); message = tr(R.string.update_failed); on(org.mothvpn.core.UpdatePhase.Event.FAILED) }
+            finally { if (phase.busy) on(org.mothvpn.core.UpdatePhase.Event.DONE) }
         }
     }
     /** Reuses the verified saved download or downloads it, then installs (asking for the permission first when needed). */
     suspend fun proceed(available: AppRelease) {
         val file = AppUpdater.saved(context, available) ?: run {
-            message = tr(R.string.update_downloading)
-            withContext(Dispatchers.IO) { AppUpdater.download(context, available) { progress = it } }
+            message = tr(R.string.update_downloading); on(org.mothvpn.core.UpdatePhase.Event.DOWNLOAD)
+            withContext(Dispatchers.IO) { AppUpdater.download(context, available) { p -> scope.launch(Dispatchers.Main) { if (phase is org.mothvpn.core.UpdatePhase.Downloading) on(org.mothvpn.core.UpdatePhase.Event.DOWNLOAD, p) } } }
         }
-        message = ""
+        message = ""; on(org.mothvpn.core.UpdatePhase.Event.READY)
         if (!context.packageManager.canRequestPackageInstalls()) {
             Logger.i("Update", "install-unknown-apps permission missing, showing the explanation")
             waiting = available to file; warning = file
@@ -72,13 +74,15 @@ import java.io.File
     }
     // Checked automatically when the screen is opened and whenever the channel changes; a found update is downloaded and installed without more taps.
     LaunchedEffect(channel) { check() }
+    // The user closed the system install confirmation: back to idle so "Install" can be tapped again.
+    LaunchedEffect(Unit) { val seen = AppUpdater.installAborted.value; AppUpdater.installAborted.collect { if (it > seen) { message = ""; on(org.mothvpn.core.UpdatePhase.Event.INSTALL_ABORTED) } } }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(tr(R.string.update_current, BuildConfig.VERSION_NAME))
             release?.let { Text(tr(R.string.update_available, it.version)) }
             if (busy) {
                 progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
-                TextButton(onClick = { job?.cancel() }) { Text(tr(R.string.update_cancel)) }
+                TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }) { Text(tr(R.string.update_cancel)) }
             }
             if (message.isNotEmpty()) Text(message)
         }
@@ -87,14 +91,14 @@ import java.io.File
         }
         Button(enabled = !busy, onClick = { check() }, modifier = Modifier.fillMaxWidth()) { Text(tr(R.string.update_check)) }
         warning?.let {
-            AlertDialog(onDismissRequest = { warning = null; waiting = null }, title = { Text(tr(R.string.update_unknown_title)) },
+            AlertDialog(onDismissRequest = { warning = null; waiting = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }, title = { Text(tr(R.string.update_unknown_title)) },
                 text = { Text(tr(R.string.update_unknown_body)) },
                 confirmButton = { TextButton(onClick = {
                     warning = null
                     Logger.i("Update", "opening the unknown-sources settings for the app")
                     permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
                 }) { Text(tr(R.string.update_unknown_ok)) } },
-                dismissButton = { TextButton(onClick = { warning = null; waiting = null }) { Text(tr(R.string.update_cancel)) } })
+                dismissButton = { TextButton(onClick = { warning = null; waiting = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }) { Text(tr(R.string.update_cancel)) } })
         }
         val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
         var channelDialog by remember { mutableStateOf(false) }

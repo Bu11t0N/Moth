@@ -123,13 +123,22 @@ object SubscriptionQuota {
 /** What a pasted or scanned text is. */
 object ImportInput {
     sealed class Kind { data class Subscription(val url: String) : Kind(); data class Links(val text: String) : Kind(); object Invalid : Kind() }
-    private val schemes = setOf("vless", "vmess", "trojan", "ss", "hy2", "hysteria2", "hysteria", "tuic")
+    private val schemes = setOf("vless", "vmess", "trojan", "ss", "hy2", "hysteria2", "hysteria", "tuic", "socks", "socks5", "socks5h", "wireguard", "wg", "ssh", "anytls")
+    /** An http(s) line is a proxy server (not a subscription) when it is plain http or carries credentials: https://user:pass@host:port. */
+    fun proxyLink(line: String): Boolean {
+        val scheme = line.substringBefore("://", "").lowercase()
+        if (scheme != "http" && scheme != "https") return false
+        val u = runCatching { java.net.URI(line.trim()) }.getOrNull() ?: return false
+        // A proxy has no path; web pages and subscription URLs do.
+        if (u.host == null || u.rawPath.orEmpty() !in setOf("", "/")) return false
+        return u.rawUserInfo != null || (scheme == "http" && u.port != -1)
+    }
     fun classify(raw: String): Kind {
         val text = raw.trim().removePrefix("\uFEFF")
         if (text.isEmpty() || text.length > 2 * 1024 * 1024) return Kind.Invalid
         val lines = text.lines().map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") }
-        if (lines.size == 1 && lines[0].startsWith("https://", ignoreCase = true)) return Kind.Subscription(lines[0])
-        if (lines.isNotEmpty() && lines.all { it.substringBefore("://", "").lowercase() in schemes }) return Kind.Links(lines.joinToString("\n"))
+        if (lines.size == 1 && lines[0].startsWith("https://", ignoreCase = true) && !proxyLink(lines[0])) return Kind.Subscription(lines[0])
+        if (lines.isNotEmpty() && lines.all { it.substringBefore("://", "").lowercase() in schemes || proxyLink(it) }) return Kind.Links(lines.joinToString("\n"))
         return Kind.Invalid
     }
     /** Local servers: new ones are added after the existing ones, duplicates (same id) are skipped. */
