@@ -13,8 +13,13 @@ class ChangelogTest {
         assertEquals(listOf("d"), s[1].items)
     }
     @Test fun repositoryFilesParseAndMatch() {
-        val en = Changelog.parse(File("../CHANGELOG.md").readText())
-        val ru = Changelog.parse(File("../CHANGELOG.ru.md").readText())
+        val enAll = Changelog.parse(File("../CHANGELOG.md").readText())
+        val ruAll = Changelog.parse(File("../CHANGELOG.ru.md").readText())
+        assertEquals("0.5.4", enAll[0].title); assertEquals("0.5.4", ruAll[0].title)
+        assertEquals(listOf("Changes"), enAll[0].groups.map { it.title }); assertEquals(listOf("Изменения"), ruAll[0].groups.map { it.title })
+        assertEquals(enAll[0].items.size, ruAll[0].items.size)
+        val en = enAll.drop(1)
+        val ru = ruAll.drop(1)
         val versions = listOf("0.5.3", "0.5.2", "0.5.1", "0.5.0", "0.4.7", "0.4.6", "0.4.5", "0.4.4", "0.4.3", "0.4.2", "0.4.1", "0.4.0", "0.3.0", "0.2.0", "0.1.0")
         assertEquals(versions, en.map { it.title })
         assertEquals(versions, ru.map { it.title })
