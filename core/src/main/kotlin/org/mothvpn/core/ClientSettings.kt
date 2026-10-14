@@ -40,7 +40,13 @@ data class ClientSettings(
     /** User routing rules (domain / suffix / keyword / IP CIDR -> proxy, direct or block), applied in order before the built-in rules. */
     val routingRules: List<RoutingRule> = emptyList(),
     /** Warn when a subscription has used this share of its traffic: 0 (off), 80, 90 or 95 percent. */
-    val trafficWarning: Int = TrafficWarning.DEFAULT
+    val trafficWarning: Int = TrafficWarning.DEFAULT,
+    /** TLS ClientHello fragmentation against DPI: a [DpiTricks.fragmentPresets] id, "off" by default. */
+    val fragment: String = "off",
+    /** Random UDP noise packets before the first real packet (Xray freedom noises). */
+    val noise: Boolean = false,
+    /** Connection multiplexing: "off", or the sing-box protocol "smux" / "yamux" / "h2mux" (Xray servers use Mux.Cool instead). */
+    val mux: String = "off"
 ) {
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
@@ -64,6 +70,8 @@ data class ClientSettings(
         require(Favorites.valid(favorites)) { "Неверный список избранного" }
         require(trafficWarning in TrafficWarning.thresholds) { "Неверный порог предупреждения о трафике" }
         require(CustomRouting.valid(routingRules)) { "Неверное правило маршрутизации" }
+        require(fragment in DpiTricks.fragmentPresets.keys) { "Неверный режим фрагментации" }
+        require(mux in DpiTricks.muxModes) { "Неверный режим мультиплексирования" }
         listOf(probeUrl, bootstrapDns).forEach { value ->
             val u = URI(value)
             require(u.scheme == "https" && !u.host.isNullOrBlank() && u.rawUserInfo == null && u.fragment == null) { "Нужен корректный HTTPS-адрес" }
@@ -81,6 +89,7 @@ data class ClientSettings(
         .put("autoSelect", autoSelect).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
+        .put("fragment", fragment).put("noise", noise).put("mux", mux)
     companion object {
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
         private val autoUserAgent = Regex("Moth(/[0-9][0-9A-Za-z.+-]*)?")
@@ -107,6 +116,9 @@ data class ClientSettings(
             expiryWarning = j.optBoolean("expiryWarning", true),
             // Invalid saved rules are dropped instead of failing the whole settings file.
             trafficWarning = TrafficWarning.normalize(j.optInt("trafficWarning", TrafficWarning.DEFAULT)),
+            fragment = j.optString("fragment", "off").takeIf { it in DpiTricks.fragmentPresets.keys } ?: "off",
+            noise = j.optBoolean("noise", false),
+            mux = j.optString("mux", "off").takeIf { it in DpiTricks.muxModes } ?: "off",
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
 }
@@ -128,37 +140,70 @@ object SubscriptionHeaders {
     }
 }
 
+/**
+ * Local helper cores. Every loopback listener is authenticated: probe proxies use SOCKS5 with a random user and password and
+ * TCP only (no UDP relay, which SOCKS5 cannot authenticate); the tunnel bridge to Xray and the DPI helper use VLESS with a
+ * random UUID, carrying UDP inside the TCP stream (XUDP), so no app on the phone can use them and no UDP port is opened.
+ */
 object LocalProxyConfig {
-    fun singBox(profile: Profile, port: Int, username: String, password: String, settings: ClientSettings = ClientSettings()): String = JSONObject()
-        .put("log", JSONObject().put("disabled", true))
-        .put("dns", JSONObject().put("servers", org.json.JSONArray().put(JSONObject().put("tag", "bootstrap").put("address", settings.bootstrapDns).put("detour", "direct")))
-            .put("final", "bootstrap").put("strategy", "ipv4_only"))
-        .put("inbounds", org.json.JSONArray().put(JSONObject().put("type", "socks").put("listen", "127.0.0.1").put("listen_port", port)
-            .put("users", org.json.JSONArray().put(JSONObject().put("username", username).put("password", password)))))
-        .put("outbounds", org.json.JSONArray().put(JSONObject(profile.outbound)).put(JSONObject().put("type", "direct").put("tag", "direct")))
-        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy")).toString()
-    fun bridge(profile: Profile, port: Int, username: String, password: String): Profile = profile.copy(engine = "sing-box", outbound = JSONObject()
-        .put("type", "socks").put("tag", "proxy").put("server", "127.0.0.1").put("server_port", port).put("version", "5")
-        .put("username", username).put("password", password).toString())
-    fun xray(profile: Profile, port: Int, username: String, password: String, settings: ClientSettings = ClientSettings()): String {
+    /** Probe proxy for one server: authenticated SOCKS5 (TCP only) on 127.0.0.1. [dpi]: Xray helper for fragments/noise. */
+    fun singBox(profile: Profile, port: Int, username: String, password: String, settings: ClientSettings = ClientSettings(), dpi: LocalHop? = null): String {
+        val root = JSONObject()
+            .put("log", JSONObject().put("disabled", true))
+            .put("dns", JSONObject().put("servers", org.json.JSONArray().put(JSONObject().put("tag", "bootstrap").put("address", settings.bootstrapDns).put("detour", "direct")))
+                .put("final", "bootstrap").put("strategy", "ipv4_only"))
+            .put("inbounds", org.json.JSONArray().put(JSONObject().put("type", "socks").put("listen", "127.0.0.1").put("listen_port", port)
+                .put("users", org.json.JSONArray().put(JSONObject().put("username", username).put("password", password)))))
+            .put("outbounds", org.json.JSONArray())
+        SingBoxOutbounds.install(root, profile.outbound, settings, dpi)
+        root.getJSONArray("outbounds").put(JSONObject().put("type", "direct").put("tag", "direct"))
+        return root.put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy")
+            .put("rules", org.json.JSONArray().put(JSONObject().put("network", "udp").put("action", "reject")))).toString()
+    }
+    /** sing-box side of the tunnel bridge to the Xray engine: VLESS to 127.0.0.1 with the session UUID, UDP as XUDP. */
+    fun bridge(profile: Profile, port: Int, uuid: String): Profile = profile.copy(engine = "sing-box", outbound = LocalHop(port, uuid).outbound("proxy")
+        .put(SingBoxOutbounds.BRIDGE, true).toString())
+    private fun vlessInbound(port: Int, uuid: String) = JSONObject().put("tag", "moth-in").put("listen", "127.0.0.1").put("port", port).put("protocol", "vless")
+        .put("settings", JSONObject().put("clients", org.json.JSONArray().put(JSONObject().put("id", uuid))).put("decryption", "none"))
+    private fun xrayBase(settings: ClientSettings) = JSONObject().put("log", JSONObject().put("loglevel", "none"))
+        .put("dns", JSONObject().put("servers", org.json.JSONArray().put(settings.bootstrapDns.replaceFirst("https://", "https+local://"))).put("queryStrategy", "UseIPv4"))
+    /** Xray helper for sing-box profiles: VLESS in, freedom with fragment/noise out (the sing-box outbound detours through it). */
+    fun dpiHelper(port: Int, uuid: String, settings: ClientSettings): String = xrayBase(settings)
+        .put("inbounds", org.json.JSONArray().put(vlessInbound(port, uuid)))
+        .put("outbounds", org.json.JSONArray().put(DpiTricks.freedom(settings))).toString()
+    /**
+     * Xray engine config. [bridge] = true: the tunnel bridge (VLESS inbound, [username] is the session UUID, UDP via XUDP);
+     * false: a probe proxy (SOCKS5 with [username]/[password], TCP only).
+     */
+    fun xray(profile: Profile, port: Int, username: String, password: String, settings: ClientSettings = ClientSettings(), bridge: Boolean = false): String {
         val source = JSONObject(profile.outbound)
         val group = source.optBoolean("group")
-        fun protectedOutbound(o: JSONObject) = o.apply { getJSONObject("streamSettings").put("sockopt", JSONObject().put("domainStrategy", "ForceIPv4")) }
-        val config = JSONObject().put("log", JSONObject().put("loglevel", "none"))
-            .put("dns", JSONObject().put("servers", org.json.JSONArray().put(settings.bootstrapDns.replaceFirst("https://", "https+local://"))).put("queryStrategy", "UseIPv4"))
-            .put("inbounds", org.json.JSONArray().put(JSONObject().put("tag", "moth-in").put("listen", "127.0.0.1").put("port", port).put("protocol", "socks")
-                .put("settings", JSONObject().put("auth", "password").put("udp", true).put("accounts", org.json.JSONArray().put(JSONObject().put("user", username).put("pass", password))))))
+        val dpi = DpiTricks.active(settings)
+        fun protectedOutbound(o: JSONObject) = o.apply {
+            val stream = optJSONObject("streamSettings") ?: JSONObject().also { put("streamSettings", it) }
+            stream.put("sockopt", JSONObject().put("domainStrategy", "ForceIPv4"))
+        }
+        fun proxyOutbound(o: JSONObject) = protectedOutbound(o).apply {
+            DpiTricks.xrayMux(this, settings)
+            if (dpi) getJSONObject("streamSettings").getJSONObject("sockopt").put("dialerProxy", DpiTricks.TAG)
+        }
+        val inbound = if (bridge) vlessInbound(port, username) else JSONObject().put("tag", "moth-in").put("listen", "127.0.0.1").put("port", port).put("protocol", "socks")
+            .put("settings", JSONObject().put("auth", "password").put("udp", false).put("accounts", org.json.JSONArray().put(JSONObject().put("user", username).put("pass", password))))
+        val config = xrayBase(settings).put("inbounds", org.json.JSONArray().put(inbound))
         val rules = settings.routingRules
-        if (rules.isNotEmpty() && CustomRouting.needsSniff(rules)) config.getJSONArray("inbounds").getJSONObject(0)
+        if (rules.isNotEmpty() && CustomRouting.needsSniff(rules)) inbound
             .put("sniffing", JSONObject().put("enabled", true).put("destOverride", org.json.JSONArray(listOf("http", "tls", "quic"))).put("routeOnly", true))
         // User rules: "direct" and "block" outbounds are added only when there are rules, so configs without rules stay as before.
-        fun extra(outbounds: org.json.JSONArray) = outbounds.apply { if (rules.isNotEmpty()) {
-            put(protectedOutbound(JSONObject().put("tag", "direct").put("protocol", "freedom").put("streamSettings", JSONObject())))
-            put(JSONObject().put("tag", "block").put("protocol", "blackhole"))
-        } }
+        fun extra(outbounds: org.json.JSONArray) = outbounds.apply {
+            if (rules.isNotEmpty()) {
+                put(protectedOutbound(JSONObject().put("tag", "direct").put("protocol", "freedom").put("streamSettings", JSONObject())))
+                put(JSONObject().put("tag", "block").put("protocol", "blackhole"))
+            }
+            if (dpi) put(DpiTricks.freedom(settings))
+        }
         if (!group) {
             val proxyTag = source.optString("tag").ifBlank { "proxy" }.also { source.put("tag", it) }
-            config.put("outbounds", extra(org.json.JSONArray().put(protectedOutbound(source))))
+            config.put("outbounds", extra(org.json.JSONArray().put(proxyOutbound(source))))
             if (rules.isNotEmpty()) config.put("routing", JSONObject().put("domainStrategy", "AsIs")
                 .put("rules", org.json.JSONArray(CustomRouting.xray(rules) { it.put("outboundTag", proxyTag) })))
             return config.toString()
@@ -166,7 +211,7 @@ object LocalProxyConfig {
         // Balancer group: every connection goes through the balancer; there is no direct outbound or direct fallback.
         val outbounds = org.json.JSONArray()
         val members = source.getJSONArray("outbounds")
-        for (i in 0 until members.length()) outbounds.put(protectedOutbound(members.getJSONObject(i)))
+        for (i in 0 until members.length()) outbounds.put(proxyOutbound(members.getJSONObject(i)))
         val routing = org.json.JSONArray(CustomRouting.xray(rules) { it.put("balancerTag", "balancer") })
             .put(JSONObject().put("type", "field").put("inboundTag", org.json.JSONArray().put("moth-in")).put("balancerTag", "balancer"))
         return config.put("outbounds", extra(outbounds))

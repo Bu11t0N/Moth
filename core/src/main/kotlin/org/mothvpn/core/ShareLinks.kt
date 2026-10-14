@@ -26,7 +26,16 @@ object ShareLinks {
 
     /** sing-box outbound (links, Clash and the Hysteria 2 entries of Xray JSON). */
     fun singBox(o: JSONObject, name: String): String? {
-        val type = o.optString("type"); val server = o.optString("server"); val port = o.optInt("server_port")
+        val type = o.optString("type")
+        if (o.has(SingBoxOutbounds.CHAIN)) return null
+        if (type == "wireguard") {
+            val peer = o.optJSONArray("peers")?.optJSONObject(0) ?: return null
+            val q = linkedMapOf("publickey" to peer.optString("public_key"), "presharedkey" to peer.optString("pre_shared_key"),
+                "address" to strings(o.optJSONArray("address")).joinToString(","),
+                "reserved" to strings(peer.optJSONArray("reserved")).joinToString(","), "mtu" to (o.optInt("mtu").takeIf { it > 0 }?.toString() ?: ""))
+            return build("wireguard", enc(o.getString("private_key")), peer.getString("address"), peer.getInt("port"), q, name)
+        }
+        val server = o.optString("server"); val port = o.optInt("server_port")
         if (server.isBlank() || port !in 1..65535) return null
         val q = linkedMapOf<String, String>()
         val tls = o.optJSONObject("tls")?.takeIf { it.optBoolean("enabled") }
@@ -79,6 +88,22 @@ object ShareLinks {
                     .put("tls", if (tls != null) "tls" else "")
                 if (tls != null) { tlsParams(); v.put("sni", q["sni"].orEmpty()).put("alpn", q["alpn"].orEmpty()).put("fp", q["fp"].orEmpty()) }
                 "vmess://" + Base64.getEncoder().encodeToString(v.toString().toByteArray())
+            }
+            "socks" -> {
+                val user = o.optString("username"); val pass = o.optString("password")
+                if (user.isEmpty() && pass.isEmpty()) "socks5://${host(server)}:$port#${enc(name)}" else build("socks5", enc(user) + ":" + enc(pass), server, port, q, name)
+            }
+            "http" -> {
+                val scheme = if (tls != null) "https" else "http"
+                tls?.optString("server_name")?.takeIf { it != server }?.let { q["sni"] = it }
+                val user = o.optString("username"); val pass = o.optString("password")
+                if (user.isEmpty() && pass.isEmpty()) "$scheme://${host(server)}:$port" + query(q).let { if (it.isEmpty()) "" else "/?$it" } + "#${enc(name)}"
+                else build(scheme, enc(user) + ":" + enc(pass), server, port, q, name)
+            }
+            "ssh" -> {
+                o.optString("private_key").takeIf { it.isNotEmpty() }?.let { q["pk"] = Base64.getEncoder().encodeToString(it.toByteArray()) }
+                strings(o.optJSONArray("host_key")).takeIf { it.isNotEmpty() }?.let { q["hk"] = it.joinToString(",") }
+                build("ssh", enc(o.getString("user")) + o.optString("password").let { if (it.isEmpty()) "" else ":" + enc(it) }, server, port, q, name)
             }
             else -> null
         }

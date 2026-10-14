@@ -28,6 +28,7 @@ object LogFacts {
         plain("expiryWarning", old.expiryWarning, new.expiryWarning)
         plain("routingRules", old.routingRules.size, new.routingRules.size)
         plain("trafficWarning", old.trafficWarning, new.trafficWarning)
+        plain("fragment", old.fragment, new.fragment); plain("noise", old.noise, new.noise); plain("mux", old.mux, new.mux)
         return out
     }
 

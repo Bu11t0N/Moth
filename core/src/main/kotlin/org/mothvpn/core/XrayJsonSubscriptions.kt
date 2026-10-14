@@ -37,7 +37,7 @@ object XrayJsonSubscriptions {
         } ?: defaultMs
         return "${millis.coerceIn(minMs, maxMs)}ms"
     }
-    private class Member(val tag: String, val outbound: JSONObject, val label: String, val address: String) {
+    private class Member(val tag: String, val outbound: JSONObject, val label: String, val address: String, val protocol: String = "vless") {
         /** Display fallback when there are no remarks: a meaningful tag, else the address. */
         val fallbackName get() = tag.takeUnless { Regex("proxy(-\\d+)?").matches(it) } ?: address
     }
@@ -111,9 +111,11 @@ object XrayJsonSubscriptions {
         proxies.forEachIndexed { i, o ->
             val tag = o.optString("tag").ifBlank { "proxy-$i" }
             try {
-                when (o.optString("protocol").lowercase()) {
+                when (val protocol = o.optString("protocol").lowercase()) {
                     "vless" -> xray += convertVless(o, tag)
+                    "vmess", "trojan", "shadowsocks", "socks", "http" -> xray += convertOther(o, tag, protocol)
                     "hysteria" -> others += tag to convertHysteria(o, remarks)
+                    "wireguard" -> others += tag to convertWireguard(o, remarks)
                     else -> reject("протокол ${o.optString("protocol").take(20).filter { it.isLetterOrDigit() }} не поддерживается")
                 }
             } catch (e: Reject) { rejectedOutbounds++; reasons += "document $index outbound $i: ${e.message}" }
@@ -136,7 +138,7 @@ object XrayJsonSubscriptions {
         val multiple = proxies.size > 1
         xray.forEach { m ->
             val name = if (multiple) listOf(remarks, m.tag).filter { it.isNotBlank() }.joinToString(" · ") else remarks.ifBlank { m.fallbackName }
-            result += Profile(sha(remarks + "|" + m.outbound.toString()), name.take(160), "vless · ${m.label}".lowercase(), m.outbound.put("tag", "proxy").toString(), "xray")
+            result += Profile(sha(remarks + "|" + m.outbound.toString()), name.take(160), "${m.protocol} · ${m.label}".lowercase(), m.outbound.put("tag", "proxy").toString(), "xray")
         }
         others.forEach { (tag, p) -> result += if (multiple) p.copy(name = listOf(remarks, tag).filter { it.isNotBlank() }.joinToString(" · ").take(160)) else p }
         if (rejectedOutbounds > 0 && result.isNotEmpty()) reasons += "document $index: $rejectedOutbounds outbound(s) rejected"
@@ -173,7 +175,8 @@ object XrayJsonSubscriptions {
             .put("balancer", JSONObject().put("tag", "balancer").put("selector", JSONArray(tags)).put("fallbackTag", fallback).put("strategy", strategy))
             .put("burstObservatory", JSONObject().put("subjectSelector", JSONArray(tags)).put("pingConfig", pingClean))
         val name = remarks.ifBlank { "Xray balancer" }
-        return Profile(sha(remarks + "|group|" + outbounds.toString()), name.take(160), "vless · balancer", g.toString(), "xray")
+        val kinds = members.map { it.protocol }.distinct()
+        return Profile(sha(remarks + "|group|" + outbounds.toString()), name.take(160), "${kinds.singleOrNull() ?: "xray"} · balancer", g.toString(), "xray")
     }
 
     // ---- VLESS ----
@@ -214,6 +217,71 @@ object XrayJsonSubscriptions {
         }
         val security = stream.getString("security")
         return Member(tag, out, "$network · $security".replace("none", "plain").lowercase(), address)
+    }
+
+    /** VMess, Trojan, Shadowsocks, SOCKS and HTTP outbounds (Xray engine; the stream settings pass the same whitelist as VLESS). */
+    private fun convertOther(o: JSONObject, tag: String, protocol: String): Member {
+        val s = o.optJSONObject("settings") ?: reject("нет settings")
+        val list = s.optJSONArray(if (protocol == "vmess") "vnext" else "servers")
+        if (list != null && list.length() != 1) reject("нужен ровно один сервер")
+        val server = list?.optJSONObject(0) ?: s
+        val address = server.optString("address").removeSurrounding("[", "]")
+        val port = port(server.opt("port"))
+        if (!Regex("[A-Za-z0-9._:-]{1,255}").matches(address)) reject("неверный адрес сервера")
+        val node = JSONObject().put("address", address).put("port", port)
+        when (protocol) {
+            "vmess" -> {
+                val user = server.optJSONArray("users")?.also { if (it.length() != 1) reject("нужен ровно один пользователь") }?.optJSONObject(0) ?: s
+                val uuid = runCatching { UUID.fromString(user.optString("id")).toString() }.getOrNull() ?: reject("неверный id")
+                if (user.optInt("alterId", 0) != 0) reject("VMess alterId не поддерживается")
+                val security = user.optString("security", "auto").ifBlank { "auto" }
+                if (security !in setOf("auto", "aes-128-gcm", "chacha20-poly1305", "none", "zero")) reject("шифрование VMess не поддерживается")
+                node.put("users", JSONArray().put(JSONObject().put("id", uuid).put("security", security)))
+            }
+            "trojan" -> {
+                val password = server.optString("password")
+                if (password.isEmpty() || password.length > 255) reject("нет пароля")
+                node.put("password", password)
+            }
+            "shadowsocks" -> {
+                val method = server.optString("method").lowercase(); val password = server.optString("password")
+                if (!Regex("[a-z0-9-]{3,40}").matches(method) || password.isEmpty() || password.length > 255) reject("неверные параметры Shadowsocks")
+                node.put("method", method).put("password", password)
+                if (bool(server, "uot")) node.put("uot", true)
+            }
+            else -> server.optJSONArray("users")?.optJSONObject(0)?.let { u ->
+                val user = u.optString("user"); val pass = u.optString("pass")
+                if (user.length > 255 || pass.length > 255) reject("слишком длинные данные входа")
+                if (user.isNotEmpty() || pass.isNotEmpty()) node.put("users", JSONArray().put(JSONObject().put("user", user).put("pass", pass)))
+            }
+        }
+        val stream = stream(o.optJSONObject("streamSettings") ?: JSONObject(), address)
+        val settings = JSONObject().put(if (protocol == "vmess") "vnext" else "servers", JSONArray().put(node))
+        val out = JSONObject().put("tag", tag).put("protocol", protocol).put("settings", settings).put("streamSettings", stream)
+        val network = stream.getString("network"); val security = stream.getString("security")
+        val shown = if (protocol == "http" && security != "none") "https" else protocol
+        return Member(tag, out, "$network · $security".replace("none", "plain").lowercase(), address, if (protocol == "shadowsocks") "ss" else shown)
+    }
+
+    // ---- WireGuard -> the app's sing-box endpoint ----
+    private fun convertWireguard(o: JSONObject, remarks: String): Profile {
+        val s = o.optJSONObject("settings") ?: reject("нет settings")
+        if (listOf("jc", "jmin", "jmax", "s1", "s2").any { s.has(it) }) reject("AmneziaWG не поддерживается")
+        val peers = s.optJSONArray("peers")
+        if (peers == null || peers.length() != 1) reject("нужен ровно один peer")
+        val peer = peers.getJSONObject(0)
+        val endpoint = peer.optString("endpoint")
+        val host = if (endpoint.startsWith("[")) endpoint.substringAfter('[').substringBefore(']') else endpoint.substringBeforeLast(':')
+        val port = port(endpoint.substringAfterLast(':', ""))
+        if (!Regex("[A-Za-z0-9._:-]{1,255}").matches(host)) reject("неверный адрес сервера")
+        val addresses = s.optJSONArray("address")?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()
+        val reserved = s.optJSONArray("reserved")?.let { a -> (0 until a.length()).map { a.optInt(it, -1) } }
+        val name = remarks.ifBlank { o.optString("tag").ifBlank { host } }
+        val p = try {
+            ProxyProtocols.wireguard(host, port, s.optString("secretKey"), peer.optString("publicKey"), peer.optString("preSharedKey").ifBlank { null },
+                addresses, reserved, s.optInt("mtu").takeIf { it > 0 }, name, "")
+        } catch (e: IllegalArgumentException) { reject(e.message ?: "неверные параметры WireGuard") }
+        return p.copy(id = sha(remarks + "|" + p.outbound))
     }
 
     private fun headers(h: JSONObject?): JSONObject? {

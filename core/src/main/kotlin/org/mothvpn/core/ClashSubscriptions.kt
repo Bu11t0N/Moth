@@ -9,11 +9,19 @@ import java.util.Base64
 
 object ClashSubscriptions {
     private fun enc(value: Any?) = URLEncoder.encode(value?.toString().orEmpty(), "UTF-8").replace("+", "%20")
-    fun parse(text: String): ImportResult {
+    private const val MAX_PROVIDERS = 10
+    fun looksLike(text: String) = listOf("proxies:", "proxy-providers:").any { text.startsWith(it) || text.contains("\n$it") }
+    /**
+     * [fetch] downloads a proxy-provider ("type: http", HTTPS URL only, at most 10); a provider may hold Clash YAML or a link list.
+     * Without [fetch] providers are skipped.
+     */
+    fun parse(text: String, fetch: ((String) -> String)? = null): ImportResult {
         require(text.length <= 2 * 1024 * 1024)
         val options = LoaderOptions().apply { codePointLimit = 2 * 1024 * 1024; maxAliasesForCollections = 20; nestingDepthLimit = 30; isAllowDuplicateKeys = false }
         val root = Yaml(SafeConstructor(options)).load<Any>(text) as? Map<*, *> ?: error("Нужна Clash-подписка с разделом proxies")
-        val proxies = root["proxies"] as? List<*> ?: error("Clash: нужен встроенный список proxies; proxy-providers пока не поддерживаются")
+        val proxies = root["proxies"] as? List<*> ?: emptyList<Any>()
+        val providers = root["proxy-providers"] as? Map<*, *>
+        require(proxies.isNotEmpty() || !providers.isNullOrEmpty()) { "Нужна Clash-подписка с разделом proxies" }
         require(proxies.size <= 2000) { "Слишком много серверов" }
         var rejected = 0
         val reasons = mutableListOf<String>()
@@ -23,6 +31,22 @@ object ClashSubscriptions {
                 if (reasons.size < 100) reasons += "proxy ${index + 1} (${((entry as? Map<*, *>)?.get("type")?.toString() ?: "?").take(12).lowercase()}): ${rejectReason(e)}"
                 null
             }
+        }.toMutableList()
+        providers?.entries?.forEachIndexed { index, (_, value) ->
+            val label = "provider ${index + 1}"
+            val p = value as? Map<*, *>
+            val url = p?.get("url")?.toString()?.trim().orEmpty()
+            when {
+                index >= MAX_PROVIDERS -> { rejected++; if (reasons.size < 100) reasons += "$label: too many providers" }
+                fetch == null -> { if (reasons.size < 100) reasons += "$label: skipped" }
+                p?.get("type")?.toString() != "http" || ImportInput.classify(url) !is ImportInput.Kind.Subscription -> { rejected++; if (reasons.size < 100) reasons += "$label: only HTTPS providers are supported" }
+                else -> try {
+                    val sub = Subscriptions.parse(fetch(url))
+                    require(converted.size + sub.profiles.size <= 2000) { "Слишком много серверов" }
+                    converted += sub.profiles; rejected += sub.rejected
+                    sub.reasons.take(20).forEach { if (reasons.size < 100) reasons += "$label: $it" }
+                } catch (e: Exception) { rejected++; if (reasons.size < 100) reasons += "$label: ${rejectReason(e)}" }
+            }
         }
         val (profiles, duplicates) = dedupe(converted, "proxy")
         require(profiles.isNotEmpty()) { "Clash: нет совместимых серверов; проверь протоколы и параметры TLS" }
@@ -31,11 +55,13 @@ object ClashSubscriptions {
     private fun convert(p: Map<*, *>): Profile {
         fun value(key: String, default: String = "") = p[key]?.toString() ?: default
         require(value("skip-cert-verify") != "true") { "Небезопасный TLS" }
-        require(p["plugin"] == null && p["dialer-proxy"] == null) { "Зависимый профиль не поддерживается" }
         val type = value("type").lowercase()
+        require(p["dialer-proxy"] == null) { "Зависимый профиль не поддерживается" }
+        require(p["plugin"] == null || (type == "ss" && value("plugin") == "shadow-tls")) { "Зависимый профиль не поддерживается" }
         val server = value("server").let { if (it.contains(':') && !it.startsWith('[')) "[$it]" else it }
         val port = value("port").toInt(); require(port in 1..65535)
         val name = value("name", server)
+        direct(type, p, value("server"), port, name)?.let { return it }
         val network = value("network", "tcp")
         val ws = p["ws-opts"] as? Map<*, *>
         val grpc = p["grpc-opts"] as? Map<*, *>
@@ -58,7 +84,15 @@ object ClashSubscriptions {
         val user: String
         val scheme: String
         when (type) {
-            "ss" -> { scheme = "ss"; user = enc("${value("cipher")}:${value("password")}") }
+            "ss" -> {
+                scheme = "ss"; user = enc("${value("cipher")}:${value("password")}")
+                if (p["plugin"] != null) {
+                    val opts = p["plugin-opts"] as? Map<*, *> ?: error("ShadowTLS: нет параметров")
+                    val ss = Subscriptions.parseLink("ss://$user@$server:$port#${enc(name)}")
+                    return ProxyProtocols.shadowTls(ss, value("server"), port, opts["version"]?.toString()?.toIntOrNull() ?: 2, opts["password"]?.toString().orEmpty(),
+                        opts["host"]?.toString().orEmpty(), value("client-fingerprint"))
+                }
+            }
             "vless" -> { scheme = type; user = enc(value("uuid")) }
             "trojan" -> { scheme = type; user = enc(value("password")) }
             "hysteria2" -> {
@@ -79,8 +113,32 @@ object ClashSubscriptions {
                     .put("fp", q["fp"] ?: "").put("alpn", q["alpn"] ?: "").put("mode", q["mode"] ?: "auto")
                 return Subscriptions.parseLink("vmess://" + Base64.getEncoder().encodeToString(v.toString().toByteArray()))
             }
+            "anytls" -> error("AnyTLS пока не поддерживается")
             else -> error("Неподдерживаемый протокол")
         }
         return Subscriptions.parseLink("$scheme://$user@$server:$port?" + q.entries.joinToString("&") { "${enc(it.key)}=${enc(it.value)}" } + "#${enc(name)}")
+    }
+    /** SOCKS5, HTTP, WireGuard and SSH become sing-box outbounds directly; the id is a hash of the outbound (stable across refreshes). */
+    private fun direct(type: String, p: Map<*, *>, server: String, port: Int, name: String): Profile? {
+        fun v(key: String) = p[key]?.toString().orEmpty()
+        fun list(key: String) = when (val x = p[key]) { is List<*> -> x.map { it.toString() }; null -> emptyList(); else -> listOf(x.toString()) }
+        val made = when (type) {
+            "socks5" -> { require(v("tls") != "true") { "SOCKS5 поверх TLS не поддерживается" }; ProxyProtocols.socks(server, port, v("username"), v("password"), name, "") }
+            "http" -> ProxyProtocols.http(server, port, v("username"), v("password"), v("tls") == "true", v("sni").ifBlank { v("servername") }.ifBlank { null }, name, "")
+            "wireguard" -> {
+                require(p["amnezia-wg-option"] == null) { "AmneziaWG не поддерживается" }
+                val reserved = when (val r = p["reserved"]) { is List<*> -> r.map { it.toString().toInt() }; null -> null
+                    else -> java.util.Base64.getDecoder().decode(r.toString()).map { it.toInt() and 0xff } }
+                ProxyProtocols.wireguard(server, port, v("private-key"), v("public-key"), v("pre-shared-key").ifBlank { null },
+                    listOf(v("ip"), v("ipv6")).filter { it.isNotBlank() }, reserved, v("mtu").toIntOrNull(), name, "")
+            }
+            "ssh" -> {
+                val key = v("private-key").ifBlank { null }
+                require(key == null || key.contains("-----BEGIN")) { "SSH: ключ из файла не поддерживается" }
+                ProxyProtocols.ssh(server, port, v("username"), v("password"), key, v("private-key-passphrase").ifBlank { null }, list("host-key"), name, "")
+            }
+            else -> return null
+        }
+        return made.copy(id = ProxyProtocols.sha("clash|" + made.outbound))
     }
 }
