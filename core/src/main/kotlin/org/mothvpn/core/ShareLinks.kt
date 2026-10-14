@@ -100,6 +100,11 @@ object ShareLinks {
                 if (user.isEmpty() && pass.isEmpty()) "$scheme://${host(server)}:$port" + query(q).let { if (it.isEmpty()) "" else "/?$it" } + "#${enc(name)}"
                 else build(scheme, enc(user) + ":" + enc(pass), server, port, q, name)
             }
+            "anytls" -> {
+                if (tls == null) return null
+                tlsParams()
+                build("anytls", enc(o.getString("password")), server, port, q, name)
+            }
             "ssh" -> {
                 o.optString("private_key").takeIf { it.isNotEmpty() }?.let { q["pk"] = Base64.getEncoder().encodeToString(it.toByteArray()) }
                 strings(o.optJSONArray("host_key")).takeIf { it.isNotEmpty() }?.let { q["hk"] = it.joinToString(",") }

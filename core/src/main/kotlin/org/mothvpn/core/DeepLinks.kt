@@ -14,7 +14,7 @@ object DeepLinks {
         /** One or more server links for "My servers". */
         data class Links(val text: String) : Action()
     }
-    val serverSchemes = setOf("vless", "vmess", "trojan", "ss", "hy2", "hysteria2", "tuic", "socks", "socks5", "wireguard", "wg")
+    val serverSchemes = setOf("vless", "vmess", "trojan", "ss", "hy2", "hysteria2", "tuic", "socks", "socks5", "wireguard", "wg", "anytls")
     val appSchemes = setOf("moth", "v2rayng", "happ", "hiddify", "sing-box")
     private fun decode(v: String) = runCatching { URLDecoder.decode(v.replace("+", "%2B"), "UTF-8") }.getOrDefault(v)
     private fun query(raw: String) = raw.split('&').filter { it.isNotBlank() }.associate { decode(it.substringBefore('=')).lowercase() to decode(it.substringAfter('=', "")) }

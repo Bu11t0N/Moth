@@ -101,14 +101,15 @@ proxies:
   - {name: STLS, type: ss, server: st.example, port: 443, cipher: 2022-blake3-aes-128-gcm, password: "AAAAAAAAAAAAAAAAAAAAAA==", plugin: shadow-tls, client-fingerprint: chrome, plugin-opts: {host: cloud.example, password: stpw, version: 3}}
   - {name: S5TLS, type: socks5, server: s.example, port: 1080, tls: true}
   - {name: AWG, type: wireguard, server: w.example, port: 51820, ip: 10.0.0.2, private-key: "$wgPriv", public-key: "$wgPub", amnezia-wg-option: {jc: 4}}
-  - {name: A, type: anytls, server: a.example, port: 443, password: x}
+  - {name: A, type: anytls, server: a.example, port: 443, password: x, sni: front.example, client-fingerprint: chrome}
   - {name: OBFS, type: ss, server: o.example, port: 443, cipher: aes-128-gcm, password: x, plugin: obfs}
 """
         val r = Subscriptions.parse(yaml)
-        assertEquals(listOf("S5", "H", "W", "SSH", "STLS"), r.profiles.map { it.name })
-        assertEquals(4, r.rejected)
-        assertTrue(r.reasons.any { it.contains("AmneziaWG") }); assertTrue(r.reasons.any { it.contains("AnyTLS") })
-        assertEquals(listOf("socks", "https", "wireguard", "ssh", "ss + shadowtls"), r.profiles.map { it.protocol })
+        assertEquals(listOf("S5", "H", "W", "SSH", "STLS", "A"), r.profiles.map { it.name })
+        assertEquals(3, r.rejected)
+        assertTrue(r.reasons.any { it.contains("AmneziaWG") })
+        assertEquals(listOf("socks", "https", "wireguard", "ssh", "ss + shadowtls", "anytls"), r.profiles.map { it.protocol })
+        out(r.profiles[5]).let { assertEquals("x", it.getString("password")); assertEquals("front.example", it.getJSONObject("tls").getString("server_name")) }
         val stls = out(r.profiles[4])
         assertEquals("proxy-shadowtls", stls.getString("detour"))
         val hop = stls.getJSONArray(SingBoxOutbounds.CHAIN).getJSONObject(0)
@@ -288,5 +289,22 @@ wireguard://2E56FQv7AvD1c0XspyCoR294%2BUvV3XsTFgh10swBS2I%3D@10.0.2.2:20006?publ
         assertTrue(parsed.profiles[0].outbound.contains("moth p@ss"))
         assertTrue(ProxyProtocols.unencrypted(parsed.profiles[0]) && ProxyProtocols.unencrypted(parsed.profiles[1]))
         assertFalse(ProxyProtocols.unencrypted(parsed.profiles[2]))
+    }
+
+    @Test fun anytlsLinks() {
+        val p = Subscriptions.parseLink("anytls://p%40ss@a.example:8443?sni=front.example&alpn=h2,http%2F1.1&fp=chrome#Any%20TLS")
+        assertEquals("Any TLS", p.name); assertEquals("anytls", p.protocol)
+        val o = JSONObject(p.outbound)
+        assertEquals("anytls", o.getString("type")); assertEquals("p@ss", o.getString("password")); assertEquals(8443, o.getInt("server_port"))
+        assertEquals("front.example", o.getJSONObject("tls").getString("server_name"))
+        assertEquals("chrome", o.getJSONObject("tls").getJSONObject("utls").getString("fingerprint"))
+        assertFailsWith<IllegalArgumentException> { Subscriptions.parseLink("anytls://p@a.example:443?insecure=1") }
+        assertFailsWith<IllegalStateException> { Subscriptions.parseLink("anytls://a.example:443") }
+        val back = ShareLinks.of(p.copy(link = ""))!!
+        assertEquals(JSONObject(p.outbound).toString(), JSONObject(Subscriptions.parseLink(back).outbound).toString())
+        assertTrue(DeepLinks.parse("anytls://p@a.example:443#A") is DeepLinks.Action.Links)
+        val sb = JSONObject().put("outbounds", JSONArray().put(JSONObject().put("type", "anytls").put("tag", "any").put("server", "a.example").put("server_port", 443)
+            .put("password", "x").put("tls", JSONObject().put("enabled", true).put("server_name", "a.example"))))
+        assertEquals(listOf("anytls"), Subscriptions.parse(sb.toString()).profiles.map { it.protocol })
     }
 }

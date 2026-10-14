@@ -41,7 +41,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="moth" /><data android:scheme="v2rayng" /><data android:scheme="happ" /><data android:scheme="hiddify" /><data android:scheme="sing-box" />
                 <data android:scheme="vless" /><data android:scheme="vmess" /><data android:scheme="trojan" /><data android:scheme="ss" /><data android:scheme="hy2" /><data android:scheme="hysteria2" />
-                <data android:scheme="tuic" /><data android:scheme="socks" /><data android:scheme="socks5" /><data android:scheme="wireguard" /><data android:scheme="wg" />
+                <data android:scheme="tuic" /><data android:scheme="socks" /><data android:scheme="socks5" /><data android:scheme="wireguard" /><data android:scheme="wg" /><data android:scheme="anytls" />
             </intent-filter>
         </activity>
         <receiver android:name=".MothWidget" android:label="@string/widget_label" android:exported="true">

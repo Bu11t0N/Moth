@@ -9,7 +9,7 @@ import org.json.JSONTokener
  * server; only whitelisted fields are kept (no file paths, no insecure TLS, no foreign detours except a ShadowTLS hop).
  */
 object SingBoxSubscriptions {
-    private val proxyTypes = setOf("vless", "vmess", "trojan", "shadowsocks", "socks", "http", "hysteria", "hysteria2", "tuic", "wireguard", "ssh")
+    private val proxyTypes = setOf("vless", "vmess", "trojan", "shadowsocks", "socks", "http", "hysteria", "hysteria2", "tuic", "wireguard", "ssh", "anytls")
     private val skipped = setOf("direct", "block", "dns", "selector", "urltest", "shadowtls", "tor", "naive")
     private val common = setOf("server", "server_port", "uuid", "password", "method", "username", "flow", "security", "packet_encoding", "network",
         "version", "user", "private_key", "private_key_passphrase", "host_key", "host_key_algorithms", "client_version", "obfs", "up_mbps", "down_mbps",
@@ -80,13 +80,12 @@ object SingBoxSubscriptions {
     }
     private fun convert(o: JSONObject, byTag: Map<String, JSONObject>): Profile {
         val type = o.optString("type").lowercase()
-        if (type == "anytls") error("AnyTLS пока не поддерживается")
         require(type in proxyTypes) { "Протокол не поддерживается" }
         val name = o.optString("tag").ifBlank { o.optString("server") }.take(160)
         if (type == "wireguard") return wireguard(o, name)
         require(o.optString("server").isNotBlank() && o.optInt("server_port") in 1..65535) { "Неверный адрес сервера" }
         if (type == "vmess") require(o.optInt("alter_id", 0) == 0) { "VMess alterId не поддерживается" }
-        if (type in setOf("hysteria2", "hysteria", "tuic")) require(o.optJSONObject("tls")?.optBoolean("enabled") == true) { "Нужен TLS" }
+        if (type in setOf("hysteria2", "hysteria", "tuic", "anytls")) require(o.optJSONObject("tls")?.optBoolean("enabled") == true) { "Нужен TLS" }
         val out = copy(o)
         val protocol = when (type) { "shadowsocks" -> "ss"; "http" -> if (out.has("tls")) "https" else "http"; else -> type }
         val detour = o.optString("detour")

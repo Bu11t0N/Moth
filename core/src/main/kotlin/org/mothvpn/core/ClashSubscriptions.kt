@@ -113,7 +113,12 @@ object ClashSubscriptions {
                     .put("fp", q["fp"] ?: "").put("alpn", q["alpn"] ?: "").put("mode", q["mode"] ?: "auto")
                 return Subscriptions.parseLink("vmess://" + Base64.getEncoder().encodeToString(v.toString().toByteArray()))
             }
-            "anytls" -> error("AnyTLS пока не поддерживается")
+            "anytls" -> {
+                require(value("skip-cert-verify") != "true") { "Небезопасная проверка TLS не поддерживается" }
+                return ProxyProtocols.anytls(value("server"), port, value("password"), value("sni").ifBlank { null },
+                    (p["alpn"] as? List<*>)?.map { it.toString() }.orEmpty(), value("client-fingerprint"), name,
+                    ProxyProtocols.sha("clash-anytls:" + value("server") + ":" + port + ":" + value("password") + ":" + value("sni")))
+            }
             else -> error("Неподдерживаемый протокол")
         }
         return Subscriptions.parseLink("$scheme://$user@$server:$port?" + q.entries.joinToString("&") { "${enc(it.key)}=${enc(it.value)}" } + "#${enc(name)}")

@@ -123,7 +123,7 @@ object SubscriptionQuota {
 /** What a pasted or scanned text is. */
 object ImportInput {
     sealed class Kind { data class Subscription(val url: String) : Kind(); data class Links(val text: String) : Kind(); object Invalid : Kind() }
-    private val schemes = setOf("vless", "vmess", "trojan", "ss", "hy2", "hysteria2", "hysteria", "tuic", "socks", "socks5", "socks5h", "wireguard", "wg", "ssh")
+    private val schemes = setOf("vless", "vmess", "trojan", "ss", "hy2", "hysteria2", "hysteria", "tuic", "socks", "socks5", "socks5h", "wireguard", "wg", "ssh", "anytls")
     /** An http(s) line is a proxy server (not a subscription) when it is plain http or carries credentials: https://user:pass@host:port. */
     fun proxyLink(line: String): Boolean {
         val scheme = line.substringBefore("://", "").lowercase()

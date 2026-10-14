@@ -12,7 +12,7 @@ import java.util.Base64
  * written to the log (error messages name the problem only).
  */
 object ProxyProtocols {
-    val schemes = setOf("socks", "socks5", "socks5h", "http", "https", "wireguard", "wg", "ssh")
+    val schemes = setOf("socks", "socks5", "socks5h", "http", "https", "wireguard", "wg", "ssh", "anytls")
     private fun decode(v: String) = URLDecoder.decode(v.replace("+", "%2B"), "UTF-8")
     private fun query(raw: String?) = raw.orEmpty().split('&').filter { it.isNotBlank() }.associate { decode(it.substringBefore('=')).lowercase() to decode(it.substringAfter('=', "")) }
     internal fun sha(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -31,6 +31,7 @@ object ProxyProtocols {
         "http", "https" -> httpLink(link)
         "wireguard", "wg" -> wireguardLink(link)
         "ssh" -> sshLink(link)
+        "anytls" -> anytlsLink(link)
         else -> error("Протокол не поддерживается")
     }
 
@@ -89,7 +90,27 @@ object ProxyProtocols {
         return Profile(id, name.take(160), if (tls) "https" else "http", o.toString())
     }
 
-    // ---- WireGuard (sing-box 1.11 endpoint) ----
+    // ---- AnyTLS (sing-box 1.12) ----
+    /** anytls://password@host:port?sni=&alpn=&fp=#name (insecure=1 is rejected). */
+    private fun anytlsLink(link: String): Profile {
+        val u = URI(link.trim().substringBefore('#').replace(" ", "%20"))
+        val q = query(u.rawQuery)
+        require(q["insecure"] !in setOf("1", "true") && q["allowinsecure"] !in setOf("1", "true")) { "Небезопасная проверка TLS не поддерживается" }
+        val host = cleanHost(u.host)
+        val password = u.rawUserInfo?.let(::decode)?.takeIf { it.isNotEmpty() } ?: error("Нет пароля")
+        return anytls(host, checkPort(if (u.port == -1) 443 else u.port), password, q["sni"] ?: q["peer"], q["alpn"]?.split(',')?.filter { it.isNotBlank() }.orEmpty(),
+            q["fp"].orEmpty(), name(link.substringAfter('#', "").takeIf { link.contains('#') }, host), sha(link.trim().substringBefore('#')))
+    }
+    fun anytls(server: String, port: Int, password: String, sni: String?, alpn: List<String>, fingerprint: String, name: String, id: String): Profile {
+        require(password.isNotEmpty()) { "Нет пароля" }
+        val tls = JSONObject().put("enabled", true).put("server_name", sni?.takeIf { it.isNotBlank() } ?: server)
+        if (alpn.isNotEmpty()) tls.put("alpn", JSONArray(alpn))
+        if (fingerprint.isNotBlank()) tls.put("utls", JSONObject().put("enabled", true).put("fingerprint", fingerprint))
+        val o = JSONObject().put("type", "anytls").put("tag", "proxy").put("server", server).put("server_port", checkPort(port)).put("password", password).put("tls", tls)
+        return Profile(id, name.take(160), "anytls", o.toString())
+    }
+
+    // ---- WireGuard (sing-box endpoint) ----
     private val amnezia = setOf("jc", "jmin", "jmax", "s1", "s2", "h1", "h2", "h3", "h4", "i1", "i2", "i3", "i4", "i5")
     fun wgKey(value: String?, what: String): String {
         val v = value?.trim().orEmpty()
