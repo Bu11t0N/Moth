@@ -15,7 +15,7 @@ class ChangelogTest {
     @Test fun repositoryFilesParseAndMatch() {
         val enAll = Changelog.parse(File("../CHANGELOG.md").readText())
         val ruAll = Changelog.parse(File("../CHANGELOG.ru.md").readText())
-        assertEquals("0.5.4", enAll[0].title); assertEquals("0.5.4", ruAll[0].title)
+        assertEquals("0.6.0", enAll[0].title); assertEquals("0.6.0", ruAll[0].title)
         assertEquals(listOf("Changes"), enAll[0].groups.map { it.title }); assertEquals(listOf("Изменения"), ruAll[0].groups.map { it.title })
         assertEquals(enAll[0].items.size, ruAll[0].items.size)
         val en = enAll.drop(1)
