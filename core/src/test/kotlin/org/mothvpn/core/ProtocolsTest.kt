@@ -278,4 +278,15 @@ proxies:
             assertEquals(out(p).toString(), out(again).toString(), link)
         }
     }
+
+    @Test fun e2eSubscriptionLinksParse() {
+        val links = """socks5://moth-user:moth%20p%40ss@10.0.2.2:20004#E2E%20SOCKS5
+http://moth-user:moth%20p%40ss@10.0.2.2:20005#E2E%20HTTP
+wireguard://2E56FQv7AvD1c0XspyCoR294%2BUvV3XsTFgh10swBS2I%3D@10.0.2.2:20006?publickey=GbOmk5x5V9XRtDZQPaBtmxuI99wgeSYorhVHQPq%2FvgM%3D&address=10.66.0.2%2F32&mtu=1280#E2E%20WireGuard"""
+        val parsed = Subscriptions.parse(java.util.Base64.getEncoder().encodeToString(links.toByteArray()))
+        assertEquals(listOf("E2E SOCKS5", "E2E HTTP", "E2E WireGuard"), parsed.profiles.map { it.name })
+        assertTrue(parsed.profiles[0].outbound.contains("moth p@ss"))
+        assertTrue(ProxyProtocols.unencrypted(parsed.profiles[0]) && ProxyProtocols.unencrypted(parsed.profiles[1]))
+        assertFalse(ProxyProtocols.unencrypted(parsed.profiles[2]))
+    }
 }

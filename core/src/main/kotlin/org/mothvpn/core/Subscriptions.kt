@@ -73,7 +73,7 @@ object Subscriptions {
             }
         }
         val (profiles, duplicates) = dedupe(converted, "link")
-        require(profiles.isNotEmpty()) { "Нет поддерживаемых серверов. Нужен список ссылок VLESS, VMess, Trojan или Shadowsocks." }
+        require(profiles.isNotEmpty()) { "Нет поддерживаемых серверов. Нужны ссылки VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, SOCKS, HTTP, WireGuard или SSH, либо конфигурация Clash, Xray или sing-box." }
         return ImportResult(profiles, rejected, reasons, duplicates, comments, converted.size)
     }
     fun parseLink(link: String): Profile = parseLinkOnly(link).copy(link = link.trim())

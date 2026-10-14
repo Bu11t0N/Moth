@@ -9,6 +9,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.TrafficStats
 import android.net.VpnService
+import android.os.Build
 import android.os.Process
 import android.os.SystemClock
 import org.mothvpn.core.TrafficFormat
@@ -27,6 +28,8 @@ import org.mothvpn.core.Profile
 import org.mothvpn.core.ProbeErrorKind
 import org.mothvpn.core.TunnelConfig
 import org.mothvpn.core.LocalProxyConfig
+import org.mothvpn.core.LocalHop
+import org.mothvpn.core.DpiTricks
 import org.mothvpn.core.ProbePolicy
 import org.mothvpn.core.ProbeOrder
 import kotlin.concurrent.withLock
@@ -55,6 +58,8 @@ class TunnelService : VpnService(), PlatformInterface {
     private val executor = Executors.newSingleThreadExecutor()
     private var box: BoxService? = null
     private var xray: MothXrayService? = null
+    /** Xray helper making TLS fragments / UDP noise for sing-box profiles (see DpiTricks). */
+    private var dpiXray: MothXrayService? = null
     private val probes = Executors.newSingleThreadExecutor() // coordinator: runs one probe batch at a time
     private val requests = java.util.concurrent.ConcurrentHashMap.newKeySet<ProxyRequest>()
     private val tcpSockets = java.util.concurrent.ConcurrentHashMap.newKeySet<java.net.Socket>()
@@ -161,15 +166,23 @@ class TunnelService : VpnService(), PlatformInterface {
             serverName = profile.name; foreground() // the name is shown in the notification only, never logged
             Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled} split=${settings.splitMode} directRu=${settings.directRu} auto=${settings.autoSelect}")
             val ruleSets = if (settings.directRu) { stage = "rule sets"; RuleSetCache.prepare(this, connectivity) } else emptyMap()
+            var dpi: LocalHop? = null
             if (profile.engine == "xray") {
                 stage = "xray start"
-                val port = freePort(); val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
-                xray = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this)
+                // Authenticated VLESS bridge (random UUID, UDP inside the stream): no unauthenticated port and no UDP relay on the phone.
+                val port = freePort(); val uuid = UUID.randomUUID().toString()
+                xray = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, uuid, "", settings, bridge = true), this)
                 Logger.d("Tunnel", "xray started")
-                profile = LocalProxyConfig.bridge(profile, port, user, password)
+                profile = LocalProxyConfig.bridge(profile, port, uuid)
+            } else if (DpiTricks.active(settings)) {
+                stage = "dpi helper start"
+                val hop = LocalHop(freePort(), UUID.randomUUID().toString())
+                dpiXray = Libbox.mothStartXray(LocalProxyConfig.dpiHelper(hop.port, hop.uuid, settings), this)
+                dpi = hop
+                Logger.d("Tunnel", "dpi helper started (fragment=${settings.fragment} noise=${settings.noise})")
             }
             stage = "build config"
-            val config = TunnelConfig.create(profile, settings, ruleSets)
+            val config = TunnelConfig.create(profile, settings, ruleSets, dpi, appGuard = if (Build.VERSION.SDK_INT >= 29) packageName else null)
             stage = "Libbox.checkConfig"
             Libbox.checkConfig(config)
             stage = "Libbox.newService"
@@ -362,6 +375,7 @@ class TunnelService : VpnService(), PlatformInterface {
         runCatching { box?.close() }.onFailure { Logger.w("Core", "closing the core failed", it) }; box = null
         runCatching { tun?.close() }.onFailure { Logger.w("Tunnel", "closing the tun device failed", it) }; tun = null
         runCatching { xray?.close() }.onFailure { Logger.w("Core", "closing the xray core failed", it) }; xray = null
+        runCatching { dpiXray?.close() }.onFailure { Logger.w("Core", "closing the dpi helper failed", it) }; dpiXray = null
     }
     private fun initCore() {
         if (initialized) return
@@ -424,8 +438,8 @@ class TunnelService : VpnService(), PlatformInterface {
                 val label = describe(profile)
                 var stage = "start"
                 Logger.i("Probe", "profile ${profiles.indexOf(profile)} method=$method $label network=${access.kind}")
-                var allocated = 0
-                var local: BoxService? = null; var xr: MothXrayService? = null
+                var allocated = 0; var dpiPort = 0
+                var local: BoxService? = null; var xr: MothXrayService? = null; var helper: MothXrayService? = null
                 try {
                     if (method == "TCP") {
                         val endpoint = ProbePolicy.tcpEndpoint(profile)
@@ -439,7 +453,13 @@ class TunnelService : VpnService(), PlatformInterface {
                     if (profile.engine == "xray") { stage = "xray start"; coreStartLock.withLock { xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this) } }
                     else {
                         stage = "build config"
-                        val config = LocalProxyConfig.singBox(profile, port, user, password, settings)
+                        var hop: LocalHop? = null
+                        if (DpiTricks.active(settings)) {
+                            stage = "dpi helper start"
+                            hop = LocalHop(allocatePort().also { dpiPort = it }, UUID.randomUUID().toString())
+                            coreStartLock.withLock { helper = Libbox.mothStartXray(LocalProxyConfig.dpiHelper(hop.port, hop.uuid, settings), this) }
+                        }
+                        val config = LocalProxyConfig.singBox(profile, port, user, password, settings, hop)
                         stage = "Libbox.checkConfig"; Libbox.checkConfig(config)
                         coreStartLock.withLock {
                             stage = "Libbox.newService"; local = Libbox.newService(config, this)
@@ -477,6 +497,8 @@ class TunnelService : VpnService(), PlatformInterface {
                     }
                 } finally {
                     if (allocated != 0) releasePort(allocated)
+                    if (dpiPort != 0) releasePort(dpiPort)
+                    runCatching { helper?.close() }.onFailure { Logger.w("Probe", "closing the dpi helper failed", it) }
                     runCatching { local?.close() }.onFailure { Logger.w("Probe", "closing the local core failed", it) }; runCatching { xr?.close() }.onFailure { Logger.w("Probe", "closing the local xray failed", it) }
                     // An interrupted check is not a failure: restore the last completed result from this network, or show nothing.
                     if (!speed && Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, before)
@@ -560,7 +582,14 @@ class TunnelService : VpnService(), PlatformInterface {
     }
     override fun writeLog(message: String?) { /* Never retain core logs containing credentials. */ }
     override fun useProcFS() = false
-    override fun findConnectionOwner(ipProtocol: Int, sourceAddress: String?, sourcePort: Int, destinationAddress: String?, destinationPort: Int): Int = -1
+    /** Owner uid of a connection inside the tunnel (Android 10+, allowed for the active VPN app); used by the split-tunnel guard rules. */
+    override fun findConnectionOwner(ipProtocol: Int, sourceAddress: String?, sourcePort: Int, destinationAddress: String?, destinationPort: Int): Int {
+        if (Build.VERSION.SDK_INT < 29 || sourceAddress == null || destinationAddress == null) return -1
+        return runCatching {
+            connectivity.getConnectionOwnerUid(ipProtocol, java.net.InetSocketAddress(java.net.InetAddress.getByName(sourceAddress), sourcePort),
+                java.net.InetSocketAddress(java.net.InetAddress.getByName(destinationAddress), destinationPort))
+        }.getOrDefault(-1)
+    }
     override fun packageNameByUid(uid: Int): String = packageManager.getPackagesForUid(uid)?.firstOrNull().orEmpty()
     override fun uidByPackageName(packageName: String): Int = packageManager.getApplicationInfo(packageName, 0).uid
     // ---- default network monitor ----
