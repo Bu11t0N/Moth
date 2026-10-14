@@ -4,9 +4,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Anti-DPI options and multiplexing. sing-box 1.11 has no TLS fragmentation (added in 1.12), so fragments and noise are made by
- * an Xray "freedom" outbound: Xray profiles dial through it with sockopt.dialerProxy, sing-box profiles reach it through a local
- * VLESS hop (TCP only, random UUID, UDP carried inside the stream with XUDP), so no UDP port is opened on the device.
+ * Anti-DPI options and multiplexing. sing-box servers use sing-box's own TLS fragmentation (tls.fragment / tls.record_fragment).
+ * Xray servers dial through an Xray "freedom" outbound with fragments and noise (sockopt.dialerProxy). UDP noise for sing-box
+ * servers comes from a local Xray helper reached through a VLESS hop (TCP only, random UUID, UDP inside the stream with XUDP),
+ * so no UDP port is opened on the device.
  */
 object DpiTricks {
     /** id -> Xray freedom "fragment" settings; "off" adds nothing. */
@@ -19,6 +20,15 @@ object DpiTricks {
     val muxModes = listOf("off", "smux", "yamux", "h2mux")
     const val TAG = "moth-dpi"
     fun active(s: ClientSettings) = s.fragment != "off" || s.noise
+    /** sing-box servers need the Xray helper only for UDP noise; fragmentation is native. */
+    fun singBoxHelper(s: ClientSettings) = s.noise
+    /** Native sing-box TLS fragmentation on an outbound with TLS ("tlshello_small" also splits TLS records). */
+    fun nativeFragment(o: JSONObject, s: ClientSettings) {
+        if (s.fragment == "off") return
+        val tls = o.optJSONObject("tls")?.takeIf { it.optBoolean("enabled") } ?: return
+        tls.put("fragment", true)
+        if (s.fragment == "tlshello_small") tls.put("record_fragment", true)
+    }
     /** Xray freedom outbound that fragments the TLS ClientHello and/or sends UDP noise first. */
     fun freedom(s: ClientSettings): JSONObject {
         val settings = JSONObject()
@@ -60,6 +70,7 @@ object SingBoxOutbounds {
         if (!bridge && settings.mux != "off" && main.optString("type") in muxTypes && !main.has("multiplex") && main.optString("flow").isEmpty())
             main.put("multiplex", JSONObject().put("enabled", true).put("protocol", settings.mux).put("max_connections", 4).put("min_streams", 4))
         val all = listOf(main) + chain
+        if (!bridge) all.forEach { DpiTricks.nativeFragment(it, settings) }
         if (dpi != null && !bridge) all.filter { !it.has("detour") }.forEach { it.put("detour", DpiTricks.TAG) }
         val outbounds = root.optJSONArray("outbounds") ?: JSONArray().also { root.put("outbounds", it) }
         all.forEach { o ->
@@ -68,4 +79,34 @@ object SingBoxOutbounds {
         }
         if (dpi != null && !bridge) outbounds.put(dpi.outbound(DpiTricks.TAG))
     }
+}
+
+/** sing-box 1.12 DNS servers (typed format) built from the addresses users enter: DoH URL, tls://host, quic://, h3:// or a plain IP. */
+object SingDns {
+    private fun isIp(host: String) = host.matches(Regex("^[0-9.]+$")) || host.contains(':')
+    /** [detour]: outbound for the queries (null = direct). Host names are resolved with [resolver]. */
+    fun server(tag: String, address: String, detour: String? = null, resolver: String? = null): org.json.JSONObject {
+        val a = address.trim()
+        val o = org.json.JSONObject().put("tag", tag)
+        if (a == "local") return o.put("type", "local")
+        val scheme = a.substringBefore("://", "").lowercase()
+        val type = when (scheme) { "" , "udp" -> "udp"; "tcp" -> "tcp"; "tls" -> "tls"; "quic" -> "quic"; "https" -> "https"; "h3" -> "h3"
+            else -> throw IllegalArgumentException("Неверный DNS-сервер") }
+        val rest = a.substringAfter("://")
+        val authority = rest.substringBefore('/')
+        val host: String
+        var port: Int? = null
+        if (authority.startsWith("[")) { host = authority.substringAfter('[').substringBefore(']'); authority.substringAfter("]:", "").toIntOrNull()?.let { port = it } }
+        else if (authority.count { it == ':' } == 1) { host = authority.substringBefore(':'); port = authority.substringAfter(':').toIntOrNull() }
+        else host = authority
+        require(host.isNotEmpty()) { "Неверный DNS-сервер" }
+        o.put("type", type).put("server", host)
+        port?.let { o.put("server_port", it) }
+        if (type == "https" || type == "h3") rest.substringAfter('/', "").let { if (it.isNotEmpty() && it != "dns-query") o.put("path", "/$it") }
+        detour?.let { o.put("detour", it) }
+        if (!isIp(host) && resolver != null) o.put("domain_resolver", resolver)
+        return o
+    }
+    /** Local system resolver, used only to find a bootstrap DNS server given by name. */
+    fun system(tag: String = "system") = org.json.JSONObject().put("type", "local").put("tag", tag)
 }

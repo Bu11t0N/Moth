@@ -109,7 +109,7 @@ The current Gradle release configuration uses the local Android debug keystore. 
 - `scripts/` — native builds and supporting tools.
 - `licenses/` — third-party notices included in the APK.
 
-The native core uses **sing-box 1.11.15** for TUN and **Xray 25.3.6** for XHTTP. Sources are pinned by commit in the build script. These versions need a separate upgrade and compatibility review.
+The native core uses **sing-box 1.12.25** for TUN and **Xray 25.3.6** for XHTTP. Sources are pinned by commit in the build script. These versions need a separate upgrade and compatibility review.
 
 Android is the only implemented platform. Other operating systems require their own tunnel integration and interfaces; the Android UI is not directly portable to iOS.
 

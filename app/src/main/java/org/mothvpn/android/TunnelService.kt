@@ -174,7 +174,7 @@ class TunnelService : VpnService(), PlatformInterface {
                 xray = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, uuid, "", settings, bridge = true), this)
                 Logger.d("Tunnel", "xray started")
                 profile = LocalProxyConfig.bridge(profile, port, uuid)
-            } else if (DpiTricks.active(settings)) {
+            } else if (DpiTricks.singBoxHelper(settings)) {
                 stage = "dpi helper start"
                 val hop = LocalHop(freePort(), UUID.randomUUID().toString())
                 dpiXray = Libbox.mothStartXray(LocalProxyConfig.dpiHelper(hop.port, hop.uuid, settings), this)
@@ -454,7 +454,7 @@ class TunnelService : VpnService(), PlatformInterface {
                     else {
                         stage = "build config"
                         var hop: LocalHop? = null
-                        if (DpiTricks.active(settings)) {
+                        if (DpiTricks.singBoxHelper(settings)) {
                             stage = "dpi helper start"
                             hop = LocalHop(allocatePort().also { dpiPort = it }, UUID.randomUUID().toString())
                             coreStartLock.withLock { helper = Libbox.mothStartXray(LocalProxyConfig.dpiHelper(hop.port, hop.uuid, settings), this) }
@@ -583,6 +583,25 @@ class TunnelService : VpnService(), PlatformInterface {
     override fun writeLog(message: String?) { /* Never retain core logs containing credentials. */ }
     override fun useProcFS() = false
     /** Owner uid of a connection inside the tunnel (Android 10+, allowed for the active VPN app); used by the split-tunnel guard rules. */
+    /** Android's built-in trusted CAs as PEM (user-installed CAs are not trusted, as for other apps). */
+    override fun systemCertificates(): io.nekohasekai.libbox.StringIterator {
+        val pems = runCatching {
+            val store = java.security.KeyStore.getInstance("AndroidCAStore").apply { load(null, null) }
+            store.aliases().toList().filter { it.startsWith("system:") }.mapNotNull { alias ->
+                (store.getCertificate(alias) as? java.security.cert.X509Certificate)?.encoded?.let { der ->
+                    "-----BEGIN CERTIFICATE-----\n" + android.util.Base64.encodeToString(der, android.util.Base64.DEFAULT) + "-----END CERTIFICATE-----\n"
+                }
+            }
+        }.onFailure { Logger.w("Core", "reading system certificates failed", it) }.getOrDefault(emptyList())
+        val it = pems.iterator()
+        return object : io.nekohasekai.libbox.StringIterator {
+            override fun hasNext() = it.hasNext()
+            override fun next() = it.next()
+            override fun len() = pems.size
+        }
+    }
+    /** null: sing-box uses its own resolver for "local" DNS servers (only used to find a bootstrap DNS server given by name). */
+    override fun localDNSTransport(): io.nekohasekai.libbox.LocalDNSTransport? = null
     override fun findConnectionOwner(ipProtocol: Int, sourceAddress: String?, sourcePort: Int, destinationAddress: String?, destinationPort: Int): Int {
         if (Build.VERSION.SDK_INT < 29 || sourceAddress == null || destinationAddress == null) return -1
         return runCatching {

@@ -64,7 +64,6 @@ private val englishErrors by lazy {
 private val errorResources = mapOf(
         "Неверный режим фрагментации" to R.string.msg_err_fragment,
         "Неверный режим мультиплексирования" to R.string.msg_err_mux,
-        "AnyTLS пока не поддерживается" to R.string.msg_err_anytls,
         "AmneziaWG не поддерживается" to R.string.msg_err_amneziawg,
         "Нет поддерживаемых серверов в конфигурации sing-box" to R.string.msg_err_singbox_empty,
         "Неверный режим раздельного туннеля" to R.string.msg_err_split_mode,
@@ -186,7 +185,7 @@ private val errorResources = mapOf(
         "Передавать модель и версию Android" to R.string.msg_send_device_model_and_android_version_108,
         "User-Agent подписки" to R.string.msg_subscription_user_agent_109,
         "Провайдер может выбирать формат подписки по User-Agent. HWID отправляется только исходному сайту подписки." to R.string.msg_providers_may_select_the_subscription_format_110,
-        "sing-box 1.11.15 + Xray 25.3.6\\nОткрытый исходный код · GPL-3.0-or-later\\nhttps://github.com/Bu11t0N/Moth" to R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111,
+        "sing-box 1.12.25 + Xray 25.3.6\\nОткрытый исходный код · GPL-3.0-or-later\\nhttps://github.com/Bu11t0N/Moth" to R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111,
         "Нужна HTTPS-ссылка без логина и пароля в адресе" to R.string.msg_use_an_https_link_without_a_username_or_passw_112,
         "Достигнут лимит устройств подписки. Обратись к провайдеру." to R.string.msg_subscription_device_limit_reached_contact_the_113,
         "Провайдер требует HWID. Включи его отправку в настройках." to R.string.msg_the_provider_requires_hwid_enable_it_in_setti_114,

@@ -6,11 +6,11 @@ project_root="$(cd "$(dirname "$0")/.." && pwd)"
 source_path="$project_root/.core-build/sing-box"
 mkdir -p "$project_root/.core-build"
 if [ ! -d "$source_path/.git" ]; then
-    git clone --branch v1.11.15 --depth 1 https://github.com/SagerNet/sing-box.git "$source_path"
+    git clone --branch v1.12.25 --depth 1 https://github.com/SagerNet/sing-box.git "$source_path"
 fi
 cd "$source_path"
-test "$(git describe --tags --exact-match)" = v1.11.15
-test "$(git rev-parse HEAD)" = bc35aca01704497c179da1a03e45ad8e32f1a51b
+test "$(git describe --tags --exact-match)" = v1.12.25
+test "$(git rev-parse HEAD)" = 73bfb99ebce7923c485435e4faf8571b412065a9
 
 # XHTTP uses Xray v25.3.6 (2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4).
 cp "$project_root/scripts/native/moth_xray.go" experimental/libbox/moth_xray.go

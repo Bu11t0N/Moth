@@ -64,7 +64,7 @@ class SubscriptionsTest {
         val p = Subscriptions.parseLink("vmess://" + Base64.getEncoder().encodeToString(v.toString().toByteArray()))
         val config = JSONObject(TunnelConfig.create(p))
         assertEquals("proxy", config.getJSONObject("route").getString("final"))
-        assertEquals("bootstrap", config.getJSONObject("dns").getJSONArray("rules").getJSONObject(0).getString("server"))
+        assertEquals("bootstrap", config.getJSONObject("route").getJSONObject("default_domain_resolver").getString("server"))
         assertEquals("hijack-dns", config.getJSONObject("route").getJSONArray("rules").getJSONObject(0).getString("action"))
         assertTrue(config.getJSONArray("inbounds").getJSONObject(0).getBoolean("strict_route"))
     }

@@ -52,7 +52,7 @@ jobs:
       - name: Archive corresponding source and Go dependencies
         run: |
           mkdir -p artifacts
-          tar --exclude='.git' -czf artifacts/sing-box-v1.11.15-source.tar.gz -C .core-build sing-box
+          tar --exclude='.git' -czf artifacts/sing-box-v1.12.25-source.tar.gz -C .core-build sing-box
           tar -czf artifacts/sing-box-go-dependencies.tar.gz -C "$(go env GOPATH)/pkg" mod
       - uses: actions/setup-java@v4
         with:
@@ -80,7 +80,7 @@ jobs:
           for abi in arm64-v8a armeabi-v7a x86_64 x86; do
             cp "app/build/outputs/apk/release/app-$abi-release$suffix.apk" "artifacts/Moth-$version-$abi$suffix.apk"
           done
-          cp libbox.aar artifacts/libbox-v1.11.15.aar
+          cp libbox.aar artifacts/libbox-v1.12.25.aar
           sha256sum artifacts/* > artifacts/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
@@ -121,9 +121,9 @@ jobs:
       - name: Start test servers on the host
         run: |
           sudo ip addr add 10.0.2.2/32 dev lo
-          curl -fsSL -o sb.tgz https://github.com/SagerNet/sing-box/releases/download/v1.11.15/sing-box-1.11.15-linux-amd64.tar.gz
+          curl -fsSL -o sb.tgz https://github.com/SagerNet/sing-box/releases/download/v1.12.25/sing-box-1.12.25-linux-amd64.tar.gz
           tar xzf sb.tgz
-          nohup python3 scripts/e2e/server.py "$PWD/sing-box-1.11.15-linux-amd64/sing-box" > e2e-server.log 2>&1 &
+          nohup python3 scripts/e2e/server.py "$PWD/sing-box-1.12.25-linux-amd64/sing-box" > e2e-server.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8081/health && break; sleep 1; done
           curl -fs --cacert scripts/e2e/ca.pem https://10.0.2.2:8443/sub > /dev/null
       - name: Run E2E tests on the emulator

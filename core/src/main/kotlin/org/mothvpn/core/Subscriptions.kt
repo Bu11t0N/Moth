@@ -82,7 +82,6 @@ object Subscriptions {
         if (scheme in setOf("hy2", "hysteria2", "hysteria", "tuic")) return ExtraProtocols.parse(link)
         if (scheme in setOf("http", "https")) require(ImportInput.proxyLink(link)) { "Ссылка не похожа на прокси-сервер" }
         if (scheme in ProxyProtocols.schemes) return ProxyProtocols.parse(link)
-        if (scheme == "anytls") error("AnyTLS пока не поддерживается")
         if (scheme in setOf("vless", "trojan") && URI(link).rawQuery.orEmpty().split('&').any { it in setOf("type=xhttp", "type=splithttp") }) return ExtraProtocols.xhttp(link)
         val o: JSONObject
         val name: String
@@ -166,17 +165,16 @@ object TunnelConfig {
     fun create(profile: Profile, settings: ClientSettings = ClientSettings(), ruleSets: Map<String, String> = emptyMap(), dpi: LocalHop? = null, appGuard: String? = null): String = JSONObject()
         .put("log", JSONObject().put("disabled", true))
         .put("dns", JSONObject().put("servers", JSONArray()
-            .put(JSONObject().put("tag", "remote").put("address", "https://1.1.1.1/dns-query").put("detour", "proxy"))
-            .put(JSONObject().put("tag", "bootstrap").put("address", settings.bootstrapDns).put("detour", "direct")))
-            .put("rules", JSONArray().put(JSONObject().put("outbound", "any").put("server", "bootstrap")))
-            .put("final", "remote").put("strategy", if (settings.ipv6) "prefer_ipv4" else "ipv4_only").apply {
-                getJSONArray("servers").getJSONObject(0).put("address", settings.dns).put("address_resolver", "bootstrap")
-            })
+            .put(SingDns.server("remote", settings.dns, "proxy", "bootstrap"))
+            .put(SingDns.server("bootstrap", settings.bootstrapDns, null, "system"))
+            .put(SingDns.system()))
+            .put("final", "remote").put("strategy", if (settings.ipv6) "prefer_ipv4" else "ipv4_only"))
         .put("inbounds", JSONArray().put(JSONObject().put("type", "tun").put("tag", "tun-in").put("address", JSONArray(listOf("172.19.0.1/30", "fdfe:dcba:9876::1/126")))
             .put("mtu", settings.mtu).put("auto_route", true).put("strict_route", settings.dnsLeakProtection).put("stack", "gvisor")))
         .put("outbounds", JSONArray())
         .also { SingBoxOutbounds.install(it, profile.outbound, settings, dpi); it.getJSONArray("outbounds").put(JSONObject().put("type", "direct").put("tag", "direct")) }
-        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").put("rules", JSONArray().apply {
+        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy")
+            .put("default_domain_resolver", JSONObject().put("server", "bootstrap")).put("rules", JSONArray().apply {
             if (settings.directRu || CustomRouting.needsSniff(settings.routingRules)) put(JSONObject().put("action", "sniff"))
             put(JSONObject().put("port", 53).put("action", "hijack-dns"))
             appGuard?.let { self -> appGuardRules(settings, self).forEach { put(it) } }

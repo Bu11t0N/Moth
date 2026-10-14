@@ -150,14 +150,14 @@ object LocalProxyConfig {
     fun singBox(profile: Profile, port: Int, username: String, password: String, settings: ClientSettings = ClientSettings(), dpi: LocalHop? = null): String {
         val root = JSONObject()
             .put("log", JSONObject().put("disabled", true))
-            .put("dns", JSONObject().put("servers", org.json.JSONArray().put(JSONObject().put("tag", "bootstrap").put("address", settings.bootstrapDns).put("detour", "direct")))
+            .put("dns", JSONObject().put("servers", org.json.JSONArray().put(SingDns.server("bootstrap", settings.bootstrapDns, null, "system")).put(SingDns.system()))
                 .put("final", "bootstrap").put("strategy", "ipv4_only"))
             .put("inbounds", org.json.JSONArray().put(JSONObject().put("type", "socks").put("listen", "127.0.0.1").put("listen_port", port)
                 .put("users", org.json.JSONArray().put(JSONObject().put("username", username).put("password", password)))))
             .put("outbounds", org.json.JSONArray())
         SingBoxOutbounds.install(root, profile.outbound, settings, dpi)
         root.getJSONArray("outbounds").put(JSONObject().put("type", "direct").put("tag", "direct"))
-        return root.put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy")
+        return root.put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").put("default_domain_resolver", JSONObject().put("server", "bootstrap"))
             .put("rules", org.json.JSONArray().put(JSONObject().put("network", "udp").put("action", "reject")))).toString()
     }
     /** sing-box side of the tunnel bridge to the Xray engine: VLESS to 127.0.0.1 with the session UUID, UDP as XUDP. */

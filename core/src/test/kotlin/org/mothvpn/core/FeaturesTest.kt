@@ -125,8 +125,8 @@ class FeaturesTest {
     @Test fun customBootstrapDnsIsUsedByAllCoreConfigs() {
         val s = ClientSettings(bootstrapDns = "https://8.8.8.8/dns-query", probeMode = "https")
         val p = Subscriptions.parseLink("hy2://secret@example.com:443")
-        assertEquals(s.bootstrapDns, JSONObject(TunnelConfig.create(p, s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(1).getString("address"))
-        assertEquals(s.bootstrapDns, JSONObject(LocalProxyConfig.singBox(p, 18080, "u", "p", s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("address"))
+        JSONObject(TunnelConfig.create(p, s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(1).let { assertEquals("https", it.getString("type")); assertEquals("8.8.8.8", it.getString("server")); assertFalse(it.has("domain_resolver")) }
+        assertEquals("8.8.8.8", JSONObject(LocalProxyConfig.singBox(p, 18080, "u", "p", s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("server"))
         val xp = Subscriptions.parseLink("vless://$uuid@example.com:443?type=xhttp&security=tls")
         assertEquals("https+local://8.8.8.8/dns-query", JSONObject(LocalProxyConfig.xray(xp, 18080, "u", "p", s)).getJSONObject("dns").getJSONArray("servers").getString(0))
         assertEquals(s, ClientSettings.from(s.json()))
@@ -138,6 +138,6 @@ class FeaturesTest {
         assertEquals(1280, config.getJSONArray("inbounds").getJSONObject(0).getInt("mtu"))
         assertEquals(2, config.getJSONArray("inbounds").getJSONObject(0).getJSONArray("address").length())
         assertEquals("reject", config.getJSONObject("route").getJSONArray("rules").getJSONObject(1).getString("action"))
-        assertEquals("bootstrap", config.getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("address_resolver"))
+        assertEquals("bootstrap", config.getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("domain_resolver"))
     }
 }

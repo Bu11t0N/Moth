@@ -18,7 +18,7 @@ trap 'rm -f "$tmp"' EXIT
 printf 'std (Go standard library)\t%s\t%s\n' "$(go env GOVERSION)" "$(go env GOROOT)" >> "$tmp"
 for arch in arm64 arm amd64 386; do
     (cd "$src" && GOOS=android GOARCH=$arch CGO_ENABLED=1 go list -deps -tags "$tags" \
-        -f '{{if not .Standard}}{{with .Module}}{{.Path}}{{"\t"}}{{if .Main}}v1.11.15{{else}}{{.Version}}{{end}}{{"\t"}}{{if .Replace}}{{.Replace.Dir}}{{else}}{{.Dir}}{{end}}{{end}}{{end}}' \
+        -f '{{if not .Standard}}{{with .Module}}{{.Path}}{{"\t"}}{{if .Main}}v1.12.25{{else}}{{.Version}}{{end}}{{"\t"}}{{if .Replace}}{{.Replace.Dir}}{{else}}{{.Dir}}{{end}}{{end}}{{end}}' \
         ./experimental/libbox github.com/sagernet/gomobile/bind/java github.com/sagernet/gomobile/bind/seq) >> "$tmp"
 done
 (cd "$tool_dir" && go run . "$out") < "$tmp"
