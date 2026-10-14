@@ -12,11 +12,11 @@ cd "$source_path"
 test "$(git describe --tags --exact-match)" = v1.12.25
 test "$(git rev-parse HEAD)" = 73bfb99ebce7923c485435e4faf8571b412065a9
 
-# XHTTP uses Xray v25.3.6 (2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4).
+# XHTTP uses Xray v26.7.28 (5ca6f4b7d4dc20a881d4330e498892697627ec0c).
 cp "$project_root/scripts/native/moth_xray.go" experimental/libbox/moth_xray.go
 # Module downloads are checked against sum.golang.org; retry transient network errors (checksums are never skipped).
 retry() { for i in 1 2 3 4 5; do "$@" && return 0; echo "retry $i: $*" >&2; sleep $((i * 15)); done; return 1; }
-retry go get github.com/xtls/xray-core@2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4
+retry go get github.com/xtls/xray-core@5ca6f4b7d4dc20a881d4330e498892697627ec0c
 xray_path="$(go list -m -f '{{.Dir}}' github.com/xtls/xray-core)"
 mkdir -p .moth-xray
 cp -R "$xray_path/." .moth-xray/
@@ -47,6 +47,25 @@ assert old in s
 p.write_text(s.replace(old, new))
 PY
 go mod edit -replace github.com/xtls/xray-core=./.moth-xray
+# Xray 26 needs github.com/quic-go/qpack v0.6 (apernet/quic-go http3); sing-box 1.12's sagernet/quic-go http3 was written
+# for the v0.5 API. Give sagernet/quic-go its own copy of qpack v0.5.1 under a private module path (sources unchanged).
+retry go mod download github.com/quic-go/qpack@v0.5.1 github.com/sagernet/quic-go@v0.52.0-sing-box-mod.3
+rm -rf .moth-qpack .moth-sagernet-quic
+cp -R "$(go mod download -json github.com/quic-go/qpack@v0.5.1 | python3 -c 'import json,sys; print(json.load(sys.stdin)["Dir"])')/." .moth-qpack/
+cp -R "$(go mod download -json github.com/sagernet/quic-go@v0.52.0-sing-box-mod.3 | python3 -c 'import json,sys; print(json.load(sys.stdin)["Dir"])')/." .moth-sagernet-quic/
+chmod -R u+w .moth-qpack .moth-sagernet-quic
+python3 - <<'PYQ'
+from pathlib import Path
+old, new = 'github.com/quic-go/qpack', 'github.com/mothvpn/qpack-v051'
+m = Path('.moth-qpack/go.mod'); m.write_text(m.read_text().replace('module ' + old, 'module ' + new, 1))
+for f in list(Path('.moth-qpack').rglob('*.go')) + list(Path('.moth-sagernet-quic').rglob('*.go')):
+    s = f.read_text()
+    if '"' + old in s: f.write_text(s.replace('"' + old + '"', '"' + new + '"').replace('"' + old + '/', '"' + new + '/'))
+q = Path('.moth-sagernet-quic/go.mod'); s = q.read_text()
+assert old + ' v0.5.1' in s
+q.write_text(s.replace(old + ' v0.5.1', new + ' v0.5.1') + '\nreplace ' + new + ' => ../.moth-qpack\n')
+PYQ
+go mod edit -replace github.com/sagernet/quic-go=./.moth-sagernet-quic -replace github.com/mothvpn/qpack-v051=./.moth-qpack -require github.com/mothvpn/qpack-v051@v0.5.1
 # Moth build tags: drop Tailscale (unused). Keep gVisor, QUIC, WireGuard, uTLS, conntrack and the Clash API
 # (libbox always starts the Clash server for its platform log writer, so the VPN cannot start without it).
 python3 - <<'PY2'

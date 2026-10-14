@@ -196,7 +196,7 @@ object LocalProxyConfig {
         // User rules: "direct" and "block" outbounds are added only when there are rules, so configs without rules stay as before.
         fun extra(outbounds: org.json.JSONArray) = outbounds.apply {
             if (rules.isNotEmpty()) {
-                put(protectedOutbound(JSONObject().put("tag", "direct").put("protocol", "freedom").put("streamSettings", JSONObject())))
+                put(protectedOutbound(JSONObject().put("tag", "direct").put("protocol", "freedom").put("settings", JSONObject().put("finalRules", DpiTricks.allowAll())).put("streamSettings", JSONObject())))
                 put(JSONObject().put("tag", "block").put("protocol", "blackhole"))
             }
             if (dpi) put(DpiTricks.freedom(settings))

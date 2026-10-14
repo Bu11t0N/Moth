@@ -59,7 +59,7 @@ class ConfigFixturesTest {
         File(directory, "xray-group-bridge.json").writeText(LocalProxyConfig.xray(group, 18093, id, "", dpiSettings.copy(routingRules = rules.routingRules), bridge = true))
         val xrayAll = Subscriptions.parse(XrayJsonFixtures.allProtocols()).profiles
         xrayAll.forEachIndexed { index, p ->
-            File(directory, "xray-all-$index.json").writeText(if (p.engine == "xray") LocalProxyConfig.xray(p, 18100 + index, id, "", dpiSettings, bridge = true) else TunnelConfig.create(p))
+            File(directory, if (p.engine == "xray") "xray-all-$index.json" else "all-$index.json").writeText(if (p.engine == "xray") LocalProxyConfig.xray(p, 18100 + index, id, "", dpiSettings, bridge = true) else TunnelConfig.create(p))
         }
     }
 }

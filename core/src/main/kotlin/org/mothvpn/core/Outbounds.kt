@@ -29,9 +29,14 @@ object DpiTricks {
         tls.put("fragment", true)
         if (s.fragment == "tlshello_small") tls.put("record_fragment", true)
     }
+    /**
+     * Xray 26 freedom blocks private/LAN destinations by default when the connection came in over VLESS (the tunnel bridge
+     * and the DPI helper do). On the phone that would break LAN servers and "direct" LAN rules, so allow everything as before.
+     */
+    fun allowAll(): JSONArray = JSONArray().put(JSONObject().put("action", "allow"))
     /** Xray freedom outbound that fragments the TLS ClientHello and/or sends UDP noise first. */
     fun freedom(s: ClientSettings): JSONObject {
-        val settings = JSONObject()
+        val settings = JSONObject().put("finalRules", allowAll())
         fragmentPresets[s.fragment]?.let { settings.put("fragment", JSONObject(it.toString())) }
         if (s.noise) settings.put("noises", JSONArray().put(JSONObject().put("type", "rand").put("packet", "10-20").put("delay", "10-16")))
         return JSONObject().put("tag", TAG).put("protocol", "freedom").put("settings", settings)

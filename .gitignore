@@ -12,3 +12,4 @@ local.properties
 scripts/e2e/sing-box-e2e.json
 __pycache__/
 *.pyc
+scripts/e2e/xray-e2e.json
