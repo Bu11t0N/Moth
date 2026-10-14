@@ -2,6 +2,13 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.6.1
+
+### Changes
+
+- Updated Xray core (used for XHTTP servers).
+- Better protection: apps excluded by split tunneling cannot use the VPN, also with XHTTP servers.
+
 ## 0.6.0
 
 ### Changes

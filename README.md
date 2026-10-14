@@ -6,18 +6,18 @@ An open-source Android VPN client built with Kotlin, Jetpack Compose, sing-box a
 
 ## Features
 
-- Three tabs: Home, Servers and Settings.
-- Independent server selection for Wi-Fi and mobile data, with all profiles available in both lists.
-- URI, Base64, Clash and Xray JSON subscriptions, including VLESS XHTTP, Hysteria and TUIC.
+- Several subscriptions with their own name, traffic, end date, reminders and automatic updates, plus your own servers ("My servers").
+- Add a subscription or a server by opening a link (Moth, v2rayNG, Happ, Hiddify and sing-box import links, and server links); Moth always asks first.
+- Independent server selection for Wi-Fi and mobile data, favorites, and "Auto-select the best server".
 - HTTPS checks through each server, TCP port checks, tunnel health checks and a small download test.
-- Search, compact rows, latency sorting and filtering of recently unavailable servers.
-- Subscription expiration and traffic information when supplied by the provider.
-- Persistent HWID and configurable subscription headers.
-- English and Russian, system language detection and the Russian app name **Мотылёк**.
-- A Quick Settings VPN toggle using the selected server for the current network.
-- Light, dark and system themes. Settings apply automatically.
+- Kill switch, reconnection after network changes, start on boot and Android's Always-on VPN.
+- Split tunneling by app, routing rules (domains, keywords, IP ranges: VPN, direct or block) and "Russian sites and IPs directly".
+- DNS settings with DNS leak protection; DPI bypass (TLS fragmentation, UDP noise) and multiplexing, off by default.
+- Traffic statistics, backup and restore (optionally password-protected), optional in-app updates.
+- Quick Settings tile and home screen widget, both showing "Traffic blocked" / "Reconnecting…".
+- English and Russian, system language detection and the Russian app name **Мотылёк**. Light, dark and system themes.
 
-Moth requires a subscription from a compatible provider. It does not supply VPN servers. Automatic server selection, reconnection and background subscription updates are planned.
+Moth requires a subscription from a compatible provider or your own server. It does not supply VPN servers.
 
 ## Installation
 
@@ -28,21 +28,21 @@ Requires **Android 8.0 or newer**.
 3. Open **Servers** and choose a server for Wi-Fi and mobile data.
 4. Press the connection button on **Home** and grant Android's VPN permission.
 
-To add the Quick Settings toggle, open **Settings → Appearance → Add VPN button to Quick Settings** on Android 13+. Alternatively, edit Android's Quick Settings panel and drag **Moth** / **Мотылёк** into it. The first connection may open the app to request VPN permission.
+To add the Quick Settings toggle, open **Settings → Interface → Add VPN button to Quick Settings** on Android 13+. Alternatively, edit Android's Quick Settings panel and drag **Moth** / **Мотылёк** into it. The first connection may open the app to request VPN permission.
 
-Language is under **Settings → Appearance**. The default follows the system; English and Russian can be selected explicitly. Android 13+ exposes the same choice in system app language settings.
+Language is under **Settings → Interface**. The default follows the system; English and Russian can be selected explicitly. Android 13+ exposes the same choice in system app language settings.
 
 Full version history: [CHANGELOG.md](CHANGELOG.md).
 
-0.4.2 adds a developer log (Settings → For developers → Log) with levels, share and clear; it never records subscription links, keys or server addresses.
+A developer log (Settings → For developers → Log) has levels, share and clear; it never records subscription links, keys or server addresses.
 
-Test builds show a version label on the home screen: `./gradlew :app:assembleRelease -PversionSuffix=rc6` gives `v0.4.2rc6`. A release build without `-PversionSuffix` has no label.
+Test builds show a version label on the home screen: `./gradlew :app:assembleRelease -PversionSuffix=-beta.1` gives `0.6.1-beta.1`. A release build without `-PversionSuffix` has no label.
 
-Official 0.4.1 APKs update official 0.2, 0.3 and 0.4.0 APKs without deleting app data. The application ID and signing certificate are unchanged. The original GitHub 0.1 APK and independently built APKs can have different signatures.
+The application ID is `org.mothvpn.android` (since 0.4.5). Official APKs update each other without deleting app data; independently built APKs have a different signature.
 
 ## Supported subscriptions
 
-Text and Base64-encoded URI lists and Clash YAML/JSON with an embedded `proxies` list are supported. Xray-core JSON configs (an array of configs, one config, or a list of outbounds) are also imported: VLESS and Hysteria 2 outbounds become servers, and a config with a balancer becomes one balancer server. Routing rules, DNS and inbounds from such configs are ignored.
+Text and Base64-encoded URI lists, Clash YAML/JSON (an embedded `proxies` list or `proxy-providers` that link to other lists) and sing-box JSON configs are supported. Xray-core JSON configs (an array of configs, one config, or a list of outbounds) are also imported: VLESS and Hysteria 2 outbounds become servers, and a config with a balancer becomes one balancer server. Routing rules, DNS and inbounds from such configs are ignored.
 
 | Protocol | Support |
 | --- | --- |
@@ -53,10 +53,15 @@ Text and Base64-encoded URI lists and Clash YAML/JSON with an embedded `proxies`
 | Hysteria | v1 over UDP, with `upmbps` / `downmbps` |
 | Hysteria2 | TLS, Salamander |
 | TUIC | v5, UUID and password |
+| AnyTLS | TLS |
+| SOCKS5 / HTTP(S) | Username and password; marked "Unencrypted" without TLS |
+| WireGuard | Keys, addresses, reserved bytes |
+| SSH | Password or private key |
+| ShadowTLS | v1–v3, as a hop for Shadowsocks |
 
 TCP, WebSocket, gRPC and HTTPUpgrade are supported where applicable. XHTTP supports `auto`, `packet-up`, `stream-up` and `stream-one`.
 
-Hysteria port hopping, TUIC v4, Shadowsocks plugins, external Clash `proxy-providers` and `dialer-proxy` chains are not supported. Clash routing rules and groups are not applied. Profiles that disable TLS verification are rejected. Unsupported profiles are counted during import.
+Hysteria port hopping, TUIC v4, AmneziaWG, Shadowsocks plugins and Clash `dialer-proxy` chains are not supported. Clash routing rules and groups are not applied. Profiles that disable TLS verification are rejected. Unsupported profiles are counted during import.
 
 ## Connection checks
 
@@ -76,7 +81,7 @@ Checks run on the current physical network. Switch off Wi-Fi to test mobile data
 
 Subscription downloads and bootstrap DNS requests may use the direct connection. Traffic DNS inside the tunnel uses the selected server. Bootstrap DNS defaults to Cloudflare DoH and can be changed in Connection settings.
 
-Automatic recovery is not implemented. Android provides Always-on VPN and “Block connections without VPN”. Comprehensive DNS/IPv6 leak testing is still pending. Availability depends on the provider, configuration and network conditions.
+With the kill switch on, traffic is blocked while Moth reconnects. Android's Always-on VPN and “Block connections without VPN” are supported as well. Apps excluded by split tunneling cannot send traffic through the VPN. User-installed CA certificates are trusted for servers and subscription downloads. Comprehensive DNS/IPv6 leak testing is still pending. Availability depends on the provider, configuration and network conditions.
 
 Never include subscription links, credentials or private keys in public issues or screenshots.
 
@@ -84,7 +89,7 @@ Never include subscription links, credentials or private keys in public issues o
 
 Android Studio, **JDK 21** and **Android SDK 34** are required. The Gradle 8.13 wrapper is included. Set `ANDROID_HOME` or `sdk.dir` in a local `local.properties` file.
 
-The app needs `libbox.aar` in the repository root. On Linux, build it with Go 1.24.3, JDK 17 and Android NDK 28.0.13004108:
+The app needs `libbox.aar` in the repository root. On Linux, build it with Go 1.26.9, JDK 17 and Android NDK 28.0.13004108:
 
 ```bash
 bash scripts/build-libbox.sh
@@ -92,24 +97,25 @@ bash scripts/build-libbox.sh
 ./gradlew :core:test :app:assembleRelease :app:lintRelease
 ```
 
-[CI](.github/workflows/android.yml) builds the pinned native sources and publishes the AAR, APKs, native source archive and Go dependencies as workflow artifacts. Windows builds can use the AAR from a successful workflow. `scripts/fetch-libbox.ps1` is retained for the original prototype and does not fetch the current hybrid core.
+[CI](.github/workflows/android.yml) builds the pinned native sources and publishes the AAR and APKs as workflow artifacts, and runs end-to-end tests on an emulator. Windows builds can use the AAR from a successful workflow. `scripts/fetch-libbox.ps1` is retained for the original prototype and does not fetch the current hybrid core.
 
 APKs are generated at `app/build/outputs/apk/release/app-<ABI>-release.apk`. R8, resource shrinking, ABI splits and compressed native libraries reduce download size. Installed size is larger because native libraries are extracted.
 
-The current Gradle release configuration uses the local Android debug keystore. Local and CI builds are not automatically compatible with official APKs: updating an existing installation requires the same signing key. Official release certificate SHA-256:
+Release builds are signed with the Moth keystore: set `MOTH_KEYSTORE_FILE` to the PKCS#12 file and `MOTH_KEYSTORE_PASSWORD` to its password (key alias `moth`). Without them, use `-PunsignedValidation=true` for an unsigned check build. Updating an existing installation requires the same signing key. Official release certificate SHA-256:
 
 ```text
-8da575e54f9a90626fa3f6cf5f78eb11b3f0252601eecc6cc355fa709af18f90
+e326f86f82b63071ee23a49b174b4cb5d25df1595e46c00571560a62f5ec210a
 ```
 
 ## Project structure
 
 - `app/` — Compose UI, languages, Quick Settings, encrypted storage and Android VPN integration.
 - `core/` — Android-independent Kotlin/JVM parser, models and configuration generation.
-- `scripts/` — native builds and supporting tools.
+- `scripts/` — native builds, license notices and the end-to-end test servers.
+- `e2e-helper/` — a tiny test app used only by the emulator tests (never shipped).
 - `licenses/` — third-party notices included in the APK.
 
-The native core uses **sing-box 1.12.25** for TUN and **Xray 25.3.6** for XHTTP. Sources are pinned by commit in the build script. These versions need a separate upgrade and compatibility review.
+The native core uses **sing-box 1.12.25** for TUN and **Xray 26.7.28** for XHTTP. Sources are pinned by commit in the build script.
 
 Android is the only implemented platform. Other operating systems require their own tunnel integration and interfaces; the Android UI is not directly portable to iOS.
 

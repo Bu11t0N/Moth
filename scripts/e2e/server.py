@@ -33,6 +33,38 @@ def singbox_sub():
     ca = open(os.path.join(HERE, "ca.pem")).read()
     return json.dumps({"outbounds": [{"type": "anytls", "tag": "E2E AnyTLS", "server": HOST, "server_port": 20008, "password": ANYTLS_PASSWORD,
         "tls": {"enabled": True, "server_name": HOST, "certificate": ca}}]})
+# 0.6.1: Xray XHTTP servers (plain, and TLS with the user-installed CA) and a UDP echo server.
+XRAY = sys.argv[2] if len(sys.argv) > 2 else None
+UDP_ECHO_PORT = 9999
+LINKS5 = f"vless://{UUID}@{HOST}:20011?type=xhttp&security=none&encryption=none&path=%2Fmoth&mode=packet-up#E2E%20XHTTP\n"
+# Served over HTTPS with the user-installed CA (port 8444): Trojan/TLS (sing-box) and VLESS/XHTTP/TLS (Xray engine).
+LINKS_USER_CA = "\n".join([
+    f"trojan://{PASSWORD}@{HOST}:20010?type=tcp&security=tls&sni={HOST}#UserCA%20Trojan",
+    f"vless://{UUID}@{HOST}:20012?type=xhttp&security=tls&sni={HOST}&encryption=none&path=%2Fmoth&mode=packet-up#UserCA%20XHTTP"]) + "\n"
+def xray_config():
+    def inbound(port, tag, tls):
+        stream = {"network": "xhttp", "xhttpSettings": {"path": "/moth"}}
+        if tls: stream.update(security="tls", tlsSettings={"certificates": [{"certificateFile": os.path.join(HERE, "user-server.pem"), "keyFile": os.path.join(HERE, "user-server.key")}]})
+        return {"tag": tag, "listen": "0.0.0.0", "port": port, "protocol": "vless", "settings": {"clients": [{"id": UUID}], "decryption": "none"}, "streamSettings": stream}
+    return {"log": {"loglevel": "warning"},
+        "inbounds": [inbound(20011, "xhttp-in", False), inbound(20012, "xhttp-tls-in", True)],
+        # Xray 26 freedom blocks private destinations for VLESS inbounds by default; the test host is 10.0.2.2.
+        "outbounds": [{"tag": t, "protocol": "freedom", "sendThrough": src, "settings": {"finalRules": [{"action": "allow"}]}} for t, src in (("xhttp-out", "127.0.0.19"), ("xhttp-tls-out", "127.0.0.20"))],
+        "routing": {"rules": [{"inboundTag": ["xhttp-in"], "outboundTag": "xhttp-out"}, {"inboundTag": ["xhttp-tls-in"], "outboundTag": "xhttp-tls-out"}]}}
+def start_xray():
+    if not XRAY: return
+    path = os.path.join(HERE, "xray-e2e.json")
+    json.dump(xray_config(), open(path, "w"))
+    subprocess.run([XRAY, "run", "-test", "-c", path], check=True)
+    subprocess.Popen([XRAY, "run", "-c", path]); print("xray started", flush=True)
+def udp_echo(address):
+    """Replies to every datagram with "<source ip> <payload>" (the source identifies the server that relayed it).
+    Bound per address, so replies leave from the address the client sent to (Xray drops replies from another source)."""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind((address, UDP_ECHO_PORT))
+    while True:
+        data, addr = s.recvfrom(2048)
+        s.sendto(addr[0].encode() + b" " + data, addr)
 QUOTA2 = "upload=2000000000; download=7200000000; total=10000000000; expire=4102444800"
 
 def config():
@@ -57,8 +89,12 @@ def config():
     rules.append({"inbound": ["wg-ep"], "ip_cidr": [f"{HOST}/32"], "outbound": "wg-out"})
     endpoints = [{"type": "wireguard", "tag": "wg-ep", "system": False, "address": ["10.66.0.1/24"], "private_key": WG_SERVER_PRIV,
         "listen_port": 20006, "peers": [{"public_key": WG_CLIENT_PUB, "allowed_ips": ["10.66.0.2/32"]}]}]
+    # 0.6.1: Trojan over TLS with a certificate from a CA that the test installs as a user CA on the emulator.
+    inbounds.append({"type": "trojan", "tag": "trojan-user-ca-in", "listen": "0.0.0.0", "listen_port": 20010, "users": [{"password": PASSWORD}],
+        "tls": {"enabled": True, "certificate_path": os.path.join(HERE, "user-server.pem"), "key_path": os.path.join(HERE, "user-server.key")}})
+    outbounds.append({"type": "direct", "tag": "trojan-user-ca-out", "inet4_bind_address": "127.0.0.21"})
+    rules.append({"inbound": ["trojan-user-ca-in"], "ip_cidr": [f"{HOST}/32"], "outbound": "trojan-user-ca-out"})
     return {"log": {"level": "warn"}, "inbounds": inbounds, "outbounds": outbounds, "endpoints": endpoints, "route": {"rules": rules, "final": "direct"}}
-    return {"log": {"level": "warn"}, "inbounds": inbounds, "outbounds": outbounds, "route": {"rules": rules, "final": "direct"}}
 
 proc = None
 lock = threading.Lock()
@@ -93,19 +129,27 @@ class Sub(Echo):
     def do_GET(self):
         if self.path.startswith("/sub2"): self.reply(base64.b64encode(LINKS2.encode()).decode(), headers={"profile-title": "Second E2E", "subscription-userinfo": QUOTA2})
         elif self.path.startswith("/sub4"): self.reply(singbox_sub())
+        elif self.path.startswith("/sub5"): self.reply(base64.b64encode(LINKS5.encode()).decode())
         elif self.path.startswith("/sub3"): self.reply(base64.b64encode(LINKS3.encode()).decode())
         elif self.path.startswith("/sub"): self.reply(base64.b64encode(LINKS.encode()).decode())
         else: self.reply("not found", 404)
 
-def serve(port, handler, tls=False):
+class UserCaSub(Echo):
+    def do_GET(self):
+        if self.path.startswith("/sub"): self.reply(base64.b64encode(LINKS_USER_CA.encode()).decode())
+        else: self.reply("not found", 404)
+
+def serve(port, handler, tls=False, cert="server"):
     srv = http.server.ThreadingHTTPServer(("0.0.0.0", port), handler)
     if tls:
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); ctx.load_cert_chain(os.path.join(HERE, "server.pem"), os.path.join(HERE, "server.key"))
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); ctx.load_cert_chain(os.path.join(HERE, f"{cert}.pem"), os.path.join(HERE, f"{cert}.key"))
         srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
 
 if __name__ == "__main__":
     start()
-    serve(8081, Echo); serve(8443, Sub, tls=True)
+    start_xray()
+    for a in ("127.0.0.1", HOST): threading.Thread(target=udp_echo, args=(a,), daemon=True).start()
+    serve(8081, Echo); serve(8443, Sub, tls=True); serve(8444, UserCaSub, tls=True, cert="user-server")
     print("e2e host ready", flush=True)
     while True: time.sleep(3600)

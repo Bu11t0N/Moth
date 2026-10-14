@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <application android:label="Moth E2E helper" android:usesCleartextTraffic="true">
+        <!-- Started by Release061E2ETest with am broadcast; the result data is direct=..;bound=..;tunip=.. -->
+        <receiver android:name=".Probe" android:exported="true" />
+    </application>
+</manifest>

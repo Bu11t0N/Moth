@@ -119,15 +119,21 @@ jobs:
       - name: Build debug and test APKs
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon
+          ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :e2e-helper:assembleDebug --no-daemon
       - name: Start test servers on the host
         run: |
           sudo ip addr add 10.0.2.2/32 dev lo
           curl -fsSL -o sb.tgz https://github.com/SagerNet/sing-box/releases/download/v1.12.25/sing-box-1.12.25-linux-amd64.tar.gz
           tar xzf sb.tgz
-          nohup python3 scripts/e2e/server.py "$PWD/sing-box-1.12.25-linux-amd64/sing-box" > e2e-server.log 2>&1 &
+          # Xray server for XHTTP (same release as the core in libbox).
+          curl -fsSL -o xray.zip https://github.com/XTLS/Xray-core/releases/download/v26.7.28/Xray-linux-64.zip
+          echo "8195d909f1109b8f3d99eefe401a3c451d7bf4af71f24d3815420f77e5dd2a40  xray.zip" | sha256sum -c -
+          unzip -oq xray.zip xray -d xray-bin
+          nohup python3 scripts/e2e/server.py "$PWD/sing-box-1.12.25-linux-amd64/sing-box" "$PWD/xray-bin/xray" > e2e-server.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8081/health && break; sleep 1; done
           curl -fs --cacert scripts/e2e/ca.pem https://10.0.2.2:8443/sub > /dev/null
+          curl -fs --cacert scripts/e2e/user-ca.pem https://10.0.2.2:8444/sub > /dev/null
+          python3 -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.settimeout(3); s.sendto(b'x', ('10.0.2.2', 9999)); print(s.recv(64))"
       - name: Run E2E tests on the emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -140,6 +146,9 @@ jobs:
           script: |
             adb install -r -t app/build/outputs/apk/debug/app-x86_64-debug.apk
             adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb install -r -t e2e-helper/build/outputs/apk/debug/e2e-helper-debug.apk
+            # User-installed CA (as Settings → Install certificate would store it); needs adb root (default system image).
+            ./scripts/e2e/install-user-ca.sh scripts/e2e/user-ca.pem
             adb shell appops set org.mothvpn.android ACTIVATE_VPN allow
             adb logcat -c
             adb shell am instrument -w -r org.mothvpn.android.test/androidx.test.runner.AndroidJUnitRunner > e2e-result.txt 2>&1 || true
