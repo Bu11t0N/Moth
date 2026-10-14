@@ -18,18 +18,36 @@ LINKS = "\n".join([
 LINKS2 = "\n".join([
     f"vless://{UUID}@{HOST}:20001?type=tcp&security=none&encryption=none&sub=2#Second%20VLESS",
     f"trojan://{PASSWORD}@{HOST}:20002?type=tcp&security=none&sub=2#Second%20Trojan"]) + "\n"
+# 0.5.4: SOCKS5 and HTTP with username/password, WireGuard (synthetic test keys, CI only).
+PROXY_USER, PROXY_PASS = "moth-user", "moth p@ss"
+WG_SERVER_PRIV, WG_SERVER_PUB = "KO/Z9gtGTCwqIqin0kUlRJVQVeuzzsTRKU3qDOCiMWs=", "GbOmk5x5V9XRtDZQPaBtmxuI99wgeSYorhVHQPq/vgM="
+WG_CLIENT_PRIV, WG_CLIENT_PUB = "2E56FQv7AvD1c0XspyCoR294+UvV3XsTFgh10swBS2I=", "JoSDfNCygyHo6m5agrym3eTdEAGM5/jv8puE1LPjZXo="
+from urllib.parse import quote
+LINKS3 = "\n".join([
+    f"socks5://{quote(PROXY_USER, safe='')}:{quote(PROXY_PASS, safe='')}@{HOST}:20004#E2E%20SOCKS5",
+    f"http://{quote(PROXY_USER, safe='')}:{quote(PROXY_PASS, safe='')}@{HOST}:20005#E2E%20HTTP",
+    f"wireguard://{quote(WG_CLIENT_PRIV, safe='')}@{HOST}:20006?publickey={quote(WG_SERVER_PUB, safe='')}&address=10.66.0.2%2F32&mtu=1280#E2E%20WireGuard"]) + "\n"
 QUOTA2 = "upload=2000000000; download=7200000000; total=10000000000; expire=4102444800"
 
 def config():
     inbounds, outbounds, rules = [], [{"type": "direct", "tag": "direct"}], []
     for kind, port, src in SERVERS:
         ib = {"type": kind, "tag": f"{kind}-in", "listen": "0.0.0.0", "listen_port": port}
-        if kind == "vless": ib["users"] = [{"uuid": UUID}]
+        if kind == "vless": ib["users"] = [{"uuid": UUID}]; ib["multiplex"] = {"enabled": True}
         elif kind == "trojan": ib["users"] = [{"password": PASSWORD}]
         else: ib.update(method="aes-128-gcm", password=PASSWORD)
         inbounds.append(ib)
         outbounds.append({"type": "direct", "tag": f"{kind}-out", "inet4_bind_address": src})
         rules.append({"inbound": [f"{kind}-in"], "ip_cidr": [f"{HOST}/32"], "outbound": f"{kind}-out"})
+    for kind, port, src in [("socks", 20004, "127.0.0.14"), ("http", 20005, "127.0.0.15")]:
+        inbounds.append({"type": kind, "tag": f"{kind}-in", "listen": "0.0.0.0", "listen_port": port, "users": [{"username": PROXY_USER, "password": PROXY_PASS}]})
+        outbounds.append({"type": "direct", "tag": f"{kind}-out", "inet4_bind_address": src})
+        rules.append({"inbound": [f"{kind}-in"], "ip_cidr": [f"{HOST}/32"], "outbound": f"{kind}-out"})
+    outbounds.append({"type": "direct", "tag": "wg-out", "inet4_bind_address": "127.0.0.16"})
+    rules.append({"inbound": ["wg-ep"], "ip_cidr": [f"{HOST}/32"], "outbound": "wg-out"})
+    endpoints = [{"type": "wireguard", "tag": "wg-ep", "system": False, "address": ["10.66.0.1/24"], "private_key": WG_SERVER_PRIV,
+        "listen_port": 20006, "peers": [{"public_key": WG_CLIENT_PUB, "allowed_ips": ["10.66.0.2/32"]}]}]
+    return {"log": {"level": "warn"}, "inbounds": inbounds, "outbounds": outbounds, "endpoints": endpoints, "route": {"rules": rules, "final": "direct"}}
     return {"log": {"level": "warn"}, "inbounds": inbounds, "outbounds": outbounds, "route": {"rules": rules, "final": "direct"}}
 
 proc = None
@@ -64,6 +82,7 @@ class Echo(http.server.BaseHTTPRequestHandler):
 class Sub(Echo):
     def do_GET(self):
         if self.path.startswith("/sub2"): self.reply(base64.b64encode(LINKS2.encode()).decode(), headers={"profile-title": "Second E2E", "subscription-userinfo": QUOTA2})
+        elif self.path.startswith("/sub3"): self.reply(base64.b64encode(LINKS3.encode()).decode())
         elif self.path.startswith("/sub"): self.reply(base64.b64encode(LINKS.encode()).decode())
         else: self.reply("not found", 404)
 
