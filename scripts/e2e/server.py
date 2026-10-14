@@ -27,6 +27,12 @@ LINKS3 = "\n".join([
     f"socks5://{quote(PROXY_USER, safe='')}:{quote(PROXY_PASS, safe='')}@{HOST}:20004#E2E%20SOCKS5",
     f"http://{quote(PROXY_USER, safe='')}:{quote(PROXY_PASS, safe='')}@{HOST}:20005#E2E%20HTTP",
     f"wireguard://{quote(WG_CLIENT_PRIV, safe='')}@{HOST}:20006?publickey={quote(WG_SERVER_PUB, safe='')}&address=10.66.0.2%2F32&mtu=1280#E2E%20WireGuard"]) + "\n"
+# 0.5.4 beta 2: AnyTLS (sing-box 1.12), served as a sing-box JSON subscription that carries the test CA.
+ANYTLS_PASSWORD = "moth-anytls-password"
+def singbox_sub():
+    ca = open(os.path.join(HERE, "ca.pem")).read()
+    return json.dumps({"outbounds": [{"type": "anytls", "tag": "E2E AnyTLS", "server": HOST, "server_port": 20008, "password": ANYTLS_PASSWORD,
+        "tls": {"enabled": True, "server_name": HOST, "certificate": ca}}]})
 QUOTA2 = "upload=2000000000; download=7200000000; total=10000000000; expire=4102444800"
 
 def config():
@@ -43,6 +49,10 @@ def config():
         inbounds.append({"type": kind, "tag": f"{kind}-in", "listen": "0.0.0.0", "listen_port": port, "users": [{"username": PROXY_USER, "password": PROXY_PASS}]})
         outbounds.append({"type": "direct", "tag": f"{kind}-out", "inet4_bind_address": src})
         rules.append({"inbound": [f"{kind}-in"], "ip_cidr": [f"{HOST}/32"], "outbound": f"{kind}-out"})
+    inbounds.append({"type": "anytls", "tag": "anytls-in", "listen": "0.0.0.0", "listen_port": 20008, "users": [{"password": ANYTLS_PASSWORD}],
+        "tls": {"enabled": True, "certificate_path": os.path.join(HERE, "server.pem"), "key_path": os.path.join(HERE, "server.key")}})
+    outbounds.append({"type": "direct", "tag": "anytls-out", "inet4_bind_address": "127.0.0.18"})
+    rules.append({"inbound": ["anytls-in"], "ip_cidr": [f"{HOST}/32"], "outbound": "anytls-out"})
     outbounds.append({"type": "direct", "tag": "wg-out", "inet4_bind_address": "127.0.0.16"})
     rules.append({"inbound": ["wg-ep"], "ip_cidr": [f"{HOST}/32"], "outbound": "wg-out"})
     endpoints = [{"type": "wireguard", "tag": "wg-ep", "system": False, "address": ["10.66.0.1/24"], "private_key": WG_SERVER_PRIV,
@@ -82,6 +92,7 @@ class Echo(http.server.BaseHTTPRequestHandler):
 class Sub(Echo):
     def do_GET(self):
         if self.path.startswith("/sub2"): self.reply(base64.b64encode(LINKS2.encode()).decode(), headers={"profile-title": "Second E2E", "subscription-userinfo": QUOTA2})
+        elif self.path.startswith("/sub4"): self.reply(singbox_sub())
         elif self.path.startswith("/sub3"): self.reply(base64.b64encode(LINKS3.encode()).decode())
         elif self.path.startswith("/sub"): self.reply(base64.b64encode(LINKS.encode()).decode())
         else: self.reply("not found", 404)

@@ -103,6 +103,14 @@ class Release054E2ETest {
         trafficThrough("E2E WireGuard", "127.0.0.16")
     }
 
+    @Test fun anytlsFromSingBoxSubscriptionWithNativeFragmentation() {
+        add("https://$host:8443/sub4")
+        assertEquals(listOf("anytls"), SubscriptionStore(context).load()!!.profiles.map { it.protocol })
+        trafficThrough("E2E AnyTLS", "127.0.0.18")
+        SettingsStore(context).save(SettingsStore(context).load().copy(fragment = "tlshello_small"))
+        trafficThrough("E2E AnyTLS", "127.0.0.18")
+    }
+
     @Test fun muxAndFragmentKeepVlessWorking() {
         SettingsStore(context).save(ClientSettings(hwid = hwid, mux = "smux", fragment = "tlshello", noise = true))
         add(sub1)
