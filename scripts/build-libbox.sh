@@ -14,7 +14,9 @@ test "$(git rev-parse HEAD)" = 73bfb99ebce7923c485435e4faf8571b412065a9
 
 # XHTTP uses Xray v25.3.6 (2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4).
 cp "$project_root/scripts/native/moth_xray.go" experimental/libbox/moth_xray.go
-go get github.com/xtls/xray-core@2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4
+# Module downloads are checked against sum.golang.org; retry transient network errors (checksums are never skipped).
+retry() { for i in 1 2 3 4 5; do "$@" && return 0; echo "retry $i: $*" >&2; sleep $((i * 15)); done; return 1; }
+retry go get github.com/xtls/xray-core@2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4
 xray_path="$(go list -m -f '{{.Dir}}' github.com/xtls/xray-core)"
 mkdir -p .moth-xray
 cp -R "$xray_path/." .moth-xray/
@@ -45,7 +47,7 @@ assert old in s
 p.write_text(s.replace(old, new))
 PY
 go mod edit -replace github.com/xtls/xray-core=./.moth-xray
-go mod tidy
+retry go mod tidy
 # Go dependency license notices (licenses/go-modules.txt); see scripts/go-licenses.sh.
 bash "$project_root/scripts/go-licenses.sh" "$source_path" "$project_root/licenses/go-modules.txt"
 if [ "${MOTH_PREPARE_ONLY:-}" = 1 ]; then exit 0; fi
