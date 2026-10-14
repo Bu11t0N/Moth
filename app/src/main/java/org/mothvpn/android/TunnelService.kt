@@ -80,7 +80,10 @@ class TunnelService : VpnService(), PlatformInterface {
     private var tun: ParcelFileDescriptor? = null
     @Volatile private var stopped = false
     private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
+    /** Newest start id: finish() stops the service only if no command arrived after it (a Connect right after Disconnect must survive). */
+    @Volatile private var lastStartId = 0
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        lastStartId = startId
         Logger.d("Tunnel", "onStartCommand action=${intent?.action} state=${TunnelStatus.state.value}")
         if (intent?.action == "STOP") {
             Logger.i("Tunnel", "stop requested (state=${TunnelStatus.state.value})")
@@ -385,7 +388,7 @@ class TunnelService : VpnService(), PlatformInterface {
     }
     /**
      * The tunnel is down (OFF/ERROR): remove the notification ("Disconnecting…" must not stay) and stop the service.
-     * stopSelf() without a start id: a later command (health check, kill switch toggle) must not keep the service alive.
+     * stopSelf(lastStartId): stops unless a newer command (e.g. Connect tapped right after Disconnect) is pending.
      * A running check keeps the service; probeProfiles calls this again when it ends.
      */
     private fun finish() {
@@ -394,7 +397,7 @@ class TunnelService : VpnService(), PlatformInterface {
         if (Diagnostics.running.value) { runCatching { foreground() }; return }
         runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
         runCatching { getSystemService(NotificationManager::class.java).cancel(1) }
-        stopSelf()
+        stopSelf(lastStartId)
     }
     private fun closeTunnel() {
         Logger.d("Tunnel", "closeTunnel (box=${box != null}, xray=${xray != null})")
