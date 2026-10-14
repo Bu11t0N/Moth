@@ -6,15 +6,16 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ### Changes
 
-- Add a subscription or a server by opening a link. Moth accepts its own import links and those of v2rayNG, Happ, Hiddify and sing-box, as well as server links (VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, SOCKS, WireGuard). Moth always asks before adding anything.
-- New server types: SOCKS5 and HTTP(S) proxies with a username and password, WireGuard, SSH, and Shadowsocks with ShadowTLS. Proxies without encryption are marked "Unencrypted".
+- Add a subscription or a server by opening a link. Moth accepts its own import links and those of v2rayNG, Happ, Hiddify and sing-box, as well as server links (VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, AnyTLS, SOCKS, WireGuard). Moth always asks before adding anything.
+- New server types: AnyTLS, SOCKS5 and HTTP(S) proxies with a username and password, WireGuard, SSH, and Shadowsocks with ShadowTLS. Proxies without encryption are marked "Unencrypted".
 - More subscription formats: sing-box and Xray configs, and Clash subscriptions that link to other server lists.
 - DPI bypass in Settings → Connection: "TLS fragmentation" and "UDP noise" can help when servers are blocked. Off by default.
 - "Multiplexing (mux)" in Settings → Connection, for servers that support it. Off by default.
 - Home screen widget: shows the server and the VPN state, including "Traffic blocked", with a Connect/Disconnect button.
 - Better leak protection: other apps can no longer use Moth's internal connection, and apps excluded by split tunneling can no longer send traffic through the VPN (Android 10+).
 - Fixed: after cancelling an app update, the screen kept saying the update was downloading. Now you can start the update again.
-- AnyTLS and AmneziaWG servers are not supported yet.
+- Updated VPN core.
+- AmneziaWG servers are not supported yet.
 
 ## 0.5.3
 
@@ -170,7 +171,7 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ### Performance and size
 
-- Faster app, especially with long server lists.
+- The home screen stays smooth while servers are being checked.
 - Much smaller download: about 18 MB instead of 209 MB.
 
 ## 0.3.0
@@ -199,18 +200,18 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ### New features
 
-- Settings for theme, DNS over HTTPS, IPv6, MTU, timeouts and connection checks.
+- Settings for theme, DNS over HTTPS, IPv6, MTU and timeouts.
 - New protocols: VLESS, VMess and Trojan with XHTTP, Hysteria, Hysteria2 and TUIC v5.
 - Clash subscriptions.
 - Device ID (HWID) for providers, and an optional device model and Android version.
 - Server latency check for one or all servers, with cancel and sorting by latency.
-- Internet check through the VPN.
+- Regular check that the internet works through the VPN.
 - Speed test through the selected server.
 
 ### Compatibility
 
 - Android 8.0 or newer.
-- Not supported yet: Clash subscriptions that link to other lists, provider routing rules, TUIC v4, Hysteria port hopping and Shadowsocks plugins.
+- Not supported yet: Clash subscriptions that link to other lists, TUIC v4 and Shadowsocks plugins.
 
 ## 0.1.0
 
@@ -221,7 +222,7 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - Server list and manual server selection.
 - Connect and disconnect the VPN.
 - Update and delete the subscription manually.
-- Your settings are stored encrypted.
+- Your subscription is stored encrypted on the phone.
 
 ### Interface
 
@@ -229,5 +230,5 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ### Compatibility
 
-- Android 8.0 or newer. VLESS (including REALITY and Vision), VMess, Trojan and Shadowsocks.
-- Not supported yet: automatic server selection and reconnection, background updates, XHTTP, Clash subscriptions, Hysteria, TUIC and Shadowsocks plugins.
+- Android 8.0 or newer. Supported protocols: VLESS (including REALITY), VMess, Trojan and Shadowsocks.
+- Not supported yet: automatic server selection, automatic subscription updates, XHTTP, Clash subscriptions, Hysteria and TUIC.
