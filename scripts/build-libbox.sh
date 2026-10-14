@@ -47,19 +47,16 @@ assert old in s
 p.write_text(s.replace(old, new))
 PY
 go mod edit -replace github.com/xtls/xray-core=./.moth-xray
-# Moth build tags: drop Tailscale and the Clash API (Moth configs use neither); keep gVisor, QUIC, WireGuard, uTLS, conntrack.
+# Moth build tags: drop Tailscale (unused). Keep gVisor, QUIC, WireGuard, uTLS, conntrack and the Clash API
+# (libbox always starts the Clash server for its platform log writer, so the VPN cannot start without it).
 python3 - <<'PY2'
 from pathlib import Path
 p = Path('cmd/internal/build_libbox/main.go')
 s = p.read_text()
-old_shared = 'sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api", "with_conntrack")'
-new_shared = 'sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_conntrack")'
-old_memc = 'memcTags = append(memcTags, "with_tailscale")'
-if old_shared in s:
-    assert old_memc in s
-    s = s.replace(old_shared, new_shared).replace(old_memc, 'memcTags = append(memcTags)')
-else:
-    assert new_shared in s and 'with_tailscale' not in s.split('memcTags = append(memcTags')[1].split('\n')[0]
+old = 'memcTags = append(memcTags, "with_tailscale")'
+assert old in s
+s = s.replace(old, 'memcTags = append(memcTags)')
+assert 'with_tailscale' not in s.split('func init()')[1].split('\n}\n')[0]
 p.write_text(s)
 PY2
 retry go mod tidy
