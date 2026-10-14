@@ -161,6 +161,8 @@ object AppUpdater {
     }
 
     /** Result of a PackageInstaller session, delivered to [InstallReceiver]. */
+    /** Incremented when the user closes the system install confirmation or the install fails, so the screen resets. */
+    val installAborted = kotlinx.coroutines.flow.MutableStateFlow(0)
     const val INSTALL_ACTION = "org.mothvpn.android.INSTALL_RESULT"
 
     /** Streams [file] into a PackageInstaller session and commits it; the system answers through [InstallReceiver]. */
@@ -215,6 +217,7 @@ class InstallReceiver : android.content.BroadcastReceiver() {
         val status = intent.getIntExtra(android.content.pm.PackageInstaller.EXTRA_STATUS, -999)
         val message = intent.getStringExtra(android.content.pm.PackageInstaller.EXTRA_STATUS_MESSAGE)
         Logger.i("Update", "install result: status=$status message=$message other=${intent.getStringExtra(android.content.pm.PackageInstaller.EXTRA_OTHER_PACKAGE_NAME)}")
+        if (status != android.content.pm.PackageInstaller.STATUS_PENDING_USER_ACTION && status != android.content.pm.PackageInstaller.STATUS_SUCCESS) AppUpdater.installAborted.value++
         if (status == android.content.pm.PackageInstaller.STATUS_PENDING_USER_ACTION) {
             @Suppress("DEPRECATION") val confirm = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java) else intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
             if (confirm == null) { Logger.e("Update", "installer asked for confirmation without an intent"); return }
