@@ -10,3 +10,5 @@ local.properties
 *.keystore
 *.password
 scripts/e2e/sing-box-e2e.json
+__pycache__/
+*.pyc

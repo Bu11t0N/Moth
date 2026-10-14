@@ -4,9 +4,9 @@ require(versionSuffix.matches(Regex("[A-Za-z0-9.-]*"))) { "versionSuffix: letter
 android {
     namespace = "org.mothvpn.android"
     compileSdk = 34
-    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 45; versionName = "0.6.0$versionSuffix"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
-        // versionCode: every build that can be offered as an update must exceed the previous one (0.4.7 beta.1 = 17, beta.2 = 18, beta.3 = 19, beta.4 = 20, beta.5 = 21, beta.6 = 22, stable 0.4.7 = 23, 0.5.0 beta.1 = 24, beta.2 = 25, beta.3 = 26, beta.4 = 27, beta.5 = 28, stable 0.5.0 = 29, 0.5.1 beta.1 = 30, 0.5.1 beta.2 = 31, beta.3 = 32, beta.4 = 33, stable 0.5.1 = 34, 0.5.2 (licenses) = 35, 0.5.2 beta.1 = 36, stable 0.5.2 = 37, 0.5.3 beta.1 = 38, 0.5.3 beta.2 = 39, stable 0.5.3 = 40, 0.5.4 beta.1 = 41, beta.2 = 42, 0.6.0 beta.1 = 43, beta.2 = 44, stable 0.6.0 = 45).
-        // Test builds: -PversionSuffix=-beta.1 gives versionName 0.6.0-beta.1 ; no property gives 0.6.0.
+    defaultConfig { applicationId = "org.mothvpn.android"; minSdk = 26; targetSdk = 34; versionCode = 46; versionName = "0.6.1$versionSuffix"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
+        // versionCode: every build that can be offered as an update must exceed the previous one (0.4.7 beta.1 = 17, beta.2 = 18, beta.3 = 19, beta.4 = 20, beta.5 = 21, beta.6 = 22, stable 0.4.7 = 23, 0.5.0 beta.1 = 24, beta.2 = 25, beta.3 = 26, beta.4 = 27, beta.5 = 28, stable 0.5.0 = 29, 0.5.1 beta.1 = 30, 0.5.1 beta.2 = 31, beta.3 = 32, beta.4 = 33, stable 0.5.1 = 34, 0.5.2 (licenses) = 35, 0.5.2 beta.1 = 36, stable 0.5.2 = 37, 0.5.3 beta.1 = 38, 0.5.3 beta.2 = 39, stable 0.5.3 = 40, 0.5.4 beta.1 = 41, beta.2 = 42, 0.6.0 beta.1 = 43, beta.2 = 44, stable 0.6.0 = 45, 0.6.1 beta.1 = 46).
+        // Test builds: -PversionSuffix=-beta.1 gives versionName 0.6.1-beta.1 ; no property gives 0.6.1.
     buildTypes {
         getByName("release") {
             signingConfig = if (providers.gradleProperty("unsignedValidation").orNull == "true") null else signingConfigs.create("mothRelease") {
