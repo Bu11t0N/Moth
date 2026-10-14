@@ -13,6 +13,14 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - "Multiplexing (mux)" in Settings → Connection, for servers that support it. Off by default.
 - Home screen widget: shows the server and the VPN state, including "Traffic blocked", with a Connect/Disconnect button.
 - Better leak protection: other apps can no longer use Moth's internal connection, and apps excluded by split tunneling can no longer send traffic through the VPN (Android 10+).
+- The widget, the quick settings tile and the notification now show "Traffic blocked" (or "Reconnecting…" without the kill switch) when the phone loses its network, and update back when it returns.
+- The subscription link field shows the link you paste instead of dots.
+- Subscription groups in the server list can be collapsed with a tap on their header; Moth remembers which ones are collapsed.
+- "Check servers" in a subscription's menu checks only that subscription. The button at the top still checks all servers.
+- With several subscriptions, the subscription button at the bottom of the home screen lists all of them with traffic, end date and last update.
+- Certificates you installed on the phone (for example a company certificate) are trusted again, both for servers and for subscription downloads.
+- Fixed: after disconnecting, the notification could stay stuck on "Disconnecting…".
+- Fixed: tapping the notification, the widget or the tile while Moth was open opened a second copy of the app.
 - Fixed: after cancelling an app update, the screen kept saying the update was downloading. Now you can start the update again.
 - Updated VPN core.
 - AmneziaWG servers are not supported yet.

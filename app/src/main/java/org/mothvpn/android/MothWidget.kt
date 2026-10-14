@@ -27,7 +27,7 @@ class MothWidget : AppWidgetProvider() {
         fun observe(context: Context) {
             val app = context.applicationContext
             scope.launch {
-                combine(TunnelStatus.state, TunnelStatus.blocking, TunnelStatus.activeProfile, VpnLauncher.changed) { _, _, _, _ -> Unit }
+                combine(TunnelStatus.state, TunnelStatus.blocking, TunnelStatus.offline, TunnelStatus.activeProfile, VpnLauncher.changed) { _, _, _, _, _ -> Unit }
                     .debounce(150).collect { runCatching { update(app) }.onFailure { Logger.w("Widget", "update failed", it) } }
             }
         }
@@ -43,7 +43,8 @@ class MothWidget : AppWidgetProvider() {
             val active = TunnelStatus.activeProfile.value.takeIf { state != TunnelState.OFF && it.isNotEmpty() }
             val profile = subscription?.profiles?.firstOrNull { it.id == (active ?: subscription.selection(network?.kind ?: "wifi")) }
             val on = blocked || state == TunnelState.RUNNING || state == TunnelState.BLOCKED
-            val status = tr(if (blocked) (if (state == TunnelState.STARTING) R.string.tile_reconnecting else R.string.tile_blocked) else when (state) {
+            // Same TunnelStatus as the home screen and the tile, including "no network" (OfflineStatus).
+            val status = tr(if (blocked) (if (state == TunnelState.STARTING) R.string.tile_reconnecting else R.string.tile_blocked) else if (TunnelStatus.waitingForNetwork(state)) R.string.tile_reconnecting else when (state) {
                 TunnelState.RUNNING -> R.string.tile_on
                 TunnelState.STARTING -> R.string.tile_starting
                 TunnelState.STOPPING -> R.string.tile_stopping
@@ -58,7 +59,7 @@ class MothWidget : AppWidgetProvider() {
                 setOnClickPendingIntent(R.id.widget_button, PendingIntent.getBroadcast(context, 0,
                     Intent(context, MothWidget::class.java).setAction(TOGGLE), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
                 setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context, 1,
-                    Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+                    Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             }
             manager.updateAppWidget(ids, views)
         }

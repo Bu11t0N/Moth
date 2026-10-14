@@ -51,7 +51,7 @@ class BootReceiver : BroadcastReceiver() {
     private fun askToOpen(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("boot", tr(R.string.boot_channel), NotificationManager.IMPORTANCE_DEFAULT))
-        val open = PendingIntent.getActivity(context, 42, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val open = PendingIntent.getActivity(context, 42, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(MainActivity.CONNECT_FROM_TILE, true), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         runCatching {
             manager.notify(2, android.app.Notification.Builder(context, "boot").setSmallIcon(R.drawable.ic_moth_notification)

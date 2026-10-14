@@ -22,16 +22,16 @@ class VpnTileService : TileService() {
         super.onStartListening()
         listening?.cancel()
         listening = scope.launch {
-            TunnelStatus.state.combine(TunnelStatus.blocking) { st, b -> st to b }.collectLatest { (st, b) -> updateTile(st, b) }
+            kotlinx.coroutines.flow.combine(TunnelStatus.state, TunnelStatus.blocking, TunnelStatus.offline) { st, b, o -> Triple(st, b, o) }.collectLatest { (st, b, o) -> updateTile(st, b, o) }
         }
     }
     override fun onStopListening() {
         listening?.cancel()
         super.onStopListening()
     }
-    private fun updateTile(state: TunnelState, blocking: Boolean) {
+    private fun updateTile(state: TunnelState, blocking: Boolean, offline: org.mothvpn.core.OfflineStatus.Kind) {
         // Kill switch holding traffic: active tile; while it reconnects from the blocked state the subtitle says so.
-        val blocked = TunnelStatus.trafficBlocked(state, blocking)
+        val blocked = TunnelStatus.trafficBlocked(state, blocking, offline)
         qsTile?.apply {
             label = tr(R.string.app_name)
             icon = Icon.createWithResource(this@VpnTileService, R.drawable.ic_moth_tile)
@@ -46,7 +46,7 @@ class VpnTileService : TileService() {
                 TunnelState.STOPPING -> R.string.tile_stopping
                 TunnelState.BLOCKED -> R.string.tile_blocked
                 else -> R.string.tile_off
-            })
+            }.let { if (TunnelStatus.waitingForNetwork(state, offline)) R.string.tile_reconnecting else it })
             updateTile()
         }
     }

@@ -464,4 +464,11 @@
     <string name="widget_description">"Connect or disconnect the VPN"</string>
     <string name="widget_connect">"Connect"</string>
     <string name="widget_disconnect">"Disconnect"</string>
+    <string name="group_expand">Expand</string>
+    <string name="group_collapse">Collapse</string>
+    <string name="sub_check">Check servers</string>
+    <string name="sub_all_show">Show all subscriptions</string>
+    <string name="sub_all_title">Subscriptions</string>
+    <string name="sub_updated_on">Updated: %1$s</string>
+    <string name="sub_link_copy_link">Copy link</string>
 </resources>

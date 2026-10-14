@@ -34,7 +34,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
     }
     val blockingTun by TunnelStatus.blocking.collectAsState()
     // Kill switch holding traffic (also while it retries the connection): the button disconnects and stops blocking.
-    val blocked = TunnelStatus.trafficBlocked(tunnel, blockingTun)
+    val offline by TunnelStatus.offline.collectAsState()
+    val blocked = TunnelStatus.trafficBlocked(tunnel, blockingTun, offline)
     val running = tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || blocked
     val transition = tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING) && !blocked
     // Red = not connected, green = connected; in-between states keep the neutral disabled look of the button.
@@ -66,7 +67,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
         if (blocked) {
             Text(tr(R.string.home_disconnect), style = MaterialTheme.typography.headlineSmall)
             Text(tr(R.string.msg_blocked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-        } else Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall)
+        } else Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.tile_reconnecting) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall)
         if (tunnel == TunnelState.RUNNING) Text(if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message), style = MaterialTheme.typography.bodyMedium)
         if (selected != null) TextButton(onClick = servers) { Text(selected.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         if (saved == null) Button(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
@@ -82,11 +83,19 @@ import androidx.compose.foundation.text.selection.SelectionContainer
                 if ((book?.sources?.size ?: 0) > 1) Text(tr(R.string.sub_count, book?.sources?.size ?: 0), style = MaterialTheme.typography.labelMedium)
                 var showLink by remember { mutableStateOf(false) }
                 val clipboard = LocalClipboardManager.current
-                if (!saved.local) TextButton(onClick = { showLink = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
+                var showAll by remember { mutableStateOf(false) }
+                val all = book?.sources.orEmpty()
+                // "<host> · N servers": with several subscriptions it opens the list of all of them (not only the selected server's one).
+                if (all.size > 1) TextButton(onClick = { showAll = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
+                    .semantics { contentDescription = tr(R.string.sub_all_show) }) {
+                    Text(if (saved.local) tr(R.string.sub_servers_count, saved.profiles.size) else tr(R.string.msg_host_saved_profiles_size_servers_17, host, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
+                }
+                else if (!saved.local) TextButton(onClick = { showLink = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
                     .semantics { contentDescription = tr(R.string.sub_link_show) }) {
                     Text(tr(R.string.msg_host_saved_profiles_size_servers_17, host, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
                 }
                 else Text(tr(R.string.sub_servers_count, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
+                if (showAll) SubscriptionsDialog(all, { showAll = false }) { url -> clipboard.setText(AnnotatedString(url)) }
                 // The link is the user's own; it is shown in full here and is never written to the log.
                 if (showLink) AlertDialog(onDismissRequest = { showLink = false }, title = { Text(tr(R.string.sub_link_title)) },
                     text = { SelectionContainer { Text(saved.url) } },
@@ -100,6 +109,27 @@ import androidx.compose.foundation.text.selection.SelectionContainer
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(8.dp))
     }
+}
+
+/** Every subscription with its servers, traffic, end date and last update; each link can be copied (it is not printed here). */
+@Composable private fun SubscriptionsDialog(sources: List<org.mothvpn.core.SubscriptionSource>, close: () -> Unit, copy: (String) -> Unit) {
+    val locale = AppLanguage.context().resources.configuration.locales[0]
+    val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, locale)
+    AlertDialog(onDismissRequest = close, title = { Text(tr(R.string.sub_all_title)) }, text = {
+        androidx.compose.foundation.lazy.LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(sources.size) { i ->
+                val s = sources[i]
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(s.title().ifBlank { tr(R.string.import_local_name) }, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(tr(R.string.sub_servers_count, s.profiles.size), style = MaterialTheme.typography.bodySmall)
+                    if (s.totalBytes > 0) Text(tr(R.string.msg_traffic_1f_1f_gib_18, s.usedBytes / 1073741824.0, s.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall)
+                    if (s.expires in 1..253402300799L) Text(tr(R.string.msg_subscription_expires_on_19) + dates.format(java.util.Date(s.expires * 1000)), style = MaterialTheme.typography.bodySmall)
+                    if (s.updatedAt > 0) Text(tr(R.string.sub_updated_on, dates.format(java.util.Date(s.updatedAt))), style = MaterialTheme.typography.bodySmall)
+                    if (!s.local) TextButton(onClick = { copy(s.url) }, contentPadding = PaddingValues(0.dp)) { Text(tr(R.string.sub_link_copy_link)) }
+                }
+            }
+        }
+    }, confirmButton = { TextButton(onClick = close) { Text(tr(R.string.sub_link_close)) } })
 }
 
 @Composable fun MothIcon(name: String, modifier: Modifier = Modifier) {

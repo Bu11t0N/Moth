@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Debug builds only (E2E tests on the emulator): the test CA is trusted and plain HTTP is allowed to the emulator host 10.0.2.2. Release builds are unaffected. -->
+<!-- Debug builds only (E2E tests on the emulator): the test CA is trusted and plain HTTP is allowed to the emulator host 10.0.2.2. Like release, user-installed CAs are trusted too. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
-        <trust-anchors><certificates src="system" /></trust-anchors>
+        <trust-anchors><certificates src="system" /><certificates src="user" /></trust-anchors>
     </base-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">10.0.2.2</domain>

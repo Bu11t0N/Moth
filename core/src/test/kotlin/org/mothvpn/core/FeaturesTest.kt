@@ -141,3 +141,14 @@ class FeaturesTest {
         assertEquals("bootstrap", config.getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("domain_resolver"))
     }
 }
+
+class OfflineStatusTest {
+    @Test fun noNetworkWhileConnected() {
+        assertEquals(OfflineStatus.Kind.BLOCKED, OfflineStatus.of(connected = true, hasNetwork = false, killSwitch = true))
+        assertEquals(OfflineStatus.Kind.WAITING, OfflineStatus.of(connected = true, hasNetwork = false, killSwitch = false))
+    }
+    @Test fun onlineOrDisconnected() {
+        assertEquals(OfflineStatus.Kind.ONLINE, OfflineStatus.of(connected = true, hasNetwork = true, killSwitch = true))
+        assertEquals(OfflineStatus.Kind.ONLINE, OfflineStatus.of(connected = false, hasNetwork = false, killSwitch = true))
+    }
+}

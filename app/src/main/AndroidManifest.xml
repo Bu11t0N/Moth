@@ -15,7 +15,7 @@
         </intent>
     </queries>
     <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <application android:name=".MothApplication" android:label="@string/app_name" android:localeConfig="@xml/locales_config" android:icon="@mipmap/ic_launcher" android:theme="@style/AppTheme" android:allowBackup="false" android:dataExtractionRules="@xml/backup_rules" android:usesCleartextTraffic="false" android:supportsRtl="true">
+    <application android:name=".MothApplication" android:label="@string/app_name" android:localeConfig="@xml/locales_config" android:icon="@mipmap/ic_launcher" android:theme="@style/AppTheme" android:allowBackup="false" android:dataExtractionRules="@xml/backup_rules" android:usesCleartextTraffic="false" android:networkSecurityConfig="@xml/network_security_config" android:supportsRtl="true">
         <service android:name="androidx.appcompat.app.AppLocalesMetadataHolderService" android:enabled="false" android:exported="false">
             <meta-data android:name="autoStoreLocales" android:value="true" />
         </service>
@@ -32,7 +32,8 @@
         <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.updates" android:exported="false" android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_paths" />
         </provider>
-        <activity android:name=".MainActivity" android:exported="true">
+        <!-- singleTask: notification, widget, tile and links reuse the open window (onNewIntent) instead of stacking a second copy. -->
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
             <!-- Import links (moth://, v2rayng://, happ://, hiddify://, sing-box://) and server links; always confirmed in a dialog. -->
             <intent-filter>

@@ -13,6 +13,8 @@ import java.util.Locale
 class MothApplication : Application() {
     override fun onCreate() {
         super.onCreate(); instance = this; CrashLog.install(this); MothWidget.observe(this)
+        // Before libbox (Go) starts: Xray's TLS roots then include user-installed CAs (see TrustedCertificates).
+        TrustedCertificates.exportPath(this); Thread { TrustedCertificates.write(this) }.start()
         Logger.i("App", "process started: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) pid=${android.os.Process.myPid()}")
     }
     companion object { lateinit var instance: MothApplication; private set }

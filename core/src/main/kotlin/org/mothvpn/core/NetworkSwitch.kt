@@ -68,3 +68,14 @@ object NetworkServerChoice {
         return if (target == activeId) Decision.Keep else Decision.Switch(target)
     }
 }
+
+/** What the user sees (home, tile, widget, notification) while connected but the phone has no network at all (Wi-Fi off, no mobile data). */
+object OfflineStatus {
+    enum class Kind { ONLINE, WAITING, BLOCKED }
+    /** [connected]: the tunnel is up or reconnecting. With the kill switch on nothing can leave the phone: "Traffic blocked"; otherwise "Reconnecting…". */
+    fun of(connected: Boolean, hasNetwork: Boolean, killSwitch: Boolean): Kind = when {
+        !connected || hasNetwork -> Kind.ONLINE
+        killSwitch -> Kind.BLOCKED
+        else -> Kind.WAITING
+    }
+}
