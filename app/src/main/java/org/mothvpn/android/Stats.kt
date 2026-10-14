@@ -217,12 +217,50 @@ object ExpiryReminder {
     /** Each subscription has its own reminder; the provider's end date comes from its subscription-userinfo header. */
     fun check(context: Context) {
         val settings = runCatching { SettingsStore(context).load() }.getOrNull() ?: return
-        if (!settings.expiryWarning) return
         val book = runCatching { SubscriptionStore(context).loadBook() }.getOrNull() ?: return
+        runCatching { checkTraffic(context, settings, book) }.onFailure { Logger.w("Traffic", "check failed", it) }
+        if (!settings.expiryWarning) return
         val prefs = context.getSharedPreferences("expiry_warning", Context.MODE_PRIVATE)
         val zone = ZoneId.systemDefault(); val today = LocalDate.now(zone)
         val many = book.sources.count { !it.local } > 1
         book.sources.filter { !it.local }.forEach { source -> runCatching { remind(context, prefs, source, many, today, zone) }.onFailure { Logger.w("Expiry", "check failed", it) } }
+    }
+    /** Called after every subscription refresh (and daily with the expiry check). */
+    fun checkTraffic(context: Context) {
+        val settings = runCatching { SettingsStore(context).load() }.getOrNull() ?: return
+        val book = runCatching { SubscriptionStore(context).loadBook() }.getOrNull() ?: return
+        checkTraffic(context, settings, book)
+    }
+    /** One notification per subscription, threshold and billing period (see TrafficWarning). Names are shown, never logged. */
+    private fun checkTraffic(context: Context, settings: org.mothvpn.core.ClientSettings, book: org.mothvpn.core.SubscriptionBook) {
+        val prefs = context.getSharedPreferences("traffic_warning", Context.MODE_PRIVATE)
+        val sources = book.sources.filter { !it.local }
+        val many = sources.size > 1
+        val editor = prefs.edit()
+        // Forget removed subscriptions.
+        prefs.all.keys.filter { key -> sources.none { it.id == key } }.forEach { editor.remove(it) }
+        for (source in sources) {
+            val decision = org.mothvpn.core.TrafficWarning.check(source.usedBytes, source.totalBytes, source.expires, settings.trafficWarning,
+                org.mothvpn.core.TrafficWarning.State.decode(prefs.getString(source.id, null))) ?: continue
+            if (decision.notify && notifyTraffic(context, source, decision.percent, many)) Logger.i("Traffic", "warning shown (${decision.percent}%, threshold ${settings.trafficWarning}%)")
+            else if (decision.notify) continue // not shown: try again next time
+            editor.putString(source.id, decision.state.encode())
+        }
+        editor.apply()
+    }
+    private fun notifyTraffic(context: Context, source: org.mothvpn.core.SubscriptionSource, percent: Int, many: Boolean): Boolean {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(NotificationChannel("expiry", tr(R.string.expiry_channel), NotificationManager.IMPORTANCE_DEFAULT))
+        val open = PendingIntent.getActivity(context, 44, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE)
+        val locale = AppLanguage.context().resources.configuration.locales[0]
+        val units = tr(R.string.notif_units).split("|")
+        val text = tr(R.string.traffic_warning_text, percent, org.mothvpn.core.TrafficFormat.bytes(source.usedBytes, units, locale), org.mothvpn.core.TrafficFormat.bytes(source.totalBytes, units, locale))
+        val title = if (many && source.title().isNotBlank()) tr(R.string.traffic_warning_title_named, source.title()) else tr(R.string.traffic_warning_title)
+        return runCatching {
+            manager.notify(2000 + (source.id.hashCode() and 0x7fff), android.app.Notification.Builder(context, "expiry").setSmallIcon(R.drawable.ic_moth_notification)
+                .setContentTitle(title).setContentText(text).setStyle(android.app.Notification.BigTextStyle().bigText(text))
+                .setContentIntent(open).setAutoCancel(true).build())
+        }.onFailure { Logger.w("Traffic", "notification failed", it) }.isSuccess
     }
     private fun remind(context: Context, prefs: android.content.SharedPreferences, source: org.mothvpn.core.SubscriptionSource, many: Boolean, today: LocalDate, zone: ZoneId) {
         // The subscription migrated from 0.5.1 keeps the old keys, so a reminder already shown is not repeated.

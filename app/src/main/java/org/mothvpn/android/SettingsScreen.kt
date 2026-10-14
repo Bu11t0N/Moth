@@ -24,7 +24,7 @@ import org.mothvpn.core.VersionLabel
 import org.mothvpn.core.DnsServers
 import org.mothvpn.core.SubscriptionSchedule
 
-@Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}) {
+@Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}, restore: (org.mothvpn.core.Backup.Content) -> Unit = {}) {
     var draft by remember(initial) { mutableStateOf(initial) }
     var section by remember { mutableStateOf<String?>(if (startUpdates) tr(R.string.update_title) else null) }
     LaunchedEffect(Unit) { if (startUpdates) started() }
@@ -63,7 +63,7 @@ import org.mothvpn.core.SubscriptionSchedule
             (fadeIn(tween(220, delayMillis = 60)) + slideInHorizontally(tween(260)) { it / 8 * dir }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(260)) { -it / 8 * dir })
         }, label = "settingsPage") { page ->
             val sec = page.first; val lp = page.second
-        if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, !locked, { applySettings(draft.copy(routingRules = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.weight(1f)) else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (sec == tr(R.string.backup_title)) BackupPage(draft, locked, restore, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, !locked, { applySettings(draft.copy(routingRules = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.weight(1f)) else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (sec) {
                 null -> {
                     val ctxMenu = LocalContext.current
@@ -84,6 +84,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsCategory(tr(R.string.stats_title), tr(R.string.stats_today) + ": " + org.mothvpn.core.TrafficFormat.bytes(today.first + today.second, units, loc), "stats") { section = tr(R.string.stats_title) }
                     SettingsCategory(tr(R.string.msg_appearance_74), theme, "interface") { section = tr(R.string.msg_appearance_74) }
                     SettingsCategory(tr(R.string.update_title), tr(R.string.set_sum_version, BuildConfig.VERSION_NAME), "updates") { section = tr(R.string.update_title) }
+                    SettingsCategory(tr(R.string.backup_title), tr(R.string.backup_sum), "backup") { section = tr(R.string.backup_title) }
                     SettingsCategory(tr(R.string.msg_about_78), tr(R.string.set_sum_about), "about") { section = tr(R.string.msg_about_78) }
                     SettingsCategory(tr(R.string.dev_for_developers), tr(R.string.set_sum_dev, if (Logger.level == LogLevel.OFF) tr(R.string.dev_level_off) else Logger.level.name), "dev") { section = tr(R.string.dev_for_developers) }
                 }
@@ -147,6 +148,11 @@ import org.mothvpn.core.SubscriptionSchedule
                     val subOptions = SubscriptionSchedule.intervals.map { it to if (it == 0) tr(R.string.sub_auto_off) else tr(R.string.sub_auto_hours, it) }
                     DialogRow(tr(R.string.sub_auto), subOptions.first { it.first == draft.subUpdateHours }.second) { subDialog = true }
                     if (subDialog) ChoiceDialog(tr(R.string.sub_auto), subOptions, draft.subUpdateHours, { subDialog = false }) { applySettings(draft.copy(subUpdateHours = it)) }
+                    var trafficDialog by remember { mutableStateOf(false) }
+                    val trafficOptions = org.mothvpn.core.TrafficWarning.thresholds.map { it to if (it == 0) tr(R.string.sub_auto_off) else "$it%" }
+                    DialogRow(tr(R.string.traffic_warning_setting), trafficOptions.first { it.first == draft.trafficWarning }.second) { trafficDialog = true }
+                    if (trafficDialog) ChoiceDialog(tr(R.string.traffic_warning_setting), trafficOptions, draft.trafficWarning, { trafficDialog = false }) { applySettings(draft.copy(trafficWarning = it)) }
+                    Text(tr(R.string.traffic_warning_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsToggle(tr(R.string.expiry_toggle), draft.expiryWarning) { applySettings(draft.copy(expiryWarning = it)) }
                     Text(tr(R.string.expiry_toggle_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsToggle(tr(R.string.msg_send_hwid_to_the_provider_105), draft.hwidEnabled, !locked) { applySettings(draft.copy(hwidEnabled = it)) }
@@ -263,7 +269,7 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
     when (name) {
         "connection" -> PowerSettingsNew; "split" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.CallSplit; "routing" -> Dns
         "subscription" -> CardMembership; "stats" -> BarChart; "interface" -> Palette; "updates" -> SystemUpdate
-        "about" -> Info; "rules" -> AltRoute; "changelog" -> History; "licenses" -> Description; else -> Code
+        "about" -> Info; "rules" -> AltRoute; "backup" -> SettingsBackupRestore; "changelog" -> History; "licenses" -> Description; else -> Code
     }
 }
 @Composable private fun SectionHeader(text: String) {

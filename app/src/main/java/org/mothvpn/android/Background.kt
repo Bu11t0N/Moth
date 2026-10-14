@@ -87,6 +87,7 @@ object SubscriptionRefresh {
                 response.expires, response.used, response.total, System.currentTimeMillis()))
         }
         Logger.i("Import", "subscriptions saved: ${book.sources.size} subscription(s), ${book.profiles.size} server(s)")
+        runCatching { ExpiryReminder.checkTraffic(context) }.onFailure { Logger.w("Traffic", "check after refresh failed", it) }
         return Result(book, id, parsed.rejected)
     }
 }

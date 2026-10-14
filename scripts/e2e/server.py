@@ -14,6 +14,11 @@ LINKS = "\n".join([
     f"vless://{UUID}@{HOST}:20001?type=tcp&security=none&encryption=none#E2E%20VLESS",
     f"trojan://{PASSWORD}@{HOST}:20002?type=tcp&security=none#E2E%20Trojan",
     f"ss://{ss_user}@{HOST}:20003#E2E%20Shadowsocks"]) + "\n"
+# Second subscription: same test servers, different links (so different server ids), with a traffic quota at 92 %.
+LINKS2 = "\n".join([
+    f"vless://{UUID}@{HOST}:20001?type=tcp&security=none&encryption=none&sub=2#Second%20VLESS",
+    f"trojan://{PASSWORD}@{HOST}:20002?type=tcp&security=none&sub=2#Second%20Trojan"]) + "\n"
+QUOTA2 = "upload=2000000000; download=7200000000; total=10000000000; expire=4102444800"
 
 def config():
     inbounds, outbounds, rules = [], [{"type": "direct", "tag": "direct"}], []
@@ -43,8 +48,9 @@ def stop():
 
 class Echo(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
-    def reply(self, body, code=200):
+    def reply(self, body, code=200, headers=None):
         data = body.encode(); self.send_response(code); self.send_header("Content-Type", "text/plain")
+        for k, v in (headers or {}).items(): self.send_header(k, v)
         self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
     def do_GET(self):
         if self.path.startswith("/ip"): self.reply(self.client_address[0])
@@ -57,7 +63,8 @@ class Echo(http.server.BaseHTTPRequestHandler):
 
 class Sub(Echo):
     def do_GET(self):
-        if self.path.startswith("/sub"): self.reply(base64.b64encode(LINKS.encode()).decode())
+        if self.path.startswith("/sub2"): self.reply(base64.b64encode(LINKS2.encode()).decode(), headers={"profile-title": "Second E2E", "subscription-userinfo": QUOTA2})
+        elif self.path.startswith("/sub"): self.reply(base64.b64encode(LINKS.encode()).decode())
         else: self.reply("not found", 404)
 
 def serve(port, handler, tls=False):

@@ -86,3 +86,35 @@ object ExpiryWarning {
     fun daysLeft(expires: Long, today: LocalDate, zone: java.time.ZoneId): Long =
         java.time.temporal.ChronoUnit.DAYS.between(today, java.time.Instant.ofEpochSecond(expires).atZone(zone).toLocalDate())
 }
+
+/**
+ * Warning when a subscription's used traffic (upload + download from subscription-userinfo) reaches a share of its total.
+ * One notification per subscription, threshold and billing period; the period is identified by total and end date and
+ * also restarts when the used amount goes down (the provider reset the counter). Unlimited subscriptions (total 0) are skipped.
+ */
+object TrafficWarning {
+    val thresholds = listOf(0, 80, 90, 95)
+    const val DEFAULT = 90
+    fun normalize(value: Int) = value.takeIf { it in thresholds } ?: DEFAULT
+    /** [notified]: the highest threshold already announced in [period]; [used]: the last seen amount. */
+    data class State(val period: String, val used: Long, val notified: Int) {
+        fun encode() = "$period|$used|$notified"
+        companion object {
+            fun decode(text: String?): State? {
+                val p = text?.split('|') ?: return null
+                if (p.size != 3) return null
+                return State(p[0], p[1].toLongOrNull() ?: return null, p[2].toIntOrNull() ?: return null)
+            }
+        }
+    }
+    fun percent(used: Long, total: Long): Int? = if (total <= 0) null else ((used.coerceAtLeast(0).toDouble() / total) * 100).toInt()
+    data class Decision(val notify: Boolean, val percent: Int, val state: State)
+    /** Null when the subscription has no limit. Otherwise the new state to save and whether to show the warning now. */
+    fun check(used: Long, total: Long, expires: Long, threshold: Int, previous: State?): Decision? {
+        val pct = percent(used, total) ?: return null
+        val period = "$total:$expires"
+        val base = previous?.takeIf { it.period == period && used >= it.used } ?: State(period, used, 0)
+        val notify = threshold > 0 && pct >= threshold && base.notified < threshold
+        return Decision(notify, pct, base.copy(used = used, notified = if (notify) threshold else base.notified))
+    }
+}
