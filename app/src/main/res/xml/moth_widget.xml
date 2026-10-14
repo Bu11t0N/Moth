@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- targetCellWidth/Height and previewLayout are Android 12+ and ignored on older versions (minWidth/minHeight apply there). -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" tools:ignore="UnusedAttribute"
     android:minWidth="250dp" android:minHeight="40dp" android:targetCellWidth="4" android:targetCellHeight="1"
     android:updatePeriodMillis="0" android:initialLayout="@layout/moth_widget" android:resizeMode="horizontal"
     android:widgetCategory="home_screen" android:description="@string/widget_description" android:previewLayout="@layout/moth_widget" />

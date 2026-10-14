@@ -35,8 +35,6 @@
     <string name="msg_add_31" formatted="false">"Add"</string>
     <string name="msg_cancel_32" formatted="false">"Cancel"</string>
     <string name="msg_downloading_servers_33" formatted="false">"Downloading servers…"</string>
-    <string name="msg_servers_added_result_first_profiles_size_34" formatted="false">"Servers added: %1$s"</string>
-    <string name="msg_unsupported_profiles_skipped_result_second_35" formatted="false">". Unsupported profiles skipped: %1$s"</string>
     <string name="msg_subscription_service_timed_out_36" formatted="false">"Subscription service timed out"</string>
     <string name="msg_could_not_find_the_subscription_service_check_37" formatted="false">"Could not find the subscription service. Check your internet connection."</string>
     <string name="msg_could_not_verify_the_secure_connection_to_the_38" formatted="false">"Could not verify the secure connection to the subscription service"</string>
@@ -64,7 +62,6 @@
     <string name="msg_show_all_60" formatted="false">"Show all"</string>
     <string name="msg_selected_61" formatted="false">", selected"</string>
     <string name="msg_checking_62" formatted="false">"checking…"</string>
-    <string name="msg_r_latencyms_ms_r_method_63" formatted="false">"%1$s ms · %2$s"</string>
     <string name="msg_not_checked_64" formatted="false">"not checked"</string>
     <string name="msg_port_is_reachable_vpn_traffic_has_not_been_ch_65" formatted="false">"Port is reachable; VPN traffic has not been checked"</string>
     <string name="msg_checked_on_a_different_network_66" formatted="false">"Checked on a different network"</string>
@@ -189,7 +186,10 @@
     <string name="dev_log_is_off">Logging is off.</string>
     <string name="dev_log_empty">The log is empty</string>
     <string name="dev_crash_log">Crash log</string>
-    <string name="dev_showing_last_lines">Showing the last %1$d lines; Share exports the whole file.</string>
+    <plurals name="dev_showing_last_lines">
+        <item quantity="one">Showing the last %1$d line; Share exports the whole file.</item>
+        <item quantity="other">Showing the last %1$d lines; Share exports the whole file.</item>
+    </plurals>
     <string name="dev_download_log">Download</string>
     <string name="dev_saved_to_downloads">Saved to Downloads</string>
     <string name="dev_save_failed">Could not save the file</string>
@@ -307,7 +307,10 @@
     <string name="stats_hint">VPN traffic counted on this device, including protocol overhead. Kept for 90 days.</string>
     <string name="expiry_channel">Subscription reminders</string>
     <string name="expiry_title">Subscription ends soon</string>
-    <string name="expiry_soon">Your subscription ends in %1$d day(s), on %2$s.</string>
+    <plurals name="expiry_soon">
+        <item quantity="one">Your subscription ends in %1$d day, on %2$s.</item>
+        <item quantity="other">Your subscription ends in %1$d days, on %2$s.</item>
+    </plurals>
     <string name="expiry_today">Your subscription ends today.</string>
     <string name="expiry_toggle">Remind before the subscription ends</string>
     <string name="expiry_toggle_hint">A notification 3 days before and on the last day, if the provider sends the end date.</string>

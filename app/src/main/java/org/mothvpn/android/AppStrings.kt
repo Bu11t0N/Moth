@@ -50,6 +50,9 @@ fun tr(@StringRes id: Int, vararg args: Any): String {
     return if (args.isEmpty()) context.getString(id) else context.getString(id, *args)
 }
 
+fun trPlural(@androidx.annotation.PluralsRes id: Int, count: Int, vararg args: Any): String =
+    AppLanguage.context().resources.getQuantityString(id, count, *args)
+
 /** Translate validation errors from the Android-independent parser without exposing subscription URLs. */
 fun localizedError(message: String): String {
     val id = errorResources[message] ?: englishErrors[message]

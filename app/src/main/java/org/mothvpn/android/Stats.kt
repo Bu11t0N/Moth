@@ -272,7 +272,7 @@ object ExpiryReminder {
         manager.createNotificationChannel(NotificationChannel("expiry", tr(R.string.expiry_channel), NotificationManager.IMPORTANCE_DEFAULT))
         val open = PendingIntent.getActivity(context, 43, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
         val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, AppLanguage.context().resources.configuration.locales[0]).format(java.util.Date(source.expires * 1000))
-        val text = if (kind == ExpiryWarning.Kind.TODAY) tr(R.string.expiry_today) else tr(R.string.expiry_soon, ExpiryWarning.daysLeft(source.expires, today, zone).toInt(), date)
+        val text = if (kind == ExpiryWarning.Kind.TODAY) tr(R.string.expiry_today) else ExpiryWarning.daysLeft(source.expires, today, zone).toInt().let { days -> trPlural(R.plurals.expiry_soon, days, days, date) }
         // The name is shown only in the notification (it is the user's own subscription) and never logged.
         val title = if (many && source.title().isNotBlank()) tr(R.string.expiry_title_named, source.title()) else tr(R.string.expiry_title)
         val notificationId = if (prefix.isEmpty()) 3 else 1000 + (source.id.hashCode() and 0x7fff)
