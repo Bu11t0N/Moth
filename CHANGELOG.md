@@ -2,6 +2,20 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.5.4
+
+### Changes
+
+- Add subscriptions and servers from links: moth://, v2rayng://, happ://, hiddify:// and sing-box:// import links and vless://, vmess://, trojan://, ss://, hy2://, tuic://, socks:// and wireguard:// links open Moth and always ask for confirmation first.
+- New server types: SOCKS5 and HTTP(S) proxies with username and password (marked "Unencrypted" unless they use TLS), WireGuard, SSH and Shadowsocks with ShadowTLS.
+- New subscription formats: sing-box JSON configs, full Xray JSON configs and Clash proxy-providers.
+- DPI bypass (Settings → Connection): TLS fragmentation with presets and UDP noise, off by default.
+- Multiplexing (Settings → Connection): smux, yamux or h2mux for servers that support it, off by default.
+- Home-screen widget: shows the server and the VPN state (including "Traffic blocked") with a Connect/Disconnect button.
+- Leak protection: the internal connection between the two VPN cores no longer accepts other apps, and apps excluded by split tunneling cannot send traffic through the VPN even if they bind to it directly (Android 10+).
+- Fixed: cancelling an app update (during the download or in the install dialog) left "Downloading the update…" on the screen; the update can now be started again.
+- AnyTLS is not supported yet (it needs a newer VPN core); AmneziaWG is not supported.
+
 ## 0.5.3
 
 ### Changes
