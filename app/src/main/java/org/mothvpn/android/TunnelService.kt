@@ -110,6 +110,8 @@ class TunnelService : VpnService(), PlatformInterface {
             val on = intent.getBooleanExtra("on", false)
             killSwitchLive = on
             Logger.i("Tunnel", "kill switch ${if (on) "on" else "off"} (state=${TunnelStatus.state.value})")
+            // Toggled while there is no network: "Traffic blocked" <-> "Reconnecting…" everywhere.
+            if (TunnelStatus.offline.value != org.mothvpn.core.OfflineStatus.Kind.ONLINE) updateOffline(false)
             if (!on && TunnelStatus.state.value == TunnelState.BLOCKED) {
                 cancelRetry()
                 executor.execute { if (TunnelStatus.state.value == TunnelState.BLOCKED) { closeBlock(); TunnelStatus.mutable.value = TunnelState.ERROR; finish() } }
