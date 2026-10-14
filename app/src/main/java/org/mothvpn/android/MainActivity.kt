@@ -46,10 +46,12 @@ class MainActivity : AppCompatActivity() {
     private var saved by mutableStateOf<SavedSubscription?>(null)
     /** All subscriptions; [saved] is the flattened list of their servers with the shared selection. */
     private var book by mutableStateOf<SubscriptionBook?>(null)
-    private fun show(next: SubscriptionBook?) { book = next?.takeIf { it.sources.isNotEmpty() }; saved = next?.record() }
+    private fun show(next: SubscriptionBook?) { book = next?.takeIf { it.sources.isNotEmpty() }; saved = next?.record(); lifecycleScope.launch(Dispatchers.IO) { runCatching { MothWidget.update(applicationContext) } } }
     private var updateAvailable by mutableStateOf(false)
     private var openUpdates by mutableStateOf(false)
     private var busy by mutableStateOf(false)
+    /** Import offered by a link that opened the app; shown in a confirmation dialog, never logged. */
+    private var deepLink by mutableStateOf<org.mothvpn.core.DeepLinks.Action?>(null)
     private var messageState by mutableStateOf("")
     /** Every message shown to the user is also written to the log (the text is redacted by Logger). */
     private var message: String
@@ -97,6 +99,7 @@ class MainActivity : AppCompatActivity() {
             var commit = 0L
             settingsApplied.value = commit to persisted
             consumeTileRequest()
+            consumeDeepLink()
             withContext(kotlinx.coroutines.NonCancellable) {
                 for (next in settingsQueue) {
                     try {
@@ -154,6 +157,30 @@ class MainActivity : AppCompatActivity() {
                                 NavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { MothIcon(item.second) }, label = { Text(item.first) })
                             }
                         }
+                    }
+                    deepLink?.let { action ->
+                        AlertDialog(onDismissRequest = { deepLink = null; Logger.i("DeepLink", "import cancelled") },
+                            title = { Text(tr(if (action is org.mothvpn.core.DeepLinks.Action.Subscription) R.string.deeplink_sub_title else R.string.deeplink_links_title)) },
+                            text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { when (action) {
+                                is org.mothvpn.core.DeepLinks.Action.Subscription -> {
+                                    Text(tr(R.string.deeplink_sub_text, org.mothvpn.core.DeepLinks.host(action.url)))
+                                    action.name?.let { Text(tr(R.string.deeplink_name, it)) }
+                                }
+                                is org.mothvpn.core.DeepLinks.Action.Links -> {
+                                    val parsed = remember(action) { runCatching { Subscriptions.parse(action.text) }.getOrNull() }
+                                    if (parsed == null) Text(tr(R.string.import_invalid))
+                                    else { Text(tr(R.string.deeplink_links_text, parsed.profiles.size)); parsed.profiles.take(5).forEach { Text("• " + it.name + " (" + it.protocol.uppercase() + ")", style = MaterialTheme.typography.bodySmall) } }
+                                }
+                            }; Text(tr(R.string.deeplink_warning), style = MaterialTheme.typography.bodySmall) } },
+                            confirmButton = { TextButton(enabled = !busy, onClick = {
+                                deepLink = null
+                                Logger.i("DeepLink", "import confirmed (${if (action is org.mothvpn.core.DeepLinks.Action.Subscription) "subscription" else "links"})")
+                                when (action) {
+                                    is org.mothvpn.core.DeepLinks.Action.Subscription -> { tab = 1; import(action.url, "deeplink", name = action.name) }
+                                    is org.mothvpn.core.DeepLinks.Action.Links -> { tab = 1; import(action.text, "deeplink") }
+                                }
+                            }) { Text(tr(R.string.msg_add_31)) } },
+                            dismissButton = { TextButton(onClick = { deepLink = null; Logger.i("DeepLink", "import cancelled") }) { Text(tr(R.string.msg_cancel_32)) } })
                     }
                     if (dialog) AlertDialog(onDismissRequest = { if (!busy) dialog = false }, title = { Text(tr(R.string.msg_add_subscription_16)) }, text = {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -350,11 +377,23 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (settingsApplied.value != null) consumeTileRequest()
+        if (settingsApplied.value != null) { consumeTileRequest(); consumeDeepLink() }
     }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putParcelable("pending_vpn_action", pendingAction)
         super.onSaveInstanceState(outState)
+    }
+    /** Links such as moth://import-sub?url=… or vless://…: parsed here, imported only after the user confirms. */
+    private fun consumeDeepLink() {
+        val i = intent ?: return
+        if (i.action != Intent.ACTION_VIEW || i.getBooleanExtra("moth_deeplink_handled", false)) return
+        val data = i.dataString ?: return
+        i.putExtra("moth_deeplink_handled", true)
+        val scheme = data.substringBefore("://", "").lowercase()
+        val action = org.mothvpn.core.DeepLinks.parse(data)
+        Logger.i("DeepLink", "link opened (scheme=$scheme, ${when (action) { null -> "not recognised"; is org.mothvpn.core.DeepLinks.Action.Subscription -> "subscription"; is org.mothvpn.core.DeepLinks.Action.Links -> "server links" }})")
+        if (action == null) { message = tr(R.string.import_invalid); return }
+        deepLink = action
     }
     private fun consumeTileRequest() {
         if (!intent.getBooleanExtra(CONNECT_FROM_TILE, false)) return

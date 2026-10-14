@@ -70,7 +70,7 @@ object SubscriptionRefresh {
     fun run(context: Context, sourceId: String?, url: String, name: String?, settings: org.mothvpn.core.ClientSettings, trigger: String): Result {
         val link = url.trim()
         val response = SubscriptionDownload.fetchDetails(link, settings)
-        val parsed = Subscriptions.parse(response.body)
+        val parsed = Subscriptions.parse(response.body) { provider -> SubscriptionDownload.fetchDetails(provider, settings).body }
         Logger.i("Import", "${parsed.summary()}, comment lines skipped ${parsed.comments}, kept ${parsed.profiles.size} (trigger=$trigger)")
         parsed.duplicates.forEach { Logger.d("Import", "dropped: $it") }
         parsed.reasons.forEach { Logger.w("Import", "skipped: $it") }

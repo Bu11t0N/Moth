@@ -164,7 +164,7 @@
     <string name="msg_unsupported_xhttp_mode_162" formatted="false">"Неизвестный режим XHTTP"</string>
     <string name="msg_xhttp_extra_settings_are_too_large_163" formatted="false">"Слишком сложные параметры XHTTP"</string>
     <string name="msg_reality_public_key_is_missing_164" formatted="false">"Нет публичного ключа REALITY"</string>
-    <string name="msg_no_supported_servers_use_vless_vmess_trojan_o_165" formatted="false">"Нет поддерживаемых серверов. Нужен список ссылок VLESS, VMess, Trojan или Shadowsocks."</string>
+    <string name="msg_no_supported_servers_use_vless_vmess_trojan_o_165" formatted="false">"Нет поддерживаемых серверов. Нужны ссылки VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, SOCKS, HTTP, WireGuard или SSH, либо конфигурация Clash, Xray или sing-box."</string>
     <string name="msg_vmess_alterid_is_not_supported_166" formatted="false">"VMess alterId не поддерживается"</string>
     <string name="msg_transport_is_not_supported_167" formatted="false">"Протокол не поддерживается"</string>
     <string name="msg_invalid_server_address_168" formatted="false">"Неверный адрес сервера"</string>
@@ -437,4 +437,32 @@
     <string name="traffic_warning_title_named">Трафик «%1$s» заканчивается</string>
     <string name="traffic_warning_text">Израсходовано %1$d%%: %2$s из %3$s</string>
     <string name="msg_err_traffic_warning">Неверный порог предупреждения о трафике</string>
+    <string name="proto_unencrypted">"Без шифрования"</string>
+    <string name="msg_err_fragment">"Неверный режим фрагментации"</string>
+    <string name="msg_err_mux">"Неверный режим мультиплексирования"</string>
+    <string name="msg_err_anytls">"AnyTLS пока не поддерживается"</string>
+    <string name="msg_err_amneziawg">"AmneziaWG не поддерживается"</string>
+    <string name="msg_err_singbox_empty">"Нет поддерживаемых серверов в конфигурации sing-box"</string>
+    <string name="set_head_dpi">"Обход DPI и мультиплексирование"</string>
+    <string name="fragment_title">"Фрагментация TLS"</string>
+    <string name="fragment_off">"Выключена"</string>
+    <string name="fragment_tlshello">"TLS ClientHello (рекомендуется)"</string>
+    <string name="fragment_tlshello_small">"TLS ClientHello, мелкие части"</string>
+    <string name="fragment_first_packets">"Первые пакеты соединения"</string>
+    <string name="fragment_hint">"Делит начало TLS-соединений на части, чтобы DPI не видел имя сервера. Немного медленнее; включайте, только если серверы блокируются."</string>
+    <string name="noise_title">"UDP-шум"</string>
+    <string name="noise_hint">"Отправляет несколько случайных пакетов перед UDP-соединениями (QUIC, Hysteria2, TUIC, WireGuard). Влияет только на UDP."</string>
+    <string name="mux_title">"Мультиплексирование (mux)"</string>
+    <string name="mux_off">"Выключено"</string>
+    <string name="mux_hint">"Передаёт несколько соединений внутри одного. Сервер должен поддерживать выбранный режим; не используется с XTLS flow и XHTTP."</string>
+    <string name="deeplink_sub_title">"Добавить подписку?"</string>
+    <string name="deeplink_links_title">"Добавить серверы?"</string>
+    <string name="deeplink_sub_text">"Будет загружена и добавлена подписка с %1$s."</string>
+    <string name="deeplink_name">"Название: %1$s"</string>
+    <string name="deeplink_links_text">"Серверов для добавления в «Мои серверы»: %1$d"</string>
+    <string name="deeplink_warning">"Добавляйте серверы только из источников, которым доверяете."</string>
+    <string name="widget_label">"Moth VPN"</string>
+    <string name="widget_description">"Подключение и отключение VPN"</string>
+    <string name="widget_connect">"Подключить"</string>
+    <string name="widget_disconnect">"Отключить"</string>
 </resources>

@@ -12,7 +12,7 @@ import java.util.Locale
 
 class MothApplication : Application() {
     override fun onCreate() {
-        super.onCreate(); instance = this; CrashLog.install(this)
+        super.onCreate(); instance = this; CrashLog.install(this); MothWidget.observe(this)
         Logger.i("App", "process started: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) pid=${android.os.Process.myPid()}")
     }
     companion object { lateinit var instance: MothApplication; private set }
@@ -62,6 +62,11 @@ private val englishErrors by lazy {
     errorResources.values.associate { english.getString(it) to it }
 }
 private val errorResources = mapOf(
+        "Неверный режим фрагментации" to R.string.msg_err_fragment,
+        "Неверный режим мультиплексирования" to R.string.msg_err_mux,
+        "AnyTLS пока не поддерживается" to R.string.msg_err_anytls,
+        "AmneziaWG не поддерживается" to R.string.msg_err_amneziawg,
+        "Нет поддерживаемых серверов в конфигурации sing-box" to R.string.msg_err_singbox_empty,
         "Неверный режим раздельного туннеля" to R.string.msg_err_split_mode,
         "Неверный интервал обновления подписки" to R.string.msg_err_sub_interval,
         "Неверный список приложений" to R.string.msg_err_split_apps,
@@ -232,7 +237,7 @@ private val errorResources = mapOf(
         "Неизвестный режим XHTTP" to R.string.msg_unsupported_xhttp_mode_162,
         "Слишком сложные параметры XHTTP" to R.string.msg_xhttp_extra_settings_are_too_large_163,
         "Нет публичного ключа REALITY" to R.string.msg_reality_public_key_is_missing_164,
-        "Нет поддерживаемых серверов. Нужен список ссылок VLESS, VMess, Trojan или Shadowsocks." to R.string.msg_no_supported_servers_use_vless_vmess_trojan_o_165,
+        "Нет поддерживаемых серверов. Нужны ссылки VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, SOCKS, HTTP, WireGuard или SSH, либо конфигурация Clash, Xray или sing-box." to R.string.msg_no_supported_servers_use_vless_vmess_trojan_o_165,
         "VMess alterId не поддерживается" to R.string.msg_vmess_alterid_is_not_supported_166,
         "Протокол не поддерживается" to R.string.msg_transport_is_not_supported_167,
         "Неверный адрес сервера" to R.string.msg_invalid_server_address_168,

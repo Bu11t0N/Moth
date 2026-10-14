@@ -99,6 +99,19 @@ import org.mothvpn.core.SubscriptionSchedule
                     TextButton(onClick = { runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS)) }.onFailure { Logger.w("Settings", "system VPN settings unavailable", it) } }) { Text(tr(R.string.kill_switch_system)) }
                     SettingsToggle(tr(R.string.boot_connect), draft.bootConnect) { applySettings(draft.copy(bootConnect = it)) }
                     Text(tr(R.string.boot_connect_hint), style = MaterialTheme.typography.bodySmall)
+                    SectionHeader(tr(R.string.set_head_dpi))
+                    var fragDialog by remember { mutableStateOf(false) }
+                    var muxDialog by remember { mutableStateOf(false) }
+                    val fragOptions = listOf("off" to tr(R.string.fragment_off), "tlshello" to tr(R.string.fragment_tlshello), "tlshello_small" to tr(R.string.fragment_tlshello_small), "first_packets" to tr(R.string.fragment_first_packets))
+                    DialogRow(tr(R.string.fragment_title), fragOptions.firstOrNull { it.first == draft.fragment }?.second ?: draft.fragment, !locked) { fragDialog = true }
+                    if (fragDialog) ChoiceDialog(tr(R.string.fragment_title), fragOptions, draft.fragment, { fragDialog = false }) { applySettings(draft.copy(fragment = it)) }
+                    Text(tr(R.string.fragment_hint), style = MaterialTheme.typography.bodySmall)
+                    SettingsToggle(tr(R.string.noise_title), draft.noise, !locked) { applySettings(draft.copy(noise = it)) }
+                    Text(tr(R.string.noise_hint), style = MaterialTheme.typography.bodySmall)
+                    val muxOptions = listOf("off" to tr(R.string.mux_off), "smux" to "smux", "yamux" to "yamux", "h2mux" to "h2mux")
+                    DialogRow(tr(R.string.mux_title), muxOptions.firstOrNull { it.first == draft.mux }?.second ?: draft.mux, !locked) { muxDialog = true }
+                    if (muxDialog) ChoiceDialog(tr(R.string.mux_title), muxOptions, draft.mux, { muxDialog = false }) { applySettings(draft.copy(mux = it)) }
+                    Text(tr(R.string.mux_hint), style = MaterialTheme.typography.bodySmall)
                     SectionHeader(tr(R.string.set_head_health))
                     SettingsToggle(tr(R.string.msg_check_the_active_tunnel_94), draft.healthEnabled, !locked) { applySettings(draft.copy(healthEnabled = it)) }
                     OutlinedTextField(interval, { interval = it; number(it, "interval") }, enabled = !locked, label = { Text(tr(R.string.msg_interval_30_600_seconds_95)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
