@@ -11,7 +11,8 @@ export GOTOOLCHAIN=go1.24.3
 src="$(cd "$1" && pwd)"
 out="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"
 tool_dir="$(cd "$(dirname "$0")/go-licenses" && pwd)"
-tags=with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api
+# Must match the tags build-libbox.sh leaves in cmd/internal/build_libbox (Android: shared + memc tags).
+tags=with_gvisor,with_quic,with_wireguard,with_utls,with_conntrack
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 # Go standard library and runtime are linked in too.
