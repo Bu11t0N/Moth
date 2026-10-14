@@ -67,6 +67,8 @@ class Release054E2ETest {
     @Before fun before() { System.setProperty("http.keepAlive", "false"); reset() }
     @After fun after() { runCatching { device.pressHome() }; reset() }
 
+    /** Network can be briefly unavailable right after the previous test's VPN stopped; retry the download. */
+    private fun add(url: String) = eventually(30_000, "subscription downloaded") { SubscriptionRefresh.run(context, null, url, null, SettingsStore(context).load(), "e2e"); true }
     private fun select(id: String) {
         val store = SubscriptionStore(context)
         store.save(store.load()!!.copy(selected = id, wifiSelected = id, mobileSelected = id))
@@ -92,7 +94,7 @@ class Release054E2ETest {
     }
 
     @Test fun socksHttpAndWireguardCarryTraffic() {
-        SubscriptionRefresh.run(context, null, sub3, null, SettingsStore(context).load(), "e2e")
+        add(sub3)
         val profiles = SubscriptionStore(context).load()!!.profiles
         assertEquals(3, profiles.size)
         assertTrue(ProxyProtocols.unencrypted(profiles.first { it.name == "E2E SOCKS5" }))
@@ -103,7 +105,7 @@ class Release054E2ETest {
 
     @Test fun muxAndFragmentKeepVlessWorking() {
         SettingsStore(context).save(ClientSettings(hwid = hwid, mux = "smux", fragment = "tlshello", noise = true))
-        SubscriptionRefresh.run(context, null, sub1, null, SettingsStore(context).load(), "e2e")
+        add(sub1)
         trafficThrough("E2E VLESS", "127.0.0.11")
     }
 
