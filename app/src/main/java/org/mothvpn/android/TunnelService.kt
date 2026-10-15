@@ -392,6 +392,7 @@ class TunnelService : VpnService(), PlatformInterface {
      * A running check keeps the service; probeProfiles calls this again when it ends.
      */
     private fun finish() {
+        Logger.d("Tunnel", "finish (state=${TunnelStatus.state.value}, checking=${Diagnostics.running.value}, startId=$lastStartId)")
         if (TunnelStatus.state.value !in setOf(TunnelState.OFF, TunnelState.ERROR)) return
         TunnelStatus.offlineMutable.value = org.mothvpn.core.OfflineStatus.Kind.ONLINE
         if (Diagnostics.running.value) { runCatching { foreground() }; return }

@@ -20,6 +20,13 @@ object VpnChecks {
         }
         val fds = tunFds()
         log("VPN network still up $ms ms after disconnect; tun fds: $fds; state=${TunnelStatus.state.value}")
+        log("net interfaces: ${java.io.File("/sys/class/net").list()?.sorted()}")
+        // Threads blocked in a syscall can pin a closed tun file: comm, wchan and the raw syscall line of every thread.
+        (java.io.File("/proc/self/task").listFiles() ?: emptyArray()).forEach { t ->
+            fun r(n: String) = runCatching { java.io.File(t, n).readText().trim() }.getOrDefault("?")
+            val sc = r("syscall")
+            if (sc != "running" && !sc.startsWith("-1")) log("task ${t.name} ${r("comm")} wchan=${r("wchan")} syscall=$sc")
+        }
         onFail()
         throw AssertionError("VPN network still up $ms ms after disconnect (tun fds: $fds)")
     }
