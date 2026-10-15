@@ -144,7 +144,7 @@ import org.mothvpn.core.SubscriptionSchedule
                         AlertDialog(onDismissRequest = { customDns = false }, title = { Text(tr(R.string.dns_custom)) }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(text, { text = it.trim() }, singleLine = true, isError = !DnsServers.valid(text), modifier = Modifier.fillMaxWidth())
                             Text(tr(R.string.dns_custom_hint), style = MaterialTheme.typography.bodySmall)
-                        } }, confirmButton = { TextButton(enabled = DnsServers.valid(text), onClick = { customDns = false; applySettings(draft.copy(dns = text)) }) { Text("OK") } },
+                        } }, confirmButton = { TextButton(enabled = DnsServers.valid(text), onClick = { customDns = false; applySettings(draft.copy(dns = text)) }) { Text(tr(R.string.ok)) } },
                             dismissButton = { TextButton(onClick = { customDns = false }) { Text(tr(R.string.msg_cancel_32)) } })
                     }
                     SettingsToggle(tr(R.string.dns_leak), draft.dnsLeakProtection, !locked) { applySettings(draft.copy(dnsLeakProtection = it)) }

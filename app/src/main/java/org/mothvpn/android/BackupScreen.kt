@@ -114,7 +114,7 @@ fun writeDocument(context: android.content.Context, uri: android.net.Uri, text: 
         var password by remember { mutableStateOf("") }
         AlertDialog(onDismissRequest = { pendingText = null }, title = { Text(tr(R.string.backup_password_title)) }, text = {
             OutlinedTextField(password, { password = it }, label = { Text(tr(R.string.backup_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
-        }, confirmButton = { TextButton(enabled = password.isNotEmpty() && !working, onClick = { open(text, password) }) { Text("OK") } },
+        }, confirmButton = { TextButton(enabled = password.isNotEmpty() && !working, onClick = { open(text, password) }) { Text(tr(R.string.ok)) } },
             dismissButton = { TextButton(onClick = { pendingText = null }) { Text(tr(R.string.msg_cancel_32)) } })
     }
     pending?.let { c ->
