@@ -66,6 +66,24 @@ assert old + ' v0.5.1' in s
 q.write_text(s.replace(old + ' v0.5.1', new + ' v0.5.1') + '\nreplace ' + new + ' => ../.moth-qpack\n')
 PYQ
 go mod edit -replace github.com/sagernet/quic-go=./.moth-sagernet-quic -replace github.com/mothvpn/qpack-v051=./.moth-qpack -require github.com/mothvpn/qpack-v051@v0.5.1
+# sing-tun: LinkEndpointFilter.Attach(nil) wrapped the nil dispatcher, so gVisor never stopped its tun readers on close.
+# They stayed blocked in ppoll on the closed tun file and kept the VPN interface alive until a packet arrived
+# (Android kept the VPN up for up to a minute after Disconnect). Pass nil through so Close stops and waits for them.
+singtun_version="$(go list -m -f '{{.Version}}' github.com/sagernet/sing-tun)"
+test "$singtun_version" = v0.7.13
+retry go mod download github.com/sagernet/sing-tun@"$singtun_version"
+rm -rf .moth-sing-tun
+cp -R "$(go list -m -f '{{.Dir}}' github.com/sagernet/sing-tun)/." .moth-sing-tun/
+chmod -R u+w .moth-sing-tun
+python3 - <<'PYT'
+from pathlib import Path
+p = Path('.moth-sing-tun/stack_gvisor_filter.go')
+s = p.read_text()
+old = 'func (w *LinkEndpointFilter) Attach(dispatcher stack.NetworkDispatcher) {\n'
+assert old in s
+p.write_text(s.replace(old, old + '\tif dispatcher == nil {\n\t\tw.LinkEndpoint.Attach(nil)\n\t\treturn\n\t}\n', 1))
+PYT
+go mod edit -replace github.com/sagernet/sing-tun=./.moth-sing-tun
 # Moth build tags: drop Tailscale (unused). Keep gVisor, QUIC, WireGuard, uTLS, conntrack and the Clash API
 # (libbox always starts the Clash server for its platform log writer, so the VPN cannot start without it).
 python3 - <<'PY2'
