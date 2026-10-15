@@ -76,16 +76,18 @@ jobs:
           fi
           unset MOTH_KEYSTORE_BASE64
           echo "::group::resources before build"; free -h; df -h / "$RUNNER_TEMP" .; nproc; echo "::endgroup::"
+          mkdir -p diag
           (while sleep 5; do echo "$(date +%T) $(free -m | awk '/Mem:/{print "used="$3"M avail="$7"M"}') $(df -m / | awk 'NR==2{print "diskfree="$4"M"}')"; done) > "$RUNNER_TEMP/resources.log" 2>&1 &
           monitor=$!
           set +e
-          ./gradlew :core:test :app:assembleRelease :app:lintRelease --no-daemon --stacktrace --info "${signing_flags[@]}" > "$RUNNER_TEMP/gradle-build.log" 2>&1
+          ./gradlew :core:test :app:assembleRelease :app:lintRelease --no-daemon --stacktrace --info "-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8 -Xlog:gc:file=$PWD/diag/gc.log:uptime" "${signing_flags[@]}" > "$RUNNER_TEMP/gradle-build.log" 2>&1
           status=$?
           set -e
           kill $monitor || true
           mkdir -p diag && cp "$RUNNER_TEMP/gradle-build.log" "$RUNNER_TEMP/resources.log" diag/
           echo "::group::resources after build"; free -h; df -h / "$RUNNER_TEMP" .; tail -n 40 "$RUNNER_TEMP/resources.log"; echo "::endgroup::"
-          grep -nE "FAILED|BUILD (SUCCESSFUL|FAILED)|Caused by|Exception|OutOfMemory|No space|tests completed" "$RUNNER_TEMP/gradle-build.log" | grep -v "^\s*$" | head -n 200 || true
+          grep -nE "FAILED|BUILD (SUCCESSFUL|FAILED)|Caused by|Exception|OutOfMemory|No space|tests completed" "$RUNNER_TEMP/gradle-build.log" | head -n 200 || true
+          grep -E "Pause Full|to-space|heap" diag/gc.log | tail -n 20 | grep -v "^\s*$" | head -n 200 || true
           [ "$status" -eq 0 ] || { tail -n 300 "$RUNNER_TEMP/gradle-build.log"; exit "$status"; }
           version=$(jq -er '.elements[0].versionName | select(type == "string" and length > 0)' app/build/outputs/apk/release/output-metadata.json)
           for abi in arm64-v8a armeabi-v7a x86_64 x86; do
