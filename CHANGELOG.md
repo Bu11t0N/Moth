@@ -9,6 +9,7 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - Updated Xray core (used for XHTTP servers).
 - Better protection: apps excluded by split tunneling cannot use the VPN, also with XHTTP servers.
 - Certificates you installed on the phone are now trusted for XHTTP servers too.
+- The server list shows each server's type in one style, for example "VLESS · TCP · Reality" or "Hysteria2", plus the subscription format (JSON, Clash, sing-box) where it applies.
 
 ## 0.6.0
 
