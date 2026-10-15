@@ -122,7 +122,7 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
         }
         if (lines.isEmpty()) Text(if (!crash && level == LogLevel.OFF) tr(R.string.dev_log_is_off) else tr(R.string.dev_log_empty))
         else {
-            Text(tr(R.string.dev_showing_last_lines, VISIBLE_LINES), style = MaterialTheme.typography.labelSmall)
+            Text(trPlural(R.plurals.dev_showing_last_lines, VISIBLE_LINES, VISIBLE_LINES), style = MaterialTheme.typography.labelSmall)
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = state) {
                 items(lines.size) { Text(lines[it], fontFamily = FontFamily.Monospace, fontSize = 10.sp, lineHeight = 13.sp) }
             }

@@ -35,8 +35,6 @@
     <string name="msg_add_31" formatted="false">"Add"</string>
     <string name="msg_cancel_32" formatted="false">"Cancel"</string>
     <string name="msg_downloading_servers_33" formatted="false">"Downloading servers…"</string>
-    <string name="msg_servers_added_result_first_profiles_size_34" formatted="false">"Servers added: %1$s"</string>
-    <string name="msg_unsupported_profiles_skipped_result_second_35" formatted="false">". Unsupported profiles skipped: %1$s"</string>
     <string name="msg_subscription_service_timed_out_36" formatted="false">"Subscription service timed out"</string>
     <string name="msg_could_not_find_the_subscription_service_check_37" formatted="false">"Could not find the subscription service. Check your internet connection."</string>
     <string name="msg_could_not_verify_the_secure_connection_to_the_38" formatted="false">"Could not verify the secure connection to the subscription service"</string>
@@ -64,7 +62,6 @@
     <string name="msg_show_all_60" formatted="false">"Show all"</string>
     <string name="msg_selected_61" formatted="false">", selected"</string>
     <string name="msg_checking_62" formatted="false">"checking…"</string>
-    <string name="msg_r_latencyms_ms_r_method_63" formatted="false">"%1$s ms · %2$s"</string>
     <string name="msg_not_checked_64" formatted="false">"not checked"</string>
     <string name="msg_port_is_reachable_vpn_traffic_has_not_been_ch_65" formatted="false">"Port is reachable; VPN traffic has not been checked"</string>
     <string name="msg_checked_on_a_different_network_66" formatted="false">"Checked on a different network"</string>
@@ -112,7 +109,7 @@
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Send device model and Android version"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"Subscription User-Agent"</string>
     <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Providers may select the subscription format by User-Agent. HWID is sent only to the original subscription website."</string>
-    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 25.3.6\nOpen source · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
+    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.7.28\nOpen source · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Use an HTTPS link without a username or password in the URL"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Subscription device limit reached. Contact the provider."</string>
     <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"The provider requires HWID. Enable it in settings."</string>
@@ -189,7 +186,10 @@
     <string name="dev_log_is_off">Logging is off.</string>
     <string name="dev_log_empty">The log is empty</string>
     <string name="dev_crash_log">Crash log</string>
-    <string name="dev_showing_last_lines">Showing the last %1$d lines; Share exports the whole file.</string>
+    <plurals name="dev_showing_last_lines">
+        <item quantity="one">Showing the last %1$d line; Share exports the whole file.</item>
+        <item quantity="other">Showing the last %1$d lines; Share exports the whole file.</item>
+    </plurals>
     <string name="dev_download_log">Download</string>
     <string name="dev_saved_to_downloads">Saved to Downloads</string>
     <string name="dev_save_failed">Could not save the file</string>
@@ -307,7 +307,10 @@
     <string name="stats_hint">VPN traffic counted on this device, including protocol overhead. Kept for 90 days.</string>
     <string name="expiry_channel">Subscription reminders</string>
     <string name="expiry_title">Subscription ends soon</string>
-    <string name="expiry_soon">Your subscription ends in %1$d day(s), on %2$s.</string>
+    <plurals name="expiry_soon">
+        <item quantity="one">Your subscription ends in %1$d day, on %2$s.</item>
+        <item quantity="other">Your subscription ends in %1$d days, on %2$s.</item>
+    </plurals>
     <string name="expiry_today">Your subscription ends today.</string>
     <string name="expiry_toggle">Remind before the subscription ends</string>
     <string name="expiry_toggle_hint">A notification 3 days before and on the last day, if the provider sends the end date.</string>
@@ -471,4 +474,16 @@
     <string name="sub_all_title">Subscriptions</string>
     <string name="sub_updated_on">Updated: %1$s</string>
     <string name="sub_link_copy_link">Copy link</string>
+    <string name="dev_edit_servers">Edit servers</string>
+    <string name="dev_edit_servers_hint">Adds \"Edit JSON\" to the long-press menu of a server.</string>
+    <string name="edit_json">Edit JSON</string>
+    <string name="edit_json_title">Edit JSON</string>
+    <string name="edit_json_hint">Changes are lost when the subscription is updated.</string>
+    <string name="edit_json_save">Save</string>
+    <string name="edit_json_err_empty">Enter the server JSON.</string>
+    <string name="edit_json_err_large">The JSON is too large.</string>
+    <string name="edit_json_err_object">Not valid JSON: a single object {…} is expected.</string>
+    <string name="edit_json_err_type">The \"type\" field is missing.</string>
+    <string name="edit_json_err_protocol">The \"protocol\" field is missing.</string>
+    <string name="server_balancer">Balancer</string>
 </resources>

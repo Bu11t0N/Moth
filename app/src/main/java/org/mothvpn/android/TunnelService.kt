@@ -123,7 +123,7 @@ class TunnelService : VpnService(), PlatformInterface {
             // Manual server pick while connected: restart the core on the new server without stopping the service.
             // The user's choice overrides auto-select (no re-measuring, no failover) until the next regular connect.
             val id = intent.getStringExtra("profile")
-            if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR, TunnelState.BLOCKED) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING) return START_NOT_STICKY
+            if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR, TunnelState.BLOCKED) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING && !intent.getBooleanExtra("force", false)) return START_NOT_STICKY
             Logger.i("Tunnel", "server switch requested (state=${TunnelStatus.state.value})")
             cancelProbes()
             manualPick = true; ranking = emptyList(); tried.clear(); cancelRetry()

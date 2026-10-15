@@ -49,7 +49,6 @@ class LocalizationTest {
         for (folder in listOf("values", "values-ru")) {
             val resources = strings(folder)
             assertTrue(resources.getValue("msg_host_saved_profiles_size_servers_17").format("example.com", 12).contains("12"))
-            assertTrue(resources.getValue("msg_r_latencyms_ms_r_method_63").format(42, "HTTPS").contains("HTTPS"))
             assertTrue(resources.getValue("msg_profile_name_1f_mbit_s_2f_mib_130").format("Example", 8.0, 1.0).contains("Example"))
         }
     }

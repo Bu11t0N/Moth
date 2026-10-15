@@ -141,7 +141,7 @@ class MainActivity : AppCompatActivity() {
                                     select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(null, false, kind, order) }, probeGroup = { kind, ids -> diagnose(null, false, kind, ids, only = ids) },
                                     speedTest = { kind, id -> diagnose(id ?: saved?.selection(kind), true, kind) },
                                     cancel = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("CANCEL_PROBES")) },
-                                    preferences = { saveSettings(it) })
+                                    preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) })
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
@@ -294,6 +294,24 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try { show(withContext(Dispatchers.IO) { store.update { it.rename(id, trimmed) } }); Logger.i("Store", "subscription renamed") }
             catch (e: Exception) { Logger.e("Store", "renaming the subscription failed", e); message = tr(R.string.msg_check_your_settings_71) }
+            finally { busy = false }
+        }
+    }
+    /** Developer JSON editor: replaces the server's outbound in place; reconnects when it is the connected server. */
+    private fun editServer(id: String, outbound: String) {
+        if (busy) return
+        busy = true
+        lifecycleScope.launch {
+            try {
+                show(withContext(Dispatchers.IO) { store.update { org.mothvpn.core.ServerEditor.apply(it, id, outbound) } })
+                Logger.i("Store", "server edited by hand")
+                if (id == TunnelStatus.activeProfile.value && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED)) {
+                    TunnelStatus.mutable.value = TunnelState.STARTING
+                    try { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("SWITCH").putExtra("profile", id).putExtra("force", true)) }
+                    catch (e: Exception) { Logger.e("Service", "restarting on the edited server failed", e); message = tr(R.string.msg_could_not_start_the_check_or_vpn_45) }
+                }
+            }
+            catch (e: Exception) { Logger.e("Store", "saving the edited server failed", e); message = tr(R.string.msg_check_your_settings_71) }
             finally { busy = false }
         }
     }

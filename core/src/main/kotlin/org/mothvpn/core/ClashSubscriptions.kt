@@ -26,7 +26,7 @@ object ClashSubscriptions {
         var rejected = 0
         val reasons = mutableListOf<String>()
         val converted = proxies.mapIndexedNotNull { index, entry ->
-            runCatching { convert(entry as Map<*, *>) }.getOrElse { e ->
+            runCatching { convert(entry as Map<*, *>).copy(source = ServerLabels.SOURCE_CLASH) }.getOrElse { e ->
                 rejected++
                 if (reasons.size < 100) reasons += "proxy ${index + 1} (${((entry as? Map<*, *>)?.get("type")?.toString() ?: "?").take(12).lowercase()}): ${rejectReason(e)}"
                 null

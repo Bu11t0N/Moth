@@ -9,13 +9,13 @@ Moth itself is licensed under [GPL-3.0-or-later](LICENSE). The files in [license
 | Component | Version | Commit | License |
 |---|---|---|---|
 | [sing-box](https://github.com/SagerNet/sing-box) (libbox) | v1.12.25 | `73bfb99ebce7923c485435e4faf8571b412065a9` | GPL-3.0-or-later with an additional naming condition: [`licenses/sing-box.txt`](licenses/sing-box.txt) |
-| [Xray-core](https://github.com/XTLS/Xray-core) | v25.3.6 | `2cba2c4d59e48a04aa5d09b8e4c2b2d26f8608a4` | MPL-2.0: [`licenses/Xray-MPL-2.0.txt`](licenses/Xray-MPL-2.0.txt) |
+| [Xray-core](https://github.com/XTLS/Xray-core) | v26.7.28 | `5ca6f4b7d4dc20a881d4330e498892697627ec0c` | MPL-2.0: [`licenses/Xray-MPL-2.0.txt`](licenses/Xray-MPL-2.0.txt) |
 
-**Go module notices.** libbox also links the Go standard library and every Go module that sing-box and Xray-core depend on. [`licenses/go-modules.txt`](licenses/go-modules.txt) lists each of them with its version, license and full license text. It is packaged into the APK with the other files in `licenses/` and shown in the app under About → Licenses → Core Go modules. [`scripts/go-licenses.sh`](scripts/go-licenses.sh) generates it from the prepared core sources (`go list -deps` for all four Android ABIs with the libbox build tags, licenses identified with the pinned [google/licensecheck](https://github.com/google/licensecheck)). The file is committed so local builds work without the core sources; CI regenerates it and fails if it differs from the committed copy. Modules whose license cannot be identified automatically are kept in the file with a note and reported as CI warnings. Currently that is `github.com/sagernet/cloudflare-tls`, a fork of Go's `crypto/tls` that ships no license file; its source headers refer to Go's BSD-style license. Xray-core is listed as `github.com/xtls/xray-core v1.250306.0` (v25.3.6), built from the patched copy described below.
+**Go module notices.** libbox also links the Go standard library and every Go module that sing-box and Xray-core depend on. [`licenses/go-modules.txt`](licenses/go-modules.txt) lists each of them with its version, license and full license text. It is packaged into the APK with the other files in `licenses/` and shown in the app under About → Licenses → Core Go modules. [`scripts/go-licenses.sh`](scripts/go-licenses.sh) generates it from the prepared core sources (`go list -deps` for all four Android ABIs with the libbox build tags, licenses identified with the pinned [google/licensecheck](https://github.com/google/licensecheck)). The file is committed so local builds work without the core sources; CI regenerates it and fails if it differs from the committed copy. Modules whose license cannot be identified automatically are kept in the file with a note and reported as CI warnings. Currently that is `github.com/sagernet/cloudflare-tls`, a fork of Go's `crypto/tls` that ships no license file; its source headers refer to Go's BSD-style license. Xray-core is listed as `github.com/xtls/xray-core v1.260327.1-0.20260728075948-5ca6f4b7d4dc` (v26.7.28), built from the patched copy described below. `github.com/mothvpn/qpack-v051` is an unmodified copy of `github.com/quic-go/qpack` v0.5.1 (MIT) under a private module path, see below.
 
 The Moth adapter linked into libbox ([`scripts/native/moth_xray.go`](scripts/native/moth_xray.go)) is GPL-3.0-or-later.
 
-The build toolchain used by CI is Go 1.24.3, JDK 17 for the core build, Android NDK 28.0.13004108 and SagerNet gomobile, with the official `cmd/internal/build_libbox` target `android`. The app itself is built with JDK 21, Android Gradle Plugin 8.2.2 and Kotlin 1.9.22.
+The build toolchain used by CI is Go 1.26.9, JDK 17 for the core build, Android NDK 28.0.13004108 and SagerNet gomobile, with the official `cmd/internal/build_libbox` target `android`. The app itself is built with JDK 21, Android Gradle Plugin 8.2.2 and Kotlin 1.9.22.
 
 **Xray modifications.** The build script copies Xray-core into `.core-build/sing-box/.moth-xray` and patches two MPL-covered files:
 
@@ -23,6 +23,8 @@ The build toolchain used by CI is Go 1.24.3, JDK 17 for the core build, Android 
 - `transport/internet/system_listener.go`
 
 Upstream logs and ignores a failure to protect an Android TCP/UDP socket from the VPN. The patch returns that error instead, so a socket that cannot be protected fails rather than leaking. The exact change is in the build script.
+
+**Dependency layout.** Xray-core v26 needs `github.com/quic-go/qpack` v0.6, while sing-box 1.12's QUIC fork (`github.com/sagernet/quic-go` v0.52.0-sing-box-mod.3) was written for the v0.5 API. The build script gives the sing-box fork its own unmodified copy of qpack v0.5.1 under the module path `github.com/mothvpn/qpack-v051`; the only change to the copied `sagernet/quic-go` sources is that import path.
 
 Moth is not affiliated with SagerNet or XTLS. The sing-box license forbids using the sing-box name or implying association without permission.
 
@@ -56,7 +58,7 @@ Network endpoints the app contacts are services, not bundled dependencies. These
 
 ## Source code and building
 
-The complete corresponding source for every release is in this public repository at the release tag (for example `v0.5.1`). That includes the build scripts that fetch the pinned upstream sing-box and Xray-core sources, apply the patch above and build `libbox.aar`. Go module dependencies are fetched from their upstream sources at the versions locked by the pinned sing-box `go.mod`/`go.sum` and `go mod tidy`.
+The complete corresponding source for every release is in this public repository at the release tag (for example `v0.6.1-beta.1`). That includes the build scripts that fetch the pinned upstream sing-box and Xray-core sources, apply the changes above and build `libbox.aar`. Go module dependencies are fetched from their upstream sources at the versions locked by the pinned sing-box `go.mod`/`go.sum` and `go mod tidy`.
 
 Anyone can build Moth from this source with the toolchain listed above. A signing key is needed only to produce APKs that install as updates over the official builds. Debug builds or builds signed with your own key work without it.
 

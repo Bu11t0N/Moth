@@ -46,7 +46,9 @@ data class ClientSettings(
     /** Random UDP noise packets before the first real packet (Xray freedom noises). */
     val noise: Boolean = false,
     /** Connection multiplexing: "off", or the sing-box protocol "smux" / "yamux" / "h2mux" (Xray servers use Mux.Cool instead). */
-    val mux: String = "off"
+    val mux: String = "off",
+    /** Developer option: "Edit JSON" in the server long-press menu. */
+    val editServers: Boolean = false
 ) {
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
@@ -89,7 +91,7 @@ data class ClientSettings(
         .put("autoSelect", autoSelect).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
-        .put("fragment", fragment).put("noise", noise).put("mux", mux)
+        .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers)
     companion object {
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
         private val autoUserAgent = Regex("Moth(/[0-9][0-9A-Za-z.+-]*)?")
@@ -119,6 +121,7 @@ data class ClientSettings(
             fragment = j.optString("fragment", "off").takeIf { it in DpiTricks.fragmentPresets.keys } ?: "off",
             noise = j.optBoolean("noise", false),
             mux = j.optString("mux", "off").takeIf { it in DpiTricks.muxModes } ?: "off",
+            editServers = j.optBoolean("editServers", false),
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
 }
@@ -196,7 +199,7 @@ object LocalProxyConfig {
         // User rules: "direct" and "block" outbounds are added only when there are rules, so configs without rules stay as before.
         fun extra(outbounds: org.json.JSONArray) = outbounds.apply {
             if (rules.isNotEmpty()) {
-                put(protectedOutbound(JSONObject().put("tag", "direct").put("protocol", "freedom").put("streamSettings", JSONObject())))
+                put(protectedOutbound(JSONObject().put("tag", "direct").put("protocol", "freedom").put("settings", JSONObject().put("finalRules", DpiTricks.allowAll())).put("streamSettings", JSONObject())))
                 put(JSONObject().put("tag", "block").put("protocol", "blackhole"))
             }
             if (dpi) put(DpiTricks.freedom(settings))
