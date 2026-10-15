@@ -8,6 +8,7 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 - Updated Xray core (used for XHTTP servers).
 - Better protection: apps excluded by split tunneling cannot use the VPN, also with XHTTP servers.
+- Certificates you installed on the phone are now trusted for XHTTP servers too.
 
 ## 0.6.0
 
