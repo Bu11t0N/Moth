@@ -80,7 +80,7 @@ jobs:
           (while sleep 5; do echo "$(date +%T) $(free -m | awk '/Mem:/{print "used="$3"M avail="$7"M"}') $(df -m / | awk 'NR==2{print "diskfree="$4"M"}')"; done) > "$RUNNER_TEMP/resources.log" 2>&1 &
           monitor=$!
           set +e
-          ./gradlew :core:test :app:assembleRelease :app:lintRelease --no-daemon --stacktrace --info "-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8 -Xlog:gc:file=$PWD/diag/gc.log:uptime" "${signing_flags[@]}" > "$RUNNER_TEMP/gradle-build.log" 2>&1
+          ./gradlew :core:test :app:assembleRelease :app:lintRelease --no-daemon --stacktrace --info "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8 -Xlog:gc:file=$PWD/diag/gc.log:uptime" "${signing_flags[@]}" > "$RUNNER_TEMP/gradle-build.log" 2>&1
           status=$?
           set -e
           kill $monitor || true
