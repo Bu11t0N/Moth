@@ -75,7 +75,9 @@ jobs:
             suffix="-unsigned"
           fi
           unset MOTH_KEYSTORE_BASE64
-          ./gradlew :core:test :app:assembleRelease :app:lintRelease --no-daemon "${signing_flags[@]}"
+          echo "::group::resources before build"; free -h; df -h /; echo "::endgroup::"
+          ./gradlew :core:test :app:assembleRelease :app:lintRelease --no-daemon --stacktrace "${signing_flags[@]}"
+          echo "::group::resources after build"; free -h; df -h /; echo "::endgroup::"
           version=$(jq -er '.elements[0].versionName | select(type == "string" and length > 0)' app/build/outputs/apk/release/output-metadata.json)
           for abi in arm64-v8a armeabi-v7a x86_64 x86; do
             cp "app/build/outputs/apk/release/app-$abi-release$suffix.apk" "artifacts/Moth-$version-$abi$suffix.apk"
