@@ -118,6 +118,7 @@ class E2ETest {
         // 5. Disconnect: traffic goes directly again.
         wait(By.desc("Disconnect VPN").enabled(true)).click()
         wait(By.desc("Connect VPN"), 30_000)
+        VpnChecks.awaitVpnGone(cm, ::log) { dump() }
         val end = System.currentTimeMillis() + 30_000
         var after: String? = null
         while (System.currentTimeMillis() < end) { after = tryFetch(); if (after != null && after !in sources.values) break; Thread.sleep(1000) }

@@ -409,7 +409,11 @@ class TunnelService : VpnService(), PlatformInterface {
         runCatching { tun?.close() }.onFailure { Logger.w("Tunnel", "closing the tun device failed", it) }; tun = null
         runCatching { xray?.close() }.onFailure { Logger.w("Core", "closing the xray core failed", it) }; xray = null
         runCatching { dpiXray?.close() }.onFailure { Logger.w("Core", "closing the dpi helper failed", it) }; dpiXray = null
+        if (Logger.enabled(LogLevel.DEBUG)) Logger.d("Tunnel", "tun descriptors open after close: ${openTunDescriptors()}")
     }
+    /** Number of /dev/tun descriptors this process still holds (diagnostics; 0 once the VPN is fully down, except the blocking interface). */
+    private fun openTunDescriptors(): Int = (java.io.File("/proc/self/fd").listFiles() ?: emptyArray())
+        .count { f -> runCatching { android.system.Os.readlink(f.path) }.getOrNull()?.contains("tun") == true }
     private fun initCore() {
         if (initialized) return
         try {

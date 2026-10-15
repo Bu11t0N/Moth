@@ -82,6 +82,7 @@ class Release054E2ETest {
         tab("Home")
         wait(By.desc("Disconnect VPN").enabled(true)).click()
         wait(By.desc("Connect VPN"), 30_000, "disconnect")
+        VpnChecks.awaitVpnGone(context.getSystemService(android.net.ConnectivityManager::class.java), ::log)
         Thread.sleep(1500)
     }
     private fun trafficThrough(name: String, source: String) {
