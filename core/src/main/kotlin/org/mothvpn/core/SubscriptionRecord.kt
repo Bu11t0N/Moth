@@ -15,13 +15,13 @@ data class SubscriptionRecord(val url: String, val profiles: List<Profile>, val 
         .put("providerName", providerName).put("expires", expires).put("usedBytes", usedBytes)
         .put("totalBytes", totalBytes).put("updatedAt", updatedAt)
         .put("profiles", JSONArray().apply { profiles.forEach { p -> put(JSONObject().put("id", p.id).put("name", p.name)
-            .put("protocol", p.protocol).put("outbound", p.outbound).put("engine", p.engine).apply { if (p.link.isNotEmpty()) put("link", p.link); if (p.source.isNotEmpty()) put("source", p.source) }) } })
+            .put("protocol", p.protocol).put("outbound", p.outbound).put("engine", p.engine).apply { if (p.link.isNotEmpty()) put("link", p.link); if (p.source.isNotEmpty()) put("source", p.source); if (p.edited) put("edited", true) }) } })
     companion object {
         const val LOCAL_URL = "moth:local"
         fun from(json: JSONObject): SubscriptionRecord {
             val list = json.getJSONArray("profiles")
             val profiles = (0 until list.length()).map { i -> list.getJSONObject(i).let {
-                Profile(it.getString("id"), it.getString("name"), it.getString("protocol"), it.getString("outbound"), it.optString("engine", "sing-box"), it.optString("link", ""), it.optString("source", ""))
+                Profile(it.getString("id"), it.getString("name"), it.getString("protocol"), it.getString("outbound"), it.optString("engine", "sing-box"), it.optString("link", ""), it.optString("source", ""), it.optBoolean("edited", false))
             } }
             val selected = json.getString("selected")
             fun validSelection(key: String) = json.optString(key, selected).takeIf { id -> profiles.any { it.id == id } }

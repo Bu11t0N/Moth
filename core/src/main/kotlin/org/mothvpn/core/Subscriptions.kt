@@ -11,7 +11,8 @@ import java.util.UUID
 
 /** [link]: the original share link (empty for Clash / Xray JSON servers); used only to export the server as a QR code. */
 data class Profile(val id: String, val name: String, val protocol: String, val outbound: String, val engine: String = "sing-box", val link: String = "",
-    /** Config format the server came from ([ServerLabels] SOURCE_*); empty for share links. */ val source: String = "")
+    /** Config format the server came from ([ServerLabels] SOURCE_*); empty for share links. */ val source: String = "",
+    /** Outbound changed by hand in the JSON editor; a subscription update replaces it. */ val edited: Boolean = false)
 /**
  * [duplicates]: one safe note per dropped duplicate ("link 5 (vless): same id as kept 3f2a9c01"); [comments]: skipped '#' / empty lines;
  * [parsed]: entries that converted successfully before duplicates were removed.
