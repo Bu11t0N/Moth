@@ -4,6 +4,7 @@ package libbox
 import (
     "bytes"
     "fmt"
+    "os"
     "sync"
     "syscall"
 
@@ -46,5 +47,10 @@ func MothStartXray(config string, platform PlatformInterface) (*MothXrayService,
     if err = instance.Start(); err != nil { instance.Close(); return nil, err }
     return &MothXrayService{instance: instance}, nil
 }
+
+// MothSetTrustedCertFile points Go's TLS roots (used by Xray) at a PEM bundle. Setting SSL_CERT_FILE from Java does not
+// reach Go: the Go runtime copies the environment once at load time from the process's original environ.
+// Must be called before the first TLS handshake, because Go loads the system roots only once per process.
+func MothSetTrustedCertFile(path string) error { return os.Setenv("SSL_CERT_FILE", path) }
 
 func (s *MothXrayService) Close() error { return s.instance.Close() }

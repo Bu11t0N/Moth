@@ -107,14 +107,23 @@ class Release061E2ETest {
 
     private class BoundWidget(val host: AppWidgetHost, val id: Int, val view: AppWidgetHostView)
     private fun bindWidget(): BoundWidget {
-        log("grantbind: " + shell("cmd appwidget grantbind --package ${context.packageName} --user 0").trim().ifEmpty { "ok" })
+        val grant = shell("cmd appwidget grantbind --package ${context.packageName} --user 0").trim().ifEmpty { "ok" }
+        log("grantbind: $grant")
         val manager = AppWidgetManager.getInstance(context)
+        val provider = ComponentName(context, MothWidget::class.java)
         var bound: BoundWidget? = null
         instrumentation.runOnMainSync {
             val widgetHost = AppWidgetHost(context, 6101)
             widgetHost.startListening()
             val id = widgetHost.allocateAppWidgetId()
-            check(manager.bindAppWidgetIdIfAllowed(id, ComponentName(context, MothWidget::class.java))) { "binding the widget was not allowed" }
+            // The grant can take effect late on a fresh emulator; the shell identity holds BIND_APPWIDGET as a fallback.
+            var allowed = runCatching { manager.bindAppWidgetIdIfAllowed(id, provider) }.getOrDefault(false)
+            if (!allowed) {
+                instrumentation.uiAutomation.adoptShellPermissionIdentity("android.permission.BIND_APPWIDGET")
+                try { allowed = runCatching { manager.bindAppWidgetIdIfAllowed(id, provider) }.onFailure { log("bind as shell: $it") }.getOrDefault(false) }
+                finally { instrumentation.uiAutomation.dropShellPermissionIdentity() }
+            }
+            check(allowed) { "binding the widget was not allowed (grantbind: $grant, providers: ${manager.installedProviders.map { it.provider.className }})" }
             bound = BoundWidget(widgetHost, id, widgetHost.createView(context, id, manager.getAppWidgetInfo(id)))
         }
         return bound!!

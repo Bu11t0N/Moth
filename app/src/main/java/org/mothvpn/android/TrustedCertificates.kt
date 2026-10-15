@@ -8,7 +8,7 @@ import java.io.File
  * (Settings → Security → Encryption & credentials), like the official sing-box app.
  * - sing-box gets them through PlatformInterface.systemCertificates().
  * - Xray (Go's standard TLS roots) reads them from the PEM file named by SSL_CERT_FILE, which must be set
- *   before the Go runtime starts (Application.onCreate); Go also keeps reading /system/etc/security/cacerts.
+ *   inside the Go runtime (Libbox.mothSetTrustedCertFile) before the first TLS handshake; Go also keeps reading /system/etc/security/cacerts.
  */
 object TrustedCertificates {
     private const val FILE = "trusted-ca.pem"
@@ -30,7 +30,8 @@ object TrustedCertificates {
 
     /** Points Go's TLS roots at the bundle. Call before anything loads libbox. */
     fun exportPath(context: Context) {
-        runCatching { android.system.Os.setenv("SSL_CERT_FILE", file(context).absolutePath, true) }.onFailure { Logger.w("Core", "setting SSL_CERT_FILE failed", it) }
+        // Go keeps its own copy of the environment, so the variable is set inside the Go runtime (Os.setenv would not reach it).
+        runCatching { io.nekohasekai.libbox.Libbox.mothSetTrustedCertFile(file(context).absolutePath) }.onFailure { Logger.w("Core", "setting SSL_CERT_FILE failed", it) }
     }
 
     /** (Re)writes the bundle; Go reads it on the first TLS handshake of the process. */
