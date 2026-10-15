@@ -85,6 +85,8 @@ class Release061E2ETest {
     /** Network can be briefly unavailable right after the previous test's VPN stopped; retry the download. */
     private fun add(url: String) = eventually(30_000, "subscription $url downloaded") { SubscriptionRefresh.run(context, null, url, null, SettingsStore(context).load(), "e2e"); true }
     private fun use(url: String, name: String): Profile {
+        // The previous test's VPN may still be tearing down: wait for the direct network before downloading.
+        eventually(60_000, "direct network before $url") { off() && fetch("/ip", 4000)?.let { it !in tunneled } == true }
         SubscriptionStore(context).clear(); add(url)
         val store = SubscriptionStore(context)
         val profile = store.load()!!.profiles.first { it.name == name }
@@ -178,6 +180,7 @@ class Release061E2ETest {
             assertNull("traffic leaked while blocked", fetch("/ip", 4000))
         } finally {
             airplane(false)
+            SettingsStore(context).save(SettingsStore(context).load().copy(killSwitch = false, healthEnabled = true))
             instrumentation.runOnMainSync { runCatching { widget.host.deleteAppWidgetId(widget.id); widget.host.stopListening() } }
         }
         stopVpn()
