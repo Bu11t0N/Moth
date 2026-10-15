@@ -474,4 +474,15 @@
     <string name="sub_all_title">Subscriptions</string>
     <string name="sub_updated_on">Updated: %1$s</string>
     <string name="sub_link_copy_link">Copy link</string>
+    <string name="dev_edit_servers">Edit servers</string>
+    <string name="dev_edit_servers_hint">Adds \"Edit JSON\" to the long-press menu of a server.</string>
+    <string name="edit_json">Edit JSON</string>
+    <string name="edit_json_title">Edit JSON</string>
+    <string name="edit_json_hint">Changes are lost when the subscription is updated.</string>
+    <string name="edit_json_save">Save</string>
+    <string name="edit_json_err_empty">Enter the server JSON.</string>
+    <string name="edit_json_err_large">The JSON is too large.</string>
+    <string name="edit_json_err_object">Not valid JSON: a single object {…} is expected.</string>
+    <string name="edit_json_err_type">The \"type\" field is missing.</string>
+    <string name="edit_json_err_protocol">The \"protocol\" field is missing.</string>
 </resources>

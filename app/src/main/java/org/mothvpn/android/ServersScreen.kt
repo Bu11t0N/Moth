@@ -45,7 +45,8 @@ import org.mothvpn.core.SubscriptionSource
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable fun ServersScreen(saved: SavedSubscription?, book: SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
     add: () -> Unit, refresh: () -> Unit, refreshOne: (String) -> Unit, edit: (String, String, String) -> Unit, remove: (String) -> Unit, select: (String, String) -> Unit, probe: (String, List<String>) -> Unit,
-    probeGroup: (String, List<String>) -> Unit = { _, _ -> }, speedTest: (String, String?) -> Unit, cancel: () -> Unit, preferences: (ClientSettings) -> Unit) {
+    probeGroup: (String, List<String>) -> Unit = { _, _ -> }, speedTest: (String, String?) -> Unit, cancel: () -> Unit, preferences: (ClientSettings) -> Unit,
+    editServer: (String, String) -> Unit = { _, _ -> }) {
     // Probe results arrive in bursts; apply at most one update per 250 ms so the list does not recompose constantly.
     var results by remember { mutableStateOf(Diagnostics.results.value) }
     LaunchedEffect(Unit) { Diagnostics.results.collect { results = it; delay(250) } }
@@ -58,6 +59,7 @@ import org.mothvpn.core.SubscriptionSource
     var actionsFor by remember { mutableStateOf<String?>(null) }
     var editFor by remember { mutableStateOf<String?>(null) }
     var menuFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
+    var jsonFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
     var shareFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     // Collapsed subscription groups (and favorites), saved across restarts.
@@ -174,6 +176,7 @@ import org.mothvpn.core.SubscriptionSource
         HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top,
             flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = spring(stiffness = Spring.StiffnessHigh))) { KindPage(if (it == 0) "wifi" else "mobile") }
     }
+    jsonFor?.let { p -> ServerJsonEditor(p, cancel = { jsonFor = null }) { outbound -> jsonFor = null; editServer(p.id, outbound) } }
     menuFor?.let { p ->
         AlertDialog(onDismissRequest = { menuFor = null }, title = { Text(p.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
             Column {
@@ -181,6 +184,7 @@ import org.mothvpn.core.SubscriptionSource
                 TextButton(onClick = { menuFor = null; shareFor = p }) { Text(tr(R.string.server_share)) }
                 val favorite = p.id in settings.favorites
                 TextButton(onClick = { menuFor = null; preferences(settings.copy(favorites = Favorites.toggle(settings.favorites, p.id))) }) { Text(tr(if (favorite) R.string.fav_remove else R.string.fav_add)) }
+                if (settings.editServers) TextButton(enabled = !busy, onClick = { menuFor = null; jsonFor = p }) { Text(tr(R.string.edit_json)) }
             }
         }, confirmButton = { TextButton(onClick = { menuFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
     }

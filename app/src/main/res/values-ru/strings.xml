@@ -478,4 +478,15 @@
     <string name="sub_all_title">Подписки</string>
     <string name="sub_updated_on">Обновлена: %1$s</string>
     <string name="sub_link_copy_link">Скопировать ссылку</string>
+    <string name="dev_edit_servers">Редактирование серверов</string>
+    <string name="dev_edit_servers_hint">Добавляет «Изменить JSON» в меню сервера по долгому нажатию.</string>
+    <string name="edit_json">Изменить JSON</string>
+    <string name="edit_json_title">Изменить JSON</string>
+    <string name="edit_json_hint">Изменения пропадут при обновлении подписки.</string>
+    <string name="edit_json_save">Сохранить</string>
+    <string name="edit_json_err_empty">Введите JSON сервера.</string>
+    <string name="edit_json_err_large">Слишком большой JSON.</string>
+    <string name="edit_json_err_object">Некорректный JSON: нужен один объект {…}.</string>
+    <string name="edit_json_err_type">Нет поля «type».</string>
+    <string name="edit_json_err_protocol">Нет поля «protocol».</string>
 </resources>

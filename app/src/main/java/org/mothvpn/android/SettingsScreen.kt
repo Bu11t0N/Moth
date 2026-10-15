@@ -245,6 +245,8 @@ import org.mothvpn.core.SubscriptionSchedule
                 }
                 tr(R.string.dev_for_developers) -> {
                     DeveloperSection({ logPage = 1 }, { logPage = 2 })
+                    SettingsToggle(tr(R.string.dev_edit_servers), draft.editServers) { applySettings(draft.copy(editServers = it)) }
+                    Text(tr(R.string.dev_edit_servers_hint), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.msg_about_78) -> {
                     Text(VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleLarge)
