@@ -397,7 +397,6 @@ class TunnelService : VpnService(), PlatformInterface {
         TunnelStatus.offlineMutable.value = org.mothvpn.core.OfflineStatus.Kind.ONLINE
         if (Diagnostics.running.value) { runCatching { foreground() }; return }
         runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
-        runCatching { getSystemService(NotificationManager::class.java).cancel(1) }
         stopSelf(lastStartId)
     }
     private fun closeTunnel() {
