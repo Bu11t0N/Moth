@@ -152,9 +152,11 @@ jobs:
             # User-installed CA (as Settings → Install certificate would store it); needs adb root (default system image).
             ./scripts/e2e/install-user-ca.sh scripts/e2e/user-ca.pem
             adb shell appops set org.mothvpn.android ACTIVATE_VPN allow
+            ./scripts/e2e/app-log.sh enable
             adb logcat -c
             adb shell am instrument -w -r org.mothvpn.android.test/androidx.test.runner.AndroidJUnitRunner > e2e-result.txt 2>&1 || true
             adb logcat -d > e2e-logcat.txt 2>&1 || true
+            ./scripts/e2e/app-log.sh pull
             adb pull /sdcard/Android/data/org.mothvpn.android/cache/e2e-window.xml . > /dev/null 2>&1 || true
             adb pull /sdcard/Android/data/org.mothvpn.android/cache/stats.png . > /dev/null 2>&1 || true
             adb pull /sdcard/Android/data/org.mothvpn.android/cache/settings.png . > /dev/null 2>&1 || true
@@ -169,6 +171,7 @@ jobs:
           path: |
             e2e-result.txt
             e2e-logcat.txt
+            e2e-app-log.txt
             e2e-window.xml
             e2e-server.log
             e2e-cache/
