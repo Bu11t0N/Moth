@@ -24,6 +24,12 @@ The build toolchain used by CI is Go 1.26.9, JDK 17 for the core build, Android 
 
 Upstream logs and ignores a failure to protect an Android TCP/UDP socket from the VPN. The patch returns that error instead, so a socket that cannot be protected fails rather than leaking. The exact change is in the build script.
 
+**sing-tun modification.** The build script copies sing-tun v0.7.13 (`github.com/sagernet/sing-tun`) into `.core-build/sing-box/.moth-sing-tun`, points sing-box at that copy with a `go mod edit -replace`, and patches one file:
+
+- `stack_gvisor_filter.go`
+
+Upstream wraps the `nil` dispatcher passed to `LinkEndpointFilter.Attach` when the gVisor stack is closed, so the tun reader threads are never stopped and keep the closed tun device open; Android then keeps the VPN up for up to a minute after Disconnect. The patch passes `nil` through unwrapped, so closing the stack stops the readers. The exact change is in `scripts/build-libbox.sh`. sing-tun is licensed under GPL-3.0-or-later; the modified copy stays under that license, and its complete source is the upstream release plus this patch, both available from this repository.
+
 **Dependency layout.** Xray-core v26 needs `github.com/quic-go/qpack` v0.6, while sing-box 1.12's QUIC fork (`github.com/sagernet/quic-go` v0.52.0-sing-box-mod.3) was written for the v0.5 API. The build script gives the sing-box fork its own unmodified copy of qpack v0.5.1 under the module path `github.com/mothvpn/qpack-v051`; the only change to the copied `sagernet/quic-go` sources is that import path.
 
 Moth is not affiliated with SagerNet or XTLS. The sing-box license forbids using the sing-box name or implying association without permission.

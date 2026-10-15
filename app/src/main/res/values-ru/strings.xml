@@ -149,7 +149,7 @@
     <string name="msg_user_agent_must_contain_printable_ascii_chara_150" formatted="false">"User-Agent должен содержать печатные латинские символы"</string>
     <string name="msg_disabling_tls_verification_is_not_supported_151" formatted="false">"Отключение проверки TLS не поддерживается"</string>
     <string name="msg_server_address_is_missing_152" formatted="false">"Нет адреса сервера"</string>
-    <string name="msg_hysteria_port_hopping_is_not_supported_yet_153" formatted="false">"Hysteria port hopping пока не поддерживается"</string>
+    <string name="msg_hysteria_port_hopping_is_not_supported_yet_153" formatted="false">"Смена портов Hysteria (port hopping) пока не поддерживается"</string>
     <string name="msg_hysteria2_password_is_missing_154" formatted="false">"Нет пароля Hysteria2"</string>
     <string name="msg_invalid_hysteria2_obfuscation_settings_155" formatted="false">"Неверные параметры обфускации Hysteria2"</string>
     <string name="msg_hysteria_requires_udp_transport_156" formatted="false">"Hysteria поддерживает UDP transport"</string>
@@ -212,7 +212,7 @@
     <string name="update_cancel">Отмена</string>
     <string name="update_failed">Не удалось проверить, скачать или установить обновление. Проверьте соединение и повторите попытку.</string>
     <string name="update_permission_ready">Разрешение получено. Продолжаем установку.</string>
-    <string name="update_permission_needed">Для установки разрешите обновления из Moth в настройках Android.</string>
+    <string name="update_permission_needed">Для установки разрешите обновления из Мотылька в настройках Android.</string>
     <string name="sub_link_title">Ссылка подписки</string>
     <string name="sub_link_copy">Копировать</string>
     <string name="sub_link_close">Закрыть</string>
@@ -223,8 +223,9 @@
     <string name="update_channel_beta">Бета</string>
     <string name="update_channel_beta_note">В бете также предлагаются тестовые сборки, они могут работать нестабильно.</string>
     <string name="update_unknown_title">Разрешите установку обновлений</string>
-    <string name="update_unknown_body">Чтобы обновить Moth, Android должен разрешить установку приложений из этого источника. Нажмите OK: откроются настройки Android для Moth. Включите «Разрешить установку из этого источника» и вернитесь в Moth — установка продолжится автоматически.</string>
-    <string name="update_unknown_ok">OK</string>
+    <string name="update_unknown_body">Чтобы обновить Мотылёк, Android должен разрешить установку приложений из этого источника. Нажмите «ОК»: откроются настройки Android для Мотылька. Включите «Разрешить установку из этого источника» и вернитесь в Мотылёк — установка продолжится автоматически.</string>
+    <string name="update_unknown_ok">ОК</string>
+    <string name="ok">ОК</string>
     <string name="update_downloading">Скачиваем обновление…</string>
     <string name="set_sort_servers">Сортировать серверы</string>
     <string name="set_sort_name">Название</string>
@@ -340,7 +341,7 @@
     <string name="set_sum_sub_hours">Обновление раз в %d ч</string>
     <string name="set_sum_sub_off">Автообновление выключено</string>
     <string name="set_licenses">Лицензии</string>
-    <string name="set_licenses_sum">Тексты лицензий Moth и сторонних компонентов</string>
+    <string name="set_licenses_sum">Тексты лицензий Мотылька и сторонних компонентов</string>
     <string name="lic_moth">Moth</string>
     <string name="lic_moth_sum">GPL-3.0-or-later</string>
     <string name="lic_singbox">sing-box</string>
@@ -413,17 +414,17 @@
     <string name="backup_exported">Резервная копия сохранена.</string>
     <string name="backup_restored">Резервная копия восстановлена.</string>
     <string name="backup_failed">Не удалось прочитать или записать файл.</string>
-    <string name="backup_invalid">Файл не является резервной копией Moth.</string>
+    <string name="backup_invalid">Файл не является резервной копией Мотылька.</string>
     <string name="backup_wrong_password">Неверный пароль или повреждённый файл.</string>
     <string name="backup_too_large">Файл слишком большой.</string>
     <string name="backup_password_title">Зашифрованная копия</string>
     <string name="backup_confirm_title">Восстановить эту копию?</string>
     <string name="backup_summary">Подписок: %1$d\nСерверов: %2$d (Мои серверы: %3$d)\nИзбранных: %4$d\nПравил маршрутизации: %5$d</string>
-    <string name="backup_from_version">Создана в Moth %1$s</string>
+    <string name="backup_from_version">Создана в Мотыльке %1$s</string>
     <string name="backup_replace_warning">Текущие подписки и настройки будут заменены.</string>
     <string name="backup_replace">Заменить</string>
-    <string name="backup_err_not_backup">Это не резервная копия Moth</string>
-    <string name="backup_err_newer">Резервная копия создана более новой версией Moth</string>
+    <string name="backup_err_not_backup">Это не резервная копия Мотылька</string>
+    <string name="backup_err_newer">Резервная копия создана более новой версией Мотылька</string>
     <string name="backup_err_format">Неизвестный формат резервной копии</string>
     <string name="rules_import_file">Из файла</string>
     <string name="rules_paste">Вставить</string>
@@ -467,7 +468,7 @@
     <string name="deeplink_name">"Название: %1$s"</string>
     <string name="deeplink_links_text">"Серверов для добавления в «Мои серверы»: %1$d"</string>
     <string name="deeplink_warning">"Добавляйте серверы только из источников, которым доверяете."</string>
-    <string name="widget_label">"Moth VPN"</string>
+    <string name="widget_label">"Мотылёк VPN"</string>
     <string name="widget_description">"Подключение и отключение VPN"</string>
     <string name="widget_connect">"Подключить"</string>
     <string name="widget_disconnect">"Отключить"</string>

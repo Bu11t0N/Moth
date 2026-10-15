@@ -2,6 +2,15 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.6.2
+
+Released 2026-10-15.
+
+### Changes
+
+- Disconnect now turns the VPN off right away. Before, the phone could stay without internet for up to a minute after Disconnect, and the notification could stay on screen.
+- Russian interface: the app is called Мотылёк everywhere, and the remaining English buttons and messages are translated.
+
 ## 0.6.1
 
 Released 2026-10-15.

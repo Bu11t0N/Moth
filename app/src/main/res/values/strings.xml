@@ -223,6 +223,7 @@
     <string name="update_unknown_title">Allow installing updates</string>
     <string name="update_unknown_body">To update Moth, Android needs your permission to install apps from this source. Tap OK: the Android settings for Moth will open. Turn on “Allow from this source”, then return to Moth — the installation will continue automatically.</string>
     <string name="update_unknown_ok">OK</string>
+    <string name="ok">OK</string>
     <string name="update_downloading">Downloading update…</string>
     <string name="set_sort_servers">Sort servers by</string>
     <string name="set_sort_name">Name</string>
