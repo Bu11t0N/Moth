@@ -2,7 +2,7 @@
 
 Версии Moth, новые сверху. English version: [CHANGELOG.md](CHANGELOG.md).
 
-## 0.6.1
+## 0.6.1 — 2026-10-15
 
 ### Изменения
 

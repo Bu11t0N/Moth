@@ -2,7 +2,7 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
-## 0.6.1
+## 0.6.1 — 2026-10-15
 
 ### Changes
 
