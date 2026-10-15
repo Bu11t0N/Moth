@@ -10,7 +10,8 @@ import java.util.Base64
 import java.util.UUID
 
 /** [link]: the original share link (empty for Clash / Xray JSON servers); used only to export the server as a QR code. */
-data class Profile(val id: String, val name: String, val protocol: String, val outbound: String, val engine: String = "sing-box", val link: String = "")
+data class Profile(val id: String, val name: String, val protocol: String, val outbound: String, val engine: String = "sing-box", val link: String = "",
+    /** Config format the server came from ([ServerLabels] SOURCE_*); empty for share links. */ val source: String = "")
 /**
  * [duplicates]: one safe note per dropped duplicate ("link 5 (vless): same id as kept 3f2a9c01"); [comments]: skipped '#' / empty lines;
  * [parsed]: entries that converted successfully before duplicates were removed.
@@ -51,11 +52,12 @@ object Subscriptions {
         return String(bytes, StandardCharsets.UTF_8)
     }
     /** [fetch]: downloads a Clash proxy-provider (HTTPS only); null skips providers. */
+    private fun ImportResult.tagged(source: String) = copy(profiles = profiles.map { if (it.source.isEmpty()) it.copy(source = source) else it })
     fun parse(body: String, fetch: ((String) -> String)? = null): ImportResult {
         require(body.length <= 2 * 1024 * 1024) { "Список серверов слишком большой" }
         val text = body.trim().removePrefix("\uFEFF")
-        if (SingBoxSubscriptions.looksLike(text)) return SingBoxSubscriptions.parse(text)
-        if (XrayJsonSubscriptions.looksLike(text)) return XrayJsonSubscriptions.parse(text)
+        if (SingBoxSubscriptions.looksLike(text)) return SingBoxSubscriptions.parse(text).tagged(ServerLabels.SOURCE_SINGBOX)
+        if (XrayJsonSubscriptions.looksLike(text)) return XrayJsonSubscriptions.parse(text).tagged(ServerLabels.SOURCE_JSON)
         if (ClashSubscriptions.looksLike(text) || text.startsWith("{")) return ClashSubscriptions.parse(text, fetch)
         val decoded = if (text.contains("://")) text else runCatching { unbase64(text) }.getOrDefault(text)
         if (ClashSubscriptions.looksLike(decoded)) return ClashSubscriptions.parse(decoded, fetch)
