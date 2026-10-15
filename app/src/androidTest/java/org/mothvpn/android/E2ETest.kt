@@ -53,10 +53,31 @@ class E2ETest {
         return wait(By.text(text), 2_000)
     }
 
-    private fun toggleNear(label: UiObject2): UiObject2? {
-        val y = label.visibleBounds.centerY()
-        return device.findObjects(By.checkable(true)).firstOrNull { it.visibleBounds.top <= y && it.visibleBounds.bottom >= y }
-            ?: label.parent?.findObject(By.checkable(true))
+    /** The switch on the row of [text]. Compose recomposition can invalidate found nodes, so stale lookups are re-found. */
+    private fun toggleNear(text: String): UiObject2? {
+        repeat(3) { attempt ->
+            try {
+                val label = scrollTo(text)
+                val y = label.visibleBounds.centerY()
+                return device.findObjects(By.checkable(true)).firstOrNull { it.visibleBounds.top <= y && it.visibleBounds.bottom >= y }
+                    ?: label.parent?.findObject(By.checkable(true))
+            } catch (e: androidx.test.uiautomator.StaleObjectException) {
+                log("toggleNear($text): stale node, re-finding (attempt ${attempt + 1})")
+                device.waitForIdle()
+            }
+        }
+        return null
+    }
+
+    /** Turns the switch on, re-finding it if the node went stale. */
+    private fun ensureChecked(text: String) {
+        repeat(3) {
+            try {
+                val t = toggleNear(text) ?: run { dump(); throw AssertionError("$text toggle not found") }
+                if (!t.isChecked) t.click()
+                return
+            } catch (e: androidx.test.uiautomator.StaleObjectException) { device.waitForIdle() }
+        }
     }
 
     @Test fun importConnectSwitchKillSwitchDisconnect() {
@@ -92,11 +113,15 @@ class E2ETest {
         // 4. Kill switch on (live, while connected); stop the server: nothing may leave outside the tunnel.
         tab("Settings")
         wait(By.text("Connection")).click()
-        val label = scrollTo("Kill switch")
-        val toggle = toggleNear(label) ?: run { dump(); throw AssertionError("kill switch toggle not found") }
-        if (!toggle.isChecked) toggle.click()
+        ensureChecked("Kill switch")
         Thread.sleep(800)
-        assertTrue("kill switch should be on", toggleNear(scrollTo("Kill switch"))!!.isChecked)
+        val ksEnd = System.currentTimeMillis() + 5_000
+        var ksOn = false
+        while (!ksOn && System.currentTimeMillis() < ksEnd) {
+            ksOn = try { toggleNear("Kill switch")?.isChecked == true } catch (e: androidx.test.uiautomator.StaleObjectException) { false }
+            if (!ksOn) device.waitForIdle()
+        }
+        assertTrue("kill switch should be on", ksOn)
         device.pressBack(); Thread.sleep(500); tab("Home")
         assertEquals("paused", fetch("/pause=25"))
         Thread.sleep(4000)
@@ -119,6 +144,7 @@ class E2ETest {
         wait(By.desc("Disconnect VPN").enabled(true)).click()
         wait(By.desc("Connect VPN"), 30_000)
         VpnChecks.awaitVpnGone(cm, ::log) { dump() }
+        VpnChecks.awaitNotificationGone(InstrumentationRegistry.getInstrumentation().targetContext, ::log)
         val end = System.currentTimeMillis() + 30_000
         var after: String? = null
         while (System.currentTimeMillis() < end) { after = tryFetch(); if (after != null && after !in sources.values) break; Thread.sleep(1000) }

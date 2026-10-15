@@ -30,4 +30,16 @@ object VpnChecks {
         onFail()
         throw AssertionError("VPN network still up $ms ms after disconnect (tun fds: $fds)")
     }
+    /** The foreground "disconnecting" notification must be gone shortly after Disconnect. */
+    fun awaitNotificationGone(context: android.content.Context, log: (String) -> Unit, ms: Long = 3_000) {
+        val nm = context.getSystemService(android.app.NotificationManager::class.java)
+        val start = System.currentTimeMillis()
+        while (System.currentTimeMillis() - start < ms) {
+            if (nm.activeNotifications.isEmpty()) { log("notification gone after ${System.currentTimeMillis() - start} ms"); return }
+            Thread.sleep(100)
+        }
+        val ids = nm.activeNotifications.map { it.id }
+        log("notifications still shown $ms ms after disconnect: ids=$ids")
+        throw AssertionError("notification still shown $ms ms after disconnect (ids=$ids)")
+    }
 }
