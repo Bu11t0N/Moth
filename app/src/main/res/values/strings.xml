@@ -485,4 +485,5 @@
     <string name="edit_json_err_object">Not valid JSON: a single object {…} is expected.</string>
     <string name="edit_json_err_type">The \"type\" field is missing.</string>
     <string name="edit_json_err_protocol">The \"protocol\" field is missing.</string>
+    <string name="server_balancer">Balancer</string>
 </resources>

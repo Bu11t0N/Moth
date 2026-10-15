@@ -36,6 +36,7 @@ class ServerLabelsTest {
     @Test fun balancerGroupKeepsGroupLabel() {
         val p = xray(F.config("Fastest", F.ws(), F.xhttp(), balancer = true)).single()
         assertEquals("VLESS · Balancer · JSON", ServerLabels.label(p))
+        assertEquals("VLESS · Балансировщик · JSON", ServerLabels.label(p, "Балансировщик"))
     }
 
     @Test fun legacySavedXrayJsonInferred() {

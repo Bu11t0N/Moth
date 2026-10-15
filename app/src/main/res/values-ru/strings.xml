@@ -489,4 +489,5 @@
     <string name="edit_json_err_object">Некорректный JSON: нужен один объект {…}.</string>
     <string name="edit_json_err_type">Нет поля «type».</string>
     <string name="edit_json_err_protocol">Нет поля «protocol».</string>
+    <string name="server_balancer">Балансировщик</string>
 </resources>

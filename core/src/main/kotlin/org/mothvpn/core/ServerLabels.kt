@@ -30,23 +30,24 @@ object ServerLabels {
         if (p.engine == "xray" && p.link.isEmpty() && p.protocol.contains(" · ")) SOURCE_JSON else ""
     }
 
-    fun label(p: Profile): String {
-        val parts = runCatching { parts(JSONObject(p.outbound)) }.getOrNull() ?: listOf(fallback(p.protocol))
+    /** [balancer]: localized word for balancer groups. */
+    fun label(p: Profile, balancer: String = "Balancer"): String {
+        val parts = runCatching { parts(JSONObject(p.outbound), balancer) }.getOrNull() ?: listOf(fallback(p.protocol))
         return (parts + listOfNotNull(sourceName(source(p)))).joinToString(" · ")
     }
 
     private fun fallback(protocol: String) = protocolName(protocol.lowercase().split(' ', '/', '+', '·').first { it.isNotBlank() })
 
-    private fun parts(o: JSONObject): List<String> = when {
-        o.optBoolean("group") -> group(o)
+    private fun parts(o: JSONObject, balancer: String): List<String> = when {
+        o.optBoolean("group") -> group(o, balancer)
         o.has("protocol") -> xray(o)
         else -> singBox(o)
     }
 
-    private fun group(o: JSONObject): List<String> {
+    private fun group(o: JSONObject, balancer: String): List<String> {
         val members = o.optJSONArray("outbounds")
         val kinds = (0 until (members?.length() ?: 0)).mapNotNull { members?.optJSONObject(it)?.optString("protocol")?.lowercase() }.distinct()
-        return listOfNotNull(kinds.singleOrNull()?.let(::protocolName), "Balancer")
+        return listOfNotNull(kinds.singleOrNull()?.let(::protocolName), balancer)
     }
 
     private fun xray(o: JSONObject): List<String> {
