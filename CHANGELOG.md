@@ -2,6 +2,15 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.6.3
+
+Released 2026-10-16.
+
+### Changes
+
+- New server sorting option "Default": servers are listed the way your provider arranged them. It is used for new installs; your current choice is kept. The other options are now called "By ping" and "By name".
+- "By name" ignores flags and emoji at the start of server names, so countries are no longer split into separate groups.
+
 ## 0.6.2
 
 Released 2026-10-15.

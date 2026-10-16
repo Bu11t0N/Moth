@@ -1,13 +1,34 @@
 package org.mothvpn.core
 
-/** Order of the servers list: by name (default, case-insensitive, natural: "Server 2" before "Server 10") or by measured ping. */
+/**
+ * Order of the servers list: as in the subscription (default for new installs: the provider's order, subscriptions in
+ * their saved order), by name (case-insensitive, natural: "Server 2" before "Server 10") or by measured ping.
+ */
 object ServerOrder {
+    const val SUBSCRIPTION = "subscription"
     const val NAME = "name"
     const val LATENCY = "latency"
-    val all = setOf(NAME, LATENCY)
+    val all = setOf(SUBSCRIPTION, NAME, LATENCY)
+
+    /** Drops everything before the first letter or digit: flags (regional indicator pairs, the EU flag), emoji with ZWJ and variation selectors, spaces, punctuation. */
+    fun sortKey(name: String): String {
+        var i = 0
+        while (i < name.length) {
+            val cp = name.codePointAt(i)
+            if (Character.isLetterOrDigit(cp)) break
+            i += Character.charCount(cp)
+        }
+        return name.substring(i)
+    }
+
+    /** Natural, case-insensitive comparison of the names without leading emoji/flags; equal keys are ordered by the full name. */
+    val naturalName: Comparator<String> = Comparator { a, b ->
+        val c = natural.compare(sortKey(a), sortKey(b))
+        if (c != 0) c else natural.compare(a, b).takeIf { it != 0 } ?: a.compareTo(b)
+    }
 
     /** Case-insensitive natural comparison: digit runs compare as numbers. */
-    val naturalName: Comparator<String> = Comparator { a, b ->
+    private val natural: Comparator<String> = Comparator { a, b ->
         val x = chunks(a); val y = chunks(b)
         for (i in 0 until minOf(x.size, y.size)) {
             val p = x[i]; val q = y[i]
@@ -21,10 +42,14 @@ object ServerOrder {
     }
     private fun chunks(s: String): List<String> = Regex("[0-9]+|[^0-9]+").findAll(s.lowercase()).map { it.value }.toList()
 
-    /** Name order, or ascending ping with unmeasured servers last; ties keep name order. */
-    fun <T> sort(items: List<T>, mode: String, name: (T) -> String, ping: (T) -> Long?): List<T> {
-        val byName = items.sortedWith(compareBy(naturalName, name))
-        return if (mode == LATENCY) byName.sortedBy { ping(it) ?: Long.MAX_VALUE } else byName // sortedBy is stable
+    /**
+     * [items] come in subscription order. SUBSCRIPTION keeps it; NAME sorts by [naturalName];
+     * LATENCY sorts by ascending ping with unmeasured servers last, ties keep the subscription order.
+     */
+    fun <T> sort(items: List<T>, mode: String, name: (T) -> String, ping: (T) -> Long?): List<T> = when (mode) {
+        NAME -> items.sortedWith(compareBy(naturalName, name))
+        LATENCY -> items.sortedBy { ping(it) ?: Long.MAX_VALUE } // sortedBy is stable
+        else -> items
     }
 }
 

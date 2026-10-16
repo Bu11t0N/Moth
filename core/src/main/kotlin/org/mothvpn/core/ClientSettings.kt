@@ -11,7 +11,7 @@ data class ClientSettings(
     val healthEnabled: Boolean = true, val healthIntervalSeconds: Int = 60,
     val hwidEnabled: Boolean = true, val hwid: String = UUID.randomUUID().toString(),
     val deviceInfo: Boolean = false, val userAgent: String = "Moth",
-    val serverSort: String = "name",
+    val serverSort: String = ServerOrder.SUBSCRIPTION,
     val compactServers: Boolean = true, val hideUnavailable: Boolean = false,
     val probeMode: String = "auto", val bootstrapDns: String = "https://1.1.1.1/dns-query",
     val probeParallel: Int = 5, val probeTimeoutMs: Int = 5000,

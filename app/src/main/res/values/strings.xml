@@ -225,9 +225,10 @@
     <string name="update_unknown_ok">OK</string>
     <string name="ok">OK</string>
     <string name="update_downloading">Downloading update…</string>
-    <string name="set_sort_servers">Sort servers by</string>
-    <string name="set_sort_name">Name</string>
-    <string name="set_sort_latency">Latency</string>
+    <string name="set_sort_servers">Sort servers</string>
+    <string name="set_sort_subscription">Default</string>
+    <string name="set_sort_name">By name</string>
+    <string name="set_sort_latency">By ping</string>
     <string name="dev_detailed_icons">Show detailed icons</string>
     <string name="dev_detailed_icons_hint">Instead of the red dash, failed server checks show a small gray icon; tap it to see the reason.</string>
     <string name="notif_connecting">Connecting…</string>
