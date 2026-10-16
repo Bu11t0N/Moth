@@ -226,6 +226,7 @@
     <string name="ok">OK</string>
     <string name="update_downloading">Downloading update…</string>
     <string name="set_sort_servers">Sort servers by</string>
+    <string name="set_sort_subscription">As in subscription</string>
     <string name="set_sort_name">Name</string>
     <string name="set_sort_latency">Latency</string>
     <string name="dev_detailed_icons">Show detailed icons</string>

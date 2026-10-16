@@ -228,6 +228,7 @@
     <string name="ok">ОК</string>
     <string name="update_downloading">Скачиваем обновление…</string>
     <string name="set_sort_servers">Сортировать серверы</string>
+    <string name="set_sort_subscription">Как в подписке</string>
     <string name="set_sort_name">Название</string>
     <string name="set_sort_latency">Задержка</string>
     <string name="dev_detailed_icons">Показывать подробные значки</string>
