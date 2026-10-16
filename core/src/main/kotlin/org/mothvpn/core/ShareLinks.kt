@@ -19,7 +19,7 @@ object ShareLinks {
     private fun strings(a: JSONArray?) = a?.let { (0 until it.length()).map { i -> it.optString(i) }.filter(String::isNotBlank) }.orEmpty()
 
     fun of(profile: Profile): String? {
-        if (profile.link.isNotBlank()) return profile.link
+        if (profile.link.isNotBlank() && !profile.edited) return profile.link
         val o = runCatching { JSONObject(profile.outbound) }.getOrNull() ?: return null
         return runCatching { if (profile.engine == "xray") xray(o, profile.name) else singBox(o, profile.name) }.getOrNull()
     }

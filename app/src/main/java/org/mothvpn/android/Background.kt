@@ -67,7 +67,7 @@ object SubscriptionRefresh {
      * [name]: a new name chosen by the user, or null to keep the current one. Returns the saved book, the id and the number of rejected entries.
      */
     data class Result(val book: SubscriptionBook, val sourceId: String, val rejected: Int)
-    fun run(context: Context, sourceId: String?, url: String, name: String?, settings: org.mothvpn.core.ClientSettings, trigger: String): Result {
+    fun run(context: Context, sourceId: String?, url: String, name: String?, settings: org.mothvpn.core.ClientSettings, trigger: String, expectedUrl: String = url.trim()): Result {
         val link = url.trim()
         val response = SubscriptionDownload.fetchDetails(link, settings)
         val parsed = Subscriptions.parse(response.body) { provider -> SubscriptionDownload.fetchDetails(provider, settings).body }
@@ -76,7 +76,7 @@ object SubscriptionRefresh {
         parsed.reasons.forEach { Logger.w("Import", "skipped: $it") }
         var id = ""
         val book = SubscriptionStore(context).update { book ->
-            val old = sourceId?.let(book::source) ?: book.sources.firstOrNull { !it.local && it.url == link }
+            val old = book.refreshTarget(sourceId, link, expectedUrl)
             id = old?.id ?: SubscriptionSource.newId(link, System.currentTimeMillis())
             old?.let { o ->
                 val gone = o.profiles.count { p -> parsed.profiles.none { it.id == p.id } }
@@ -106,6 +106,8 @@ class SubscriptionUpdateWorker(context: Context, params: WorkerParameters) : Cor
                 SubscriptionRefresh.run(applicationContext, source.id, source.url, null, settings, "schedule")
                 VpnLauncher.changed.value++
                 Logger.i("Import", "scheduled update done (host=${LogFacts.hostTag(source.url)})")
+            } catch (e: org.mothvpn.core.StaleSubscriptionRefresh) {
+                Logger.i("Import", "scheduled update discarded: subscription deleted or link changed")
             } catch (e: Exception) {
                 failed++
                 Logger.w("Import", "scheduled update failed (host=${LogFacts.hostTag(source.url)}, attempt ${runAttemptCount + 1})", e)
