@@ -1,1 +1,2 @@
-<inset xmlns:android="http://schemas.android.com/apk/res/android" android:drawable="@drawable/moth_logo" android:inset="12%" />
+<!-- Keep the shield inside the adaptive icon's visible area, including circular launcher masks. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android" android:drawable="@drawable/moth_logo" android:inset="20%" />
