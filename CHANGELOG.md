@@ -2,6 +2,17 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.6.4
+
+Released 2026-10-16.
+
+### Changes
+
+- The home-screen icon is slightly smaller inside its background so the shield is not clipped by the launcher's shape.
+- Sharing a server edited with "Edit JSON" now uses its current settings instead of the original link.
+- TCP checks recognize WireGuard as a UDP protocol and explain that an HTTPS check is needed.
+- A background subscription update no longer brings back a deleted subscription or overwrites a link changed while it was downloading.
+
 ## 0.6.3
 
 Released 2026-10-16.

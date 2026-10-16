@@ -220,7 +220,7 @@ class MainActivity : AppCompatActivity() {
             runCatching { startService(Intent(this, TunnelService::class.java).setAction("KILL_SWITCH").putExtra("on", next.killSwitch)) }.onFailure { Logger.w("Settings", "kill switch update not delivered", it) }
     }
     /** [sourceId]: refresh or edit that subscription; null adds a new one. [name]: a name chosen by the user (never logged). */
-    private fun import(url: String, trigger: String = "add", sourceId: String? = null, name: String? = null) {
+    private fun import(url: String, trigger: String = "add", sourceId: String? = null, name: String? = null, expectedUrl: String? = null) {
         if (busy) { Logger.w("Import", "ignored: another operation is in progress (trigger=$trigger)"); return }
         busy = true; message = tr(R.string.msg_downloading_servers_33)
         val started = System.currentTimeMillis()
@@ -229,7 +229,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val result = withContext(Dispatchers.IO) {
                     when (val input = ImportInput.classify(url)) {
-                        is ImportInput.Kind.Subscription -> SubscriptionRefresh.run(this@MainActivity, sourceId, input.url, name, settings, trigger).let { it.book to it.rejected }
+                        is ImportInput.Kind.Subscription -> SubscriptionRefresh.run(this@MainActivity, sourceId, input.url, name, settings, trigger, expectedUrl ?: input.url).let { it.book to it.rejected }
                         is ImportInput.Kind.Links -> {
                             val parsed = Subscriptions.parse(input.text)
                             parsed.reasons.forEach { Logger.w("Import", "skipped: $it") }
@@ -250,6 +250,10 @@ class MainActivity : AppCompatActivity() {
                 show(result.first)
                 Logger.i("Import", "subscription saved: ${result.first.profiles.size} server(s) in ${System.currentTimeMillis() - started} ms (trigger=$trigger)")
                 message = "" // the import result is only logged, not shown
+            } catch (e: org.mothvpn.core.StaleSubscriptionRefresh) {
+                Logger.i("Import", "update discarded: subscription deleted or link changed")
+                runCatching { withContext(Dispatchers.IO) { store.loadBook() } }.onSuccess { show(it) }
+                message = ""
             } catch (e: Exception) {
                 // Logger redacts links and addresses from the exception text.
                 Logger.e("Import", "subscription import failed (trigger=$trigger, host=${LogFacts.hostTag(url)}, ${System.currentTimeMillis() - started} ms)", e)
@@ -288,7 +292,7 @@ class MainActivity : AppCompatActivity() {
         if (!org.mothvpn.core.SubscriptionSource.validName(trimmed)) { message = tr(R.string.sub_name_invalid); return }
         if (!source.local && link.trim() != source.url) {
             if (ImportInput.classify(link) !is ImportInput.Kind.Subscription) { message = tr(R.string.msg_use_an_https_link_without_a_username_or_passw_112); return }
-            import(link.trim(), "edit", id, trimmed); return
+            import(link.trim(), "edit", id, trimmed, expectedUrl = source.url); return
         }
         busy = true
         lifecycleScope.launch {

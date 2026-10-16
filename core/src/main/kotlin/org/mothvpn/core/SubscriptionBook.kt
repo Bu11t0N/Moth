@@ -4,6 +4,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
 
+/** An in-flight refresh must not recreate a deleted subscription or overwrite an edited link. */
+class StaleSubscriptionRefresh : IllegalStateException("Subscription changed while downloading")
+
 /** One subscription (or the local list of servers added from links): its own link, name, servers and provider info. */
 data class SubscriptionSource(val id: String, val name: String, val url: String, val profiles: List<Profile>,
     val providerName: String = "", val expires: Long = 0, val usedBytes: Long = 0, val totalBytes: Long = 0, val updatedAt: Long = 0) {
@@ -34,6 +37,11 @@ data class SubscriptionSource(val id: String, val name: String, val url: String,
 data class SubscriptionBook(val sources: List<SubscriptionSource>, val selected: String = "", val wifiSelected: String = selected, val mobileSelected: String = selected) {
     val profiles: List<Profile> get() = sources.flatMap { it.profiles }.distinctBy { it.id }
     fun source(id: String) = sources.firstOrNull { it.id == id }
+    /** Resolve under the store's update lock, after downloading. Only a new import may create an entry. */
+    fun refreshTarget(sourceId: String?, url: String, expectedUrl: String = url): SubscriptionSource? {
+        if (sourceId == null) return sources.firstOrNull { !it.local && it.url == url }
+        return source(sourceId)?.takeIf { !it.local && it.url == expectedUrl } ?: throw StaleSubscriptionRefresh()
+    }
     /** The subscription a server belongs to (the first one that contains it). */
     fun sourceOf(profileId: String) = sources.firstOrNull { s -> s.profiles.any { it.id == profileId } }
     /** Selection fixed up so that each choice points at an existing server. */
