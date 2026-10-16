@@ -228,9 +228,9 @@
     <string name="ok">ОК</string>
     <string name="update_downloading">Скачиваем обновление…</string>
     <string name="set_sort_servers">Сортировать серверы</string>
-    <string name="set_sort_subscription">Как в подписке</string>
-    <string name="set_sort_name">Название</string>
-    <string name="set_sort_latency">Задержка</string>
+    <string name="set_sort_subscription">По умолчанию</string>
+    <string name="set_sort_name">По имени</string>
+    <string name="set_sort_latency">По пингу</string>
     <string name="dev_detailed_icons">Показывать подробные значки</string>
     <string name="dev_detailed_icons_hint">Вместо красного тире неудачные проверки серверов показывают маленький серый значок; нажмите на него, чтобы увидеть причину.</string>
     <string name="notif_connecting">Подключение…</string>

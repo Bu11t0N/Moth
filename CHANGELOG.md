@@ -8,8 +8,8 @@ Not released yet.
 
 ### Changes
 
-- New server order "As in subscription": servers are listed the way your provider arranged them. It is the default for new installs; your current choice is kept.
-- Sorting by name ignores flags and emoji at the start of server names, so countries are no longer split into separate groups.
+- New server sorting option "Default": servers are listed the way your provider arranged them. It is used for new installs; your current choice is kept. The other options are now called "By ping" and "By name".
+- "By name" ignores flags and emoji at the start of server names, so countries are no longer split into separate groups.
 
 ## 0.6.2
 

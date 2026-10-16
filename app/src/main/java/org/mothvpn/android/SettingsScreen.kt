@@ -203,7 +203,7 @@ import org.mothvpn.core.SubscriptionSchedule
                             }
                         } },
                         confirmButton = { TextButton(onClick = { languageDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
-                    val sortModes = listOf(ServerOrder.SUBSCRIPTION to tr(R.string.set_sort_subscription), ServerOrder.NAME to tr(R.string.set_sort_name), ServerOrder.LATENCY to tr(R.string.set_sort_latency))
+                    val sortModes = listOf(ServerOrder.SUBSCRIPTION to tr(R.string.set_sort_subscription), ServerOrder.LATENCY to tr(R.string.set_sort_latency), ServerOrder.NAME to tr(R.string.set_sort_name))
                     var sortDialog by remember { mutableStateOf(false) }
                     Card(Modifier.fillMaxWidth().animateContentSize().clickable { sortDialog = true }) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
