@@ -57,4 +57,10 @@ class ServerOrderTest {
         assertEquals(ServerOrder.LATENCY, old(true).serverSort)
         assertEquals(ServerOrder.NAME, old(false).serverSort)
     }
+    @Test fun newDesignToggleIsOffByDefaultAndPersists() {
+        assertFalse(ClientSettings().newDesign)
+        assertFalse(ClientSettings.from(ClientSettings().json().apply { remove("newDesign") }).newDesign)
+        assertTrue(ClientSettings.from(ClientSettings(newDesign = true).json()).newDesign)
+        assertEquals(listOf("newDesign=false->true"), ClientSettings().let { s -> LogFacts.settingsChanges(s, s.copy(newDesign = true)) })
+    }
 }
