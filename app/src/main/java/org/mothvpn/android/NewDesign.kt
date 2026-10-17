@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -211,7 +213,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         if (saved == null) Button(enabled = !busy, onClick = add, modifier = Modifier.heightIn(min = 56.dp)) { Text(tr(R.string.msg_add_subscription_16)) }
         Spacer(Modifier.weight(1f))
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
-        if (saved != null && source != null) HomeSubscriptionCard(book, source, network)
+        if (saved != null && source != null) NewSubscriptionCard(book, source, network)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         // The whole bar is one touch target: it opens the server sheet.
         if (selected != null) Surface(onClick = { sheet = true }, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -250,6 +252,70 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                             }
                             val (ms, failed) = ping(results, kind, p, network)
                             PingDot(ms, failed, Modifier.padding(start = 12.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Subscription card on the new home screen. The whole card is one touch target: with several subscriptions it opens the list of all of them,
+ * otherwise it shows the subscription link (local "My servers" have no link, so the card is not clickable then).
+ */
+@Composable fun NewSubscriptionCard(book: org.mothvpn.core.SubscriptionBook?, source: org.mothvpn.core.SubscriptionSource, network: AccessNetwork) {
+    val all = book?.sources.orEmpty()
+    val host = remember(source.url) { runCatching { java.net.URI(source.url).host }.getOrNull().orEmpty() }
+    var showAll by remember { mutableStateOf(false) }
+    var showLink by remember { mutableStateOf(false) }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clickable = all.size > 1 || !source.local
+    val title = source.name.ifBlank { source.providerName }.ifBlank { if (source.local) tr(R.string.import_local_name) else host }
+    Surface(onClick = { if (all.size > 1) showAll = true else showLink = true }, enabled = clickable, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = title + ": " + tr(if (all.size > 1) R.string.sub_all_show else R.string.sub_link_show) }) {
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val line = listOfNotNull(if (all.size > 1) tr(R.string.sub_count, all.size) else null, tr(R.string.sub_servers_count, source.profiles.size),
+                    if (!network.available) tr(R.string.msg_no_network_20) else if (network.kind == "mobile") tr(R.string.msg_mobile_data_21) else "Wi-Fi").joinToString(" · ")
+                Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+                    SubscriptionQuotaLine(org.mothvpn.core.SubscriptionRecord(source.url, source.profiles, "", usedBytes = source.usedBytes, totalBytes = source.totalBytes, expires = source.expires))
+                }
+            }
+            if (clickable) Icon(androidx.compose.material.icons.Icons.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
+        }
+    }
+    if (showAll) SubscriptionsSheet(all, { showAll = false }) { url -> clipboard.setText(androidx.compose.ui.text.AnnotatedString(url)) }
+    // The link is the user's own; it is shown in full here and is never written to the log.
+    if (showLink) AlertDialog(onDismissRequest = { showLink = false }, title = { Text(tr(R.string.sub_link_title)) },
+        text = { androidx.compose.foundation.text.selection.SelectionContainer { Text(source.url) } },
+        confirmButton = { TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(source.url)); showLink = false }) { Text(tr(R.string.sub_link_copy)) } },
+        dismissButton = { TextButton(onClick = { showLink = false }) { Text(tr(R.string.sub_link_close)) } })
+}
+
+/** All subscriptions as cards in a bottom sheet (as the server sheet): servers, traffic, end date, last update (not for local servers) and a copy-link button. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable private fun SubscriptionsSheet(sources: List<org.mothvpn.core.SubscriptionSource>, close: () -> Unit, copy: (String) -> Unit) {
+    val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0])
+    ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Text(tr(R.string.sub_all_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+        LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(sources, key = { it.id }) { s ->
+                Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
+                    Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(s.title().ifBlank { tr(R.string.import_local_name) }, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            val grey = MaterialTheme.colorScheme.onSurfaceVariant
+                            Text(tr(R.string.sub_servers_count, s.profiles.size), style = MaterialTheme.typography.bodySmall, color = grey)
+                            if (s.totalBytes > 0) Text(tr(R.string.msg_traffic_1f_1f_gib_18, s.usedBytes / 1073741824.0, s.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall, color = grey)
+                            if (s.expires in 1..253402300799L) Text(tr(R.string.msg_subscription_expires_on_19) + dates.format(java.util.Date(s.expires * 1000)), style = MaterialTheme.typography.bodySmall, color = grey)
+                            // Local servers ("My servers") are never downloaded, so they have no update date.
+                            if (!s.local && s.updatedAt > 0) Text(tr(R.string.sub_updated_on, dates.format(java.util.Date(s.updatedAt))), style = MaterialTheme.typography.bodySmall, color = grey)
+                        }
+                        if (!s.local) IconButton(onClick = { copy(s.url) }, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.sub_link_copy_link) }) {
+                            Icon(androidx.compose.material.icons.Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(22.dp))
                         }
                     }
                 }

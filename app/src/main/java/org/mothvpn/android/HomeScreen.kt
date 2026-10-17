@@ -129,7 +129,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
                     Text(tr(R.string.sub_servers_count, s.profiles.size), style = MaterialTheme.typography.bodySmall)
                     if (s.totalBytes > 0) Text(tr(R.string.msg_traffic_1f_1f_gib_18, s.usedBytes / 1073741824.0, s.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall)
                     if (s.expires in 1..253402300799L) Text(tr(R.string.msg_subscription_expires_on_19) + dates.format(java.util.Date(s.expires * 1000)), style = MaterialTheme.typography.bodySmall)
-                    if (s.updatedAt > 0) Text(tr(R.string.sub_updated_on, dates.format(java.util.Date(s.updatedAt))), style = MaterialTheme.typography.bodySmall)
+                    if (!s.local && s.updatedAt > 0) Text(tr(R.string.sub_updated_on, dates.format(java.util.Date(s.updatedAt))), style = MaterialTheme.typography.bodySmall)
                     if (!s.local) TextButton(onClick = { copy(s.url) }, contentPadding = PaddingValues(0.dp)) { Text(tr(R.string.sub_link_copy_link)) }
                 }
             }
