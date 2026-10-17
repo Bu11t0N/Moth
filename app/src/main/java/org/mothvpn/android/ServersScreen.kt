@@ -1,6 +1,13 @@
 package org.mothvpn.android
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.NetworkPing
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.geometry.Offset
@@ -90,7 +97,7 @@ import org.mothvpn.core.SubscriptionSource
             if (saved != null) Text(tr(R.string.msg_no_servers_found_59))
             if (saved == null) TextButton(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
             else TextButton(onClick = { search = ""; preferences(settings.copy(hideUnavailable = false)) }) { Text(tr(R.string.msg_show_all_60)) }
-        } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
+        } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(if (LocalNewDesign.current) 6.dp else 4.dp), contentPadding = PaddingValues(bottom = if (LocalNewDesign.current) 96.dp else 8.dp)) {
             // Favorites first (from every subscription), then one section per subscription.
             val groups = ServerGroups.of(book ?: SubscriptionBook(emptyList()), visibleK, settings.favorites)
             groups.forEach { group ->
@@ -99,7 +106,13 @@ import org.mothvpn.core.SubscriptionSource
             if (book != null) item(key = "header:$groupKey") {
                 val source = group.sourceId?.let(book::source)
                 val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true }
-                GroupHeader(source, group.profiles.size, folded, checking, toggle = { toggleGroup(groupKey) }) { if (source != null) actionsFor = source.id }
+                if (LocalNewDesign.current) {
+                    // This group's servers in the order shown (favorites: the favorite servers).
+                    val ids = group.profiles.map { it.id }
+                    NewGroupHeader(source, group.profiles.size, folded, checking, probing, canRefresh = source != null && !source.local && !locked, canCheck = canCheck && ids.isNotEmpty(),
+                        toggle = { toggleGroup(groupKey) }, refresh = { source?.let { refreshOne(it.id) } }, check = { probeGroup(k, ids) }, cancel = cancel,
+                        actions = { if (source != null) actionsFor = source.id })
+                } else GroupHeader(source, group.profiles.size, folded, checking, toggle = { toggleGroup(groupKey) }) { if (source != null) actionsFor = source.id }
             }
             if (!folded) items(group.profiles, key = { it.id }) { p ->
                 val chosen = p.id == saved?.selection(k)
@@ -154,8 +167,12 @@ import org.mothvpn.core.SubscriptionSource
             }
         }
     }
+    val nd = LocalNewDesign.current
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        // New design: no toolbar icons; refresh and check live in each group header, Add is the floating button.
+        if (nd) Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.headlineSmall, maxLines = 1, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+        else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             ActionIcon("add", tr(R.string.msg_add_subscription_16), !locked, add)
             ActionIcon("refresh", if ((book?.sources?.count { !it.local } ?: 0) > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), book?.sources?.any { !it.local } == true && !locked, refresh)
@@ -179,6 +196,12 @@ import org.mothvpn.core.SubscriptionSource
         // Fast snap: while a page is still settling the pager owns the touch and the list cannot scroll yet.
         HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top,
             flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = spring(stiffness = Spring.StiffnessHigh))) { KindPage(if (it == 0) "wifi" else "mobile") }
+    }
+    // Thumb reach: bottom-right. Adding is not possible while connected or checking (same rule as the classic toolbar button), so the button dims then.
+    if (nd) FloatingActionButton(onClick = { if (!locked) add() }, containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shape = MaterialTheme.shapes.large,
+        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp).graphicsLayer { alpha = if (locked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) }) {
+        Icon(androidx.compose.material.icons.Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(26.dp))
+    }
     }
     jsonFor?.let { p -> ServerJsonEditor(p, cancel = { jsonFor = null }) { outbound -> jsonFor = null; editServer(p.id, outbound) } }
     menuFor?.let { p ->
@@ -288,6 +311,46 @@ private enum class DetailIcon {
         }
         if (checking) CircularProgressIndicator(Modifier.padding(horizontal = 8.dp).size(16.dp), strokeWidth = 2.dp)
         if (source != null) IconButton(onClick = actions, modifier = Modifier.size(36.dp).semantics { contentDescription = tr(R.string.sub_actions) }) { MothIcon("menu", Modifier.size(20.dp)) }
+    }
+}
+
+/**
+ * Group header of the new design: one card with an animated chevron, the subscription name, the server count and quota, and 48 dp icon buttons
+ * to update this subscription, check its servers (stop while checking) and open the subscription menu.
+ */
+@Composable private fun NewGroupHeader(source: SubscriptionSource?, count: Int, collapsed: Boolean, checking: Boolean, probing: Boolean, canRefresh: Boolean, canCheck: Boolean,
+    toggle: () -> Unit, refresh: () -> Unit, check: () -> Unit, cancel: () -> Unit, actions: () -> Unit) {
+    val title = source?.title() ?: tr(R.string.fav_group)
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (collapsed) -90f else 0f, label = "chevron")
+    Surface(onClick = toggle, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 64.dp).semantics { contentDescription = tr(if (collapsed) R.string.group_expand else R.string.group_collapse) + ": " + title }) {
+        Row(Modifier.padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                Icon(androidx.compose.material.icons.Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(26.dp).graphicsLayer { rotationZ = turn })
+            }
+            Column(Modifier.weight(1f).padding(start = 4.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(tr(R.string.nd_group_servers, count), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                if (source != null) CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+                    SubscriptionQuotaLine(SubscriptionRecord(source.url, source.profiles, "", usedBytes = source.usedBytes, totalBytes = source.totalBytes, expires = source.expires))
+                }
+            }
+            if (source != null && !source.local) IconButton(onClick = refresh, enabled = canRefresh, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_update_subscription_48) }) {
+                Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(24.dp))
+            }
+            if (checking) IconButton(onClick = cancel, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_cancel_checks_49) }) {
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onSurface)
+                    Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                }
+            } else IconButton(onClick = check, enabled = canCheck && !probing, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_check_servers_50) }) {
+                Icon(androidx.compose.material.icons.Icons.Rounded.NetworkPing, contentDescription = null, modifier = Modifier.size(24.dp))
+            }
+            if (source != null) IconButton(onClick = actions, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.sub_actions) }) {
+                Icon(androidx.compose.material.icons.Icons.Rounded.MoreVert, contentDescription = null, modifier = Modifier.size(24.dp))
+            }
+        }
     }
 }
 
