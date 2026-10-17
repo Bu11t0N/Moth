@@ -42,4 +42,27 @@ object VpnChecks {
         log("notifications still shown $ms ms after disconnect: ids=$ids")
         throw AssertionError("notification still shown $ms ms after disconnect (ids=$ids)")
     }
+    /**
+     * Watches the VPN notification while connecting and keeps the first one shown in the RUNNING state (title no longer
+     * "Connecting…"/"Checking…"). Call [first] after the UI says the VPN is on. Only the line labels are logged, never the server name.
+     */
+    class FirstRunningNotification(private val context: android.content.Context) {
+        @Volatile var text: String? = null; private set
+        @Volatile private var stop = false
+        private val skip = setOf(context.getString(R.string.notif_connecting), context.getString(R.string.notif_checking))
+        private val thread = Thread {
+            val nm = context.getSystemService(android.app.NotificationManager::class.java)
+            while (!stop && text == null) {
+                if (TunnelStatus.state.value == TunnelState.RUNNING) nm.activeNotifications.firstOrNull { it.id == 1 }?.notification?.extras?.let { e ->
+                    val title = e.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString()
+                    if (title != null && title !in skip) text = (e.getCharSequence(android.app.Notification.EXTRA_BIG_TEXT) ?: "").toString()
+                }
+                Thread.sleep(10)
+            }
+        }.apply { isDaemon = true; start() }
+        fun first(ms: Long = 10_000): String {
+            thread.join(ms); stop = true
+            return text ?: throw AssertionError("no RUNNING notification seen")
+        }
+    }
 }
