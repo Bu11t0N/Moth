@@ -9,7 +9,7 @@ An open-source Android VPN client built with Kotlin, Jetpack Compose, sing-box a
 - Several subscriptions with their own name, traffic, end date, reminders and automatic updates, plus your own servers ("My servers").
 - Add a subscription or a server by opening a link (Moth, v2rayNG, Happ, Hiddify and sing-box import links, and server links); Moth always asks first.
 - Independent server selection for Wi-Fi and mobile data, favorites, and "Auto-select the best server".
-- HTTPS checks through each server, TCP port checks, tunnel health checks and a small download test.
+- HTTPS checks through each server, TCP port checks and tunnel health checks.
 - Kill switch, reconnection after network changes, start on boot and Android's Always-on VPN.
 - Split tunneling by app, routing rules (domains, keywords, IP ranges: VPN, direct or block) and "Russian sites and IPs directly".
 - DNS settings with DNS leak protection; DPI bypass (TLS fragmentation, UDP noise) and multiplexing, off by default.
@@ -67,7 +67,7 @@ Hysteria port hopping, TUIC v4, AmneziaWG, Shadowsocks plugins and Clash `dialer
 
 HTTPS checks establish a connection **through the selected server**. The default tries the configured URL, Cloudflare and Google; a custom URL can be used instead. Latency includes HTTPS connection setup and is not ICMP ping. Tunnel health is checked separately through Android's VPN network, without a direct-network fallback.
 
-TCP checks only show whether a port is reachable; they do not verify VPN traffic and cannot check UDP protocols such as Hysteria or TUIC. The speed icon downloads at most 1 MiB from Cloudflare and gives an approximate short-download rate.
+TCP checks only show whether a port is reachable; they do not verify VPN traffic and cannot check UDP protocols such as Hysteria or TUIC.
 
 Checks run on the current physical network. Switch off Wi-Fi to test mobile data. Results are separated by network type, marked when the network changes and reset when the app process ends. The unavailable-server filter only hides failed HTTPS checks from the last 15 minutes on the current network; unchecked, cancelled and TCP checks remain visible.
 

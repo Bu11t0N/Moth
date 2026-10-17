@@ -62,11 +62,10 @@ class RoutingTest {
         assertEquals("a", ServerPicker.next(r, "c", setOf("d")))
         assertNull(ServerPicker.next(r, "a", setOf("c", "d")))
     }
-    @Test fun scheduleAndSpeed() {
+    @Test fun schedule() {
         assertFalse(SubscriptionSchedule.due(0, 0, Long.MAX_VALUE))
         assertTrue(SubscriptionSchedule.due(6, 0, 6 * 3_600_000L))
         assertFalse(SubscriptionSchedule.due(24, 0, 3_600_000L))
-        assertEquals(80.0, SpeedTest.mbps(10_000_000, 1000), 0.001)
     }
     @Test fun importInputAndLinks() {
         assertEquals(ImportInput.Kind.Subscription("https://x.example/s"), ImportInput.classify("  https://x.example/s \n"))

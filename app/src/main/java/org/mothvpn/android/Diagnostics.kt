@@ -26,13 +26,11 @@ object Diagnostics {
     val health = healthMutable.asStateFlow()
     internal val runningMutable = MutableStateFlow(false)
     val running = runningMutable.asStateFlow()
-    internal val speedMutable = MutableStateFlow("")
-    val speed = speedMutable.asStateFlow()
     /** Puts back [previous] (or removes the entry) after a check was cancelled. */
     @Synchronized fun restore(id: String, previous: ProbeResult?) { resultsMutable.value = if (previous != null) resultsMutable.value + (id to previous) else resultsMutable.value - id }
     @Synchronized fun result(id: String, value: ProbeResult) { resultsMutable.value = resultsMutable.value + (id to value) }
     /** Built-in probe URLs are public and logged verbatim; a user-supplied URL is only reported as "custom". */
-    fun describeUrl(url: String): String = if (url in setOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204", "https://www.google.com/generate_204", "https://speed.cloudflare.com/__down?bytes=1048576")) url else "custom"
+    fun describeUrl(url: String): String = if (url in setOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204", "https://www.google.com/generate_204")) url else "custom"
     fun friendly(e: Throwable) = kindText(ProbeErrorKind.of(e))
     /** Localized text for an outcome code (used for the log-free tooltip of the detailed icons). */
     fun kindText(k: ProbeErrorKind) = when (k) {
@@ -72,7 +70,8 @@ class ProxyRequest(private val service: VpnService, private val port: Int, priva
     /** Last handshake stage reached by run(); only for diagnostics. */
     @Volatile var stage = "not started"; private set
     fun cancel() { runCatching { socket?.close() } }
-    fun run(address: String, downloadLimit: Int = 0): Pair<Long, Long> {
+    /** HTTPS request through the local proxy; returns the latency in ms (connect, TLS and the first response byte). */
+    fun run(address: String): Long {
         val url = URL(address)
         require(url.protocol == "https" && url.userInfo == null)
         val start = System.nanoTime()
@@ -131,35 +130,12 @@ class ProxyRequest(private val service: VpnService, private val port: Int, priva
             val status = line().split(' ').getOrNull(1)?.toIntOrNull()
             check(status in setOf(200, 204)) { "unexpected HTTP status $status" }
             stage = "HTTP headers"
-            val headers = mutableMapOf<String, String>()
-            while (true) { val l = line(); if (l.isEmpty()) break; headers[l.substringBefore(':').lowercase()] = l.substringAfter(':').trim() }
+            while (true) { if (line().isEmpty()) break }
             val latency = (System.nanoTime() - start) / 1_000_000
             stage = "HTTP body"
-            if (downloadLimit == 0) {
-                if (status == 200) { tls.soTimeout = timeout(); check(response.read() >= 0) }
-                stage = "done"
-                return latency to 0L
-            }
-            check(status == 200)
-            var bytes = 0L
-            val buffer = ByteArray(8192)
-            var remaining = headers["content-length"]?.toLongOrNull() ?: Long.MAX_VALUE
-            val chunked = headers["transfer-encoding"]?.lowercase()?.contains("chunked") == true
-            val downloadStart = System.nanoTime()
-            while (bytes < downloadLimit && remaining > 0) {
-                if (chunked) { headerBytes = 0; remaining = line().substringBefore(';').trim().toLong(16); if (remaining == 0L) break }
-                while (remaining > 0 && bytes < downloadLimit) {
-                    tls.soTimeout = timeout()
-                    val n = response.read(buffer, 0, minOf(buffer.size.toLong(), remaining, downloadLimit - bytes).toInt())
-                    if (n < 0) { if (headers["content-length"] != null || chunked) error("Incomplete download"); remaining = 0; break }
-                    remaining -= n; bytes += n
-                }
-                if (!chunked) break
-                if (remaining == 0L) { headerBytes = 0; check(line().isEmpty()) }
-            }
-            check(bytes > 0)
+            if (status == 200) { tls.soTimeout = timeout(); check(response.read() >= 0) }
             stage = "done"
-            return bytes to (System.nanoTime() - downloadStart).coerceAtLeast(1L)
+            return latency
         } finally { runCatching { socket?.close() }; socket = null }
     }
 }

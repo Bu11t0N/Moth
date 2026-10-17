@@ -35,7 +35,6 @@ import org.mothvpn.core.ProbeOrder
 import kotlin.concurrent.withLock
 import org.mothvpn.core.ProtectPolicy
 import org.mothvpn.core.ServerPicker
-import org.mothvpn.core.SpeedTest
 import org.mothvpn.core.SplitTunnel
 import java.net.ServerSocket
 import java.util.UUID
@@ -135,19 +134,17 @@ class TunnelService : VpnService(), PlatformInterface {
             if (TunnelStatus.state.value == TunnelState.RUNNING) healthExecutor.execute { checkHealth(SettingsStore(this).load()) }
         } else if (intent?.action == "CANCEL_PROBES") {
             cancelProbes()
-        } else if (intent?.action in setOf("PROBE", "SPEED")) {
+        } else if (intent?.action == "PROBE") {
             if (Diagnostics.running.value) { Logger.w("Probe", "request ignored: a check is already running"); return START_NOT_STICKY }
             foreground() // while connected the notification keeps showing the server name
             probeCancel = AtomicBoolean(false)
             val cancel = probeCancel
             val id = intent?.getStringExtra("profile")
-            val speed = intent?.action == "SPEED"
             val order = intent?.getStringArrayListExtra("order").orEmpty()
             Diagnostics.runningMutable.value = true
-            Logger.i("Probe", "${if (speed) "speed test" else "probe"} requested for ${if (id != null) "one profile" else if (intent?.getStringArrayListExtra("only").isNullOrEmpty()) "all profiles" else "one subscription"} requestedNetwork=${intent?.getStringExtra("network")}")
-            if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_download_test_up_to_1_mib_123)
+            Logger.i("Probe", "probe requested for ${if (id != null) "one profile" else if (intent?.getStringArrayListExtra("only").isNullOrEmpty()) "all profiles" else "one subscription"} requestedNetwork=${intent?.getStringExtra("network")}")
             executor.execute {
-                try { if (speed || SettingsStore(this).load().probeMode != "tcp") initCore(); probes.execute { probeProfiles(id, speed, cancel, intent?.getStringExtra("network"), order, intent?.getStringArrayListExtra("only").orEmpty().toSet()) } }
+                try { if (SettingsStore(this).load().probeMode != "tcp") initCore(); probes.execute { probeProfiles(id, cancel, intent?.getStringExtra("network"), order, intent?.getStringArrayListExtra("only").orEmpty().toSet()) } }
                 catch (t: Throwable) { Logger.e("Probe", "probe setup failed (initCore or scheduling)", t); Diagnostics.runningMutable.value = false; finish() }
             }
         }
@@ -241,7 +238,7 @@ class TunnelService : VpnService(), PlatformInterface {
         if (Diagnostics.running.value) { Logger.w("Tunnel", "auto select skipped: a check is already running"); return null }
         probeCancel = AtomicBoolean(false)
         Diagnostics.runningMutable.value = true
-        probeProfiles(null, false, probeCancel, access.kind, order)
+        probeProfiles(null, probeCancel, access.kind, order)
         val results = Diagnostics.results.value
         ranking = ServerPicker.ranking(order, order.associateWith { results["${access.kind}:$it"]?.takeIf { r -> !r.checking && r.networkHandle == access.handle }?.latencyMs })
         val best = ranking.firstOrNull()
@@ -464,22 +461,22 @@ class TunnelService : VpnService(), PlatformInterface {
         }
     }
     /** [only]: check just these servers (one subscription from its header menu); empty = all. */
-    private fun probeProfiles(id: String?, speed: Boolean, cancelled: AtomicBoolean, wantedNetwork: String?, shownOrder: List<String>, only: Set<String> = emptySet()) {
+    private fun probeProfiles(id: String?, cancelled: AtomicBoolean, wantedNetwork: String?, shownOrder: List<String>, only: Set<String> = emptySet()) {
         try {
             val settings = SettingsStore(this).load()
             val access = NetworkTracker.read(connectivity)
-            Logger.i("Probe", "probeProfiles: speed=$speed mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
+            Logger.i("Probe", "probeProfiles: mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
             if (!access.available || (wantedNetwork != null && wantedNetwork != access.kind)) { Logger.w("Probe", "skipped: network unavailable or changed"); return }
             val profiles = SubscriptionStore(this).load()?.profiles.orEmpty().filter { (id == null || it.id == id) && (only.isEmpty() || it.id in only) }.let { all -> ProbeOrder.arrange(all, shownOrder) { it.id } } // list order: the pool queue is FIFO
-            val pool = Executors.newFixedThreadPool(if (speed) 1 else settings.probeParallel.coerceAtMost(profiles.size).coerceAtLeast(1))
+            val pool = Executors.newFixedThreadPool(settings.probeParallel.coerceAtMost(profiles.size).coerceAtLeast(1))
             fun probeOne(profile: Profile) {
                 if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) return
                 val key = "${access.kind}:${profile.id}"
-                val method = if (!speed && settings.probeMode == "tcp") "TCP" else "HTTPS"
+                val method = if (settings.probeMode == "tcp") "TCP" else "HTTPS"
                 fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false, kind: ProbeErrorKind? = null) = Diagnostics.result(key,
                     ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled, kind = kind))
                 val before = Diagnostics.results.value[key]?.takeIf { !it.checking && !it.cancelled && it.networkHandle == access.handle }
-                if (!speed) result(checking = true)
+                result(checking = true)
                 val label = describe(profile)
                 var stage = "start"
                 Logger.i("Probe", "profile ${profiles.indexOf(profile)} method=$method $label network=${access.kind}")
@@ -513,14 +510,14 @@ class TunnelService : VpnService(), PlatformInterface {
                     }
                     stage = "local proxy ready"
                     Logger.d("Probe", "local proxy started ($label)")
-                    var measured: Pair<Long, Long>? = null
+                    var measured: Long? = null
                     var last: Throwable? = null
-                    for (url in if (speed) listOf(SpeedTest.url) else ProbePolicy.urls(settings)) {
+                    for (url in ProbePolicy.urls(settings)) {
                         if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
-                        val test = ProxyRequest(this, port, user, password, if (speed) 60_000L else settings.probeTimeoutMs.toLong(), cancelled)
+                        val test = ProxyRequest(this, port, user, password, settings.probeTimeoutMs.toLong(), cancelled)
                         requests.add(test)
                         stage = "request ${Diagnostics.describeUrl(url)}"
-                        try { measured = test.run(url, if (speed) SpeedTest.bytes else 0); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} ${measured?.first}${if (speed) " bytes" else " ms"} ($label)"); break }
+                        try { measured = test.run(url); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} $measured ms ($label)"); break }
                         catch (e: Throwable) {
                             last = e
                             Logger.w("Probe", "request failed url=${Diagnostics.describeUrl(url)} handshakeStage=${test.stage} method=$method network=${access.kind} ($label)", e)
@@ -529,15 +526,12 @@ class TunnelService : VpnService(), PlatformInterface {
                         }
                     }
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
-                        val measurement = measured ?: throw (last ?: java.net.SocketTimeoutException())
-                        if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_profile_name_1f_mbit_s_2f_mib_130, profile.name, measurement.first * 8000.0 / measurement.second, measurement.first / 1048576.0)
-                        else result(ms = measurement.first)
+                        result(ms = measured ?: throw (last ?: java.net.SocketTimeoutException()))
                     }
                 } catch (e: Throwable) {
                     Logger.e("Probe", "probe failed at stage '$stage' method=$method network=${access.kind} cancelled=${cancelled.get()} ($label)", e)
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
-                        if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_speed_test_failed_131)
-                        else if (ProbeErrorKind.of(e) == ProbeErrorKind.CANCELLED) Diagnostics.restore(key, before)
+                        if (ProbeErrorKind.of(e) == ProbeErrorKind.CANCELLED) Diagnostics.restore(key, before)
                         else result(error = Diagnostics.friendly(e), kind = ProbeErrorKind.of(e))
                     }
                 } finally {
@@ -546,12 +540,11 @@ class TunnelService : VpnService(), PlatformInterface {
                     runCatching { helper?.close() }.onFailure { Logger.w("Probe", "closing the dpi helper failed", it) }
                     runCatching { local?.close() }.onFailure { Logger.w("Probe", "closing the local core failed", it) }; runCatching { xr?.close() }.onFailure { Logger.w("Probe", "closing the local xray failed", it) }
                     // An interrupted check is not a failure: restore the last completed result from this network, or show nothing.
-                    if (!speed && Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, before)
+                    if (Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, before)
                 }
             }
             val futures = profiles.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }
             try { futures.forEach { runCatching { it.get() } } } finally { pool.shutdownNow() }
-            if (speed && (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle)) Diagnostics.speedMutable.value = tr(R.string.msg_test_cancelled_132)
         } catch (t: Throwable) {
             Logger.e("Probe", "probeProfiles aborted", t)
         } finally {

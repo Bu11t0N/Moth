@@ -50,7 +50,6 @@
     <string name="msg_update_subscription_48" formatted="false">"Обновить подписку"</string>
     <string name="msg_cancel_checks_49" formatted="false">"Отменить проверки"</string>
     <string name="msg_check_servers_50" formatted="false">"Проверить серверы"</string>
-    <string name="msg_measure_speed_download_up_to_1_mib_51" formatted="false">"Измерить скорость: загрузка 10 МБ"</string>
     <string name="msg_remove_subscription_52" formatted="false">"Удалить подписку"</string>
     <string name="msg_no_network_available_for_this_check_53" formatted="false">"Нет сети для проверки"</string>
     <string name="msg_to_check_mobile_data_enable_it_and_turn_off_w_54" formatted="false">"Для проверки включи мобильные данные и отключи Wi-Fi"</string>
@@ -120,15 +119,11 @@
     <string name="msg_too_many_redirects_119" formatted="false">"Слишком много перенаправлений"</string>
     <string name="msg_checking_internet_access_through_vpn_120" formatted="false">"Проверяем интернет через VPN…"</string>
     <string name="msg_checks_are_disabled_in_settings_121" formatted="false">"Проверка отключена в настройках"</string>
-    <string name="msg_download_test_up_to_1_mib_123" formatted="false">"Тест загрузки: 10 МБ…"</string>
     <string name="msg_vpn_connection_125" formatted="false">"VPN-подключение"</string>
     <string name="msg_disconnect_126" formatted="false">"Отключить"</string>
     <string name="msg_internet_access_through_vpn_is_available_127" formatted="false">"Интернет через VPN доступен"</string>
     <string name="msg_internet_check_through_vpn_failed_128" formatted="false">"Проверка интернета через VPN не прошла"</string>
     <string name="msg_udp_protocol_choose_an_https_check_129" formatted="false">"UDP-протокол: выбери HTTPS-проверку"</string>
-    <string name="msg_profile_name_1f_mbit_s_2f_mib_130" formatted="false">"%1$s: %2$.1f Мбит/с · %3$.2f МиБ"</string>
-    <string name="msg_speed_test_failed_131" formatted="false">"Тест скорости не прошёл"</string>
-    <string name="msg_test_cancelled_132" formatted="false">"Тест отменён"</string>
     <string name="msg_no_address_found_133" formatted="false">"Нет адреса"</string>
     <string name="msg_use_a_clash_subscription_with_a_proxies_list_134" formatted="false">"Нужна Clash-подписка с разделом proxies"</string>
     <string name="msg_clash_an_embedded_proxies_list_is_required_pr_135" formatted="false">"Clash: нужен встроенный список proxies; proxy-providers пока не поддерживаются"</string>
@@ -251,7 +246,6 @@
     <string name="import_paste">Вставить</string>
     <string name="import_scan">Сканировать QR</string>
     <string name="import_hint">Можно вставить или отсканировать и ссылку на отдельный сервер: такие серверы добавляются в «Мои серверы».</string>
-    <string name="server_speed_test">Тест скорости (загрузка 10 МБ)</string>
     <string name="server_share">Поделиться сервером</string>
     <string name="share_unavailable">Для этого сервера нет ссылки. Серверы из подписок Clash или Xray JSON поделиться нельзя; для остальных сначала обновите подписку.</string>
     <string name="share_warning">Ссылка содержит ключ сервера. Делитесь ею только с теми, кому доверяете.</string>

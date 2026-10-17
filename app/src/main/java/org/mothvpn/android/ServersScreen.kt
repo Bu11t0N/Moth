@@ -45,13 +45,12 @@ import org.mothvpn.core.SubscriptionSource
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable fun ServersScreen(saved: SavedSubscription?, book: SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
     add: () -> Unit, refresh: () -> Unit, refreshOne: (String) -> Unit, edit: (String, String, String) -> Unit, remove: (String) -> Unit, select: (String, String) -> Unit, probe: (String, List<String>) -> Unit,
-    probeGroup: (String, List<String>) -> Unit = { _, _ -> }, speedTest: (String, String?) -> Unit, cancel: () -> Unit, preferences: (ClientSettings) -> Unit,
+    probeGroup: (String, List<String>) -> Unit = { _, _ -> }, cancel: () -> Unit, preferences: (ClientSettings) -> Unit,
     editServer: (String, String) -> Unit = { _, _ -> }) {
     // Probe results arrive in bursts; apply at most one update per 250 ms so the list does not recompose constantly.
     var results by remember { mutableStateOf(Diagnostics.results.value) }
     LaunchedEffect(Unit) { Diagnostics.results.collect { results = it; delay(250) } }
     val probing by Diagnostics.running.collectAsState()
-    val speed by Diagnostics.speed.collectAsState()
     val tunnel by TunnelStatus.state.collectAsState()
     var kind by rememberSaveable { mutableStateOf(network.kind) }
     var search by rememberSaveable { mutableStateOf("") }
@@ -161,7 +160,6 @@ import org.mothvpn.core.SubscriptionSource
             ActionIcon("add", tr(R.string.msg_add_subscription_16), !locked, add)
             ActionIcon("refresh", if ((book?.sources?.count { !it.local } ?: 0) > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), book?.sources?.any { !it.local } == true && !locked, refresh)
             ActionIcon(if (probing) "stop" else "check", if (probing) tr(R.string.msg_cancel_checks_49) else tr(R.string.msg_check_servers_50), probing || canCheck) { if (probing) cancel() else probe(kind, visible.map { it.id }) } // snapshot of the displayed order at the moment of the tap
-            ActionIcon("speed", tr(R.string.msg_measure_speed_download_up_to_1_mib_51), canCheck) { speedTest(kind, null) }
         }
         TabRow(selectedTabIndex = if (kind == "wifi") 0 else 1) {
             Tab(selected = kind == "wifi", onClick = { kind = "wifi" }, text = { Text("Wi-Fi") })
@@ -174,7 +172,6 @@ import org.mothvpn.core.SubscriptionSource
         }
         OutlinedTextField(search, { search = it }, singleLine = true, placeholder = { Text(tr(R.string.msg_search_servers_57)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
         if (busy || probing) LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (speed.isNotBlank()) Text(speed, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         val pager = rememberPagerState(initialPage = if (kind == "wifi") 0 else 1) { 2 }
         LaunchedEffect(pager.currentPage) { kind = if (pager.currentPage == 0) "wifi" else "mobile" }
@@ -187,7 +184,6 @@ import org.mothvpn.core.SubscriptionSource
     menuFor?.let { p ->
         AlertDialog(onDismissRequest = { menuFor = null }, title = { Text(p.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
             Column {
-                TextButton(enabled = canCheck, onClick = { menuFor = null; speedTest(kind, p.id) }) { Text(tr(R.string.server_speed_test)) }
                 TextButton(onClick = { menuFor = null; shareFor = p }) { Text(tr(R.string.server_share)) }
                 val favorite = p.id in settings.favorites
                 TextButton(onClick = { menuFor = null; preferences(settings.copy(favorites = Favorites.toggle(settings.favorites, p.id))) }) { Text(tr(if (favorite) R.string.fav_remove else R.string.fav_add)) }

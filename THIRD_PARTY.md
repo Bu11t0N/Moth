@@ -60,7 +60,7 @@ When "Russian sites and IPs directly" is enabled, the app downloads these rule s
 - `geoip-ru.srs` from [SagerNet/sing-geoip](https://github.com/SagerNet/sing-geoip) (`rule-set` branch). The generator is GPL-3.0-or-later. The data comes from MaxMind GeoLite2 via [Dreamacro/maxmind-geoip](https://github.com/Dreamacro/maxmind-geoip) and is subject to MaxMind's GeoLite2 terms.
 - `geosite-category-ru.srs` from [SagerNet/sing-geosite](https://github.com/SagerNet/sing-geosite) (`rule-set` branch). The generator is GPL-3.0-or-later. The data comes from [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community), which is MIT-licensed.
 
-Network endpoints the app contacts are services, not bundled dependencies. These include the HTTPS check URLs and the speed test endpoint.
+Network endpoints the app contacts are services, not bundled dependencies. These include the HTTPS check URLs.
 
 ## Source code and building
 

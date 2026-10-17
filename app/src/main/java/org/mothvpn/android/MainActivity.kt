@@ -146,8 +146,7 @@ class MainActivity : AppCompatActivity() {
                                 1 -> ServersScreen(saved, book, settings, network, busy, message,
                                     add = { url = ""; subName = ""; dialog = true }, refresh = { refreshAll() }, refreshOne = { id -> book?.source(id)?.takeIf { !it.local }?.let { import(it.url, "refresh", id) } },
                                     edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
-                                    select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(null, false, kind, order) }, probeGroup = { kind, ids -> diagnose(null, false, kind, ids, only = ids) },
-                                    speedTest = { kind, id -> diagnose(id ?: saved?.selection(kind), true, kind) },
+                                    select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
                                     cancel = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("CANCEL_PROBES")) },
                                     preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) })
                                 2 -> {
@@ -385,10 +384,10 @@ class MainActivity : AppCompatActivity() {
         val profile = subscription.profiles.firstOrNull { it.id == subscription.selection(networks.state.value.kind) } ?: run { Logger.w("Tunnel", "connect ignored: the selected server is missing"); return }
         authorize(Intent(this, TunnelService::class.java).setAction("START").putExtra("profile", profile.id))
     }
-    private fun diagnose(id: String?, speed: Boolean, kind: String, order: List<String> = emptyList(), only: List<String> = emptyList()) {
-        Logger.i("Probe", "${if (speed) "speed test" else "check"} tapped (kind=$kind, network=${networks.state.value.kind}, available=${networks.state.value.available})")
+    private fun diagnose(kind: String, order: List<String> = emptyList(), only: List<String> = emptyList()) {
+        Logger.i("Probe", "check tapped (kind=$kind, network=${networks.state.value.kind}, available=${networks.state.value.available})")
         if (!networks.state.value.available || networks.state.value.kind != kind) { message = tr(R.string.msg_switch_networks_to_run_this_check_44); return }
-        authorize(Intent(this, TunnelService::class.java).setAction(if (speed) "SPEED" else "PROBE").putExtra("network", kind).putStringArrayListExtra("order", ArrayList(order)).apply { if (id != null) putExtra("profile", id); if (only.isNotEmpty()) putStringArrayListExtra("only", ArrayList(only)) })
+        authorize(Intent(this, TunnelService::class.java).setAction("PROBE").putExtra("network", kind).putStringArrayListExtra("order", ArrayList(order)).apply { if (only.isNotEmpty()) putStringArrayListExtra("only", ArrayList(only)) })
     }
     private fun authorize(action: Intent) {
         lifecycleScope.launch {
