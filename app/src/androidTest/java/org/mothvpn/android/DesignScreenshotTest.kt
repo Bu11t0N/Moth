@@ -50,9 +50,9 @@ class DesignScreenshotTest {
 
     private fun tab(name: String) { wait(By.text(name)).click(); Thread.sleep(900) }
 
-    private fun screens(theme: String) {
+    private fun screens(theme: String, amoled: Boolean = false) {
         reset()
-        SettingsStore(context).save(ClientSettings(hwid = hwid, theme = theme, newDesign = true))
+        SettingsStore(context).save(ClientSettings(hwid = hwid, theme = if (amoled) "dark" else theme, newDesign = true, amoled = amoled))
         eventually(30_000, "subscription downloaded") { SubscriptionRefresh.run(context, null, "https://10.0.2.2:8443/sub", null, SettingsStore(context).load(), "e2e"); true }
         val store = SubscriptionStore(context)
         val profile = store.load()!!.profiles.first { it.name == "E2E VLESS" }
@@ -70,6 +70,11 @@ class DesignScreenshotTest {
         wait(By.descStartsWith("Collapse:")).click(); Thread.sleep(700)
         shot("servers-collapsed-$theme")
         wait(By.descStartsWith("Expand:")).click(); Thread.sleep(500)
+        // Menus are bottom sheets with full-width rows: the subscription menu and a server's long-press menu.
+        wait(By.desc("Subscription actions")).click(); wait(By.text("Delete")); Thread.sleep(700)
+        shot("group-menu-$theme"); device.pressBack(); Thread.sleep(700)
+        wait(By.descStartsWith("E2E Trojan")).longClick(); wait(By.text("Share server")); Thread.sleep(700)
+        shot("server-menu-$theme"); device.pressBack(); Thread.sleep(700)
         tab("Home")
         val offBounds = wait(By.desc("Connect VPN").enabled(true)).visibleBounds
         shot("home-off-$theme")
@@ -108,4 +113,5 @@ class DesignScreenshotTest {
 
     @Test fun newDesignDark() = screens("dark")
     @Test fun newDesignLight() = screens("light")
+    @Test fun newDesignAmoled() = screens("amoled", amoled = true)
 }
