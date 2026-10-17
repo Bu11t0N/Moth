@@ -178,11 +178,23 @@ import org.mothvpn.core.SubscriptionSource
             ActionIcon("refresh", if ((book?.sources?.count { !it.local } ?: 0) > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), book?.sources?.any { !it.local } == true && !locked, refresh)
             ActionIcon(if (probing) "stop" else "check", if (probing) tr(R.string.msg_cancel_checks_49) else tr(R.string.msg_check_servers_50), probing || canCheck) { if (probing) cancel() else probe(kind, visible.map { it.id }) } // snapshot of the displayed order at the moment of the tap
         }
-        TabRow(selectedTabIndex = if (kind == "wifi") 0 else 1) {
+        if (nd) {
+            // New design: an M3 segmented button instead of tabs + swipe pager; the network hint is one quiet line.
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf("wifi" to "Wi-Fi", "mobile" to tr(R.string.msg_mobile_data_21)).forEachIndexed { i, (value, label) ->
+                    SegmentedButton(selected = kind == value, onClick = { kind = value }, shape = SegmentedButtonDefaults.itemShape(i, 2), icon = {},
+                        colors = SegmentedButtonDefaults.colors(activeContainerColor = MaterialTheme.colorScheme.primaryContainer, activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            inactiveContainerColor = Color.Transparent, activeBorderColor = MaterialTheme.colorScheme.outline, inactiveBorderColor = MaterialTheme.colorScheme.outline),
+                        modifier = Modifier.heightIn(min = 48.dp)) { Text(label, maxLines = 1) }
+                }
+            }
+            if (!network.available || kind != network.kind) Text(if (!network.available) tr(R.string.nd_checks_no_network) else tr(R.string.nd_checks_current_network),
+                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
+        } else TabRow(selectedTabIndex = if (kind == "wifi") 0 else 1) {
             Tab(selected = kind == "wifi", onClick = { kind = "wifi" }, text = { Text("Wi-Fi") })
             Tab(selected = kind == "mobile", onClick = { kind = "mobile" }, text = { Text(tr(R.string.msg_mobile_data_21)) })
         }
-        if (!network.available || kind != network.kind) Text(if (!network.available) tr(R.string.msg_no_network_available_for_this_check_53) else if (kind == "mobile") tr(R.string.msg_to_check_mobile_data_enable_it_and_turn_off_w_54) else tr(R.string.msg_connect_to_wi_fi_to_run_this_check_55), style = MaterialTheme.typography.bodySmall)
+        if (!nd && (!network.available || kind != network.kind)) Text(if (!network.available) tr(R.string.msg_no_network_available_for_this_check_53) else if (kind == "mobile") tr(R.string.msg_to_check_mobile_data_enable_it_and_turn_off_w_54) else tr(R.string.msg_connect_to_wi_fi_to_run_this_check_55), style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${visible.size} / ${profiles.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
             FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text(tr(R.string.msg_hide_unavailable_56)) })
@@ -190,12 +202,15 @@ import org.mothvpn.core.SubscriptionSource
         OutlinedTextField(search, { search = it }, singleLine = true, placeholder = { Text(tr(R.string.msg_search_servers_57)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
         if (busy || probing) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        if (nd) androidx.compose.animation.Crossfade(kind, Modifier.weight(1f).fillMaxWidth(), label = "network") { KindPage(it) }
+        else {
         val pager = rememberPagerState(initialPage = if (kind == "wifi") 0 else 1) { 2 }
         LaunchedEffect(pager.currentPage) { kind = if (pager.currentPage == 0) "wifi" else "mobile" }
         LaunchedEffect(kind) { val i = if (kind == "wifi") 0 else 1; if (pager.currentPage != i) pager.animateScrollToPage(i) }
         // Fast snap: while a page is still settling the pager owns the touch and the list cannot scroll yet.
         HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top,
             flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = spring(stiffness = Spring.StiffnessHigh))) { KindPage(if (it == 0) "wifi" else "mobile") }
+        }
     }
     // Thumb reach: bottom-right. Adding is not possible while connected or checking (same rule as the classic toolbar button), so the button dims then.
     if (nd) FloatingActionButton(onClick = { if (!locked) add() }, containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shape = MaterialTheme.shapes.large,

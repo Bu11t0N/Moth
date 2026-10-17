@@ -491,4 +491,6 @@
     <string name="server_balancer">Балансировщик</string>
     <string name="nd_group_servers">Серверов: %1$d</string>
     <string name="set_amoled">Чёрная тёмная тема (AMOLED)</string>
+    <string name="nd_checks_current_network">Проверка работает только в сети, к которой вы подключены</string>
+    <string name="nd_checks_no_network">Нет сети: проверка недоступна</string>
 </resources>

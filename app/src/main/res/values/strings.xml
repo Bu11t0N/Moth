@@ -487,4 +487,6 @@
     <string name="server_balancer">Balancer</string>
     <string name="nd_group_servers">Servers: %1$d</string>
     <string name="set_amoled">Pure black dark theme (AMOLED)</string>
+    <string name="nd_checks_current_network">Checks run only on the network you are connected to</string>
+    <string name="nd_checks_no_network">No network: checks are unavailable</string>
 </resources>
