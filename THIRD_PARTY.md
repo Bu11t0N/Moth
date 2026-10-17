@@ -38,18 +38,18 @@ Moth is not affiliated with SagerNet or XTLS. The sing-box license forbids using
 
 | Library | Version | License |
 |---|---|---|
-| AndroidX Activity Compose | 1.8.2 | Apache-2.0 |
-| AndroidX AppCompat | 1.6.1 | Apache-2.0 |
-| Compose Material 3 | 1.2.0 | Apache-2.0 |
-| Compose Material Icons Extended | 1.6.0 | Apache-2.0 |
-| AndroidX Lifecycle Runtime KTX | 2.7.0 | Apache-2.0 |
-| AndroidX WorkManager (work-runtime-ktx) | 2.9.1 | Apache-2.0 |
-| Kotlin standard library | 1.9.22 | Apache-2.0 |
-| kotlinx.coroutines (Android) | 1.7.3 | Apache-2.0 |
-| SnakeYAML | 2.2 | Apache-2.0 |
+| AndroidX Activity Compose | 1.13.0 | Apache-2.0 |
+| AndroidX AppCompat | 1.8.0 | Apache-2.0 |
+| Compose Material 3 (Compose BOM 2026.06.01) | 1.4.0 | Apache-2.0 |
+| Compose Material Icons Extended | 1.7.8 | Apache-2.0 |
+| AndroidX Lifecycle Runtime KTX | 2.10.0 | Apache-2.0 |
+| AndroidX WorkManager (work-runtime-ktx) | 2.12.0 | Apache-2.0 |
+| Kotlin standard library | 2.4.21 | Apache-2.0 |
+| kotlinx.coroutines (Android) | 1.11.0 | Apache-2.0 |
+| SnakeYAML | 2.7 | Apache-2.0 |
 | ZXing Android Embedded (`com.journeyapps`) | 4.3.0 | Apache-2.0 |
-| ZXing core (`com.google.zxing`) | 3.5.3 | Apache-2.0 |
-| org.json | 20240303 | Public domain; JVM module and tests only, excluded from the APK (Android's built-in `org.json` is used) |
+| ZXing core (`com.google.zxing`) | 3.5.4 | Apache-2.0 |
+| org.json | 20260814 | Public domain; JVM module and tests only, excluded from the APK (Android's built-in `org.json` is used) |
 
 The Apache-2.0 text is in [`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt). Transitive AndroidX and Compose dependencies are also Apache-2.0. Test-only dependencies (JUnit, AndroidX Test, UiAutomator) are not shipped in the APK.
 
