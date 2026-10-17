@@ -6,7 +6,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.NetworkPing
+import androidx.compose.material.icons.rounded.NetworkCheck
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -345,7 +345,7 @@ private enum class DetailIcon {
                     Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(14.dp))
                 }
             } else IconButton(onClick = check, enabled = canCheck && !probing, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_check_servers_50) }) {
-                Icon(androidx.compose.material.icons.Icons.Rounded.NetworkPing, contentDescription = null, modifier = Modifier.size(24.dp))
+                Icon(androidx.compose.material.icons.Icons.Rounded.NetworkCheck, contentDescription = null, modifier = Modifier.size(24.dp))
             }
             if (source != null) IconButton(onClick = actions, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.sub_actions) }) {
                 Icon(androidx.compose.material.icons.Icons.Rounded.MoreVert, contentDescription = null, modifier = Modifier.size(24.dp))

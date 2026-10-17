@@ -8,7 +8,7 @@ Not released yet.
 
 ### Changes
 
-- Experimental: a new monochrome design with larger buttons, a pulsing animation while connecting and a server list that opens from the bottom of the home screen. Turn it on in Settings → For developers → New design.
+- Experimental: a new monochrome design. The connect button is a moth that flaps its wings while connecting, the server list opens from the bottom of the home screen, and subscription groups have their own update and check buttons. Turn it on in Settings → For developers → New design.
 - The themed app icon on Android 13 and newer shows the moth silhouette clearly.
 - The speed test has been removed; server checks still show the ping.
 

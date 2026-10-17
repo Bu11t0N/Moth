@@ -1,10 +1,5 @@
 package org.mothvpn.android
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -94,22 +89,6 @@ object MonoTheme {
 }
 private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * blue) < 0.5f
 
-/** Three rings that grow out of the button and fade, while connecting (instead of a spinner). */
-@Composable private fun PulsingRings(color: Color, buttonSize: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
-    val t = rememberInfiniteTransition(label = "rings")
-    val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Restart), label = "phase")
-    Canvas(modifier) {
-        val base = buttonSize.toPx() / 2
-        val extra = size.minDimension / 2 - base
-        for (i in 0 until 3) {
-            val p = (phase + i / 3f) % 1f
-            val r = base + extra * p; val c = Offset(size.width / 2, size.height / 2)
-            drawCircle(color.copy(alpha = (1f - p) * 0.12f), radius = r, center = c)
-            drawCircle(color.copy(alpha = (1f - p) * 0.6f), radius = r, center = c, style = Stroke(3.dp.toPx()))
-        }
-    }
-}
-
 /**
  * The connect button of the new design: a moth seen from above. Off = wings folded back along the body, connecting = wings flapping (loop),
  * on = wings spread. Monochrome: dark theme grey off / near-white on, light theme grey off / black on. One large circular touch target.
@@ -130,7 +109,6 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
     Box(modifier.size(260.dp).clip(CircleShape)
         .clickable(enabled = enabled, onClick = onClick, role = androidx.compose.ui.semantics.Role.Button)
         .semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
-        if (flapping) PulsingRings(color, 150.dp, Modifier.fillMaxSize())
         Canvas(Modifier.size(210.dp).graphicsLayer { alpha = if (enabled || flapping) 1f else 0.55f }) { drawMoth(open.value, color, vein) }
     }
 }
@@ -179,7 +157,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     return r.latencyMs to (r.latencyMs == null && r.error != null)
 }
 
-/** Home screen of the new design: same content and actions as [HomeScreen], monochrome button, pulsing rings and a server bar with a bottom sheet. */
+/** Home screen of the new design: same content and actions as [HomeScreen], moth connect button and a server bar with a bottom sheet. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun NewHomeScreen(saved: SavedSubscription?, book: org.mothvpn.core.SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
     add: () -> Unit, connect: () -> Unit, select: (String, String) -> Unit, updateAvailable: Boolean = false, openUpdates: () -> Unit = {}) {
