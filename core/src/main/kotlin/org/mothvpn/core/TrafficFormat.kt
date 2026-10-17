@@ -21,4 +21,15 @@ object TrafficFormat {
         return if (s < 3600) String.format(Locale.ROOT, "%02d:%02d", s / 60, s % 60)
         else String.format(Locale.ROOT, "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60)
     }
+
+    /** Numbers shown in the connected notification: speed (bytes/s), totals since connecting (bytes) and connection time (s). */
+    data class Stats(val txRate: Long, val rxRate: Long, val txTotal: Long, val rxTotal: Long, val seconds: Long) {
+        companion object {
+            /** Right after connecting: the full layout with zeros, so the speed, total and time lines are there from the first notification. */
+            val CONNECTED = Stats(0, 0, 0, 0, 0)
+            /** One sample: [last]/[now] are the uid byte counters ([tx], [rx]) at [lastAt]/[at] ms; [base] the counters and [startedAt] the time of connecting. */
+            fun sample(baseTx: Long, baseRx: Long, lastTx: Long, lastRx: Long, tx: Long, rx: Long, startedAt: Long, lastAt: Long, at: Long) =
+                Stats(rate(lastTx, tx, at - lastAt), rate(lastRx, rx, at - lastAt), (tx - baseTx).coerceAtLeast(0), (rx - baseRx).coerceAtLeast(0), ((at - startedAt) / 1000).coerceAtLeast(0))
+        }
+    }
 }
