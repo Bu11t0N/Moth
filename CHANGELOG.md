@@ -11,6 +11,8 @@ Not released yet.
 - Experimental: a new monochrome design. The connect button is a moth that flaps its wings while connecting, the server list opens from the bottom of the home screen, and subscription groups have their own update and check buttons. Turn it on in Settings → For developers → New design.
 - The themed app icon on Android 13 and newer shows the moth silhouette clearly.
 - The speed test has been removed; server checks still show the ping.
+- New design: a pure black (AMOLED) option for the dark theme, a Wi-Fi / mobile data switch, menus that open from the bottom and a resting moth when the VPN is off.
+- “My servers” no longer show an update date.
 
 ## 0.6.5
 
