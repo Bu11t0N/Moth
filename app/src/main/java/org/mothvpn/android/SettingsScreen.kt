@@ -247,6 +247,8 @@ import org.mothvpn.core.SubscriptionSchedule
                     DeveloperSection({ logPage = 1 }, { logPage = 2 })
                     SettingsToggle(tr(R.string.dev_edit_servers), draft.editServers) { applySettings(draft.copy(editServers = it)) }
                     Text(tr(R.string.dev_edit_servers_hint), style = MaterialTheme.typography.bodySmall)
+                    SettingsToggle(tr(R.string.dev_new_design), draft.newDesign) { applySettings(draft.copy(newDesign = it)) }
+                    Text(tr(R.string.dev_new_design_hint), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.msg_about_78) -> {
                     Text(VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleLarge)
@@ -265,8 +267,11 @@ import org.mothvpn.core.SubscriptionSchedule
 
 @Composable private fun SettingsCategory(title: String, subtitle: String, icon: String, open: () -> Unit) {
     Card(Modifier.fillMaxWidth().clickable(onClick = open)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Surface(shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(40.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = if (LocalNewDesign.current) 72.dp else 0.dp).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            // New design: a plain monochrome icon, no coloured circle behind it.
+            if (LocalNewDesign.current) Box(Modifier.size(40.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                Icon(categoryIcon(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
+            } else Surface(shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(40.dp)) {
                 Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
                     Icon(categoryIcon(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(22.dp))
                 }
@@ -291,7 +296,12 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
     Text(text, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
 }
 @Composable private fun SettingsToggle(label: String, checked: Boolean, enabled: Boolean = true, change: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    // New design: the whole row (at least 56 dp high) toggles the switch.
+    if (LocalNewDesign.current) Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = enabled) { change(!checked) },
+        horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp))
+        Switch(checked = checked, onCheckedChange = change, enabled = enabled)
+    } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, modifier = Modifier.weight(1f).padding(top = 12.dp, end = 12.dp))
         Switch(checked = checked, onCheckedChange = change, enabled = enabled)
     }

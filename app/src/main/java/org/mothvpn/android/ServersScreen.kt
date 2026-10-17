@@ -105,10 +105,12 @@ import org.mothvpn.core.SubscriptionSource
             if (!folded) items(group.profiles, key = { it.id }) { p ->
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED } // cancelled checks show no indicator
-                Surface(color = if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
+                val nd = LocalNewDesign.current
+                Surface(color = if (nd) (if (chosen) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
+                        else if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    shape = if (nd) MaterialTheme.shapes.medium else RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = if (nd) (if (settings.compactServers) 64.dp else 72.dp) else 0.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
                         .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
-                    Row(Modifier.padding(horizontal = 14.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.padding(horizontal = if (nd) 18.dp else 14.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (p.id in settings.favorites) CompositionLocalProvider(LocalContentColor provides (if (isSystemInDarkTheme()) Color(0xFFFF6B8A) else Color(0xFFD81B60))) {
@@ -124,6 +126,10 @@ import org.mothvpn.core.SubscriptionSource
                         val red = if (dark) Color(0xFFFF6B6B) else Color(0xFFC62828)
                         when {
                             r?.checking == true -> CircularProgressIndicator(Modifier.padding(start = 12.dp).size(20.dp), strokeWidth = 2.dp) // only actively probed rows; queued rows show nothing
+                            r?.latencyMs != null && nd -> {
+                                if (detailed && r.method == "TCP") DetailBadge(DetailIcon.TCP_OK, tr(R.string.msg_port_is_reachable_vpn_traffic_has_not_been_ch_65), "TCP")
+                                PingDot(r.latencyMs, false, Modifier.padding(start = 10.dp))
+                            }
                             r?.latencyMs != null -> {
                                 if (detailed && r.method == "TCP") DetailBadge(DetailIcon.TCP_OK, tr(R.string.msg_port_is_reachable_vpn_traffic_has_not_been_ch_65), "TCP")
                                 Text("${r.latencyMs} ms", fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, modifier = Modifier.padding(start = 6.dp),
@@ -140,7 +146,7 @@ import org.mothvpn.core.SubscriptionSource
                                     else -> Diagnostics.kindText(kind)
                                 }
                                 DetailBadge(DetailIcon.of(kind), text, null)
-                            } else Text("—", color = red, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(start = 12.dp))
+                            } else if (nd) PingDot(null, true, Modifier.padding(start = 12.dp)) else Text("—", color = red, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(start = 12.dp))
                         }
                     }
                 }
