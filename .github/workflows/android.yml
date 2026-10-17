@@ -25,7 +25,7 @@ jobs:
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
       - name: Install pinned Android NDK
-        run: sdkmanager 'ndk;28.0.13004108' 'platforms;android-34' 'build-tools;34.0.0'
+        run: sdkmanager 'ndk;28.0.13004108' 'platforms;android-36' 'build-tools;35.0.0'
       - name: Cache pinned mobile core and corresponding source
         id: native-cache
         uses: actions/cache@v4
