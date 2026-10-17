@@ -59,7 +59,7 @@ import org.mothvpn.core.SubscriptionSource
 @Composable fun ServersScreen(saved: SavedSubscription?, book: SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
     add: () -> Unit, refresh: () -> Unit, refreshOne: (String) -> Unit, edit: (String, String, String) -> Unit, remove: (String) -> Unit, select: (String, String) -> Unit, probe: (String, List<String>) -> Unit,
     probeGroup: (String, List<String>) -> Unit = { _, _ -> }, cancel: () -> Unit, preferences: (ClientSettings) -> Unit,
-    editServer: (String, String) -> Unit = { _, _ -> }) {
+    editServer: (String, String) -> Unit = { _, _ -> }, selecting: Boolean = false) {
     // Probe results arrive in bursts; apply at most one update per 250 ms so the list does not recompose constantly.
     var results by remember { mutableStateOf(Diagnostics.results.value) }
     LaunchedEffect(Unit) { Diagnostics.results.collect { results = it; delay(250) } }
@@ -206,7 +206,8 @@ import org.mothvpn.core.SubscriptionSource
             FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text(tr(R.string.msg_hide_unavailable_56)) })
         }
         OutlinedTextField(search, { search = it }, singleLine = true, placeholder = { Text(tr(R.string.msg_search_servers_57)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
-        if (busy || probing) LinearProgressIndicator(Modifier.fillMaxWidth())
+        // New design: switching servers shows no progress bar (the selection highlight is enough).
+        if ((busy && !(nd && selecting)) || probing) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         if (nd) androidx.compose.animation.Crossfade(kind, Modifier.weight(1f).fillMaxWidth(), label = "network") { KindPage(it) }
         else {

@@ -49,6 +49,8 @@ class MainActivity : AppCompatActivity() {
     private var updateAvailable by mutableStateOf(false)
     private var openUpdates by mutableStateOf(false)
     private var busy by mutableStateOf(false)
+    /** True while [select] saves a server choice (busy for that short moment); the new design shows no progress bar for it. */
+    private var selecting by mutableStateOf(false)
     /** Import offered by a link that opened the app; shown in a confirmation dialog, never logged. */
     private var deepLink by mutableStateOf<org.mothvpn.core.DeepLinks.Action?>(null)
     private var messageState by mutableStateOf("")
@@ -148,7 +150,7 @@ class MainActivity : AppCompatActivity() {
                                     edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
                                     select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
                                     cancel = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("CANCEL_PROBES")) },
-                                    preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) })
+                                    preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) }, selecting = selecting)
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
@@ -332,7 +334,7 @@ class MainActivity : AppCompatActivity() {
         val switching = TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED) && kind == networks.state.value.kind && id != TunnelStatus.activeProfile.value
         val next = saved?.let { if (kind == "mobile") it.copy(selected = id, mobileSelected = id) else it.copy(selected = id, wifiSelected = id) } ?: return
         val nextBook = book?.withSelection(next)
-        busy = true
+        busy = true; selecting = true
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) { store.save(next) }; if (nextBook != null) show(nextBook) else saved = next
@@ -344,7 +346,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             catch (e: Exception) { Logger.e("Store", "saving the selected server failed", e); message = tr(R.string.msg_could_not_save_the_selected_server_41) }
-            finally { busy = false }
+            finally { busy = false; selecting = false }
         }
     }
     /** Replaces all subscriptions and settings with a validated backup. Only offered while the VPN is off and no check runs. */
