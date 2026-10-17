@@ -2,6 +2,14 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.6.5
+
+Not released yet.
+
+### Changes
+
+- The notification shows speed, traffic and connection time right after connecting.
+
 ## 0.6.4
 
 Released 2026-10-16.
