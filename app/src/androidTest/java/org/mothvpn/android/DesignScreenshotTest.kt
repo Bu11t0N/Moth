@@ -9,6 +9,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -17,8 +18,9 @@ import org.mothvpn.core.ClientSettings
 import java.io.File
 
 /**
- * 0.7 "New design" (developer toggle) on the CI emulator: home off/connecting/on, the server sheet, the servers tab and
- * Settings, in the dark and the light theme. Screenshots go to the app's external cache (design/), pulled as a CI artifact.
+ * 0.7 "New design" (developer toggle) on the CI emulator: home off/connecting (moth flapping, 3 frames)/on, the server sheet,
+ * the servers tab (group header, collapsed group, add button) and Settings, in the dark and the light theme. Also checks that the moth
+ * button does not move when the status lines change. Screenshots go to the app's external cache (design/), pulled as a CI artifact.
  * Only screen names and states are logged, never server data.
  */
 @RunWith(AndroidJUnit4::class)
@@ -57,29 +59,43 @@ class DesignScreenshotTest {
         store.save(store.load()!!.copy(selected = profile.id, wifiSelected = profile.id, mobileSelected = profile.id))
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         wait(By.text("Settings")); Thread.sleep(800)
-        // Ping values for the dots: check all servers from the Servers tab.
+        // Ping values for the dots: the group header's check button (the new design has no toolbar icons).
         tab("Servers")
+        wait(By.desc("Add subscription"))
         wait(By.desc("Check servers").enabled(true), 30_000).click()
         eventually(5_000, "checks started") { Diagnostics.running.value }
         eventually(90_000, "checks finished") { !Diagnostics.running.value }
         Thread.sleep(800)
         shot("servers-$theme")
+        wait(By.descStartsWith("Collapse:")).click(); Thread.sleep(700)
+        shot("servers-collapsed-$theme")
+        wait(By.descStartsWith("Expand:")).click(); Thread.sleep(500)
         tab("Home")
-        wait(By.desc("Connect VPN").enabled(true))
+        val offBounds = wait(By.desc("Connect VPN").enabled(true)).visibleBounds
         shot("home-off-$theme")
-        // Connecting lasts about a second here: grab frames while STARTING and keep the last one (rings grown).
+        // Connecting lasts about a second here: grab frames while STARTING, keep the last few (moth flapping) and save three of them.
         wait(By.desc("Connect VPN").enabled(true)).click()
         val clicked = System.currentTimeMillis()
-        var frame: android.graphics.Bitmap? = null
+        val frames = ArrayDeque<android.graphics.Bitmap>()
         eventually(10_000, "connecting started") { TunnelStatus.state.value != TunnelState.OFF }
         while (TunnelStatus.state.value == TunnelState.STARTING && System.currentTimeMillis() - clicked < 15_000) {
             val bmp = instrumentation.uiAutomation.takeScreenshot()
-            if (TunnelStatus.state.value == TunnelState.STARTING && System.currentTimeMillis() - clicked > 250 && bmp != null) { frame?.recycle(); frame = bmp } else bmp?.recycle()
+            if (TunnelStatus.state.value == TunnelState.STARTING && System.currentTimeMillis() - clicked > 250 && bmp != null) {
+                frames.addLast(bmp); if (frames.size > 5) frames.removeFirst().recycle()
+            } else bmp?.recycle()
         }
-        val connecting = frame != null
-        frame?.let { f -> File(out, "home-connecting-$theme.png").outputStream().use { f.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; log("design screenshot: home-connecting-$theme") }
-        log("connecting screenshot taken while STARTING: $connecting")
-        wait(By.text("VPN is on"), 60_000); Thread.sleep(2500)
+        fun save(f: android.graphics.Bitmap, name: String) { File(out, "$name.png").outputStream().use { f.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; log("design screenshot: $name") }
+        frames.lastOrNull()?.let { save(it, "home-connecting-$theme") }
+        val picks = if (frames.size >= 3) listOf(0, frames.size / 2, frames.size - 1) else frames.indices.toList()
+        picks.forEachIndexed { i, idx -> save(frames.elementAt(idx), "flap-${i + 1}-$theme") }
+        log("connecting frames taken while STARTING: ${frames.size}")
+        frames.forEach { it.recycle() }
+        wait(By.text("VPN is on"), 60_000)
+        // The health line ("Checking internet access…", then the result) must not push the moth down.
+        eventually(20_000, "health line") { device.findObject(By.textStartsWith("Checking internet")) != null || device.findObject(By.textContains("available")) != null }
+        assertEquals("moth button moved when the status changed", offBounds, wait(By.desc("Disconnect VPN")).visibleBounds)
+        Thread.sleep(2500)
+        assertEquals("moth button moved when the status changed", offBounds, wait(By.desc("Disconnect VPN")).visibleBounds)
         shot("home-on-$theme")
         wait(By.descStartsWith("Choose server")).click()
         wait(By.text("Servers")); Thread.sleep(1200)
