@@ -204,7 +204,14 @@ import org.mothvpn.core.SubscriptionSource
     }
     }
     jsonFor?.let { p -> ServerJsonEditor(p, cancel = { jsonFor = null }) { outbound -> jsonFor = null; editServer(p.id, outbound) } }
-    menuFor?.let { p ->
+    if (nd) menuFor?.let { p ->
+        NdActionSheet(p.name, { menuFor = null }) {
+            NdSheetItem(tr(R.string.server_share)) { menuFor = null; shareFor = p }
+            val favorite = p.id in settings.favorites
+            NdSheetItem(tr(if (favorite) R.string.fav_remove else R.string.fav_add)) { menuFor = null; preferences(settings.copy(favorites = Favorites.toggle(settings.favorites, p.id))) }
+            if (settings.editServers) NdSheetItem(tr(R.string.edit_json), enabled = !busy) { menuFor = null; jsonFor = p }
+        }
+    } else menuFor?.let { p ->
         AlertDialog(onDismissRequest = { menuFor = null }, title = { Text(p.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
             Column {
                 TextButton(onClick = { menuFor = null; shareFor = p }) { Text(tr(R.string.server_share)) }
@@ -215,7 +222,17 @@ import org.mothvpn.core.SubscriptionSource
         }, confirmButton = { TextButton(onClick = { menuFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
     }
     shareFor?.let { p -> ShareServerDialog(p) { shareFor = null } }
-    actionsFor?.let { id -> book?.source(id) }?.let { source ->
+    if (nd) actionsFor?.let { id -> book?.source(id) }?.let { source ->
+        NdActionSheet(source.title(), { actionsFor = null }) {
+            NdSheetItem(tr(R.string.sub_edit), enabled = !locked) { actionsFor = null; editFor = source.id }
+            if (!source.local) NdSheetItem(tr(R.string.sub_update), enabled = !locked) { actionsFor = null; refreshOne(source.id) }
+            val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }.ifEmpty { source.profiles.map { it.id } }
+            NdSheetItem(tr(R.string.sub_check), enabled = canCheck) { actionsFor = null; probeGroup(kind, ids) }
+            NdSheetItem(tr(R.string.sub_delete), enabled = !locked) { actionsFor = null; delete = source.id }
+            if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+        }
+    } else actionsFor?.let { id -> book?.source(id) }?.let { source ->
         AlertDialog(onDismissRequest = { actionsFor = null }, title = { Text(source.title(), maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
             Column {
                 TextButton(enabled = !locked, onClick = { actionsFor = null; editFor = source.id }) { Text(tr(R.string.sub_edit)) }
