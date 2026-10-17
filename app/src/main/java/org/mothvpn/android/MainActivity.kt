@@ -122,7 +122,11 @@ class MainActivity : AppCompatActivity() {
             var url by remember { mutableStateOf("") }
             var subName by remember { mutableStateOf("") }
             val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
-            MaterialTheme(colorScheme = if (dark) darkColorScheme(primary = Color(0xFF83DCC6), background = Color(0xFF101A23), surface = Color(0xFF1C2A35)) else lightColorScheme()) {
+            val newDesign = settings.newDesign
+            val scheme = if (newDesign) (if (dark) MonoTheme.dark else MonoTheme.light)
+                else if (dark) darkColorScheme(primary = Color(0xFF83DCC6), background = Color(0xFF101A23), surface = Color(0xFF1C2A35)) else lightColorScheme()
+            CompositionLocalProvider(LocalNewDesign provides newDesign) {
+            MaterialTheme(colorScheme = scheme, shapes = if (newDesign) MonoTheme.shapes else MaterialTheme.shapes) {
                 Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().statusBarsPadding()) {
                         Box(Modifier.weight(1f)) {
@@ -131,7 +135,11 @@ class MainActivity : AppCompatActivity() {
                                 (fadeIn(tween(220, delayMillis = 60)) + slideInHorizontally(tween(260)) { it / 12 * dir }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(260)) { -it / 12 * dir })
                             }, label = "tab") { shown ->
                             when (shown) {
-                                0 -> HomeScreen(saved, book, network, busy, message,
+                                0 -> if (newDesign) NewHomeScreen(saved, book, settings, network, busy, message,
+                                    add = { url = ""; subName = ""; dialog = true },
+                                    connect = { if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || TunnelStatus.trafficBlocked(TunnelStatus.state.value, TunnelStatus.blocking.value)) stop() else connect() },
+                                    select = { id, kind -> select(id, kind) }, updateAvailable = updateAvailable, openUpdates = { openUpdates = true; tab = 2 })
+                                else HomeScreen(saved, book, network, busy, message,
                                     add = { url = ""; subName = ""; dialog = true },
                                     connect = { if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || TunnelStatus.trafficBlocked(TunnelStatus.state.value, TunnelStatus.blocking.value)) stop() else connect() }, servers = { tab = 1 },
                                     updateAvailable = updateAvailable, openUpdates = { openUpdates = true; tab = 2 })
@@ -195,6 +203,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }, confirmButton = { TextButton(enabled = url.isNotBlank(), onClick = { dialog = false; import(url, name = subName.trim().ifEmpty { null }); url = ""; subName = "" }) { Text(tr(R.string.msg_add_31)) } }, dismissButton = { TextButton(onClick = { dialog = false; url = ""; subName = "" }) { Text(tr(R.string.msg_cancel_32)) } })
                 }
+            }
             }
         }
     }

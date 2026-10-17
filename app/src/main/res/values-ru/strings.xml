@@ -480,6 +480,9 @@
     <string name="sub_all_title">Подписки</string>
     <string name="sub_updated_on">Обновлена: %1$s</string>
     <string name="sub_link_copy_link">Скопировать ссылку</string>
+    <string name="dev_new_design">Новый дизайн</string>
+    <string name="dev_new_design_hint">Экспериментально: монохромное оформление, крупные кнопки и выбор сервера снизу на главном экране.</string>
+    <string name="nd_choose_server">Выбрать сервер</string>
     <string name="dev_edit_servers">Редактирование серверов</string>
     <string name="dev_edit_servers_hint">Добавляет «Изменить JSON» в меню сервера по долгому нажатию.</string>
     <string name="edit_json">Изменить JSON</string>

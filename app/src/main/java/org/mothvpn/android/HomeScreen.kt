@@ -74,40 +74,45 @@ import androidx.compose.foundation.text.selection.SelectionContainer
         Spacer(Modifier.weight(1f))
         // The card shows the subscription of the selected server (its own link, traffic and end date).
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
-        if (saved != null && source != null) Card(Modifier.fillMaxWidth()) {
-            val saved = source
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                val host = remember(saved.url) { runCatching { URI(saved.url).host }.getOrNull().orEmpty() }
-                val title = saved.name.ifBlank { saved.providerName }
-                if (title.isNotBlank() && title != host) Text(title, style = MaterialTheme.typography.titleMedium)
-                if ((book?.sources?.size ?: 0) > 1) Text(tr(R.string.sub_count, book?.sources?.size ?: 0), style = MaterialTheme.typography.labelMedium)
-                var showLink by remember { mutableStateOf(false) }
-                val clipboard = LocalClipboardManager.current
-                var showAll by remember { mutableStateOf(false) }
-                val all = book?.sources.orEmpty()
-                // "<host> · N servers": with several subscriptions it opens the list of all of them (not only the selected server's one).
-                if (all.size > 1) TextButton(onClick = { showAll = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
-                    .semantics { contentDescription = tr(R.string.sub_all_show) }) {
-                    Text(if (saved.local) tr(R.string.sub_servers_count, saved.profiles.size) else tr(R.string.msg_host_saved_profiles_size_servers_17, host, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
-                }
-                else if (!saved.local) TextButton(onClick = { showLink = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
-                    .semantics { contentDescription = tr(R.string.sub_link_show) }) {
-                    Text(tr(R.string.msg_host_saved_profiles_size_servers_17, host, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
-                }
-                else Text(tr(R.string.sub_servers_count, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
-                if (showAll) SubscriptionsDialog(all, { showAll = false }) { url -> clipboard.setText(AnnotatedString(url)) }
-                // The link is the user's own; it is shown in full here and is never written to the log.
-                if (showLink) AlertDialog(onDismissRequest = { showLink = false }, title = { Text(tr(R.string.sub_link_title)) },
-                    text = { SelectionContainer { Text(saved.url) } },
-                    confirmButton = { TextButton(onClick = { clipboard.setText(AnnotatedString(saved.url)); showLink = false }) { Text(tr(R.string.sub_link_copy)) } },
-                    dismissButton = { TextButton(onClick = { showLink = false }) { Text(tr(R.string.sub_link_close)) } })
-                if (saved.totalBytes > 0) Text(tr(R.string.msg_traffic_1f_1f_gib_18, saved.usedBytes / 1073741824.0, saved.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall)
-                if (saved.expires in 1..253402300799L) Text(tr(R.string.msg_subscription_expires_on_19) + java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0]).format(java.util.Date(saved.expires * 1000)), style = MaterialTheme.typography.bodySmall)
-                Text(if (!network.available) tr(R.string.msg_no_network_20) else if (network.kind == "mobile") tr(R.string.msg_mobile_data_21) else "Wi-Fi", style = MaterialTheme.typography.labelMedium)
-            }
-        }
+        if (saved != null && source != null) HomeSubscriptionCard(book, source, network)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** The subscription of the selected server: its name, link, traffic, end date and the current network (shared by both designs). */
+@Composable fun HomeSubscriptionCard(book: org.mothvpn.core.SubscriptionBook?, source: org.mothvpn.core.SubscriptionSource, network: AccessNetwork, modifier: Modifier = Modifier.fillMaxWidth()) {
+    Card(modifier) {
+        val saved = source
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            val host = remember(saved.url) { runCatching { URI(saved.url).host }.getOrNull().orEmpty() }
+            val title = saved.name.ifBlank { saved.providerName }
+            if (title.isNotBlank() && title != host) Text(title, style = MaterialTheme.typography.titleMedium)
+            if ((book?.sources?.size ?: 0) > 1) Text(tr(R.string.sub_count, book?.sources?.size ?: 0), style = MaterialTheme.typography.labelMedium)
+            var showLink by remember { mutableStateOf(false) }
+            val clipboard = LocalClipboardManager.current
+            var showAll by remember { mutableStateOf(false) }
+            val all = book?.sources.orEmpty()
+            // "<host> · N servers": with several subscriptions it opens the list of all of them (not only the selected server's one).
+            if (all.size > 1) TextButton(onClick = { showAll = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
+                .semantics { contentDescription = tr(R.string.sub_all_show) }) {
+                Text(if (saved.local) tr(R.string.sub_servers_count, saved.profiles.size) else tr(R.string.msg_host_saved_profiles_size_servers_17, host, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
+            }
+            else if (!saved.local) TextButton(onClick = { showLink = true }, contentPadding = PaddingValues(0.dp), modifier = Modifier.heightIn(min = 32.dp)
+                .semantics { contentDescription = tr(R.string.sub_link_show) }) {
+                Text(tr(R.string.msg_host_saved_profiles_size_servers_17, host, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
+            }
+            else Text(tr(R.string.sub_servers_count, saved.profiles.size), style = MaterialTheme.typography.bodySmall)
+            if (showAll) SubscriptionsDialog(all, { showAll = false }) { url -> clipboard.setText(AnnotatedString(url)) }
+            // The link is the user's own; it is shown in full here and is never written to the log.
+            if (showLink) AlertDialog(onDismissRequest = { showLink = false }, title = { Text(tr(R.string.sub_link_title)) },
+                text = { SelectionContainer { Text(saved.url) } },
+                confirmButton = { TextButton(onClick = { clipboard.setText(AnnotatedString(saved.url)); showLink = false }) { Text(tr(R.string.sub_link_copy)) } },
+                dismissButton = { TextButton(onClick = { showLink = false }) { Text(tr(R.string.sub_link_close)) } })
+            if (saved.totalBytes > 0) Text(tr(R.string.msg_traffic_1f_1f_gib_18, saved.usedBytes / 1073741824.0, saved.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall)
+            if (saved.expires in 1..253402300799L) Text(tr(R.string.msg_subscription_expires_on_19) + java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0]).format(java.util.Date(saved.expires * 1000)), style = MaterialTheme.typography.bodySmall)
+            Text(if (!network.available) tr(R.string.msg_no_network_20) else if (network.kind == "mobile") tr(R.string.msg_mobile_data_21) else "Wi-Fi", style = MaterialTheme.typography.labelMedium)
+        }
     }
 }
 
