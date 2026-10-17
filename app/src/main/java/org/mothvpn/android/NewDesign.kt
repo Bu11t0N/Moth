@@ -75,7 +75,7 @@ object MonoTheme {
         large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(32.dp))
 }
 
-/** Green/yellow/red dot by latency band plus the number in grey; a grey dash when the check failed. */
+/** Green/yellow/red dot by latency band plus the number in grey; a failed check shows only a grey dash (no dot). */
 @Composable fun PingDot(latencyMs: Long?, failed: Boolean, modifier: Modifier = Modifier) {
     val dark = MaterialTheme.colorScheme.background.luminanceLow()
     val color = when {
@@ -88,9 +88,10 @@ object MonoTheme {
     }
     if (latencyMs == null && !failed) return
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Canvas(Modifier.size(8.dp)) { drawCircle(color) }
+        // The coloured dot only goes with a real ping number; a failed check is just a grey dash.
+        if (latencyMs != null) Canvas(Modifier.size(8.dp)) { drawCircle(color) }
         Text(if (latencyMs != null) "$latencyMs ms" else "—", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1, modifier = Modifier.padding(start = 6.dp))
+            maxLines = 1, modifier = Modifier.padding(start = if (latencyMs != null) 6.dp else 0.dp))
     }
 }
 private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * blue) < 0.5f
