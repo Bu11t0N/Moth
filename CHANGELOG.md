@@ -2,6 +2,14 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.7.0
+
+Not released yet.
+
+### Changes
+
+- Experimental: a new monochrome design with larger buttons, a pulsing animation while connecting and a server list that opens from the bottom of the home screen. Turn it on in Settings → For developers → New design.
+
 ## 0.6.5
 
 Released 2026-10-17.
