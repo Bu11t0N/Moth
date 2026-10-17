@@ -106,8 +106,9 @@ import org.mothvpn.core.SubscriptionSource
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED } // cancelled checks show no indicator
                 val nd = LocalNewDesign.current
-                Surface(color = if (nd) (if (chosen) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
+                Surface(color = if (nd) (if (chosen) NewDesignRow.selectedColor() else MaterialTheme.colorScheme.surfaceContainerHigh)
                         else if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    border = if (nd) NewDesignRow.selectedBorder(chosen) else null,
                     shape = if (nd) MaterialTheme.shapes.medium else RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = if (nd) (if (settings.compactServers) 64.dp else 72.dp) else 0.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
                         .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
                     Row(Modifier.padding(horizontal = if (nd) 18.dp else 14.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {

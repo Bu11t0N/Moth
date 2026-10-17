@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +38,13 @@ import org.mothvpn.core.VersionLabel
 val LocalNewDesign = staticCompositionLocalOf { false }
 
 /** Monochrome Material 3 schemes (black, white and greys; no dynamic/wallpaper colour). Errors stay red so warnings remain readable. */
+/** Selected server row in the new design: no check mark, a stronger fill plus an outline so it stands out in both themes. */
+object NewDesignRow {
+    @Composable fun selectedColor(): Color = MaterialTheme.colorScheme.primaryContainer
+    @Composable fun selectedBorder(chosen: Boolean): androidx.compose.foundation.BorderStroke? =
+        if (chosen) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)) else null
+}
+
 object MonoTheme {
     val dark = darkColorScheme(
         primary = Color(0xFFF2F2F2), onPrimary = Color(0xFF000000), primaryContainer = Color(0xFF3A3A3A), onPrimaryContainer = Color(0xFFFFFFFF),
@@ -189,7 +195,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                 items(ordered, key = { it.id }) { p ->
                     val chosen = p.id == selected?.id
                     Surface(onClick = { if (canSelect) { select(p.id, kind); sheet = false } }, enabled = canSelect, shape = MaterialTheme.shapes.medium,
-                        color = if (chosen) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                        color = if (chosen) NewDesignRow.selectedColor() else MaterialTheme.colorScheme.surfaceContainerLow, border = NewDesignRow.selectedBorder(chosen),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
                         Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
@@ -198,7 +204,6 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                             }
                             val (ms, failed) = ping(results, kind, p, network)
                             PingDot(ms, failed, Modifier.padding(start = 12.dp))
-                            if (chosen) Icon(androidx.compose.material.icons.Icons.Rounded.Check, contentDescription = null, modifier = Modifier.padding(start = 12.dp).size(22.dp))
                         }
                     }
                 }
