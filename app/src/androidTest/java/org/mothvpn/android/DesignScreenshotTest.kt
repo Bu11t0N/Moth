@@ -67,12 +67,17 @@ class DesignScreenshotTest {
         tab("Home")
         wait(By.desc("Connect VPN").enabled(true))
         shot("home-off-$theme")
+        // Connecting lasts about a second here: grab frames while STARTING and keep the last one (rings grown).
         wait(By.desc("Connect VPN").enabled(true)).click()
-        // The UI must already show the connecting state (rings) when the screenshot is taken.
-        val shown = device.wait(Until.findObject(By.text("Connecting…")), 10_000) != null
-        Thread.sleep(300) // let the rings grow a little
-        val connecting = TunnelStatus.state.value == TunnelState.STARTING && shown
-        shot("home-connecting-$theme")
+        val clicked = System.currentTimeMillis()
+        var frame: android.graphics.Bitmap? = null
+        eventually(10_000, "connecting started") { TunnelStatus.state.value != TunnelState.OFF }
+        while (TunnelStatus.state.value == TunnelState.STARTING && System.currentTimeMillis() - clicked < 15_000) {
+            val bmp = instrumentation.uiAutomation.takeScreenshot()
+            if (TunnelStatus.state.value == TunnelState.STARTING && System.currentTimeMillis() - clicked > 250 && bmp != null) { frame?.recycle(); frame = bmp } else bmp?.recycle()
+        }
+        val connecting = frame != null
+        frame?.let { f -> File(out, "home-connecting-$theme.png").outputStream().use { f.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }; log("design screenshot: home-connecting-$theme") }
         log("connecting screenshot taken while STARTING: $connecting")
         wait(By.text("VPN is on"), 60_000); Thread.sleep(2500)
         shot("home-on-$theme")
