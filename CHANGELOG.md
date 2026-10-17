@@ -9,6 +9,7 @@ Not released yet.
 ### Changes
 
 - Experimental: a new monochrome design with larger buttons, a pulsing animation while connecting and a server list that opens from the bottom of the home screen. Turn it on in Settings → For developers → New design.
+- The themed app icon on Android 13 and newer shows the moth silhouette clearly.
 
 ## 0.6.5
 
