@@ -3,6 +3,12 @@ package org.mothvpn.android
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreVert
@@ -221,10 +227,10 @@ import org.mothvpn.core.SubscriptionSource
     jsonFor?.let { p -> ServerJsonEditor(p, cancel = { jsonFor = null }) { outbound -> jsonFor = null; editServer(p.id, outbound) } }
     if (nd) menuFor?.let { p ->
         NdActionSheet(p.name, { menuFor = null }) {
-            NdSheetItem(tr(R.string.server_share)) { menuFor = null; shareFor = p }
+            NdSheetItem(tr(R.string.server_share), androidx.compose.material.icons.Icons.Rounded.Share) { menuFor = null; shareFor = p }
             val favorite = p.id in settings.favorites
-            NdSheetItem(tr(if (favorite) R.string.fav_remove else R.string.fav_add)) { menuFor = null; preferences(settings.copy(favorites = Favorites.toggle(settings.favorites, p.id))) }
-            if (settings.editServers) NdSheetItem(tr(R.string.edit_json), enabled = !busy) { menuFor = null; jsonFor = p }
+            NdSheetItem(tr(if (favorite) R.string.fav_remove else R.string.fav_add), if (favorite) androidx.compose.material.icons.Icons.Rounded.FavoriteBorder else androidx.compose.material.icons.Icons.Rounded.Favorite) { menuFor = null; preferences(settings.copy(favorites = Favorites.toggle(settings.favorites, p.id))) }
+            if (settings.editServers) NdSheetItem(tr(R.string.edit_json), androidx.compose.material.icons.Icons.Rounded.Code, enabled = !busy) { menuFor = null; jsonFor = p }
         }
     } else menuFor?.let { p ->
         AlertDialog(onDismissRequest = { menuFor = null }, title = { Text(p.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
@@ -239,11 +245,11 @@ import org.mothvpn.core.SubscriptionSource
     shareFor?.let { p -> ShareServerDialog(p) { shareFor = null } }
     if (nd) actionsFor?.let { id -> book?.source(id) }?.let { source ->
         NdActionSheet(source.title(), { actionsFor = null }) {
-            NdSheetItem(tr(R.string.sub_edit), enabled = !locked) { actionsFor = null; editFor = source.id }
-            if (!source.local) NdSheetItem(tr(R.string.sub_update), enabled = !locked) { actionsFor = null; refreshOne(source.id) }
+            NdSheetItem(tr(R.string.sub_edit), androidx.compose.material.icons.Icons.Rounded.Edit, enabled = !locked) { actionsFor = null; editFor = source.id }
+            if (!source.local) NdSheetItem(tr(R.string.sub_update), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !locked) { actionsFor = null; refreshOne(source.id) }
             val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }.ifEmpty { source.profiles.map { it.id } }
-            NdSheetItem(tr(R.string.sub_check), enabled = canCheck) { actionsFor = null; probeGroup(kind, ids) }
-            NdSheetItem(tr(R.string.sub_delete), enabled = !locked) { actionsFor = null; delete = source.id }
+            NdSheetItem(tr(R.string.sub_check), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck) { actionsFor = null; probeGroup(kind, ids) }
+            NdSheetItem(tr(R.string.sub_delete), androidx.compose.material.icons.Icons.Rounded.Delete, enabled = !locked) { actionsFor = null; delete = source.id }
             if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         }
