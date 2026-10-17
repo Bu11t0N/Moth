@@ -4,7 +4,7 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ## 0.6.5
 
-Not released yet.
+Released 2026-10-17.
 
 ### Changes
 
