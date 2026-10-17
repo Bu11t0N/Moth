@@ -22,6 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -107,6 +110,68 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
     }
 }
 
+/**
+ * The connect button of the new design: a moth seen from above. Off = wings folded back along the body, connecting = wings flapping (loop),
+ * on = wings spread. Monochrome: dark theme grey off / near-white on, light theme grey off / black on. One large circular touch target.
+ */
+@Composable fun MothButton(on: Boolean, flapping: Boolean, dark: Boolean, enabled: Boolean, onClick: () -> Unit, description: String, modifier: Modifier = Modifier) {
+    val open = remember { androidx.compose.animation.core.Animatable(if (on) 1f else 0f) }
+    LaunchedEffect(flapping, on) {
+        if (flapping) while (true) {
+            open.animateTo(1f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            open.animateTo(0.18f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+        } else open.animateTo(if (on) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 220f))
+    }
+    val lit = on || flapping
+    val color by androidx.compose.animation.animateColorAsState(when {
+        lit && dark -> Color(0xFFF2F2F2); lit -> Color(0xFF111111); dark -> Color(0xFF8A8A8A); else -> Color(0xFF9E9E9E)
+    }, tween(400), label = "moth colour")
+    val vein = MaterialTheme.colorScheme.background
+    Box(modifier.size(260.dp).clip(CircleShape)
+        .clickable(enabled = enabled, onClick = onClick, role = androidx.compose.ui.semantics.Role.Button)
+        .semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
+        if (flapping) PulsingRings(color, 150.dp, Modifier.fillMaxSize())
+        Canvas(Modifier.size(210.dp).graphicsLayer { alpha = if (enabled || flapping) 1f else 0.55f }) { drawMoth(open.value, color, vein) }
+    }
+}
+
+/** Moth in a 100×100 box (scaled to the canvas): four wings pivoting at the thorax, then the body, head and antennae on top. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMoth(open: Float, color: Color, vein: Color) {
+    val k = size.minDimension / 100f
+    fun P(x: Float, y: Float) = Offset(x * k, y * k)
+    val fore = androidx.compose.ui.graphics.Path().apply {
+        moveTo(52f * k, 37f * k); cubicTo(62f * k, 27f * k, 80f * k, 21f * k, 96f * k, 23f * k)
+        cubicTo(97f * k, 32f * k, 91f * k, 42f * k, 82f * k, 48f * k); cubicTo(72f * k, 53f * k, 62f * k, 53f * k, 53f * k, 49f * k); close()
+    }
+    val hind = androidx.compose.ui.graphics.Path().apply {
+        moveTo(52f * k, 48f * k); cubicTo(64f * k, 50f * k, 78f * k, 54f * k, 82f * k, 63f * k)
+        cubicTo(84f * k, 72f * k, 74f * k, 80f * k, 64f * k, 76f * k); cubicTo(58f * k, 72f * k, 54f * k, 63f * k, 51f * k, 55f * k); close()
+    }
+    val veinW = 1.3f * k; val veinC = vein.copy(alpha = 0.28f)
+    // Folded: the forewings swing back over the hindwings like a tent; spread: all four wings out to the sides.
+    val foreTurn = (1f - open) * 70f; val hindTurn = (1f - open) * 42f
+    val foreX = 0.5f + 0.5f * open; val hindX = 0.35f + 0.65f * open
+    val pivot = P(51f, 44f)
+    for (side in listOf(1f, -1f)) withTransform({ scale(side, 1f, Offset(size.width / 2, size.height / 2)) }) {
+        withTransform({ rotate(hindTurn, pivot); scale(hindX, 1f, pivot) }) {
+            drawPath(hind, color); drawLine(veinC, P(54f, 53f), P(72f, 68f), veinW, androidx.compose.ui.graphics.StrokeCap.Round)
+        }
+        withTransform({ rotate(foreTurn, pivot); scale(foreX, 1f, pivot) }) {
+            drawPath(fore, color); drawLine(veinC, P(55f, 42f), P(88f, 28f), veinW, androidx.compose.ui.graphics.StrokeCap.Round)
+        }
+    }
+    // Body: a thin outline in the background colour keeps it visible over the folded wings.
+    val edge = Stroke(1.6f * k); val edgeC = vein.copy(alpha = 0.5f)
+    drawOval(color, P(45.4f, 44f), androidx.compose.ui.geometry.Size(9.2f * k, 28f * k)); drawOval(edgeC, P(45.4f, 44f), androidx.compose.ui.geometry.Size(9.2f * k, 28f * k), style = edge)
+    drawCircle(color, 6f * k, P(50f, 41f)); drawCircle(edgeC, 6f * k, P(50f, 41f), style = edge)
+    drawCircle(color, 3.6f * k, P(50f, 33f))
+    val antenna = Stroke(2.2f * k, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+    for (side in listOf(1f, -1f)) {
+        val path = androidx.compose.ui.graphics.Path().apply { moveTo((50f + side * 1.5f) * k, 30.5f * k); quadraticTo((50f + side * 5f) * k, 21f * k, (50f + side * 15f) * k, 17f * k) }
+        drawPath(path, color, style = antenna)
+    }
+}
+
 /** Probe result of [p] on [kind] for display: (latency, failed), ignoring cancelled checks and checks on another network. */
 private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, network: AccessNetwork): Pair<Long?, Boolean> {
     val r = results["$kind:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED || it.checking } ?: return null to false
@@ -133,35 +198,34 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val transition = tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING) && !blocked
     val on = running && !blocked
     val dark = MaterialTheme.colorScheme.background.luminanceLow()
-    // Dark theme: dark grey off, near-white on. Light theme: light grey with an outline off, black on.
-    val container = when { on && dark -> Color(0xFFF2F2F2); on -> Color(0xFF111111); dark -> Color(0xFF2E2E2E); else -> Color(0xFFE8E8E8) }
-    val content = when { on && dark -> Color(0xFF111111); on -> Color(0xFFFFFFFF); dark -> Color(0xFFF2F2F2); else -> Color(0xFF111111) }
-    val border = if (!on && !dark) BorderStroke(1.5.dp, Color(0xFF9E9E9E)) else null
     var sheet by remember { mutableStateOf(false) }
+    val enabled = if (blocked) true else !busy && (!probing || running) && !transition && selected != null
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Row(Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.Bottom) {
+        // Fixed-height header: the update badge sits in its own reserved slot, so the title never moves.
+        Box(Modifier.fillMaxWidth().padding(top = 12.dp).height(56.dp)) {
             val name = tr(R.string.app_name)
             val about = VersionLabel.about(name, BuildConfig.VERSION_NAME)
-            Text(name, style = MaterialTheme.typography.headlineLarge)
-            Text(about.removePrefix(name).trim(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 10.dp, bottom = 6.dp))
-            Spacer(Modifier.weight(1f))
-            if (updateAvailable) IconButton(onClick = openUpdates, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.update_available_arrow) }) { MothIcon("update", Modifier.size(28.dp)) }
-        }
-        Spacer(Modifier.weight(1f))
-        val buttonSize = 168.dp
-        Box(Modifier.size(buttonSize + 96.dp), contentAlignment = Alignment.Center) {
-            if (transition) PulsingRings(MaterialTheme.colorScheme.onSurface, buttonSize, Modifier.fillMaxSize())
-            Surface(onClick = connect, enabled = if (blocked) true else !busy && (!probing || running) && !transition && selected != null,
-                shape = CircleShape, color = container, contentColor = content, border = border, shadowElevation = if (on) 6.dp else 0.dp,
-                modifier = Modifier.size(buttonSize).semantics { contentDescription = if (running) tr(R.string.msg_disconnect_vpn_8) else tr(R.string.msg_connect_vpn_9) }) {
-                Box(contentAlignment = Alignment.Center) { MothIcon("power", Modifier.size(64.dp)) }
+            Row(Modifier.align(Alignment.CenterStart).padding(end = 56.dp), verticalAlignment = Alignment.Bottom) {
+                Text(name, style = MaterialTheme.typography.headlineLarge, maxLines = 1)
+                Text(about.removePrefix(name).trim(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                    modifier = Modifier.padding(start = 10.dp, bottom = 6.dp))
+            }
+            if (updateAvailable) IconButton(onClick = openUpdates, modifier = Modifier.align(Alignment.CenterEnd).size(48.dp).semantics { contentDescription = tr(R.string.update_available_arrow) }) {
+                BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.onSurface) }) { MothIcon("update", Modifier.size(26.dp)) }
             }
         }
-        if (blocked) {
-            Text(tr(R.string.home_disconnect), style = MaterialTheme.typography.headlineSmall)
-            Text(tr(R.string.msg_blocked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-        } else Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.tile_reconnecting) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall)
-        if (tunnel == TunnelState.RUNNING) Text(if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.weight(1f))
+        MothButton(on = on, flapping = transition, dark = dark, enabled = enabled, onClick = connect,
+            description = if (running) tr(R.string.msg_disconnect_vpn_8) else tr(R.string.msg_connect_vpn_9))
+        // Reserved space for the status lines (title + one detail line): nothing above or below moves when they change.
+        Column(Modifier.fillMaxWidth().height(88.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (blocked) {
+                Text(tr(R.string.home_disconnect), style = MaterialTheme.typography.headlineSmall, maxLines = 1)
+                Text(tr(R.string.msg_blocked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            } else Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.tile_reconnecting) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
+            if (tunnel == TunnelState.RUNNING && !blocked) Text(if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        }
         if (saved == null) Button(enabled = !busy, onClick = add, modifier = Modifier.heightIn(min = 56.dp)) { Text(tr(R.string.msg_add_subscription_16)) }
         Spacer(Modifier.weight(1f))
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
