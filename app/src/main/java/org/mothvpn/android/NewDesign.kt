@@ -90,7 +90,7 @@ object MonoTheme {
 private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * blue) < 0.5f
 
 /**
- * The connect button of the new design: a moth seen from above. Off = wings folded back along the body, connecting = wings flapping (loop),
+ * The connect button of the new design: a moth seen from above. Off = resting delta pose (wings partly open, swept back), connecting = flapping between rest and spread (loop),
  * on = wings spread. Monochrome: dark theme grey off / near-white on, light theme grey off / black on. One large circular touch target.
  */
 @Composable fun MothButton(on: Boolean, flapping: Boolean, dark: Boolean, enabled: Boolean, onClick: () -> Unit, description: String, modifier: Modifier = Modifier) {
@@ -98,7 +98,7 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
     LaunchedEffect(flapping, on) {
         if (flapping) while (true) {
             open.animateTo(1f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
-            open.animateTo(0.18f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            open.animateTo(0f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
         } else open.animateTo(if (on) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 220f))
     }
     val lit = on || flapping
@@ -126,9 +126,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMoth(open: Floa
         cubicTo(84f * k, 72f * k, 74f * k, 80f * k, 64f * k, 76f * k); cubicTo(58f * k, 72f * k, 54f * k, 63f * k, 51f * k, 55f * k); close()
     }
     val veinW = 1.3f * k; val veinC = vein.copy(alpha = 0.28f)
-    // Folded: the forewings swing back over the hindwings like a tent; spread: all four wings out to the sides.
-    val foreTurn = (1f - open) * 70f; val hindTurn = (1f - open) * 42f
-    val foreX = 0.5f + 0.5f * open; val hindX = 0.35f + 0.65f * open
+    // Resting (open = 0): a delta pose, forewings swept back and slightly lowered over the hindwings, both pairs visible; spread (1): all wings out to the sides.
+    val foreTurn = (1f - open) * 32f; val hindTurn = (1f - open) * 12f
+    val foreX = 0.8f + 0.2f * open; val hindX = 0.85f + 0.15f * open
     val pivot = P(51f, 44f)
     for (side in listOf(1f, -1f)) withTransform({ scale(side, 1f, Offset(size.width / 2, size.height / 2)) }) {
         withTransform({ rotate(hindTurn, pivot); scale(hindX, 1f, pivot) }) {
