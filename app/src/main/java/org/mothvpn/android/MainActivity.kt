@@ -123,7 +123,7 @@ class MainActivity : AppCompatActivity() {
             var subName by remember { mutableStateOf("") }
             val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
             val newDesign = settings.newDesign
-            val scheme = if (newDesign) (if (dark) MonoTheme.dark else MonoTheme.light)
+            val scheme = if (newDesign) (if (dark) (if (settings.amoled) MonoTheme.amoled else MonoTheme.dark) else MonoTheme.light)
                 else if (dark) darkColorScheme(primary = Color(0xFF83DCC6), background = Color(0xFF101A23), surface = Color(0xFF1C2A35)) else lightColorScheme()
             CompositionLocalProvider(LocalNewDesign provides newDesign) {
             MaterialTheme(colorScheme = scheme, shapes = if (newDesign) MonoTheme.shapes else MaterialTheme.shapes) {

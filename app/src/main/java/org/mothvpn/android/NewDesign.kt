@@ -64,6 +64,10 @@ object MonoTheme {
         outline = Color(0xFF8A8A8A), outlineVariant = Color(0xFFD6D6D6), scrim = Color(0xFF000000),
         surfaceBright = Color(0xFFFFFFFF), surfaceDim = Color(0xFFE0E0E0), surfaceContainerLowest = Color(0xFFFFFFFF), surfaceContainerLow = Color(0xFFF7F7F7),
         surfaceContainer = Color(0xFFF2F2F2), surfaceContainerHigh = Color(0xFFECECEC), surfaceContainerHighest = Color(0xFFE6E6E6))
+    /** Dark theme with "Pure black (AMOLED)": #000000 background and surfaces; cards and sheets stay a little lighter so they remain visible. */
+    val amoled = dark.copy(background = Color(0xFF000000), surface = Color(0xFF000000), surfaceDim = Color(0xFF000000),
+        surfaceContainerLowest = Color(0xFF000000), surfaceContainerLow = Color(0xFF0C0C0C), surfaceContainer = Color(0xFF111111),
+        surfaceContainerHigh = Color(0xFF171717), surfaceContainerHighest = Color(0xFF202020), surfaceVariant = Color(0xFF151515), surfaceBright = Color(0xFF242424))
     /** Larger, rounder components than the defaults. */
     val shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(20.dp),
         large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(32.dp))

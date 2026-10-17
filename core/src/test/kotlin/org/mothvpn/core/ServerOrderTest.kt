@@ -63,4 +63,10 @@ class ServerOrderTest {
         assertTrue(ClientSettings.from(ClientSettings(newDesign = true).json()).newDesign)
         assertEquals(listOf("newDesign=false->true"), ClientSettings().let { s -> LogFacts.settingsChanges(s, s.copy(newDesign = true)) })
     }
+    @Test fun amoledToggleIsOffByDefaultAndPersists() {
+        assertFalse(ClientSettings().amoled)
+        assertFalse(ClientSettings.from(ClientSettings().json().apply { remove("amoled") }).amoled)
+        assertTrue(ClientSettings.from(ClientSettings(amoled = true).json()).amoled)
+        assertEquals(listOf("amoled=false->true"), ClientSettings().let { s -> LogFacts.settingsChanges(s, s.copy(amoled = true)) })
+    }
 }
