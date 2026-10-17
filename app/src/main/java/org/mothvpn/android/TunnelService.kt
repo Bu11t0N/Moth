@@ -363,27 +363,33 @@ class TunnelService : VpnService(), PlatformInterface {
     /** Traffic is measured with TrafficStats for this app's uid (the core's sockets to the server), relative to the moment of connecting. libbox status is not wired up in this app. */
     private fun startStats(): Unit = synchronized(statsLock) {
         connectStartMillis = System.currentTimeMillis()
-        val tx = TrafficStats.getUidTxBytes(Process.myUid()); val rx = TrafficStats.getUidRxBytes(Process.myUid())
-        if (tx == TrafficStats.UNSUPPORTED.toLong() || rx == TrafficStats.UNSUPPORTED.toLong()) { Logger.w("Tunnel", "traffic statistics are unavailable on this device"); return }
+        // Without TrafficStats support the counters stay 0: the notification still shows its full layout and the connection time.
+        val tx = TrafficStats.getUidTxBytes(Process.myUid()).coerceAtLeast(0); val rx = TrafficStats.getUidRxBytes(Process.myUid()).coerceAtLeast(0)
+        if (tx == 0L && rx == 0L) Logger.w("Tunnel", "traffic statistics are unavailable on this device")
         baseTx = tx; baseRx = rx; lastTx = tx; lastRx = rx; lastAt = SystemClock.elapsedRealtime(); startedAt = lastAt
-        statsActive = true; lastDetails = null
+        // The first RUNNING notification already has the full layout (speed 0, totals 0, time 00:00); the ticker updates it every second.
+        statsActive = true; lastDetails = details(TrafficFormat.Stats.CONNECTED)
         statsTask?.cancel(false)
-        statsTask = statsExecutor.scheduleWithFixedDelay({ runCatching { tickStats() }.onFailure { Logger.w("Tunnel", "notification update failed", it) } }, 1, 1, TimeUnit.SECONDS)
+        statsTask = statsExecutor.scheduleWithFixedDelay({ runCatching { tickStats() }.onFailure { Logger.w("Tunnel", "notification update failed", it) } }, 0, 1, TimeUnit.SECONDS)
     }
     private fun stopStats() = synchronized(statsLock) { if (statsActive) runCatching { TrafficRecorder.flush(this) }; statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0 }
+    /** Speed line (collapsed text) and speed/total/time lines (expanded text). */
+    private fun details(st: TrafficFormat.Stats): Details {
+        val units = tr(R.string.notif_units).split("|"); val locale = AppLanguage.context().resources.configuration.locales[0]
+        val speed = tr(R.string.notif_speed, TrafficFormat.bytes(st.txRate, units, locale), TrafficFormat.bytes(st.rxRate, units, locale))
+        val expanded = listOf(speed, tr(R.string.notif_total, TrafficFormat.bytes(st.txTotal, units, locale), TrafficFormat.bytes(st.rxTotal, units, locale)),
+            tr(R.string.notif_uptime, TrafficFormat.duration(st.seconds))).joinToString("\n")
+        return Details(speed, expanded)
+    }
     private fun tickStats(): Unit = synchronized(statsLock) {
         if (!statsActive || TunnelStatus.state.value != TunnelState.RUNNING) return
         val now = SystemClock.elapsedRealtime()
-        val tx = TrafficStats.getUidTxBytes(Process.myUid()); val rx = TrafficStats.getUidRxBytes(Process.myUid())
-        if (tx < 0 || rx < 0) return
-        val units = tr(R.string.notif_units).split("|"); val locale = AppLanguage.context().resources.configuration.locales[0]
-        val speed = tr(R.string.notif_speed, TrafficFormat.bytes(TrafficFormat.rate(lastTx, tx, now - lastAt), units, locale), TrafficFormat.bytes(TrafficFormat.rate(lastRx, rx, now - lastAt), units, locale))
-        val expanded = listOf(speed, tr(R.string.notif_total, TrafficFormat.bytes(tx - baseTx, units, locale), TrafficFormat.bytes(rx - baseRx, units, locale)),
-            tr(R.string.notif_uptime, TrafficFormat.duration((now - startedAt) / 1000))).joinToString("\n")
+        val tx = TrafficStats.getUidTxBytes(Process.myUid()).coerceAtLeast(0); val rx = TrafficStats.getUidRxBytes(Process.myUid()).coerceAtLeast(0)
+        val details = details(TrafficFormat.Stats.sample(baseTx, baseRx, lastTx, lastRx, tx, rx, startedAt, lastAt, now))
         TrafficRecorder.add(this, TrafficHistory.delta(lastTx, tx), TrafficHistory.delta(lastRx, rx))
         lastTx = tx; lastRx = rx; lastAt = now
-        if (lastDetails?.expanded == expanded) return // nothing changed (uptime changes every second, so this only skips duplicate ticks)
-        lastDetails = Details(speed, expanded)
+        if (lastDetails?.expanded == details.expanded) return // nothing changed (uptime changes every second, so this only skips duplicate ticks)
+        lastDetails = details
         getSystemService(NotificationManager::class.java).notify(1, buildNotification())
     }
     /**

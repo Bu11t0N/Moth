@@ -33,4 +33,19 @@ class TrafficFormatTest {
         assertEquals("100:00:01", TrafficFormat.duration(360001))
         assertEquals("00:00", TrafficFormat.duration(-3))
     }
+    @Test fun connectedStatsShowTheFullLayoutWithZeros() {
+        val units = listOf("B", "KB", "MB", "GB", "TB")
+        val c = TrafficFormat.Stats.CONNECTED
+        assertEquals(listOf("0 B", "0 B", "0 B", "0 B", "00:00"),
+            listOf(TrafficFormat.bytes(c.txRate, units), TrafficFormat.bytes(c.rxRate, units), TrafficFormat.bytes(c.txTotal, units), TrafficFormat.bytes(c.rxTotal, units), TrafficFormat.duration(c.seconds)))
+    }
+    @Test fun sampleComputesSpeedTotalsAndTime() {
+        // Connected at 10 000 ms with counters 1000/5000; previous sample at 11 000 ms, this one at 12 000 ms.
+        val s = TrafficFormat.Stats.sample(baseTx = 1000, baseRx = 5000, lastTx = 1500, lastRx = 6000, tx = 3548, rx = 7024, startedAt = 10_000, lastAt = 11_000, at = 12_000)
+        assertEquals(TrafficFormat.Stats(txRate = 2048, rxRate = 1024, txTotal = 2548, rxTotal = 2024, seconds = 2), s)
+        // A first tick right at connect time gives the same zeros as CONNECTED.
+        assertEquals(TrafficFormat.Stats.CONNECTED, TrafficFormat.Stats.sample(7, 9, 7, 9, 7, 9, 500, 500, 500))
+        // Counter reset (lower than the base): never negative.
+        assertEquals(0, TrafficFormat.Stats.sample(100, 100, 100, 100, 50, 50, 0, 0, 1000).txTotal)
+    }
 }
