@@ -68,8 +68,10 @@ class DesignScreenshotTest {
         wait(By.desc("Connect VPN").enabled(true))
         shot("home-off-$theme")
         wait(By.desc("Connect VPN").enabled(true)).click()
-        eventually(10_000, "connecting") { TunnelStatus.state.value == TunnelState.STARTING || TunnelStatus.state.value == TunnelState.RUNNING }
-        val connecting = TunnelStatus.state.value == TunnelState.STARTING
+        // The UI must already show the connecting state (rings) when the screenshot is taken.
+        val shown = device.wait(Until.findObject(By.text("Connecting…")), 10_000) != null
+        Thread.sleep(300) // let the rings grow a little
+        val connecting = TunnelStatus.state.value == TunnelState.STARTING && shown
         shot("home-connecting-$theme")
         log("connecting screenshot taken while STARTING: $connecting")
         wait(By.text("VPN is on"), 60_000); Thread.sleep(2500)

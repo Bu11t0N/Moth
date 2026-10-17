@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,7 +94,9 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
         val extra = size.minDimension / 2 - base
         for (i in 0 until 3) {
             val p = (phase + i / 3f) % 1f
-            drawCircle(color.copy(alpha = (1f - p) * 0.55f), radius = base + extra * p, center = Offset(size.width / 2, size.height / 2), style = Stroke(2.dp.toPx()))
+            val r = base + extra * p; val c = Offset(size.width / 2, size.height / 2)
+            drawCircle(color.copy(alpha = (1f - p) * 0.12f), radius = r, center = c)
+            drawCircle(color.copy(alpha = (1f - p) * 0.6f), radius = r, center = c, style = Stroke(3.dp.toPx()))
         }
     }
 }
@@ -167,7 +171,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                 }
                 val (ms, failed) = ping(results, network.kind, selected, network)
                 PingDot(ms, failed, Modifier.padding(start = 12.dp))
-                Text("⌃", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 12.dp))
+                Icon(androidx.compose.material.icons.Icons.Rounded.KeyboardArrowUp, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp).size(28.dp))
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -194,7 +198,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                             }
                             val (ms, failed) = ping(results, kind, p, network)
                             PingDot(ms, failed, Modifier.padding(start = 12.dp))
-                            if (chosen) Text("✓", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 12.dp))
+                            if (chosen) Icon(androidx.compose.material.icons.Icons.Rounded.Check, contentDescription = null, modifier = Modifier.padding(start = 12.dp).size(22.dp))
                         }
                     }
                 }
