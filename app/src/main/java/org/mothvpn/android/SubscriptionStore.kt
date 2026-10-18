@@ -73,7 +73,7 @@ class SettingsStore(context: Context) {
 }
 
 object SubscriptionDownload {
-    data class Response(val body: String, val name: String, val expires: Long, val used: Long, val total: Long)
+    data class Response(val body: String, val name: String, val expires: Long, val used: Long, val total: Long, val links: org.mothvpn.core.ProviderLinks = org.mothvpn.core.ProviderLinks())
     fun fetch(address: String, settings: ClientSettings = ClientSettings()): String = fetchDetails(address, settings).body
     fun fetchDetails(address: String, settings: ClientSettings = ClientSettings()): Response {
         var url = URL(address.trim())
@@ -112,7 +112,11 @@ object SubscriptionDownload {
                         }.take(120)
                         val info = org.mothvpn.core.SubscriptionQuota.parse(connection.getHeaderField("subscription-userinfo").orEmpty())
                         val used = (info["upload"] ?: 0).let { u -> val d = info["download"] ?: 0; if (Long.MAX_VALUE - u < d) Long.MAX_VALUE else u + d }
-                        return Response(String(bytes, Charsets.UTF_8), title, info["expire"] ?: 0, used, info["total"] ?: 0)
+                        val text = String(bytes, Charsets.UTF_8)
+                        // Support / web page / news links: personal URLs, so only which ones were sent is logged.
+                        val links = org.mothvpn.core.ProviderLinks.parse({ connection.getHeaderField(it) }, text)
+                        Logger.d("Download", "provider links: support=${links.support.isNotEmpty()} web=${links.web.isNotEmpty()} news=${links.announce.isNotEmpty()}")
+                        return Response(text, title, info["expire"] ?: 0, used, info["total"] ?: 0, links)
                     }
                     401, 403 -> { Logger.w("Download", "access denied (HTTP $response)"); error(tr(R.string.msg_subscription_is_unavailable_check_the_link_an_117)) }
                     else -> { Logger.w("Download", "unexpected HTTP $response"); error(tr(R.string.msg_subscription_service_returned_an_error_try_ag_118)) }

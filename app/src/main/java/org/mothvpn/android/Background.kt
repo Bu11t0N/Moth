@@ -84,7 +84,7 @@ object SubscriptionRefresh {
                 Logger.i("Import", "refresh result: servers ${o.profiles.size} -> ${parsed.profiles.size} (added $added, removed $gone)")
             }
             book.upsert(SubscriptionSource(id, name?.trim() ?: old?.name.orEmpty(), link, parsed.profiles, response.name,
-                response.expires, response.used, response.total, System.currentTimeMillis()))
+                response.expires, response.used, response.total, System.currentTimeMillis(), response.links))
         }
         Logger.i("Import", "subscriptions saved: ${book.sources.size} subscription(s), ${book.profiles.size} server(s)")
         runCatching { ExpiryReminder.checkTraffic(context) }.onFailure { Logger.w("Traffic", "check after refresh failed", it) }

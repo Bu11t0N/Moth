@@ -14,6 +14,10 @@ import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.SupportAgent
+import androidx.compose.material.icons.rounded.Campaign
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -274,7 +278,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val clickable = all.size > 1 || !source.local
     val title = source.name.ifBlank { source.providerName }.ifBlank { if (source.local) tr(R.string.import_local_name) else host }
-    Surface(onClick = { if (all.size > 1) showAll = true else showLink = true }, enabled = clickable, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    // One subscription with provider links opens the sheet too, so its link buttons are reachable (the sheet also copies the link).
+    Surface(onClick = { if (all.size > 1 || !source.links.isEmpty) showAll = true else showLink = true }, enabled = clickable, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = title + ": " + tr(if (all.size > 1) R.string.sub_all_show else R.string.sub_link_show) }) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -299,14 +304,15 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 
 /** All subscriptions as cards in a bottom sheet (as the server sheet): servers, traffic, end date, last update (not for local servers) and a copy-link button. */
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable private fun SubscriptionsSheet(sources: List<org.mothvpn.core.SubscriptionSource>, close: () -> Unit, copy: (String) -> Unit) {
+@Composable fun SubscriptionsSheet(sources: List<org.mothvpn.core.SubscriptionSource>, close: () -> Unit, copy: (String) -> Unit) {
     val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0])
     ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
         Text(tr(R.string.sub_all_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(sources, key = { it.id }) { s ->
                 Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
-                    Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column {
+                    Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = if (s.links.isEmpty) 12.dp else 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(s.title().ifBlank { tr(R.string.import_local_name) }, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             val grey = MaterialTheme.colorScheme.onSurfaceVariant
@@ -320,6 +326,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                             Icon(androidx.compose.material.icons.Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(22.dp))
                         }
                     }
+                    if (!s.links.isEmpty) ProviderLinkButtons(s.links, Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp))
+                    }
                 }
             }
         }
@@ -331,12 +339,18 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
  * visible on AMOLED black) with a monochrome icon. Used for Settings rows; meant for future provider buttons too (bot, support, news).
  * Server lists and menus keep plain icons.
  */
-@Composable fun IconTile(icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp) {
+@Composable fun IconTile(icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp,
+    label: String? = null, onClick: (() -> Unit)? = null) {
     val dark = MaterialTheme.colorScheme.background.luminanceLow()
     // A translucent layer of the content colour: always a step lighter (dark) or darker (light) than the card it sits on.
-    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.13f else 0.08f), modifier = modifier.size(size)) {
+    val color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.13f else 0.08f)
+    val content: @Composable () -> Unit = {
         Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(size * 0.55f)) }
     }
+    // As a button (provider links) the tile keeps a 48 dp touch target around the 40 dp square.
+    if (onClick != null) Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = color,
+        modifier = modifier.size(size).semantics { if (label != null) contentDescription = label }, content = content)
+    else Surface(shape = RoundedCornerShape(12.dp), color = color, modifier = modifier.size(size), content = content)
 }
 
 /** Menu of the new design: a bottom sheet with a title and full-width rows ([NdSheetItem]), consistent with the server sheet. */
@@ -414,3 +428,26 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 
 /** True when the new design's keyword filter shows this server (the classic design ignores the filter). */
 fun ClientSettings.filterShows(p: Profile) = !newDesign || org.mothvpn.core.ServerFilter.shows(p.name, serverFilter, serverFilterMode)
+
+/**
+ * Provider link buttons (support, web page, news) as [IconTile]s with a short caption. Telegram links get a paper-plane icon.
+ * The URL is opened by the system; it is never written to the log.
+ */
+@Composable fun ProviderLinkButtons(links: org.mothvpn.core.ProviderLinks, modifier: Modifier = Modifier) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val items = listOfNotNull(
+        links.support.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_support), if (org.mothvpn.core.ProviderLinks.telegram(it)) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Send else androidx.compose.material.icons.Icons.Rounded.SupportAgent) },
+        links.announce.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_news), if (org.mothvpn.core.ProviderLinks.telegram(it)) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Send else androidx.compose.material.icons.Icons.Rounded.Campaign) },
+        links.web.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_web), androidx.compose.material.icons.Icons.Rounded.Language) })
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        items.forEach { (url, label, icon) ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.widthIn(min = 56.dp)) {
+                IconTile(icon, label = label, onClick = {
+                    runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        .onFailure { Logger.w("Links", "no app can open the provider link") }
+                })
+                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+    }
+}

@@ -504,4 +504,7 @@
     <string name="nd_filter_empty">Слов нет: показаны все серверы.</string>
     <string name="nd_filter_remove">Удалить %1$s</string>
     <string name="nd_filter_hint">Слова ищутся в названиях серверов без учёта регистра. Фильтр сохраняется после обновления подписок.</string>
+    <string name="nd_link_support">Поддержка</string>
+    <string name="nd_link_news">Новости</string>
+    <string name="nd_link_web">Сайт</string>
 </resources>
