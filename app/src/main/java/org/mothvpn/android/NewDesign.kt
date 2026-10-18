@@ -219,7 +219,9 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val dark = MaterialTheme.colorScheme.background.luminanceLow()
     var sheet by remember { mutableStateOf(false) }
     val enabled = if (blocked) true else !busy && (!probing || running) && !transition && selected != null
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    // One even column: the stat tiles, subscription card and server bar are stacked with the same 10 dp gap and the same 20 dp side
+    // margins; any free height goes to the moth area above them (between the status lines and the tiles).
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // Fixed-height header: the update badge sits in its own reserved slot, so the title never moves.
         Box(Modifier.fillMaxWidth().padding(top = 12.dp).height(56.dp)) {
             val name = tr(R.string.app_name)
@@ -258,7 +260,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         }
         }
         // Session tiles (speed, traffic, time) while connected, directly above the subscription card with the same edges, corner radius,
-        // tone and 14 dp rhythm as the card and the server bar. The space is always reserved, so the moth never moves when they appear.
+        // tone and gap as the card and the server bar. The space is always reserved, so the moth never moves when they appear.
         if (saved != null) SessionTiles(stats.takeIf { on }, tilesHeight)
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
@@ -282,7 +284,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(2.dp))
     }
     if (sheet && saved != null) {
         // Opens straight at its full (content) height, no half-open step: the list is capped at ~70 % of the window and scrolls at once;
