@@ -515,4 +515,11 @@
     <string name="ping_tcp">TCP</string>
     <string name="ping_tcp_hint">Только проверяет, что порт сервера отвечает; трафик через сервер не идёт.</string>
     <string name="ping_url_only">Только этот адрес (без запасных)</string>
+    <string name="dev_sub_headers">Заголовки подписки</string>
+    <string name="dev_sub_headers_sum">Названия заголовков, которые прислал провайдер</string>
+    <string name="dev_sub_headers_hint">Только названия, с последнего обновления каждой подписки. Значения и ссылки не сохраняются.</string>
+    <string name="dev_sub_headers_none">Нет загруженных подписок.</string>
+    <string name="dev_sub_headers_update">Обновите эту подписку, чтобы увидеть её заголовки.</string>
+    <string name="dev_sub_headers_http">HTTP-заголовки: %1$s</string>
+    <string name="dev_sub_headers_body">Поля в теле: %1$s</string>
 </resources>

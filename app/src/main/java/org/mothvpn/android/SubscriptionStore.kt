@@ -73,7 +73,8 @@ class SettingsStore(context: Context) {
 }
 
 object SubscriptionDownload {
-    data class Response(val body: String, val name: String, val expires: Long, val used: Long, val total: Long, val links: org.mothvpn.core.ProviderLinks = org.mothvpn.core.ProviderLinks())
+    data class Response(val body: String, val name: String, val expires: Long, val used: Long, val total: Long, val links: org.mothvpn.core.ProviderLinks = org.mothvpn.core.ProviderLinks(),
+        val names: ResponseHeaderNames.Names = ResponseHeaderNames.Names(emptyList(), emptyList()))
     fun fetch(address: String, settings: ClientSettings = ClientSettings()): String = fetchDetails(address, settings).body
     fun fetchDetails(address: String, settings: ClientSettings = ClientSettings()): Response {
         var url = URL(address.trim())
@@ -116,7 +117,10 @@ object SubscriptionDownload {
                         // Support / web page / news links: personal URLs, so only which ones were sent is logged.
                         val links = org.mothvpn.core.ProviderLinks.parse({ connection.getHeaderField(it) }, text)
                         Logger.d("Download", "provider links: support=${links.support.isNotEmpty()} web=${links.web.isNotEmpty()} news=${links.announce.isNotEmpty()} logo=${links.logo.isNotEmpty()}")
-                        return Response(text, title, info["expire"] ?: 0, used, info["total"] ?: 0, links)
+                        // Developer diagnostic: which header / body-line NAMES the provider sends (never their values).
+                        val names = ResponseHeaderNames.Names(ResponseHeaderNames.clean(connection.headerFields.keys), ResponseHeaderNames.clean(org.mothvpn.core.ProviderLinks.bodyNames(text)))
+                        Logger.d("Download", "response header names: ${names.headers.joinToString(",")}; body field names: ${names.body.joinToString(",").ifEmpty { "none" }}")
+                        return Response(text, title, info["expire"] ?: 0, used, info["total"] ?: 0, links, names)
                     }
                     401, 403 -> { Logger.w("Download", "access denied (HTTP $response)"); error(tr(R.string.msg_subscription_is_unavailable_check_the_link_an_117)) }
                     else -> { Logger.w("Download", "unexpected HTTP $response"); error(tr(R.string.msg_subscription_service_returned_an_error_try_ag_118)) }

@@ -511,4 +511,11 @@
     <string name="ping_tcp">TCP</string>
     <string name="ping_tcp_hint">Only checks that the server port answers; no traffic goes through.</string>
     <string name="ping_url_only">Use only this address (no backup addresses)</string>
+    <string name="dev_sub_headers">Subscription headers</string>
+    <string name="dev_sub_headers_sum">Names of the headers the provider sent</string>
+    <string name="dev_sub_headers_hint">Names only, from the last update of each subscription. Values and links are never stored.</string>
+    <string name="dev_sub_headers_none">No downloaded subscriptions.</string>
+    <string name="dev_sub_headers_update">Update this subscription to see its headers.</string>
+    <string name="dev_sub_headers_http">HTTP headers: %1$s</string>
+    <string name="dev_sub_headers_body">Body fields: %1$s</string>
 </resources>

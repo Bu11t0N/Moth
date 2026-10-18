@@ -255,6 +255,9 @@ import org.mothvpn.core.SubscriptionSchedule
                 }
                 tr(R.string.dev_for_developers) -> {
                     DeveloperSection({ logPage = 1 }, { logPage = 2 })
+                    var headersDialog by remember { mutableStateOf(false) }
+                    DialogRow(tr(R.string.dev_sub_headers), tr(R.string.dev_sub_headers_sum)) { headersDialog = true }
+                    if (headersDialog) SubscriptionHeadersDialog { headersDialog = false }
                     SettingsToggle(tr(R.string.dev_edit_servers), draft.editServers) { applySettings(draft.copy(editServers = it)) }
                     Text(tr(R.string.dev_edit_servers_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsToggle(tr(R.string.dev_new_design), draft.newDesign) { applySettings(draft.copy(newDesign = it)) }
@@ -314,4 +317,31 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
         Text(label, modifier = Modifier.weight(1f).padding(top = 12.dp, end = 12.dp))
         Switch(checked = checked, onCheckedChange = change, enabled = enabled)
     }
+}
+
+/** Developer: per subscription, the NAMES of the response headers and body fields from its last update (never values or links). */
+@Composable fun SubscriptionHeadersDialog(close: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val rows by produceState<List<Pair<String, ResponseHeaderNames.Names?>>?>(null) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { SubscriptionStore(context).loadBook()?.sources.orEmpty().filter { !it.local }.map { s -> s.title() to ResponseHeaderNames.load(context, s.id) } }.getOrDefault(emptyList())
+        }
+    }
+    AlertDialog(onDismissRequest = close, title = { Text(tr(R.string.dev_sub_headers)) }, text = {
+        androidx.compose.foundation.text.selection.SelectionContainer {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(tr(R.string.dev_sub_headers_hint), style = MaterialTheme.typography.bodySmall)
+                val list = rows
+                if (list != null && list.isEmpty()) Text(tr(R.string.dev_sub_headers_none))
+                list?.forEach { (title, names) ->
+                    Text(title, style = MaterialTheme.typography.titleSmall)
+                    if (names == null) Text(tr(R.string.dev_sub_headers_update), style = MaterialTheme.typography.bodySmall)
+                    else {
+                        Text(tr(R.string.dev_sub_headers_http, names.headers.joinToString(", ").ifEmpty { "—" }), style = MaterialTheme.typography.bodySmall)
+                        Text(tr(R.string.dev_sub_headers_body, names.body.joinToString(", ").ifEmpty { "—" }), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+    }, confirmButton = { TextButton(onClick = close) { Text(tr(R.string.sub_link_close)) } })
 }

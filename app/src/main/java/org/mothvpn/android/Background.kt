@@ -87,7 +87,10 @@ object SubscriptionRefresh {
                 response.expires, response.used, response.total, System.currentTimeMillis(), response.links))
         }
         Logger.i("Import", "subscriptions saved: ${book.sources.size} subscription(s), ${book.profiles.size} server(s)")
-        ProviderLogos.refresh(context, id, response.links.logo, settings.withAppVersion(BuildConfig.VERSION_NAME).userAgent)
+        ResponseHeaderNames.save(context, id, response.names)
+        // No logo header: the provider's web page icon (apple-touch-icon), if it has an https web page.
+        val logo = response.links.logo.ifEmpty { org.mothvpn.core.ProviderLinks.webIcon(response.links.web).orEmpty() }
+        ProviderLogos.refresh(context, id, logo, settings.withAppVersion(BuildConfig.VERSION_NAME).userAgent, fallback = response.links.logo.isEmpty())
         runCatching { ExpiryReminder.checkTraffic(context) }.onFailure { Logger.w("Traffic", "check after refresh failed", it) }
         return Result(book, id, parsed.rejected)
     }

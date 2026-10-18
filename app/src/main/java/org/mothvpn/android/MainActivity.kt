@@ -390,7 +390,7 @@ class MainActivity : AppCompatActivity() {
         busy = true
         lifecycleScope.launch {
             try {
-                val next = withContext(Dispatchers.IO) { store.update { it.remove(id) }.also { if (it.sources.isEmpty()) store.clear(); ProviderLogos.remove(this@MainActivity, id) } }
+                val next = withContext(Dispatchers.IO) { store.update { it.remove(id) }.also { if (it.sources.isEmpty()) store.clear(); ProviderLogos.remove(this@MainActivity, id); ResponseHeaderNames.remove(this@MainActivity, id) } }
                 show(next.takeIf { it.sources.isNotEmpty() })
                 Logger.i("Store", "subscription removed by the user (${next.sources.size} left)"); message = ""
             }

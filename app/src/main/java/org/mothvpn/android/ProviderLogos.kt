@@ -20,24 +20,31 @@ object ProviderLogos {
     private fun marker(context: Context, sourceId: String) = File(dir(context), "${sourceId.filter { it.isLetterOrDigit() }.take(32)}.url")
 
     /** Keeps the cached logo in step with [url]: downloads when it changed or is missing, removes it when the provider stopped sending one. */
-    fun refresh(context: Context, sourceId: String, url: String, userAgent: String) {
+    fun refresh(context: Context, sourceId: String, url: String, userAgent: String, fallback: Boolean = false) {
         val f = file(context, sourceId); val m = marker(context, sourceId)
         if (url.isEmpty()) { f.delete(); m.delete(); return }
         val hash = sha(url)
-        if (f.exists() && m.exists() && runCatching { m.readText() }.getOrNull() == hash) return
+        val mark = runCatching { m.readText() }.getOrNull()
+        if (f.exists() && mark == hash) return
+        // A web page icon that failed once (most often a 404) is not asked for again on every update.
+        if (fallback && mark == "x$hash") return
         runCatching {
-            val bitmap = download(url, userAgent)
+            val bitmap = download(url, userAgent, if (fallback) 96 else 1)
             val tmp = File(f.parentFile, f.name + ".tmp")
             tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
             if (!tmp.renameTo(f)) { tmp.delete(); error("rename failed") }
             m.writeText(hash)
-            Logger.i("Logo", "provider logo cached (${f.length()} bytes)")
-        }.onFailure { Logger.w("Logo", "provider logo not used: ${it.javaClass.simpleName}") }
+            Logger.i("Logo", "provider logo cached (${f.length()} bytes${if (fallback) ", from the web page icon" else ""})")
+        }.onFailure {
+            Logger.w("Logo", "provider logo not used${if (fallback) " (web page icon)" else ""}: ${it.javaClass.simpleName}")
+            if (fallback) { f.delete(); runCatching { m.writeText("x$hash") } }
+        }
     }
     fun remove(context: Context, sourceId: String) { file(context, sourceId).delete(); marker(context, sourceId).delete() }
 
-    private fun download(address: String, userAgent: String): Bitmap {
+    /** [minSide]: smaller images are rejected (a web page icon below 96 px would look blurry as an avatar). */
+    private fun download(address: String, userAgent: String, minSide: Int = 1): Bitmap {
         var url = URL(address)
         repeat(4) {
             require(url.protocol == "https" && url.host.isNotBlank() && url.userInfo == null) { "https only" }
@@ -57,6 +64,7 @@ object ProviderLogos {
                         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
                         require(bounds.outWidth in 1..8192 && bounds.outHeight in 1..8192) { "not an image" }
+                        require(minOf(bounds.outWidth, bounds.outHeight) >= minSide) { "too small" }
                         var sample = 1
                         while (bounds.outWidth / (sample * 2) >= SIZE && bounds.outHeight / (sample * 2) >= SIZE) sample *= 2
                         val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample }) ?: error("not an image")
