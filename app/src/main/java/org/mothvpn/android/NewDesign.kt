@@ -4,6 +4,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -471,6 +472,30 @@ fun ClientSettings.filterShows(p: Profile) = !newDesign || org.mothvpn.core.Serv
                         .onFailure { Logger.w("Links", "no app can open the provider link") }
                 })
                 Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+    }
+}
+
+/**
+ * Two-option switch of the new design: a tonal track with a filled pill behind the active option (not an underline).
+ * [position] is 0..1 (the pager position, fractions while swiping), so the pill slides with the finger.
+ */
+@Composable fun NdPillSwitch(labels: List<String>, position: Float, select: (Int) -> Unit) {
+    val pos = position.coerceIn(0f, (labels.size - 1).toFloat())
+    Surface(shape = CircleShape, color = NdTone.raised(), modifier = Modifier.fillMaxWidth().height(48.dp)) {
+        BoxWithConstraints(Modifier.padding(4.dp)) {
+            val w = maxWidth / labels.size
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.offset(x = w * pos).width(w).fillMaxHeight()) {}
+            Row(Modifier.fillMaxSize()) {
+                labels.forEachIndexed { i, label ->
+                    val near = 1f - kotlin.math.abs(pos - i).coerceIn(0f, 1f)
+                    val color = androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.onPrimary, near)
+                    Box(Modifier.weight(1f).fillMaxHeight().clip(CircleShape)
+                        .selectable(selected = near > 0.5f, role = androidx.compose.ui.semantics.Role.Tab) { select(i) }, contentAlignment = Alignment.Center) {
+                        Text(label, color = color, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
             }
         }
     }

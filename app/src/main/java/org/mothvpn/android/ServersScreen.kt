@@ -188,16 +188,10 @@ import org.mothvpn.core.SubscriptionSource
             ActionIcon("refresh", if ((book?.sources?.count { !it.local } ?: 0) > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), book?.sources?.any { !it.local } == true && !locked, refresh)
             ActionIcon(if (probing) "stop" else "check", if (probing) tr(R.string.msg_cancel_checks_49) else tr(R.string.msg_check_servers_50), probing || canCheck) { if (probing) cancel() else probe(kind, visible.map { it.id }) } // snapshot of the displayed order at the moment of the tap
         }
+        val pager = rememberPagerState(initialPage = if (kind == "wifi") 0 else 1) { 2 }
         if (nd) {
-            // New design: an M3 segmented button instead of tabs + swipe pager; the network hint is one quiet line.
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                listOf("wifi" to "Wi-Fi", "mobile" to tr(R.string.msg_mobile_data_21)).forEachIndexed { i, (value, label) ->
-                    SegmentedButton(selected = kind == value, onClick = { kind = value }, shape = SegmentedButtonDefaults.itemShape(i, 2), icon = {},
-                        colors = SegmentedButtonDefaults.colors(activeContainerColor = MaterialTheme.colorScheme.primaryContainer, activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            inactiveContainerColor = Color.Transparent, activeBorderColor = MaterialTheme.colorScheme.outline, inactiveBorderColor = MaterialTheme.colorScheme.outline),
-                        modifier = Modifier.heightIn(min = 48.dp)) { Text(label, maxLines = 1) }
-                }
-            }
+            // New design: a pill switch; the filled pill follows the pager while swiping between the Wi-Fi and mobile data pages.
+            NdPillSwitch(listOf("Wi-Fi", tr(R.string.msg_mobile_data_21)), pager.currentPage + pager.currentPageOffsetFraction) { kind = if (it == 0) "wifi" else "mobile" }
             if (!network.available || kind != network.kind) Text(if (!network.available) tr(R.string.nd_checks_no_network) else tr(R.string.nd_checks_current_network),
                 style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
         } else TabRow(selectedTabIndex = if (kind == "wifi") 0 else 1) {
@@ -219,7 +213,6 @@ import org.mothvpn.core.SubscriptionSource
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         // Both designs swipe between the Wi-Fi and mobile data pages; the new design's segmented button follows the pager.
         run {
-        val pager = rememberPagerState(initialPage = if (kind == "wifi") 0 else 1) { 2 }
         LaunchedEffect(pager.currentPage) { kind = if (pager.currentPage == 0) "wifi" else "mobile" }
         LaunchedEffect(kind) { val i = if (kind == "wifi") 0 else 1; if (pager.currentPage != i) pager.animateScrollToPage(i) }
         // Fast snap: while a page is still settling the pager owns the touch and the list cannot scroll yet.
