@@ -57,7 +57,7 @@ private class AppEntry(val packageName: String, val label: String, val system: B
                 }
                 // Apps chosen earlier that are no longer installed stay in the list so they can be unchecked.
                 (found + settings.splitApps.filter { id -> found.none { it.packageName == id } }.map { AppEntry(it, it, false) })
-                    .sortedWith(compareBy({ it.packageName !in settings.splitApps }, { it.label.lowercase() }))
+                    .sortedBy { it.label.lowercase() }
             }.onFailure { Logger.w("Split", "listing apps failed", it) }.getOrDefault(emptyList())
         }
     }
@@ -70,7 +70,11 @@ private class AppEntry(val packageName: String, val label: String, val system: B
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { showSystem = !showSystem }) {
             Checkbox(showSystem, { showSystem = it }); Text(tr(R.string.split_show_system))
         }
-        val list = apps
+        // Selected apps on top. The order is a snapshot so rows don't jump under the finger: it is refreshed when the page opens, when the
+        // search or the system-apps box changes, and when a debounced batch of changes is saved (new design).
+        var onTop by remember { mutableStateOf(settings.splitApps.toSet()) }
+        LaunchedEffect(search, showSystem, if (nd) saved.splitApps else Unit) { onTop = settings.splitApps.toSet() }
+        val list = apps?.let { all -> remember(all, onTop) { all.sortedBy { it.packageName !in onTop } } }
         if (list == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         else {
             val shown = list.filter { (showSystem || !it.system || it.packageName in settings.splitApps) && (search.isBlank() || it.label.contains(search, true) || it.packageName.contains(search, true)) }
