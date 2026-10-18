@@ -50,6 +50,12 @@ class DesignScreenshotTest {
 
     private fun tab(name: String) { wait(By.text(name)).click(); Thread.sleep(900) }
 
+    /** Back closes the keyboard first (when shown), then the sheet: press until the sheet title is gone, never past it. */
+    private fun closeSheet(title: String) {
+        repeat(3) { if (device.findObject(By.text(title)) != null) { device.pressBack(); Thread.sleep(700) } }
+        assertTrue("sheet closed", device.findObject(By.text(title)) == null)
+    }
+
     private fun screens(theme: String, amoled: Boolean = false) {
         reset()
         SettingsStore(context).save(ClientSettings(hwid = hwid, theme = if (amoled) "dark" else theme, newDesign = true, amoled = amoled))
@@ -57,6 +63,8 @@ class DesignScreenshotTest {
         val store = SubscriptionStore(context)
         val profile = store.load()!!.profiles.first { it.name == "E2E VLESS" }
         store.save(store.load()!!.copy(selected = profile.id, wifiSelected = profile.id, mobileSelected = profile.id))
+        // Provider links as a Remnawave/Marzban panel sends them (support-url, announce-url, profile-web-page-url), for the subscriptions sheet.
+        store.update { b -> b.copy(sources = b.sources.map { it.copy(links = org.mothvpn.core.ProviderLinks("https://t.me/moth_e2e_support_bot", "https://sub.example.com/e2e", "https://t.me/moth_e2e_news")) }) }
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         wait(By.text("Settings")); Thread.sleep(800)
         // Ping values for the dots: the group header's check button (the new design has no toolbar icons).
@@ -75,6 +83,16 @@ class DesignScreenshotTest {
         shot("group-menu-$theme"); device.pressBack(); Thread.sleep(700)
         wait(By.descStartsWith("E2E Trojan")).longClick(); wait(By.text("Share server")); Thread.sleep(700)
         shot("server-menu-$theme"); device.pressBack(); Thread.sleep(700)
+        // Keyword filter: add "Trojan" (hide matching), the Trojan server disappears; then the keyword is removed again.
+        wait(By.text("Filter")).click(); wait(By.text("Server filter")); Thread.sleep(500)
+        wait(By.clazz("android.widget.EditText")).text = "Trojan"
+        wait(By.text("Add").enabled(true)).click(); wait(By.desc("Remove Trojan")); Thread.sleep(500)
+        shot("filter-sheet-$theme")
+        closeSheet("Server filter")
+        eventually(5_000, "filtered") { device.findObject(By.descStartsWith("E2E Trojan")) == null }
+        shot("servers-filtered-$theme")
+        wait(By.text("Filter: 1")).click(); wait(By.desc("Remove Trojan")).click(); Thread.sleep(300); closeSheet("Server filter")
+        wait(By.descStartsWith("E2E Trojan"))
         tab("Home")
         val offBounds = wait(By.desc("Connect VPN").enabled(true)).visibleBounds
         shot("home-off-$theme")
@@ -107,6 +125,9 @@ class DesignScreenshotTest {
         shot("sheet-$theme")
         device.pressBack(); Thread.sleep(800)
         stopVpn()
+        // One subscription with provider links: the card opens the subscriptions sheet with the link buttons.
+        tab("Home"); wait(By.descContains(": Show all subscriptions")).click(); wait(By.text("Subscriptions")); wait(By.desc("Support")); Thread.sleep(1000)
+        shot("subscriptions-$theme"); device.pressBack(); Thread.sleep(800)
         tab("Settings"); Thread.sleep(600)
         shot("settings-$theme")
     }
