@@ -79,7 +79,48 @@ class DesignScreenshotTest {
         log("design screenshot: $name")
     }
 
-    private fun screens(theme: String, amoled: Boolean = false) {
+    private fun shell(cmd: String) { instrumentation.uiAutomation.executeShellCommand(cmd).use { pfd -> android.os.ParcelFileDescriptor.AutoCloseInputStream(pfd).readBytes() } }
+
+    /**
+     * A short phone (1080×1600 px at the emulator density, about 600 dp tall), optionally with a large font: on Home (off and on) the moth,
+     * the subscription card (with its "valid until" line) and the server bar must not overlap, and the moth must not move between off and on.
+     * Then the server sheet: it opens at a usable height and one swipe down closes it.
+     */
+    private fun shortScreen(tag: String, fontScale: Float) {
+        try {
+            shell("wm size 1080x1600"); shell("settings put system font_scale $fontScale"); Thread.sleep(1500)
+            prepare("dark", false)
+            context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+            wait(By.text("Settings")); Thread.sleep(1200)
+            fun check(state: String): android.graphics.Rect {
+                val moth = wait(By.desc(if (state == "off") "Connect VPN" else "Disconnect VPN")).visibleBounds
+                val card = wait(By.descContains(": Show all subscriptions")).visibleBounds
+                val bar = wait(By.descStartsWith("Choose server")).visibleBounds
+                log("short $tag $state: moth=$moth card=$card bar=$bar")
+                assertTrue("moth overlaps the subscription card ($state)", moth.bottom <= card.top)
+                assertTrue("subscription card overlaps the server bar ($state)", card.bottom <= bar.top)
+                assertTrue("subscription card squeezed ($state)", card.height() >= (64 * context.resources.displayMetrics.density).toInt())
+                val until = wait(By.textStartsWith("Subscription expires on")).visibleBounds
+                assertTrue("valid-until line covered ($state)", until.bottom <= bar.top && until.height() > 0)
+                return moth
+            }
+            val offBounds = check("off")
+            shot("home-short-off-$tag")
+            wait(By.desc("Connect VPN").enabled(true)).click()
+            wait(By.text("VPN is on"), 60_000); Thread.sleep(2500)
+            assertEquals("moth button moved between off and on", offBounds, check("on"))
+            shot("home-short-on-$tag")
+            wait(By.descStartsWith("Choose server")).click()
+            val first = wait(By.descStartsWith("E2E Trojan")); Thread.sleep(1000)
+            shot("sheet-short-$tag")
+            val h = device.displayHeight
+            device.swipe(device.displayWidth / 2, first.visibleBounds.top, device.displayWidth / 2, h - 10, 12)
+            eventually(5_000, "sheet closed by one swipe") { device.findObject(By.descStartsWith("E2E Trojan")) == null }
+            stopVpn()
+        } finally { shell("wm size reset"); shell("settings put system font_scale 1.0"); Thread.sleep(1000) }
+    }
+
+    private fun prepare(theme: String, amoled: Boolean) {
         reset()
         SettingsStore(context).save(ClientSettings(hwid = hwid, theme = if (amoled) "dark" else theme, newDesign = true, amoled = amoled))
         eventually(30_000, "subscription downloaded") { SubscriptionRefresh.run(context, null, "https://10.0.2.2:8443/sub", null, SettingsStore(context).load(), "e2e"); true }
@@ -89,12 +130,16 @@ class DesignScreenshotTest {
         // Provider links as a Remnawave/Marzban panel sends them (support-url, announce-url, profile-web-page-url), for the subscriptions sheet.
         // Plus a logo (cached as if downloaded) and a traffic limit, for the avatar and the usage ring.
         val book = store.update { b -> b.copy(sources = b.sources.map { it.copy(usedBytes = 37L shl 30, totalBytes = 100L shl 30,
-            links = org.mothvpn.core.ProviderLinks("https://t.me/moth_e2e_support_bot", "https://sub.example.com/e2e", "https://t.me/moth_e2e_news", "https://sub.example.com/logo.png")) }) }
+            expires = System.currentTimeMillis() / 1000 + 40L * 86400, links = org.mothvpn.core.ProviderLinks("https://t.me/moth_e2e_support_bot", "https://sub.example.com/e2e", "https://t.me/moth_e2e_news", "https://sub.example.com/logo.png")) }) }
         val logo = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888).apply {
             val c = android.graphics.Canvas(this); c.drawColor(0xFF2D6CDF.toInt())
             c.drawCircle(48f, 48f, 26f, android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() })
         }
         ProviderLogos.file(context, book.sources.first().id).outputStream().use { logo.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    private fun screens(theme: String, amoled: Boolean = false) {
+        prepare(theme, amoled)
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         wait(By.text("Settings")); Thread.sleep(800)
         // Ping values for the dots: the group header's check button (the new design has no toolbar icons).
@@ -168,4 +213,6 @@ class DesignScreenshotTest {
     @Test fun newDesignDark() = screens("dark")
     @Test fun newDesignLight() = screens("light")
     @Test fun newDesignAmoled() = screens("amoled", amoled = true)
+    @Test fun newDesignShortScreen() = shortScreen("1x", 1.0f)
+    @Test fun newDesignShortScreenLargeFont() = shortScreen("font130", 1.3f)
 }
