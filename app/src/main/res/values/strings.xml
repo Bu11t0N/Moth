@@ -492,14 +492,13 @@
     <string name="nd_checks_no_network">No network: checks are unavailable</string>
     <string name="nd_filter">Filter</string>
     <string name="nd_filter_active">Filter: %1$d</string>
-    <string name="nd_filter_title">Server filter</string>
     <string name="nd_filter_exclude">Hide matching</string>
     <string name="nd_filter_only">Show only matching</string>
     <string name="nd_filter_keyword">Keyword, e.g. Germany</string>
     <string name="nd_filter_add">Add</string>
     <string name="nd_filter_empty">No keywords: all servers are shown.</string>
     <string name="nd_filter_remove">Remove %1$s</string>
-    <string name="nd_filter_hint">Keywords are matched against server names, ignoring case. The filter stays after subscription updates.</string>
+    <string name="nd_filter_hint">Keywords are matched against server names, ignoring case. Wi-Fi and mobile data have separate filters; each stays after subscription updates.</string>
     <string name="nd_link_support">Support</string>
     <string name="nd_link_news">News</string>
     <string name="nd_link_web">Website</string>
@@ -509,4 +508,5 @@
     <string name="nd_per_second">/s</string>
     <string name="nd_usage_ring">Traffic used: %1$d%%</string>
     <string name="nd_filter_hides_all">The server filter hides every server, so auto-select kept the server you chose. Change the filter on the Servers tab.</string>
+    <string name="nd_filter_title_for">Server filter: %1$s</string>
 </resources>

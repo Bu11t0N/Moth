@@ -84,22 +84,22 @@ import org.mothvpn.core.SubscriptionSource
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
     val canCheck = saved != null && !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING) && network.available && kind == network.kind
     val profiles = saved?.profiles.orEmpty()
-    val visible = remember(profiles, results, settings.hideUnavailable, settings.newDesign, settings.serverFilter, settings.serverFilterMode, settings.serverSort, settings.favorites, search, kind, now, network) {
+    val visible = remember(profiles, results, settings.hideUnavailable, settings.newDesign, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, kind, now, network) {
         profiles.filter { p ->
             val r = results["$kind:${p.id}"]
             val current = r?.networkHandle == network.handle && kind == network.kind
             val failed = current && r != null && !r.checking && !r.cancelled && r.error != null && r.method == "HTTPS" && now - r.checkedAt in 0 until 900_000
-            (!settings.hideUnavailable || !failed) && settings.filterShows(p) && (p.name.contains(search, true) || p.protocol.contains(search, true))
+            (!settings.hideUnavailable || !failed) && settings.filterShows(p, kind) && (p.name.contains(search, true) || p.protocol.contains(search, true))
         }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$kind:${p.id}"]?.latencyMs } }.let { Favorites.first(it, settings.favorites) { p -> p.id } }
     }
     @Composable fun KindPage(k: String) {
         val ndPage = LocalNewDesign.current
-        val visibleK = remember(profiles, results, settings.hideUnavailable, settings.newDesign, settings.serverFilter, settings.serverFilterMode, settings.serverSort, settings.favorites, search, k, now, network) {
+        val visibleK = remember(profiles, results, settings.hideUnavailable, settings.newDesign, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, k, now, network) {
             profiles.filter { p ->
                 val r = results["$k:${p.id}"]
                 val current = r?.networkHandle == network.handle && k == network.kind
                 val failed = current && r != null && !r.checking && !r.cancelled && r.error != null && r.method == "HTTPS" && now - r.checkedAt in 0 until 900_000
-                (!settings.hideUnavailable || !failed) && settings.filterShows(p) && (p.name.contains(search, true) || p.protocol.contains(search, true))
+                (!settings.hideUnavailable || !failed) && settings.filterShows(p, k) && (p.name.contains(search, true) || p.protocol.contains(search, true))
             }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$k:${p.id}"]?.latencyMs } }.let { Favorites.first(it, settings.favorites) { p -> p.id } }
         }
         if (visibleK.isEmpty()) Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -201,8 +201,9 @@ import org.mothvpn.core.SubscriptionSource
         if (!nd && (!network.available || kind != network.kind)) Text(if (!network.available) tr(R.string.msg_no_network_available_for_this_check_53) else if (kind == "mobile") tr(R.string.msg_to_check_mobile_data_enable_it_and_turn_off_w_54) else tr(R.string.msg_connect_to_wi_fi_to_run_this_check_55), style = MaterialTheme.typography.bodySmall)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${visible.size} / ${profiles.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-            if (nd) FilterChip(selected = settings.serverFilter.isNotEmpty(), onClick = { filterSheet = true },
-                label = { Text(if (settings.serverFilter.isEmpty()) tr(R.string.nd_filter) else tr(R.string.nd_filter_active, settings.serverFilter.size)) },
+            val pageFilter = settings.filterFor(kind).keywords
+            if (nd) FilterChip(selected = pageFilter.isNotEmpty(), onClick = { filterSheet = true },
+                label = { Text(if (pageFilter.isEmpty()) tr(R.string.nd_filter) else tr(R.string.nd_filter_active, pageFilter.size)) },
                 leadingIcon = { Icon(androidx.compose.material.icons.Icons.Rounded.FilterList, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 modifier = Modifier.padding(end = 8.dp))
             FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text(tr(R.string.msg_hide_unavailable_56)) })
@@ -220,7 +221,7 @@ import org.mothvpn.core.SubscriptionSource
             flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = spring(stiffness = Spring.StiffnessHigh))) { KindPage(if (it == 0) "wifi" else "mobile") }
         }
     }
-    if (filterSheet) ServerFilterSheet(settings, preferences) { filterSheet = false }
+    if (filterSheet) ServerFilterSheet(settings, kind, preferences) { filterSheet = false }
     // Thumb reach: bottom-right. Adding is not possible while connected or checking (same rule as the classic toolbar button), so the button dims then.
     if (nd) FloatingActionButton(onClick = { if (!locked) add() }, containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shape = MaterialTheme.shapes.large,
         modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp).graphicsLayer { alpha = if (locked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) }) {

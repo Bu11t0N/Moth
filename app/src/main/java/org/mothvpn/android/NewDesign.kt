@@ -250,7 +250,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
-        if (filterHidesAll && settings.autoSelect && settings.serverFilter.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
+        if (filterHidesAll && settings.autoSelect && settings.filterFor(network.kind).keywords.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error, maxLines = 3, overflow = TextOverflow.Ellipsis)
         // The whole bar is one touch target: it opens the server sheet.
         // Hero card: the inverse tone (light fill in the dark theme, dark fill in the light theme) with its own readable colours.
@@ -273,8 +273,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     if (sheet && saved != null) {
         val state = rememberModalBottomSheetState(skipPartiallyExpanded = false)
         val kind = network.kind
-        val ordered = remember(saved, results, settings.serverSort, settings.favorites, settings.serverFilter, settings.serverFilterMode, kind) {
-            Favorites.first(ServerOrder.sort(saved.profiles.filter { settings.filterShows(it) }, settings.serverSort, { it.name }) { p -> results["$kind:${p.id}"]?.latencyMs }, settings.favorites) { it.id }
+        val ordered = remember(saved, results, settings.serverSort, settings.favorites, settings.wifiFilter, settings.mobileFilter, kind) {
+            Favorites.first(ServerOrder.sort(saved.profiles.filter { settings.filterShows(it, kind) }, settings.serverSort, { it.name }) { p -> results["$kind:${p.id}"]?.latencyMs }, settings.favorites) { it.id }
         }
         val canSelect = !busy && !probing && tunnel != TunnelState.STOPPING
         ModalBottomSheet(onDismissRequest = { sheet = false }, sheetState = state, containerColor = NdTone.sheet()) {
@@ -421,16 +421,19 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
  * so it survives subscription updates.
  */
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun ServerFilterSheet(settings: ClientSettings, save: (ClientSettings) -> Unit, close: () -> Unit) {
+@Composable fun ServerFilterSheet(settings: ClientSettings, kind: String, save: (ClientSettings) -> Unit, close: () -> Unit) {
     var text by remember { mutableStateOf("") }
-    val keywords = settings.serverFilter
-    fun add() { val next = org.mothvpn.core.ServerFilter.add(keywords, text); if (next != keywords) save(settings.copy(serverFilter = next)); text = "" }
+    // Each network page (Wi-Fi / mobile data) has its own keywords and mode.
+    val rule = settings.filterFor(kind)
+    val keywords = rule.keywords
+    fun saveRule(next: org.mothvpn.core.ServerFilter.Rule) = save(settings.withFilter(kind, next))
+    fun add() { val next = org.mothvpn.core.ServerFilter.add(keywords, text); if (next != keywords) saveRule(rule.copy(keywords = next)); text = "" }
     ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
         Column(Modifier.fillMaxWidth().imePadding().padding(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(tr(R.string.nd_filter_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
+            Text(tr(R.string.nd_filter_title_for, if (kind == "mobile") tr(R.string.msg_mobile_data_21) else "Wi-Fi"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 listOf(org.mothvpn.core.ServerFilter.EXCLUDE to tr(R.string.nd_filter_exclude), org.mothvpn.core.ServerFilter.ONLY to tr(R.string.nd_filter_only)).forEachIndexed { i, (mode, label) ->
-                    SegmentedButton(selected = settings.serverFilterMode == mode, onClick = { save(settings.copy(serverFilterMode = mode)) }, shape = SegmentedButtonDefaults.itemShape(i, 2), icon = {},
+                    SegmentedButton(selected = rule.mode == mode, onClick = { saveRule(rule.copy(mode = mode)) }, shape = SegmentedButtonDefaults.itemShape(i, 2), icon = {},
                         colors = SegmentedButtonDefaults.colors(activeContainerColor = MaterialTheme.colorScheme.primaryContainer, activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             inactiveContainerColor = Color.Transparent, activeBorderColor = MaterialTheme.colorScheme.outline, inactiveBorderColor = MaterialTheme.colorScheme.outline),
                         modifier = Modifier.heightIn(min = 48.dp)) { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
@@ -450,7 +453,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                     Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
                         Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(k, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { save(settings.copy(serverFilter = keywords - k)) }, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.nd_filter_remove, k) }) {
+                            IconButton(onClick = { saveRule(rule.copy(keywords = keywords - k)) }, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.nd_filter_remove, k) }) {
                                 Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(22.dp))
                             }
                         }
@@ -462,8 +465,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     }
 }
 
-/** True when the new design's keyword filter shows this server (the classic design ignores the filter). */
-fun ClientSettings.filterShows(p: Profile) = !newDesign || org.mothvpn.core.ServerFilter.shows(p.name, serverFilter, serverFilterMode)
+/** True when the new design's keyword filter of network [kind] shows this server (the classic design ignores the filter). */
+fun ClientSettings.filterShows(p: Profile, kind: String) = !newDesign || filterFor(kind).shows(p.name)
 
 /**
  * Provider link buttons (support, web page, news) as [IconTile]s with a short caption. Telegram links get a paper-plane icon.

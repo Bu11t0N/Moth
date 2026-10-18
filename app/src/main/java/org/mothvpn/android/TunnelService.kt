@@ -232,7 +232,7 @@ class TunnelService : VpnService(), PlatformInterface {
     private fun pickFastest(subscription: SavedSubscription, settings: ClientSettings): String? {
         val access = NetworkTracker.read(connectivity)
         // Only servers the keyword filter shows are candidates (failover walks this ranking too), so a hidden server is never picked.
-        val pool = org.mothvpn.core.ServerFilter.pool(subscription.profiles, settings)
+        val pool = org.mothvpn.core.ServerFilter.pool(subscription.profiles, settings, access.kind) // the filter of the network in use
         TunnelStatus.filterHidesAllMutable.value = pool.isEmpty()
         if (pool.isEmpty()) { ranking = emptyList(); Logger.w("Tunnel", "auto select skipped: the server filter hides all ${subscription.profiles.size} server(s); keeping the selected server"); return null }
         if (pool.size < subscription.profiles.size) Logger.i("Tunnel", "auto select: ${pool.size} of ${subscription.profiles.size} server(s) pass the server filter")

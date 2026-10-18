@@ -114,14 +114,14 @@ class DesignScreenshotTest {
         wait(By.descStartsWith("E2E Trojan")).longClick(); wait(By.text("Share server")); Thread.sleep(700)
         shot("server-menu-$theme"); device.pressBack(); Thread.sleep(700)
         // Keyword filter: add "Trojan" (hide matching), the Trojan server disappears; then the keyword is removed again.
-        wait(By.text("Filter")).click(); wait(By.text("Server filter")); Thread.sleep(500)
+        wait(By.text("Filter")).click(); wait(By.text("Server filter: Wi-Fi")); Thread.sleep(500)
         wait(By.clazz("android.widget.EditText")).text = "Trojan"
         wait(By.text("Add").enabled(true)).click(); wait(By.desc("Remove Trojan")); Thread.sleep(500)
         shot("filter-sheet-$theme")
-        closeSheet("Server filter")
+        closeSheet("Server filter: Wi-Fi")
         eventually(5_000, "filtered") { device.findObject(By.descStartsWith("E2E Trojan")) == null }
         shot("servers-filtered-$theme")
-        wait(By.text("Filter: 1")).click(); wait(By.desc("Remove Trojan")).click(); Thread.sleep(300); closeSheet("Server filter")
+        wait(By.text("Filter: 1")).click(); wait(By.desc("Remove Trojan")).click(); Thread.sleep(300); closeSheet("Server filter: Wi-Fi")
         wait(By.descStartsWith("E2E Trojan"))
         tab("Home")
         val offBounds = wait(By.desc("Connect VPN").enabled(true)).visibleBounds

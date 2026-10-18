@@ -496,14 +496,13 @@
     <string name="nd_checks_no_network">Нет сети: проверка недоступна</string>
     <string name="nd_filter">Фильтр</string>
     <string name="nd_filter_active">Фильтр: %1$d</string>
-    <string name="nd_filter_title">Фильтр серверов</string>
     <string name="nd_filter_exclude">Скрыть совпадения</string>
     <string name="nd_filter_only">Только совпадения</string>
     <string name="nd_filter_keyword">Слово, например Германия</string>
     <string name="nd_filter_add">Добавить</string>
     <string name="nd_filter_empty">Слов нет: показаны все серверы.</string>
     <string name="nd_filter_remove">Удалить %1$s</string>
-    <string name="nd_filter_hint">Слова ищутся в названиях серверов без учёта регистра. Фильтр сохраняется после обновления подписок.</string>
+    <string name="nd_filter_hint">Слова ищутся в названиях серверов без учёта регистра. У Wi-Fi и мобильных данных свои фильтры; они сохраняются после обновления подписок.</string>
     <string name="nd_link_support">Поддержка</string>
     <string name="nd_link_news">Новости</string>
     <string name="nd_link_web">Сайт</string>
@@ -513,4 +512,5 @@
     <string name="nd_per_second">/с</string>
     <string name="nd_usage_ring">Израсходовано трафика: %1$d%%</string>
     <string name="nd_filter_hides_all">Фильтр скрывает все серверы, поэтому автовыбор оставил выбранный вами сервер. Измените фильтр на вкладке «Серверы».</string>
+    <string name="nd_filter_title_for">Фильтр серверов: %1$s</string>
 </resources>
