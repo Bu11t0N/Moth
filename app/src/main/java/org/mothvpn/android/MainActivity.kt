@@ -391,7 +391,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val next = withContext(Dispatchers.IO) { store.update { it.remove(id) }.also { if (it.sources.isEmpty()) store.clear(); ProviderLogos.remove(this@MainActivity, id) } }
                 show(next.takeIf { it.sources.isNotEmpty() })
-                Logger.i("Store", "subscription removed by the user (${next.sources.size} left)"); message = tr(R.string.msg_subscription_removed_42)
+                Logger.i("Store", "subscription removed by the user (${next.sources.size} left)"); message = ""
             }
             catch (e: Exception) { Logger.e("Store", "removing the subscription failed", e); message = tr(R.string.msg_could_not_remove_the_subscription_43) }
             finally { busy = false }

@@ -41,7 +41,6 @@
     <string name="msg_could_not_add_the_subscription_39" formatted="false">"Could not add the subscription"</string>
     <string name="msg_could_not_download_the_subscription_check_the_40" formatted="false">"Could not download the subscription. Check the link and your internet connection."</string>
     <string name="msg_could_not_save_the_selected_server_41" formatted="false">"Could not save the selected server"</string>
-    <string name="msg_subscription_removed_42" formatted="false">"Subscription removed"</string>
     <string name="msg_could_not_remove_the_subscription_43" formatted="false">"Could not remove the subscription"</string>
     <string name="msg_switch_networks_to_run_this_check_44" formatted="false">"Switch networks to run this check"</string>
     <string name="msg_could_not_start_the_check_or_vpn_45" formatted="false">"Could not start the check or VPN"</string>
@@ -63,7 +62,6 @@
     <string name="msg_checking_62" formatted="false">"checking…"</string>
     <string name="msg_not_checked_64" formatted="false">"not checked"</string>
     <string name="msg_port_is_reachable_vpn_traffic_has_not_been_ch_65" formatted="false">"Port is reachable; VPN traffic has not been checked"</string>
-    <string name="msg_checked_on_a_different_network_66" formatted="false">"Checked on a different network"</string>
     <string name="msg_remove_subscription_67" formatted="false">"Remove subscription?"</string>
     <string name="msg_the_subscription_link_will_need_to_be_added_a_68" formatted="false">"The subscription link will need to be added again to connect."</string>
     <string name="msg_remove_69" formatted="false">"Remove"</string>

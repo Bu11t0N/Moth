@@ -41,7 +41,6 @@
     <string name="msg_could_not_add_the_subscription_39" formatted="false">"Не удалось добавить подписку"</string>
     <string name="msg_could_not_download_the_subscription_check_the_40" formatted="false">"Не удалось загрузить подписку. Проверь ссылку и интернет."</string>
     <string name="msg_could_not_save_the_selected_server_41" formatted="false">"Не удалось сохранить выбранный сервер"</string>
-    <string name="msg_subscription_removed_42" formatted="false">"Подписка удалена"</string>
     <string name="msg_could_not_remove_the_subscription_43" formatted="false">"Не удалось удалить подписку"</string>
     <string name="msg_switch_networks_to_run_this_check_44" formatted="false">"Переключи сеть для этой проверки"</string>
     <string name="msg_could_not_start_the_check_or_vpn_45" formatted="false">"Не удалось запустить проверку или VPN"</string>
@@ -63,7 +62,6 @@
     <string name="msg_checking_62" formatted="false">"проверяем…"</string>
     <string name="msg_not_checked_64" formatted="false">"не проверен"</string>
     <string name="msg_port_is_reachable_vpn_traffic_has_not_been_ch_65" formatted="false">"Порт доступен; работа VPN не проверена"</string>
-    <string name="msg_checked_on_a_different_network_66" formatted="false">"Проверено в другой сети"</string>
     <string name="msg_remove_subscription_67" formatted="false">"Удалить подписку?"</string>
     <string name="msg_the_subscription_link_will_need_to_be_added_a_68" formatted="false">"Для подключения понадобится снова добавить ссылку."</string>
     <string name="msg_remove_69" formatted="false">"Удалить"</string>
