@@ -93,6 +93,9 @@ object MonoTheme {
         surfaceContainerLowest = Color(0xFF000000), surfaceContainerLow = Color(0xFF0F0F0F), surfaceContainer = Color(0xFF161616),
         surfaceContainerHigh = Color(0xFF1F1F1F), surfaceContainerHighest = Color(0xFF2A2A2A), surfaceVariant = Color(0xFF161616), surfaceBright = Color(0xFF2A2A2A),
         primaryContainer = Color(0xFF363636))
+    /** Colours for the home hero card (the server bar): the inverse tone, with background = the card fill so ping colours and greys stay readable. */
+    fun hero(darkTheme: Boolean) = if (darkTheme) light.copy(background = Color(0xFFF0F0F0), surface = Color(0xFFF0F0F0), onSurfaceVariant = Color(0xFF4A4A4A))
+        else this.dark.copy(background = Color(0xFF161616), surface = Color(0xFF161616), onSurfaceVariant = Color(0xFFB5B5B5))
     /** Larger, rounder components than the defaults. */
     val shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(20.dp),
         large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(32.dp))
@@ -240,16 +243,19 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         // The whole bar is one touch target: it opens the server sheet.
-        if (selected != null) Surface(onClick = { sheet = true }, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).semantics { contentDescription = tr(R.string.nd_choose_server) + ": " + selected.name }) {
-            Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(selected.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(serverSubtitle(selected), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        // Hero card: the inverse tone (light fill in the dark theme, dark fill in the light theme) with its own readable colours.
+        if (selected != null) MaterialTheme(colorScheme = MonoTheme.hero(dark)) {
+            Surface(onClick = { sheet = true }, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.background,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).semantics { contentDescription = tr(R.string.nd_choose_server) + ": " + selected.name }) {
+                Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(selected.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(serverSubtitle(selected), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    val (ms, failed) = ping(results, network.kind, selected, network)
+                    PingDot(ms, failed, Modifier.padding(start = 12.dp))
+                    Icon(androidx.compose.material.icons.Icons.Rounded.KeyboardArrowUp, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp).size(28.dp))
                 }
-                val (ms, failed) = ping(results, network.kind, selected, network)
-                PingDot(ms, failed, Modifier.padding(start = 12.dp))
-                Icon(androidx.compose.material.icons.Icons.Rounded.KeyboardArrowUp, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp).size(28.dp))
             }
         }
         Spacer(Modifier.height(8.dp))
