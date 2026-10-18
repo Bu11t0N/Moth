@@ -235,12 +235,12 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         }
         // Everything below (subscription card, server bar) is measured first; the moth area takes only the height that is left, so nothing
         // overlaps on a short screen or with a large font. The moth shrinks to fit that area. Its size depends only on the area height, and
-        // the status lines and session tiles below it have fixed heights, so the moth stays in place between off and on.
+        // the status lines below it have a fixed height (the session tiles sit outside, above the card), so the moth stays put between off and on.
         val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
         val statusHeight = 88.dp * fontScale.coerceAtLeast(1f)
         val tilesHeight = 72.dp * fontScale.coerceAtLeast(1f)
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
-        val below = statusHeight + 14.dp + (if (saved == null) 56.dp else tilesHeight) + 14.dp
+        val below = statusHeight + 14.dp + (if (saved == null) 56.dp + 14.dp else 0.dp)
         val mothSize = (maxHeight - below).coerceIn(56.dp, 260.dp)
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         MothButton(on = on, flapping = transition, dark = dark, enabled = enabled, onClick = connect,
@@ -255,10 +255,11 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
         if (saved == null) Button(enabled = !busy, onClick = add, modifier = Modifier.heightIn(min = 56.dp)) { Text(tr(R.string.msg_add_subscription_16)) }
-        // Session tiles (speed, traffic, time) while connected. The space is always reserved, so the moth never moves when they appear.
-        else SessionTiles(stats.takeIf { on }, tilesHeight)
         }
         }
+        // Session tiles (speed, traffic, time) while connected, directly above the subscription card with the same edges, corner radius,
+        // tone and 14 dp rhythm as the card and the server bar. The space is always reserved, so the moth never moves when they appear.
+        if (saved != null) SessionTiles(stats.takeIf { on }, tilesHeight)
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -542,7 +543,7 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = !newDesign || filterF
                 listOf(org.mothvpn.core.TrafficFormat.bytes(stats.txRate + stats.rxRate, units, locale) + tr(R.string.nd_per_second) to tr(R.string.nd_stat_speed),
                     org.mothvpn.core.TrafficFormat.bytes(stats.txTotal + stats.rxTotal, units, locale) to tr(R.string.nd_stat_traffic),
                     org.mothvpn.core.TrafficFormat.duration(stats.seconds) to tr(R.string.nd_stat_time)).forEach { (value, label) ->
-                    Surface(shape = MaterialTheme.shapes.medium, color = NdTone.card(), modifier = Modifier.weight(1f).fillMaxHeight().semantics(mergeDescendants = true) {}) {
+                    Surface(shape = MaterialTheme.shapes.large, color = NdTone.card(), modifier = Modifier.weight(1f).fillMaxHeight().semantics(mergeDescendants = true) {}) {
                         Column(Modifier.padding(horizontal = 10.dp, vertical = 10.dp), verticalArrangement = Arrangement.Center) {
                             // Values such as "123.4 MB/s" shrink to fit a narrow tile (down to 11 sp) before any ellipsis.
                             val big = MaterialTheme.typography.titleLarge
