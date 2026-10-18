@@ -10,27 +10,35 @@ import java.net.URI
  * - `profile-web-page-url`: the provider's subscription / account page (Marzban and Remnawave send the user's own page);
  * - `announce-url`: the link behind the provider's announcement, usually a news channel.
  * Values may be sent as `base64:<...>` (Remnawave's rwEncodeBase64) and also as `#name: value` lines at the top of a plain-text body.
+ * - `profile-logo` (alias `profile-icon`): an image URL for the provider's avatar (Prizrak-Box's header; Happ, Remnawave and Marzban
+ *   have no logo header). Only https, see [logoUrl].
  * Only https:// and tg:// links are kept. These URLs can identify the user: they are stored with the subscription and never logged.
  */
-data class ProviderLinks(val support: String = "", val web: String = "", val announce: String = "") {
+data class ProviderLinks(val support: String = "", val web: String = "", val announce: String = "", val logo: String = "") {
+    /** No link buttons (the logo is not a button). */
     val isEmpty get() = support.isEmpty() && web.isEmpty() && announce.isEmpty()
-    fun json(): JSONObject = JSONObject().apply { if (support.isNotEmpty()) put("support", support); if (web.isNotEmpty()) put("web", web); if (announce.isNotEmpty()) put("announce", announce) }
+    val stored get() = !isEmpty || logo.isNotEmpty()
+    fun json(): JSONObject = JSONObject().apply { if (support.isNotEmpty()) put("support", support); if (web.isNotEmpty()) put("web", web); if (announce.isNotEmpty()) put("announce", announce); if (logo.isNotEmpty()) put("logo", logo) }
 
     companion object {
         const val SUPPORT = "support-url"
         const val WEB = "profile-web-page-url"
         const val ANNOUNCE = "announce-url"
+        const val LOGO = "profile-logo"
+        const val LOGO_ALIAS = "profile-icon"
         private const val MAX_LENGTH = 2048
 
         /** [header] looks up a response header (case-insensitively); body lines are used for headers that are missing. */
         fun parse(header: (String) -> String?, body: String = ""): ProviderLinks {
             val lines = bodyValues(body)
             fun value(name: String) = (header(name)?.let(::link) ?: lines[name]?.let(::link)).orEmpty()
-            return ProviderLinks(value(SUPPORT), value(WEB), value(ANNOUNCE))
+            val logo = listOf(LOGO, LOGO_ALIAS).firstNotNullOfOrNull { name -> (header(name) ?: lines[name])?.let(::logoUrl) }.orEmpty()
+            return ProviderLinks(value(SUPPORT), value(WEB), value(ANNOUNCE), logo)
         }
 
         fun from(j: JSONObject?): ProviderLinks = if (j == null) ProviderLinks() else
-            ProviderLinks(j.optString("support").let { safe(it).orEmpty() }, j.optString("web").let { safe(it).orEmpty() }, j.optString("announce").let { safe(it).orEmpty() })
+            ProviderLinks(j.optString("support").let { safe(it).orEmpty() }, j.optString("web").let { safe(it).orEmpty() }, j.optString("announce").let { safe(it).orEmpty() },
+                j.optString("logo").let { logoUrl(it).orEmpty() })
 
         /** A header value as a link: quotes trimmed, `base64:` decoded, then checked with [safe]. */
         fun link(raw: String): String? {
@@ -38,6 +46,9 @@ data class ProviderLinks(val support: String = "", val web: String = "", val ann
             if (v.startsWith("base64:", ignoreCase = true)) v = decode(v.substring(7)) ?: return null
             return safe(v.trim())
         }
+
+        /** A logo header value: like [link], but https only (the image is downloaded by the app). */
+        fun logoUrl(raw: String): String? = link(raw)?.takeIf { it.startsWith("https://", ignoreCase = true) }
 
         /** https with a host and no user info, or tg://; at most 2 KB, no spaces or control characters. */
         fun safe(url: String): String? {
@@ -72,7 +83,7 @@ data class ProviderLinks(val support: String = "", val web: String = "", val ann
                 val i = line.indexOf(':')
                 if (i > 1) {
                     val name = line.substring(1, i).trim().lowercase()
-                    if (name in setOf(SUPPORT, WEB, ANNOUNCE) && name !in out) out[name] = line.substring(i + 1).trim()
+                    if (name in setOf(SUPPORT, WEB, ANNOUNCE, LOGO, LOGO_ALIAS) && name !in out) out[name] = line.substring(i + 1).trim()
                 }
             }
             return out

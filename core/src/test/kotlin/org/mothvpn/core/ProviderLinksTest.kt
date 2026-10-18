@@ -39,4 +39,14 @@ class ProviderLinksTest {
         assertEquals(ProviderLinks(), SubscriptionSource.from(source.copy(links = ProviderLinks()).json()).links)
         assertTrue(SubscriptionSource.from(source.json().apply { remove("providerLinks") }).links.isEmpty)
     }
+
+    @Test fun logoFromProfileLogoHeaderHttpsOnlyAndPersisted() {
+        assertEquals("https://cdn.example.com/logo.png", ProviderLinks.parse({ if (it == "profile-logo") b64("https://cdn.example.com/logo.png") else null }).logo)
+        assertEquals("https://cdn.example.com/i.png", ProviderLinks.parse({ null }, "#profile-icon: https://cdn.example.com/i.png\nvless://x").logo)
+        assertEquals("", ProviderLinks.parse({ if (it == "profile-logo") "http://cdn.example.com/logo.png" else null }).logo)
+        assertEquals("", ProviderLinks.parse({ if (it == "profile-logo") "tg://resolve?domain=x" else null }).logo)
+        val links = ProviderLinks(logo = "https://cdn.example.com/logo.png")
+        assertTrue(links.isEmpty); assertTrue(links.stored)
+        assertEquals(links, SubscriptionSource.from(SubscriptionSource("id2", "", "https://s.example.com/x", emptyList(), links = links).json()).links)
+    }
 }

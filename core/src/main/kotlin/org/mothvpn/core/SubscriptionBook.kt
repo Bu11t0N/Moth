@@ -16,7 +16,7 @@ data class SubscriptionSource(val id: String, val name: String, val url: String,
     /** Name to show: the user's name, else the provider's profile-title, else the host of the link. */
     fun title(): String = name.ifBlank { providerName }.ifBlank { runCatching { java.net.URI(url).host }.getOrNull().orEmpty() }
     fun json(): JSONObject = SubscriptionRecord(url, profiles, "", providerName = providerName, expires = expires, usedBytes = usedBytes,
-        totalBytes = totalBytes, updatedAt = updatedAt).json().put("id", id).put("name", name).apply { remove("selected"); remove("wifiSelected"); remove("mobileSelected"); if (!links.isEmpty) put("providerLinks", links.json()) }
+        totalBytes = totalBytes, updatedAt = updatedAt).json().put("id", id).put("name", name).apply { remove("selected"); remove("wifiSelected"); remove("mobileSelected"); if (links.stored) put("providerLinks", links.json()) }
     companion object {
         const val LOCAL_ID = "local"
         fun from(j: JSONObject): SubscriptionSource {
