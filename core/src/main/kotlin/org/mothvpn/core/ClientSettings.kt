@@ -67,6 +67,18 @@ data class ClientSettings(
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
         if (autoUserAgent.matches(userAgent)) copy(userAgent = "Moth/$version") else this
+    /**
+     * True when going from this to [next] changes something fixed when the tunnel is built (core config, TUN interface, split tunneling,
+     * DPI helper, the health check scheduled at connect), so a running VPN must reconnect once to apply it. Everything else applies live:
+     * server checks (read per run), auto-select, kill switch (sent to the service), subscription headers (used by downloads), the UI.
+     */
+    fun needsReconnect(next: ClientSettings): Boolean =
+        mtu != next.mtu || ipv6 != next.ipv6 || dns != next.dns || bootstrapDns != next.bootstrapDns || dnsLeakProtection != next.dnsLeakProtection ||
+            directRu != next.directRu || routingRules != next.routingRules || splitMode != next.splitMode || splitApps != next.splitApps ||
+            fragment != next.fragment || noise != next.noise || mux != next.mux ||
+            healthEnabled != next.healthEnabled || healthIntervalSeconds != next.healthIntervalSeconds || timeoutMs != next.timeoutMs ||
+            probeUrl != next.probeUrl || probeUrlOnly != next.probeUrlOnly || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP)
+
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
         require(updateChannel in setOf("", "release", "beta")) { "Неверный канал обновлений" }
