@@ -21,6 +21,11 @@ Not released yet.
 - New design: support, news and website buttons from the provider on the subscription card.
 - New design: split tunneling can be changed while connected; changes apply 5 seconds after the last one.
 - New design: searching servers opens collapsed groups with matches.
+- New design: clearer depth with tonal surfaces, a highlighted server card on the home screen and a pill switch for Wi-Fi / mobile data.
+- New design: speed, session traffic and connection time under the moth while connected.
+- New design: subscription traffic as a ring with a percentage, and the provider’s logo on the subscription card.
+- New design: auto-select and failover never pick servers hidden by the server filter.
+- The home-screen widget has a new monochrome look.
 
 ## 0.6.5
 
