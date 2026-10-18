@@ -10,8 +10,10 @@ import java.net.URI
  * - `profile-web-page-url`: the provider's subscription / account page (Marzban and Remnawave send the user's own page);
  * - `announce-url`: the link behind the provider's announcement, usually a news channel.
  * Values may be sent as `base64:<...>` (Remnawave's rwEncodeBase64) and also as `#name: value` lines at the top of a plain-text body.
- * - `profile-logo` (alias `profile-icon`): an image URL for the provider's avatar (Prizrak-Box's header; Happ, Remnawave and Marzban
- *   have no logo header). Only https, see [logoUrl].
+ * - logo: `profile-logo` (Prizrak-Box, Hammer), aliases `x-logo-url` (Hammer), `profile-icon`, `logo-url`, and the body short form
+ *   `#logo:`. Happ, v2RayTun, INCY, Hiddify, Remnawave and Marzban document no logo header (Happ shows provider logos only for a
+ *   registered `providerid`, from its own servers). Only https, see [logoUrl]. Without a logo header the app may try the provider's
+ *   web page icon, see [webIcon].
  * Only https:// and tg:// links are kept. These URLs can identify the user: they are stored with the subscription and never logged.
  */
 data class ProviderLinks(val support: String = "", val web: String = "", val announce: String = "", val logo: String = "") {
@@ -26,13 +28,15 @@ data class ProviderLinks(val support: String = "", val web: String = "", val ann
         const val ANNOUNCE = "announce-url"
         const val LOGO = "profile-logo"
         const val LOGO_ALIAS = "profile-icon"
+        /** Every logo header / body name, in priority order. */
+        val LOGO_NAMES = listOf(LOGO, "x-logo-url", LOGO_ALIAS, "logo-url", "logo")
         private const val MAX_LENGTH = 2048
 
         /** [header] looks up a response header (case-insensitively); body lines are used for headers that are missing. */
         fun parse(header: (String) -> String?, body: String = ""): ProviderLinks {
             val lines = bodyValues(body)
             fun value(name: String) = (header(name)?.let(::link) ?: lines[name]?.let(::link)).orEmpty()
-            val logo = listOf(LOGO, LOGO_ALIAS).firstNotNullOfOrNull { name -> (header(name) ?: lines[name])?.let(::logoUrl) }.orEmpty()
+            val logo = (LOGO_NAMES.firstNotNullOfOrNull { name -> header(name)?.let(::logoUrl) } ?: LOGO_NAMES.firstNotNullOfOrNull { name -> lines[name]?.let(::logoUrl) }).orEmpty()
             return ProviderLinks(value(SUPPORT), value(WEB), value(ANNOUNCE), logo)
         }
 
@@ -76,14 +80,40 @@ data class ProviderLinks(val support: String = "", val web: String = "", val ann
             }
         }
 
-        /** `#name: value` lines among the first lines of a plain-text body (Happ / v2RayTun "body headers"). */
+        /**
+         * The provider's web page icon as a logo fallback: `https://<host of profile-web-page-url>/apple-touch-icon.png` (a 180 px icon
+         * most sites have). Only for an https web page that is not Telegram; null otherwise.
+         */
+        fun webIcon(web: String): String? {
+            if (web.isEmpty() || telegram(web)) return null
+            val u = runCatching { URI(web) }.getOrNull() ?: return null
+            if (!u.scheme.equals("https", true) || u.host.isNullOrBlank() || u.rawUserInfo != null) return null
+            return "https://" + u.host + (if (u.port > 0 && u.port != 443) ":" + u.port else "") + "/apple-touch-icon.png"
+        }
+
+        /** Names of the `#name: value` body lines (lowercase), for the developer diagnostic. Values are never returned. */
+        fun bodyNames(body: String): List<String> = bodyLines(body).mapNotNull { line ->
+            val i = line.indexOf(':'); if (i > 1) line.substring(1, i).trim().lowercase().takeIf { n -> n.isNotEmpty() && n.length <= 64 && n.all { it.isLetterOrDigit() || it == '-' || it == '_' } } else null
+        }.distinct()
+
+        /** The first lines starting with `#`, from the body as sent or, when it is base64 (the usual v2ray subscription), decoded. */
+        private fun bodyLines(body: String): List<String> {
+            fun hashes(text: String) = text.lineSequence().take(64).map { it.trim() }.filter { it.startsWith("#") }.toList()
+            val plain = hashes(body)
+            if (plain.isNotEmpty() || body.length > 4 * 1024 * 1024) return plain
+            val compact = body.trim().replace("\n", "").replace("\r", "")
+            if (compact.isEmpty() || !compact.all { it.isLetterOrDigit() || it in "+/=-_" }) return plain
+            return decode(compact)?.let(::hashes).orEmpty()
+        }
+
+        /** `#name: value` lines among the first lines of the body (Happ / v2RayTun / Hammer "body headers"), also inside a base64 body. */
         private fun bodyValues(body: String): Map<String, String> {
             val out = mutableMapOf<String, String>()
-            body.lineSequence().take(64).map { it.trim() }.filter { it.startsWith("#") }.forEach { line ->
+            bodyLines(body).asSequence().take(64).map { it.trim() }.filter { it.startsWith("#") }.forEach { line ->
                 val i = line.indexOf(':')
                 if (i > 1) {
                     val name = line.substring(1, i).trim().lowercase()
-                    if (name in setOf(SUPPORT, WEB, ANNOUNCE, LOGO, LOGO_ALIAS) && name !in out) out[name] = line.substring(i + 1).trim()
+                    if ((name in setOf(SUPPORT, WEB, ANNOUNCE) || name in LOGO_NAMES) && name !in out) out[name] = line.substring(i + 1).trim()
                 }
             }
             return out

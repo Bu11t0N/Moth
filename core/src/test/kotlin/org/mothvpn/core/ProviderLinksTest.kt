@@ -49,4 +49,23 @@ class ProviderLinksTest {
         assertTrue(links.isEmpty); assertTrue(links.stored)
         assertEquals(links, SubscriptionSource.from(SubscriptionSource("id2", "", "https://s.example.com/x", emptyList(), links = links).json()).links)
     }
+
+    @Test fun logoAliasesHeaderBeatsBodyAndBase64Body() {
+        assertEquals("https://c.example.com/x.png", ProviderLinks.parse({ if (it == "x-logo-url") "https://c.example.com/x.png" else null }).logo)
+        // A header wins over a body line, whatever the alias.
+        assertEquals("https://h.example.com/a.png", ProviderLinks.parse({ if (it == "logo-url") "https://h.example.com/a.png" else null }, "#profile-logo: https://b.example.com/b.png").logo)
+        assertEquals("https://b.example.com/s.png", ProviderLinks.parse({ null }, "#logo: https://b.example.com/s.png\nvless://x").logo)
+        val body = java.util.Base64.getMimeEncoder().encodeToString("#profile-logo: https://b.example.com/l.png\n#support-url: https://t.me/s\nvless://u@h:443#n\n".toByteArray())
+        val links = ProviderLinks.parse({ null }, body)
+        assertEquals("https://b.example.com/l.png", links.logo); assertEquals("https://t.me/s", links.support)
+        assertEquals(listOf("profile-logo", "support-url"), ProviderLinks.bodyNames(body))
+    }
+
+    @Test fun webIconFallbackOnlyForHttpsNonTelegramPages() {
+        assertEquals("https://panel.example.com/apple-touch-icon.png", ProviderLinks.webIcon("https://panel.example.com/sub/abc123"))
+        assertEquals("https://panel.example.com:8443/apple-touch-icon.png", ProviderLinks.webIcon("https://panel.example.com:8443/u"))
+        assertEquals(null, ProviderLinks.webIcon("https://t.me/provider"))
+        assertEquals(null, ProviderLinks.webIcon("tg://resolve?domain=x"))
+        assertEquals(null, ProviderLinks.webIcon(""))
+    }
 }
