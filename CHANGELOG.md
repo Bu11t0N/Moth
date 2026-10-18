@@ -17,7 +17,7 @@ Not released yet.
 - The keyboard no longer covers the server JSON editor.
 - Swiping between Wi-Fi and mobile data works again on the Servers tab.
 - New design: settings icons in rounded tiles and a gear icon for Settings in the bottom bar.
-- New design: a server filter by keywords — hide matching servers or show only them.
+- New design: a server filter by keywords — hide matching servers or show only them, separately for Wi-Fi and mobile data.
 - New design: support, news and website buttons from the provider on the subscription card.
 - New design: split tunneling can be changed while connected; changes apply 5 seconds after the last one.
 - New design: searching servers opens collapsed groups with matches.
