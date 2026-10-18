@@ -213,6 +213,29 @@ class DesignScreenshotTest {
     @Test fun newDesignDark() = screens("dark")
     @Test fun newDesignLight() = screens("light")
     @Test fun newDesignAmoled() = screens("amoled", amoled = true)
+    /** Connection settings stay editable while connected; the change is saved at once and applied by one reconnect ~5 s later. */
+    @Test fun settingsEditableWhileConnected() {
+        prepare("dark", false)
+        context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        wait(By.text("Settings")); Thread.sleep(800)
+        wait(By.desc("Connect VPN").enabled(true)).click()
+        wait(By.text("VPN is on"), 60_000); Thread.sleep(1500)
+        tab("Settings"); wait(By.text(tr(R.string.set_cat_routing))).click(); Thread.sleep(800)
+        wait(By.textStartsWith("VPN is on: changes"))
+        val row = wait(By.text(tr(R.string.direct_ru)))
+        row.click()
+        val changed = System.currentTimeMillis()
+        eventually(5_000, "saved while connected") { SettingsStore(context).load().directRu }
+        shot("settings-live-dark")
+        var reconnectAt = 0L
+        val end = System.currentTimeMillis() + 20_000
+        while (System.currentTimeMillis() < end && reconnectAt == 0L) { if (TunnelStatus.state.value != TunnelState.RUNNING) reconnectAt = System.currentTimeMillis(); Thread.sleep(30) }
+        log("settings live reconnect after ${reconnectAt - changed} ms")
+        assertTrue("reconnected once after the change", reconnectAt > 0)
+        assertTrue("reconnect waited for the 5 s debounce", reconnectAt - changed >= 4_500)
+        eventually(60_000, "VPN back on") { TunnelStatus.state.value == TunnelState.RUNNING }
+        stopVpn()
+    }
     @Test fun newDesignShortScreen() = shortScreen("1x", 1.0f)
     @Test fun newDesignShortScreenLargeFont() = shortScreen("font130", 1.3f)
 }
