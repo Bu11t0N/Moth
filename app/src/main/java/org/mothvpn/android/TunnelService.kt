@@ -329,15 +329,27 @@ class TunnelService : VpnService(), PlatformInterface {
     @Volatile private var serverName = ""
     /** Posts (or re-posts) the foreground notification for the current state. The app name comes only from the system app-name line. */
     private fun foreground() = startForeground(1, buildNotification())
+    private val CHANNEL = "vpn_status"
     private fun buildNotification(): Notification {
         val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel("vpn", tr(R.string.msg_vpn_connection_125), NotificationManager.IMPORTANCE_LOW))
+        // Kept as high in the shade as Android allows: the old "vpn" channel was LOW, which puts the notification in the bottom "Silent"
+        // section. The "vpn_status" channel is DEFAULT importance with no sound or vibration (the 1 Hz updates stay quiet: only-alert-once),
+        // and a colorized foreground-service notification is ranked first within its section by the system comparator.
+        // Channel importance can't be raised in place, so the old channel is deleted once.
+        if (manager.getNotificationChannel(CHANNEL) == null) {
+            manager.createNotificationChannel(NotificationChannel(CHANNEL, tr(R.string.msg_vpn_connection_125), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                setSound(null, null); enableVibration(false); enableLights(false); setShowBadge(false)
+            })
+            runCatching { manager.deleteNotificationChannel("vpn") }
+        }
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val stop = PendingIntent.getService(this, 1, Intent(this, TunnelService::class.java).setAction("STOP"), PendingIntent.FLAG_IMMUTABLE)
         val name = serverName
-        val builder = Notification.Builder(this, "vpn").setSmallIcon(R.drawable.ic_moth_notification)
-            .setContentIntent(open).setOngoing(true).setShowWhen(false)
+        val builder = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_moth_notification)
+            .setContentIntent(open).setOngoing(true).setShowWhen(false).setOnlyAlertOnce(true)
+            .setCategory(Notification.CATEGORY_SERVICE).setColor(0xFF262626.toInt()).setColorized(true).setLocalOnly(true)
+            .apply { if (android.os.Build.VERSION.SDK_INT >= 31) setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE) }
             .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build())
         val offline = TunnelStatus.offline.value
         if (TunnelStatus.state.value == TunnelState.RUNNING && offline != org.mothvpn.core.OfflineStatus.Kind.ONLINE) {
