@@ -29,31 +29,43 @@ class ServerFilterTest {
         assertEquals(ServerFilter.MAX_KEYWORDS, (1..80).fold(emptyList<String>()) { a, i -> ServerFilter.add(a, "k$i") }.size)
     }
 
-    @Test fun filterPersistsAndDefaultsToExcludeWithNoKeywords() {
-        val d = ClientSettings.from(ClientSettings().json().apply { remove("serverFilter"); remove("serverFilterMode") })
-        assertEquals(emptyList<String>(), d.serverFilter); assertEquals(ServerFilter.EXCLUDE, d.serverFilterMode)
-        val s = ClientSettings(serverFilter = listOf("Germany", "gaming"), serverFilterMode = ServerFilter.ONLY)
+    @Test fun eachNetworkHasItsOwnFilterAndBothPersist() {
+        val d = ClientSettings.from(ClientSettings().json().apply { remove("serverFilterWifi"); remove("serverFilterMobile") })
+        assertEquals(ServerFilter.Rule(), d.wifiFilter); assertEquals(ServerFilter.Rule(), d.mobileFilter)
+        val s = ClientSettings().withFilter("wifi", ServerFilter.Rule(listOf("Germany"), ServerFilter.ONLY)).withFilter("mobile", ServerFilter.Rule(listOf("gaming")))
+        assertEquals(listOf("Germany"), s.filterFor("wifi").keywords); assertEquals(listOf("gaming"), s.filterFor("mobile").keywords)
+        assertEquals(ServerFilter.ONLY, s.wifiFilter.mode); assertEquals(ServerFilter.EXCLUDE, s.mobileFilter.mode)
         assertEquals(s, ClientSettings.from(s.json()))
-        val broken = s.json().put("serverFilter", org.json.JSONArray(listOf(" a ", "A", "", "b"))).put("serverFilterMode", "weird")
-        val fixed = ClientSettings.from(broken)
-        assertEquals(listOf("a", "b"), fixed.serverFilter); assertEquals(ServerFilter.EXCLUDE, fixed.serverFilterMode)
+        val broken = s.json().put("serverFilterMobile", org.json.JSONObject().put("keywords", org.json.JSONArray(listOf(" a ", "A", "", "b"))).put("mode", "weird"))
+        assertEquals(ServerFilter.Rule(listOf("a", "b")), ClientSettings.from(broken).mobileFilter)
+    }
+
+    @Test fun theBeta4SingleFilterIsMigratedToBothNetworks() {
+        val old = ClientSettings().json().apply { remove("serverFilterWifi"); remove("serverFilterMobile") }
+            .put("serverFilter", org.json.JSONArray(listOf("Germany", "gaming"))).put("serverFilterMode", "only")
+        val migrated = ClientSettings.from(old)
+        val rule = ServerFilter.Rule(listOf("Germany", "gaming"), ServerFilter.ONLY)
+        assertEquals(rule, migrated.wifiFilter); assertEquals(rule, migrated.mobileFilter)
+        assertFalse(migrated.json().has("serverFilter"))
     }
 
     @Test fun logShowsOnlyTheKeywordCount() {
-        val changes = ClientSettings().let { LogFacts.settingsChanges(it, it.copy(serverFilter = listOf("SecretProvider"))) }
-        assertEquals(listOf("serverFilter=0->1"), changes)
+        val changes = ClientSettings().let { LogFacts.settingsChanges(it, it.withFilter("mobile", ServerFilter.Rule(listOf("SecretProvider")))) }
+        assertEquals(listOf("mobileFilter=0->1"), changes)
         assertFalse(changes.joinToString().contains("SecretProvider"))
     }
 
     private fun p(name: String) = Profile(name.lowercase().hashCode().toUInt().toString(16).padStart(16, '0'), name, "vless", "{}")
 
-    @Test fun autoSelectPoolSkipsServersHiddenByTheFilter() {
+    @Test fun autoSelectPoolSkipsServersHiddenByTheCurrentNetworksFilter() {
         val all = listOf(p("Germany 1"), p("Netherlands"), p("Germany 2"))
-        val nd = ClientSettings(newDesign = true, serverFilter = listOf("germany"))
-        assertEquals(listOf("Netherlands"), ServerFilter.pool(all, nd).map { it.name })
-        assertEquals(listOf("Germany 1", "Germany 2"), ServerFilter.pool(all, nd.copy(serverFilterMode = ServerFilter.ONLY)).map { it.name })
+        val nd = ClientSettings(newDesign = true).withFilter("wifi", ServerFilter.Rule(listOf("germany")))
+        assertEquals(listOf("Netherlands"), ServerFilter.pool(all, nd, "wifi").map { it.name })
+        // The mobile data page has no keywords: every server is a candidate there.
+        assertEquals(all, ServerFilter.pool(all, nd, "mobile"))
+        assertEquals(listOf("Germany 1", "Germany 2"), ServerFilter.pool(all, nd.withFilter("mobile", ServerFilter.Rule(listOf("germany"), ServerFilter.ONLY)), "mobile").map { it.name })
         // Ranking and failover only ever see pool ids, so a hidden server can never be next.
-        val ids = ServerFilter.pool(all, nd).map { it.id }
+        val ids = ServerFilter.pool(all, nd, "wifi").map { it.id }
         val ranking = ServerPicker.ranking(ids, all.associate { it.id to 50L })
         assertEquals(listOf(all[1].id), ranking)
         assertEquals(null, ServerPicker.next(ranking, all[1].id, emptySet()))
@@ -61,12 +73,12 @@ class ServerFilterTest {
 
     @Test fun poolIsEverythingWithoutAFilterOrInTheClassicDesign() {
         val all = listOf(p("Germany 1"), p("Netherlands"))
-        assertEquals(all, ServerFilter.pool(all, ClientSettings(newDesign = true)))
-        assertEquals(all, ServerFilter.pool(all, ClientSettings(newDesign = false, serverFilter = listOf("germany"))))
+        assertEquals(all, ServerFilter.pool(all, ClientSettings(newDesign = true), "wifi"))
+        assertEquals(all, ServerFilter.pool(all, ClientSettings(newDesign = false).withFilter("wifi", ServerFilter.Rule(listOf("germany"))), "wifi"))
     }
 
     @Test fun poolIsEmptyWhenTheFilterHidesEverything() {
         val all = listOf(p("Germany 1"), p("Germany 2"))
-        assertTrue(ServerFilter.pool(all, ClientSettings(newDesign = true, serverFilter = listOf("germany"))).isEmpty())
+        assertTrue(ServerFilter.pool(all, ClientSettings(newDesign = true).withFilter("mobile", ServerFilter.Rule(listOf("germany"))), "mobile").isEmpty())
     }
 }

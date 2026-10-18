@@ -31,7 +31,8 @@ object LogFacts {
         plain("fragment", old.fragment, new.fragment); plain("noise", old.noise, new.noise); plain("mux", old.mux, new.mux)
         plain("editServers", old.editServers, new.editServers); plain("newDesign", old.newDesign, new.newDesign); plain("amoled", old.amoled, new.amoled)
         // Keywords can be provider or location names: only the count is logged.
-        plain("serverFilter", old.serverFilter.size, new.serverFilter.size); plain("serverFilterMode", old.serverFilterMode, new.serverFilterMode)
+        plain("wifiFilter", old.wifiFilter.keywords.size, new.wifiFilter.keywords.size); plain("wifiFilterMode", old.wifiFilter.mode, new.wifiFilter.mode)
+        plain("mobileFilter", old.mobileFilter.keywords.size, new.mobileFilter.keywords.size); plain("mobileFilterMode", old.mobileFilter.mode, new.mobileFilter.mode)
         return out
     }
 
