@@ -1,5 +1,8 @@
 package org.mothvpn.android
 
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import android.Manifest
 import android.content.Intent
 import android.net.VpnService
@@ -162,7 +165,12 @@ class MainActivity : AppCompatActivity() {
                         // Same colour as the content surface and no tonal overlay: no lighter band at the bottom.
                         NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                             listOf(tr(R.string.msg_home_26) to "home", tr(R.string.msg_servers_27) to "list", tr(R.string.msg_settings_28) to "settings").forEachIndexed { i, item ->
-                                NavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { MothIcon(item.second) }, label = { Text(item.first) })
+                                NavigationBarItem(selected = tab == i, onClick = { tab = i }, label = { Text(item.first) }, icon = {
+                                    // New design: Material icons that are clearly different (house, bulleted list, gear); the classic UI keeps its drawn icons.
+                                    if (newDesign) Icon(when (item.second) { "home" -> androidx.compose.material.icons.Icons.Outlined.Home
+                                        "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.FormatListBulleted
+                                        else -> androidx.compose.material.icons.Icons.Outlined.Settings }, contentDescription = null)
+                                    else MothIcon(item.second) })
                             }
                         }
                     }
