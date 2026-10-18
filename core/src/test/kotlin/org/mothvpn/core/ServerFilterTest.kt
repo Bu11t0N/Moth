@@ -44,4 +44,29 @@ class ServerFilterTest {
         assertEquals(listOf("serverFilter=0->1"), changes)
         assertFalse(changes.joinToString().contains("SecretProvider"))
     }
+
+    private fun p(name: String) = Profile(name.lowercase().hashCode().toUInt().toString(16).padStart(16, '0'), name, "vless", "{}")
+
+    @Test fun autoSelectPoolSkipsServersHiddenByTheFilter() {
+        val all = listOf(p("Germany 1"), p("Netherlands"), p("Germany 2"))
+        val nd = ClientSettings(newDesign = true, serverFilter = listOf("germany"))
+        assertEquals(listOf("Netherlands"), ServerFilter.pool(all, nd).map { it.name })
+        assertEquals(listOf("Germany 1", "Germany 2"), ServerFilter.pool(all, nd.copy(serverFilterMode = ServerFilter.ONLY)).map { it.name })
+        // Ranking and failover only ever see pool ids, so a hidden server can never be next.
+        val ids = ServerFilter.pool(all, nd).map { it.id }
+        val ranking = ServerPicker.ranking(ids, all.associate { it.id to 50L })
+        assertEquals(listOf(all[1].id), ranking)
+        assertEquals(null, ServerPicker.next(ranking, all[1].id, emptySet()))
+    }
+
+    @Test fun poolIsEverythingWithoutAFilterOrInTheClassicDesign() {
+        val all = listOf(p("Germany 1"), p("Netherlands"))
+        assertEquals(all, ServerFilter.pool(all, ClientSettings(newDesign = true)))
+        assertEquals(all, ServerFilter.pool(all, ClientSettings(newDesign = false, serverFilter = listOf("germany"))))
+    }
+
+    @Test fun poolIsEmptyWhenTheFilterHidesEverything() {
+        val all = listOf(p("Germany 1"), p("Germany 2"))
+        assertTrue(ServerFilter.pool(all, ClientSettings(newDesign = true, serverFilter = listOf("germany"))).isEmpty())
+    }
 }

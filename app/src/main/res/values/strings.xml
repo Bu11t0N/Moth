@@ -508,4 +508,5 @@
     <string name="nd_stat_time">Connected</string>
     <string name="nd_per_second">/s</string>
     <string name="nd_usage_ring">Traffic used: %1$d%%</string>
+    <string name="nd_filter_hides_all">The server filter hides every server, so auto-select kept the server you chose. Change the filter on the Servers tab.</string>
 </resources>

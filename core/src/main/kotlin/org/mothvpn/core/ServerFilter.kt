@@ -32,4 +32,12 @@ object ServerFilter {
         val hit = keywords.any { name.contains(it, ignoreCase = true) }
         return if (mode == ONLY) hit else !hit
     }
+
+    /**
+     * Servers auto-select and failover may pick: the same ones the lists show. The keyword filter belongs to the new design,
+     * so with the classic design (or no keywords) every server is a candidate. Empty when the filter hides everything.
+     */
+    fun pool(profiles: List<Profile>, settings: ClientSettings): List<Profile> =
+        if (!settings.newDesign || settings.serverFilter.isEmpty()) profiles
+        else profiles.filter { shows(it.name, settings.serverFilter, settings.serverFilterMode) }
 }

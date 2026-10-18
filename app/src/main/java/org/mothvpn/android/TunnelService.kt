@@ -55,6 +55,9 @@ object TunnelStatus {
     /** Live session numbers while connected (same sample as the notification: speed, session traffic, time); null when not connected. */
     internal val statsMutable = MutableStateFlow<org.mothvpn.core.TrafficFormat.Stats?>(null)
     val stats = statsMutable.asStateFlow()
+    /** Auto-select found no candidate because the keyword server filter hides every server (it then keeps the selected server). */
+    internal val filterHidesAllMutable = MutableStateFlow(false)
+    val filterHidesAll = filterHidesAllMutable.asStateFlow()
     /** Traffic is held by the kill switch: the user sees "Disconnect" and "Traffic blocked", not "Connect". Also when the network is gone with the kill switch on. */
     fun trafficBlocked(state: TunnelState, blocking: Boolean, offline: org.mothvpn.core.OfflineStatus.Kind = this.offline.value) = state == TunnelState.BLOCKED || (blocking && state == TunnelState.STARTING) ||
         (offline == org.mothvpn.core.OfflineStatus.Kind.BLOCKED && state in setOf(TunnelState.RUNNING, TunnelState.STARTING))
@@ -228,7 +231,13 @@ class TunnelService : VpnService(), PlatformInterface {
     /** Measures every server with the regular probe (same method as the Servers screen) and returns the fastest one; also saves it as the selection. */
     private fun pickFastest(subscription: SavedSubscription, settings: ClientSettings): String? {
         val access = NetworkTracker.read(connectivity)
-        val order = subscription.profiles.map { it.id }
+        // Only servers the keyword filter shows are candidates (failover walks this ranking too), so a hidden server is never picked.
+        val pool = org.mothvpn.core.ServerFilter.pool(subscription.profiles, settings)
+        TunnelStatus.filterHidesAllMutable.value = pool.isEmpty()
+        if (pool.isEmpty()) { ranking = emptyList(); Logger.w("Tunnel", "auto select skipped: the server filter hides all ${subscription.profiles.size} server(s); keeping the selected server"); return null }
+        if (pool.size < subscription.profiles.size) Logger.i("Tunnel", "auto select: ${pool.size} of ${subscription.profiles.size} server(s) pass the server filter")
+        if (pool.size == 1) { ranking = listOf(pool[0].id); saveSelection(pool[0].id, access.kind); return pool[0].id }
+        val order = pool.map { it.id }
         val now = System.currentTimeMillis()
         val recent = ServerPicker.recentRanking(order, Diagnostics.results.value.let { results -> order.mapNotNull { id ->
             results["${access.kind}:$id"]?.takeIf { r -> !r.checking && !r.cancelled && r.networkHandle == access.handle }?.let { r -> id to (r.latencyMs to r.checkedAt) } }.toMap() }, now)

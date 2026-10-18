@@ -512,4 +512,5 @@
     <string name="nd_stat_time">Подключено</string>
     <string name="nd_per_second">/с</string>
     <string name="nd_usage_ring">Израсходовано трафика: %1$d%%</string>
+    <string name="nd_filter_hides_all">Фильтр скрывает все серверы, поэтому автовыбор оставил выбранный вами сервер. Измените фильтр на вкладке «Серверы».</string>
 </resources>

@@ -246,6 +246,9 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
+        if (filterHidesAll && settings.autoSelect && settings.serverFilter.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error, maxLines = 3, overflow = TextOverflow.Ellipsis)
         // The whole bar is one touch target: it opens the server sheet.
         // Hero card: the inverse tone (light fill in the dark theme, dark fill in the light theme) with its own readable colours.
         if (selected != null) MaterialTheme(colorScheme = MonoTheme.hero(dark)) {
