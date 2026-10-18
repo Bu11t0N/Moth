@@ -241,10 +241,12 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
         val statusHeight = 88.dp * fontScale.coerceAtLeast(1f)
         val tilesHeight = 72.dp * fontScale.coerceAtLeast(1f)
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopCenter) {
         val below = statusHeight + 14.dp + (if (saved == null) 56.dp + 14.dp else 0.dp)
         val mothSize = (maxHeight - below).coerceIn(56.dp, 260.dp)
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // Free height: about a third above the moth, the rest between the status lines and the tiles.
+        val free = (maxHeight - below - mothSize).coerceAtLeast(0.dp)
+        Column(Modifier.fillMaxWidth().padding(top = free * 0.35f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         MothButton(on = on, flapping = transition, dark = dark, enabled = enabled, onClick = connect,
             description = if (running) tr(R.string.msg_disconnect_vpn_8) else tr(R.string.msg_connect_vpn_9), size = mothSize)
         // Reserved space for the status lines (title + one detail line): nothing above or below moves when they change.
