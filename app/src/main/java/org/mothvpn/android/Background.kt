@@ -87,6 +87,7 @@ object SubscriptionRefresh {
                 response.expires, response.used, response.total, System.currentTimeMillis(), response.links))
         }
         Logger.i("Import", "subscriptions saved: ${book.sources.size} subscription(s), ${book.profiles.size} server(s)")
+        ProviderLogos.refresh(context, id, response.links.logo, settings.withAppVersion(BuildConfig.VERSION_NAME).userAgent)
         runCatching { ExpiryReminder.checkTraffic(context) }.onFailure { Logger.w("Traffic", "check after refresh failed", it) }
         return Result(book, id, parsed.rejected)
     }

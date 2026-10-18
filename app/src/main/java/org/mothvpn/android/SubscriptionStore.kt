@@ -115,7 +115,7 @@ object SubscriptionDownload {
                         val text = String(bytes, Charsets.UTF_8)
                         // Support / web page / news links: personal URLs, so only which ones were sent is logged.
                         val links = org.mothvpn.core.ProviderLinks.parse({ connection.getHeaderField(it) }, text)
-                        Logger.d("Download", "provider links: support=${links.support.isNotEmpty()} web=${links.web.isNotEmpty()} news=${links.announce.isNotEmpty()}")
+                        Logger.d("Download", "provider links: support=${links.support.isNotEmpty()} web=${links.web.isNotEmpty()} news=${links.announce.isNotEmpty()} logo=${links.logo.isNotEmpty()}")
                         return Response(text, title, info["expire"] ?: 0, used, info["total"] ?: 0, links)
                     }
                     401, 403 -> { Logger.w("Download", "access denied (HTTP $response)"); error(tr(R.string.msg_subscription_is_unavailable_check_the_link_an_117)) }

@@ -64,7 +64,14 @@ class DesignScreenshotTest {
         val profile = store.load()!!.profiles.first { it.name == "E2E VLESS" }
         store.save(store.load()!!.copy(selected = profile.id, wifiSelected = profile.id, mobileSelected = profile.id))
         // Provider links as a Remnawave/Marzban panel sends them (support-url, announce-url, profile-web-page-url), for the subscriptions sheet.
-        store.update { b -> b.copy(sources = b.sources.map { it.copy(links = org.mothvpn.core.ProviderLinks("https://t.me/moth_e2e_support_bot", "https://sub.example.com/e2e", "https://t.me/moth_e2e_news")) }) }
+        // Plus a logo (cached as if downloaded) and a traffic limit, for the avatar and the usage ring.
+        val book = store.update { b -> b.copy(sources = b.sources.map { it.copy(usedBytes = 37L shl 30, totalBytes = 100L shl 30,
+            links = org.mothvpn.core.ProviderLinks("https://t.me/moth_e2e_support_bot", "https://sub.example.com/e2e", "https://t.me/moth_e2e_news", "https://sub.example.com/logo.png")) }) }
+        val logo = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888).apply {
+            val c = android.graphics.Canvas(this); c.drawColor(0xFF2D6CDF.toInt())
+            c.drawCircle(48f, 48f, 26f, android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() })
+        }
+        ProviderLogos.file(context, book.sources.first().id).outputStream().use { logo.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         wait(By.text("Settings")); Thread.sleep(800)
         // Ping values for the dots: the group header's check button (the new design has no toolbar icons).

@@ -15,6 +15,8 @@ import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.CardMembership
 import androidx.compose.material.icons.rounded.SupportAgent
 import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.Language
@@ -24,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
@@ -343,7 +346,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
             items(sources, key = { it.id }) { s ->
                 Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
                     Column {
-                    Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = if (s.links.isEmpty) 12.dp else 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 12.dp, bottom = if (s.links.isEmpty) 12.dp else 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        ProviderAvatar(s, Modifier.padding(end = 12.dp))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(s.title().ifBlank { tr(R.string.import_local_name) }, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             val grey = MaterialTheme.colorScheme.onSurfaceVariant
@@ -560,4 +564,19 @@ fun ClientSettings.filterShows(p: Profile) = !newDesign || org.mothvpn.core.Serv
         }
         Text("$percent%", style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
+}
+
+/** The provider's logo (cached by [ProviderLogos], shown in greys to fit the monochrome design), or a monochrome tile icon when there is none. */
+@Composable fun ProviderAvatar(source: org.mothvpn.core.SubscriptionSource, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val logo by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, source.id, source.links.logo, source.updatedAt) {
+        value = if (source.local || source.links.logo.isEmpty()) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { ProviderLogos.file(context, source.id).takeIf { it.exists() }?.let { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }.getOrNull()
+        }
+    }
+    val image = logo
+    if (image == null) IconTile(if (source.local) androidx.compose.material.icons.Icons.Outlined.Dns else androidx.compose.material.icons.Icons.Outlined.CardMembership, modifier, size)
+    else androidx.compose.foundation.Image(image, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+        colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) }),
+        modifier = modifier.size(size).clip(RoundedCornerShape(12.dp)))
 }
