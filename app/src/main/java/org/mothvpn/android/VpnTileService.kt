@@ -53,8 +53,13 @@ class VpnTileService : TileService() {
     override fun onClick() {
         super.onClick()
         Logger.i("Tile", "tile tapped (state=${TunnelStatus.state.value})")
-        unlockAndRun {
-            if (toggle?.isActive == true) return@unlockAndRun
+        // unlockAndRun always goes through SystemUI's "dismiss keyguard" path, which collapses the shade even on an unlocked phone.
+        // Only a locked phone needs it; otherwise toggle in place and leave the shade open (openApp still collapses when consent is needed).
+        if (isLocked) unlockAndRun { toggleVpn() } else toggleVpn()
+    }
+    private fun toggleVpn() {
+        run {
+            if (toggle?.isActive == true) return
             toggle = scope.launch {
                 val state = TunnelStatus.state.value
                 val blocked = TunnelStatus.trafficBlocked(state, TunnelStatus.blocking.value)

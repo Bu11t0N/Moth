@@ -122,6 +122,7 @@ class MainActivity : AppCompatActivity() {
         }
         setContent {
             var tab by rememberSaveable { mutableStateOf(0) }
+            LaunchedEffect(homeRequest) { if (homeRequest > 0) tab = 0 }
             BackHandler(enabled = tab != 0) { tab = 0 }
             val network by networks.state.collectAsState()
             var dialog by remember { mutableStateOf(false) }
@@ -444,7 +445,12 @@ class MainActivity : AppCompatActivity() {
         if (action == null) { message = tr(R.string.import_invalid); return }
         deepLink = action
     }
+    /** Bumped by a long-press on the Quick Settings tile (ACTION_QS_TILE_PREFERENCES): the window switches to the home tab. */
+    private var homeRequest by androidx.compose.runtime.mutableIntStateOf(0)
     private fun consumeTileRequest() {
+        if (intent?.action == android.service.quicksettings.TileService.ACTION_QS_TILE_PREFERENCES && !intent.getBooleanExtra("moth_tile_prefs_handled", false)) {
+            intent.putExtra("moth_tile_prefs_handled", true); homeRequest++; Logger.i("Tile", "tile long-pressed: opening home")
+        }
         if (!intent.getBooleanExtra(CONNECT_FROM_TILE, false)) return
         intent.removeExtra(CONNECT_FROM_TILE)
         Logger.i("Tile", "connect request from the tile (subscription=${saved != null}, state=${TunnelStatus.state.value})")

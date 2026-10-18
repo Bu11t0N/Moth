@@ -31,6 +31,8 @@
         <!-- singleTask: notification, widget, tile and links reuse the open window (onNewIntent) instead of stacking a second copy. -->
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+            <!-- Long-press on the Quick Settings tile: open Moth's home screen instead of the system app-info page. -->
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" /></intent-filter>
             <!-- Import links (moth://, v2rayng://, happ://, hiddify://, sing-box://) and server links; always confirmed in a dialog. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
