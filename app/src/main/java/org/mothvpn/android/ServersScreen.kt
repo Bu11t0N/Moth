@@ -248,7 +248,7 @@ import org.mothvpn.core.SubscriptionSource
     shareFor?.let { p -> ShareServerDialog(p) { shareFor = null } }
     if (nd) actionsFor?.let { id -> book?.source(id) }?.let { source ->
         NdActionSheet(source.title(), { actionsFor = null }) {
-            NdSheetItem(tr(R.string.sub_edit), androidx.compose.material.icons.Icons.Rounded.Edit, enabled = !locked) { actionsFor = null; editFor = source.id }
+            NdSheetItem(tr(R.string.sub_edit), androidx.compose.material.icons.Icons.Rounded.Edit, enabled = !busy) { actionsFor = null; editFor = source.id }
             if (!source.local) NdSheetItem(tr(R.string.sub_update), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !locked) { actionsFor = null; refreshOne(source.id) }
             val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }.ifEmpty { source.profiles.map { it.id } }
             NdSheetItem(tr(R.string.sub_check), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck) { actionsFor = null; probeGroup(kind, ids) }
@@ -259,7 +259,7 @@ import org.mothvpn.core.SubscriptionSource
     } else actionsFor?.let { id -> book?.source(id) }?.let { source ->
         AlertDialog(onDismissRequest = { actionsFor = null }, title = { Text(source.title(), maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
             Column {
-                TextButton(enabled = !locked, onClick = { actionsFor = null; editFor = source.id }) { Text(tr(R.string.sub_edit)) }
+                TextButton(enabled = !busy, onClick = { actionsFor = null; editFor = source.id }) { Text(tr(R.string.sub_edit)) }
                 if (!source.local) TextButton(enabled = !locked, onClick = { actionsFor = null; refreshOne(source.id) }) { Text(tr(R.string.sub_update)) }
                 // Checks only this subscription's servers, in the order shown; other groups keep their results.
                 val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }.ifEmpty { source.profiles.map { it.id } }
@@ -277,10 +277,11 @@ import org.mothvpn.core.SubscriptionSource
         AlertDialog(onDismissRequest = { editFor = null }, title = { Text(tr(R.string.sub_edit_title)) }, text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(name, { if (it.length <= org.mothvpn.core.SubscriptionSource.MAX_NAME) name = it.replace("\n", " ") }, label = { Text(tr(R.string.sub_name)) }, singleLine = true, isError = !nameOk, modifier = Modifier.fillMaxWidth())
-                if (!source.local) OutlinedTextField(link, { link = it }, label = { Text(tr(R.string.msg_subscription_link_30)) }, singleLine = true, isError = !linkOk,
+                // Renaming works while connected (it only changes the label); a new link downloads the servers again, so it waits for a disconnect.
+                if (!source.local) OutlinedTextField(link, { link = it }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_link_30)) }, singleLine = true, isError = !linkOk,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri, autoCorrect = false), modifier = Modifier.fillMaxWidth())
             }
-        }, confirmButton = { TextButton(enabled = nameOk && linkOk && !locked, onClick = { editFor = null; edit(source.id, name, if (source.local) source.url else link) }) { Text(tr(R.string.sub_save)) } },
+        }, confirmButton = { TextButton(enabled = nameOk && linkOk && !busy && (!locked || source.local || link.trim() == source.url), onClick = { editFor = null; edit(source.id, name, if (source.local || locked) source.url else link) }) { Text(tr(R.string.sub_save)) } },
             dismissButton = { TextButton(onClick = { editFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
     }
     delete?.let { id -> book?.source(id) }?.let { source ->
