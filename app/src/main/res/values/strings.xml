@@ -95,11 +95,8 @@
     <string name="msg_interval_30_600_seconds_95" formatted="false">"Interval · 30–600 seconds"</string>
     <string name="msg_timeout_3_30_seconds_96" formatted="false">"Timeout, ms · 1000–60000"</string>
     <string name="msg_https_check_url_97" formatted="false">"HTTPS check URL"</string>
-    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Latency includes establishing an HTTPS connection. A failed check does not mean every website is unavailable."</string>
+    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Checks use HTTPS through the server. A failed check does not mean every website is unavailable."</string>
     <string name="msg_check_method_99" formatted="false">"Check method"</string>
-    <string name="msg_https_multiple_urls_100" formatted="false">"HTTPS · multiple URLs"</string>
-    <string name="msg_https_custom_url_101" formatted="false">"HTTPS · custom URL"</string>
-    <string name="msg_tcp_port_reachability_102" formatted="false">"TCP · port reachability"</string>
     <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP does not verify VPN traffic and cannot check UDP-based Hysteria/TUIC. HTTPS checks traffic through the server."</string>
     <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Disconnect and finish checks to change subscription settings."</string>
     <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Send HWID to the provider"</string>
@@ -509,4 +506,11 @@
     <string name="nd_usage_ring">Traffic used: %1$d%%</string>
     <string name="nd_filter_hides_all">The server filter hides every server, so auto-select kept the server you chose. Change the filter on the Servers tab.</string>
     <string name="nd_filter_title_for">Server filter: %1$s</string>
+    <string name="ping_latency">Latency</string>
+    <string name="ping_latency_hint">Second request on an already open connection, as most clients show.</string>
+    <string name="ping_full">Full latency</string>
+    <string name="ping_full_hint">First request, including connecting to the server and all handshakes.</string>
+    <string name="ping_tcp">TCP</string>
+    <string name="ping_tcp_hint">Only checks that the server port answers; no traffic goes through.</string>
+    <string name="ping_url_only">Use only this address (no backup addresses)</string>
 </resources>

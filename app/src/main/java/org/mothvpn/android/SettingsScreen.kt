@@ -122,12 +122,20 @@ import org.mothvpn.core.SubscriptionSchedule
                     OutlinedTextField(pingTimeout, { pingTimeout = it; number(it, "pingTimeout") }, enabled = !locked, label = { Text(tr(R.string.set_ping_timeout)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(parallel, { parallel = it; number(it, "parallel") }, enabled = !locked, label = { Text(tr(R.string.set_ping_parallel)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text(tr(R.string.msg_check_method_99), style = MaterialTheme.typography.titleMedium)
-                    listOf("auto" to tr(R.string.msg_https_multiple_urls_100), "https" to tr(R.string.msg_https_custom_url_101), "tcp" to tr(R.string.msg_tcp_port_reachability_102)).forEach { (value, label) ->
-                        Row(Modifier.fillMaxWidth().clickable(enabled = !locked) { applySettings(draft.copy(probeMode = value)) }) {
+                    // Latency (default): warm-up request, then the second request on the same connection; Full latency: the first request with
+                    // every handshake; TCP: only the server port. Each with a one-line explanation.
+                    listOf(Triple(org.mothvpn.core.ProbePolicy.LATENCY, tr(R.string.ping_latency), tr(R.string.ping_latency_hint)),
+                        Triple(org.mothvpn.core.ProbePolicy.FULL, tr(R.string.ping_full), tr(R.string.ping_full_hint)),
+                        Triple(org.mothvpn.core.ProbePolicy.TCP, tr(R.string.ping_tcp), tr(R.string.ping_tcp_hint))).forEach { (value, label, hint) ->
+                        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = !locked) { applySettings(draft.copy(probeMode = value)) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             RadioButton(draft.probeMode == value, { applySettings(draft.copy(probeMode = value)) }, enabled = !locked)
-                            Text(label, modifier = Modifier.padding(top = 13.dp))
+                            Column(Modifier.padding(vertical = 6.dp)) {
+                                Text(label, style = MaterialTheme.typography.bodyLarge)
+                                Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
+                    SettingsToggle(tr(R.string.ping_url_only), draft.probeUrlOnly, !locked && draft.probeMode != org.mothvpn.core.ProbePolicy.TCP) { applySettings(draft.copy(probeUrlOnly = it)) }
                     Text(tr(R.string.msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.set_cat_routing) -> {

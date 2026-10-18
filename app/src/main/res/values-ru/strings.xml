@@ -95,11 +95,8 @@
     <string name="msg_interval_30_600_seconds_95" formatted="false">"Интервал · 30–600 секунд"</string>
     <string name="msg_timeout_3_30_seconds_96" formatted="false">"Тайм-аут, мс · 1000–60000"</string>
     <string name="msg_https_check_url_97" formatted="false">"HTTPS-адрес проверки"</string>
-    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Задержка включает установление HTTPS-соединения. Отказ этого адреса не доказывает недоступность всех сайтов."</string>
+    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Проверка идёт по HTTPS через сервер. Отказ этого адреса не доказывает недоступность всех сайтов."</string>
     <string name="msg_check_method_99" formatted="false">"Способ проверки"</string>
-    <string name="msg_https_multiple_urls_100" formatted="false">"HTTPS · несколько адресов"</string>
-    <string name="msg_https_custom_url_101" formatted="false">"HTTPS · свой адрес"</string>
-    <string name="msg_tcp_port_reachability_102" formatted="false">"TCP · доступность порта"</string>
     <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP не подтверждает работу VPN и не подходит для Hysteria/TUIC на UDP. HTTPS проверяет передачу трафика через сервер."</string>
     <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Заверши подключение и проверки, чтобы менять параметры подписки."</string>
     <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Передавать HWID провайдеру"</string>
@@ -513,4 +510,11 @@
     <string name="nd_usage_ring">Израсходовано трафика: %1$d%%</string>
     <string name="nd_filter_hides_all">Фильтр скрывает все серверы, поэтому автовыбор оставил выбранный вами сервер. Измените фильтр на вкладке «Серверы».</string>
     <string name="nd_filter_title_for">Фильтр серверов: %1$s</string>
+    <string name="ping_latency">Задержка</string>
+    <string name="ping_latency_hint">Второй запрос по уже открытому соединению, как показывают большинство клиентов.</string>
+    <string name="ping_full">Полная задержка</string>
+    <string name="ping_full_hint">Первый запрос вместе с подключением к серверу и всеми рукопожатиями.</string>
+    <string name="ping_tcp">TCP</string>
+    <string name="ping_tcp_hint">Только проверяет, что порт сервера отвечает; трафик через сервер не идёт.</string>
+    <string name="ping_url_only">Только этот адрес (без запасных)</string>
 </resources>
