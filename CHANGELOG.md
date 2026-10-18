@@ -27,6 +27,16 @@ Not released yet.
 - New design: auto-select and failover never pick servers hidden by the server filter.
 - The home-screen widget has a new monochrome look.
 - Ping now shows latency on an already open connection, like most clients; “Full latency” and “TCP” are available in Settings.
+- New design: the home screen fits short screens and large fonts — nothing overlaps, the moth gets smaller when space is tight, and the stat tiles line up with the cards below.
+- New design: the server list on the home screen opens at full height and scrolls right away; one swipe down closes it.
+- Connection settings can be changed while the VPN is on; they apply with one reconnect 5 seconds after the last change.
+- The VPN notification stays near the top of the notification shade.
+- Quick Settings tile: a tap toggles the VPN without closing the shade; a long press opens Moth.
+- Split tunneling: selected apps are listed first.
+- A subscription can be renamed while connected.
+- The provider’s logo is found in more places; without one, the icon of the provider’s website is used.
+- Removed the “subscription removed” message and the “checked on another network” label.
+- For developers: a list of the header names a subscription sends.
 
 ## 0.6.5
 
