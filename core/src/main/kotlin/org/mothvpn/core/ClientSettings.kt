@@ -13,7 +13,8 @@ data class ClientSettings(
     val deviceInfo: Boolean = false, val userAgent: String = "Moth",
     val serverSort: String = ServerOrder.SUBSCRIPTION,
     val compactServers: Boolean = true, val hideUnavailable: Boolean = false,
-    val probeMode: String = "auto", val bootstrapDns: String = "https://1.1.1.1/dns-query",
+    /** Server check: [ProbePolicy.LATENCY] (second request on the warm connection), [ProbePolicy.FULL] (first request with every handshake) or "tcp". */
+    val probeMode: String = ProbePolicy.LATENCY, val bootstrapDns: String = "https://1.1.1.1/dns-query",
     val probeParallel: Int = 5, val probeTimeoutMs: Int = 5000,
     /** "release", "beta" or "" (not chosen yet: the default follows the installed build, see UpdateChannel.effective). */
     val updateChannel: String = "",
@@ -56,7 +57,9 @@ data class ClientSettings(
     /** New design: keyword server filter of the Wi-Fi page (keywords + mode), matched against server names at display time (see [ServerFilter]). */
     val wifiFilter: ServerFilter.Rule = ServerFilter.Rule(),
     /** The same for the mobile data page: each network has its own keywords and mode. */
-    val mobileFilter: ServerFilter.Rule = ServerFilter.Rule()
+    val mobileFilter: ServerFilter.Rule = ServerFilter.Rule(),
+    /** HTTPS checks use only [probeUrl], without the fallback addresses (the former "HTTPS · custom URL" method). */
+    val probeUrlOnly: Boolean = false
 ) {
     /** The filter of a network kind ("wifi" or "mobile"; anything else is Wi-Fi). */
     fun filterFor(kind: String) = if (kind == "mobile") mobileFilter else wifiFilter
@@ -68,7 +71,7 @@ data class ClientSettings(
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
         require(updateChannel in setOf("", "release", "beta")) { "Неверный канал обновлений" }
         require(serverSort in ServerOrder.all) { "Неверная сортировка" }
-        require(probeMode in setOf("auto", "https", "tcp")) { "Неверный способ проверки" }
+        require(probeMode in ProbePolicy.modes) { "Неверный способ проверки" }
         require(mtu in 1280..9000) { "MTU: от 1280 до 9000" }
         require(probeParallel in 1..16) { "Параллельных проверок: от 1 до 16" }
         require(probeTimeoutMs in 500..30000) { "Таймаут пинга: от 500 до 30000 мс" }
@@ -104,7 +107,7 @@ data class ClientSettings(
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
         .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("newDesign", newDesign).put("amoled", amoled)
-        .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json())
+        .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json()).put("probeUrlOnly", probeUrlOnly)
     companion object {
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
         private val autoUserAgent = Regex("Moth(/[0-9][0-9A-Za-z.+-]*)?")
@@ -114,7 +117,7 @@ data class ClientSettings(
             j.optBoolean("hwidEnabled", true), j.getString("hwid"), j.optBoolean("deviceInfo", false),
             j.optString("userAgent", "Moth"), j.optString("serverSort", if (j.optBoolean("sortByLatency", false)) "latency" else "name").takeIf { it in ServerOrder.all } ?: "name",
             j.optBoolean("compactServers", true), j.optBoolean("hideUnavailable", false),
-            j.optString("probeMode", "auto"), j.optString("bootstrapDns", "https://1.1.1.1/dns-query"),
+            ProbePolicy.migrateMode(j.optString("probeMode", ProbePolicy.LATENCY)), j.optString("bootstrapDns", "https://1.1.1.1/dns-query"),
             j.optInt("probeParallel", 5).coerceIn(1, 16),
             (if (j.has("probeTimeoutMs")) j.getInt("probeTimeoutMs") else if (j.has("probeTimeoutSeconds")) j.getInt("probeTimeoutSeconds") * 1000
                 else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(500, 30000),
@@ -139,6 +142,8 @@ data class ClientSettings(
             // beta 4 had one filter ("serverFilter" + "serverFilterMode"); it becomes the filter of both networks.
             wifiFilter = j.optJSONObject("serverFilterWifi")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),
             mobileFilter = j.optJSONObject("serverFilterMobile")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),
+            // 0.7.0 beta 5 and earlier: "https" meant "only the custom URL"; that choice is kept as probeUrlOnly.
+            probeUrlOnly = j.optBoolean("probeUrlOnly", j.optString("probeMode") == "https"),
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
 }

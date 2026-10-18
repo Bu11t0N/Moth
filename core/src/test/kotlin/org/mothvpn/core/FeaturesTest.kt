@@ -113,7 +113,7 @@ class FeaturesTest {
         val s = ClientSettings()
         assertEquals(3, ProbePolicy.urls(s).size)
         assertEquals(2, ProbePolicy.urls(s.copy(probeUrl = "https://cp.cloudflare.com/generate_204")).size)
-        assertEquals(listOf(s.probeUrl), ProbePolicy.urls(s.copy(probeMode = "https")))
+        assertEquals(listOf(s.probeUrl), ProbePolicy.urls(s.copy(probeUrlOnly = true)))
         val tcp = Subscriptions.parseLink("vless://$uuid@example.com:443?security=tls")
         assertEquals("example.com" to 443, ProbePolicy.tcpEndpoint(tcp))
         val xhttp = Subscriptions.parseLink("vless://$uuid@example.com:443?type=xhttp&security=tls")
@@ -123,7 +123,7 @@ class FeaturesTest {
         assertFails { s.copy(probeMode = "icmp").validate() }
     }
     @Test fun customBootstrapDnsIsUsedByAllCoreConfigs() {
-        val s = ClientSettings(bootstrapDns = "https://8.8.8.8/dns-query", probeMode = "https")
+        val s = ClientSettings(bootstrapDns = "https://8.8.8.8/dns-query", probeUrlOnly = true)
         val p = Subscriptions.parseLink("hy2://secret@example.com:443")
         JSONObject(TunnelConfig.create(p, s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(1).let { assertEquals("https", it.getString("type")); assertEquals("8.8.8.8", it.getString("server")); assertFalse(it.has("domain_resolver")) }
         assertEquals("8.8.8.8", JSONObject(LocalProxyConfig.singBox(p, 18080, "u", "p", s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("server"))
