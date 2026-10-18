@@ -128,7 +128,7 @@ import org.mothvpn.core.SubscriptionSource
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED } // cancelled checks show no indicator
                 val nd = LocalNewDesign.current
-                Surface(color = if (nd) (if (chosen) NewDesignRow.selectedColor() else MaterialTheme.colorScheme.surfaceContainerHigh)
+                Surface(color = if (nd) (if (chosen) NewDesignRow.selectedColor() else NdTone.raised())
                         else if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                     border = if (nd) NewDesignRow.selectedBorder(chosen) else null,
                     shape = if (nd) MaterialTheme.shapes.medium else RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = if (nd) (if (settings.compactServers) 64.dp else 72.dp) else 0.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
@@ -370,7 +370,7 @@ private enum class DetailIcon {
     toggle: () -> Unit, refresh: () -> Unit, check: () -> Unit, cancel: () -> Unit, actions: () -> Unit) {
     val title = source?.title() ?: tr(R.string.fav_group)
     val turn by androidx.compose.animation.core.animateFloatAsState(if (collapsed) -90f else 0f, label = "chevron")
-    Surface(onClick = toggle, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainer,
+    Surface(onClick = toggle, shape = MaterialTheme.shapes.large, color = NdTone.card(),
         modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 64.dp).semantics { contentDescription = tr(if (collapsed) R.string.group_expand else R.string.group_collapse) + ": " + title }) {
         Row(Modifier.padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {

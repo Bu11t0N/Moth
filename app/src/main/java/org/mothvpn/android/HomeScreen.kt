@@ -82,7 +82,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 
 /** The subscription of the selected server: its name, link, traffic, end date and the current network (shared by both designs). */
 @Composable fun HomeSubscriptionCard(book: org.mothvpn.core.SubscriptionBook?, source: org.mothvpn.core.SubscriptionSource, network: AccessNetwork, modifier: Modifier = Modifier.fillMaxWidth()) {
-    Card(modifier) {
+    Card(modifier, colors = ndCardColors()) {
         val saved = source
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             val host = remember(saved.url) { runCatching { URI(saved.url).host }.getOrNull().orEmpty() }

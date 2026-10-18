@@ -42,7 +42,18 @@ import org.mothvpn.core.VersionLabel
 /** True while the experimental design (Settings → For developers → New design) is on. The classic UI reads false. */
 val LocalNewDesign = staticCompositionLocalOf { false }
 
-/** Monochrome Material 3 schemes (black, white and greys; no dynamic/wallpaper colour). Errors stay red so warnings remain readable. */
+/** The new design's tonal levels (see [MonoTheme]). */
+object NdTone {
+    @Composable fun background() = MaterialTheme.colorScheme.background
+    @Composable fun sheet() = MaterialTheme.colorScheme.surfaceContainerLow
+    @Composable fun card() = MaterialTheme.colorScheme.surfaceContainer
+    @Composable fun raised() = MaterialTheme.colorScheme.surfaceContainerHigh
+    @Composable fun highlight() = MaterialTheme.colorScheme.primaryContainer
+}
+
+/** Card colours: the new design's L1 card tone; the classic design keeps the Material default. */
+@Composable fun ndCardColors() = if (LocalNewDesign.current) CardDefaults.cardColors(containerColor = NdTone.card()) else CardDefaults.cardColors()
+
 /** Selected server row in the new design: no check mark, a stronger fill plus an outline so it stands out in both themes. */
 object NewDesignRow {
     @Composable fun selectedColor(): Color = MaterialTheme.colorScheme.primaryContainer
@@ -50,31 +61,38 @@ object NewDesignRow {
         if (chosen) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)) else null
 }
 
+/**
+ * Monochrome Material 3 schemes (black, white and greys; no dynamic/wallpaper colour). Errors stay red so warnings remain readable.
+ * Tonal levels, each a visible step from the one below (dark: near-black up to greys; light: the inverse; AMOLED: black background, cards above it):
+ * L0 background → sheets (surfaceContainerLow) → L1 cards (surfaceContainer: groups, settings, subscription) → L2 rows inside cards and sheets
+ * (surfaceContainerHigh) → L3 highlighted / selected (primaryContainer). [NdTone] names them for the screens.
+ */
 object MonoTheme {
     val dark = darkColorScheme(
-        primary = Color(0xFFF2F2F2), onPrimary = Color(0xFF000000), primaryContainer = Color(0xFF3A3A3A), onPrimaryContainer = Color(0xFFFFFFFF),
+        primary = Color(0xFFF2F2F2), onPrimary = Color(0xFF000000), primaryContainer = Color(0xFF3D3D3D), onPrimaryContainer = Color(0xFFFFFFFF),
         secondary = Color(0xFFBDBDBD), onSecondary = Color(0xFF000000), secondaryContainer = Color(0xFF2C2C2C), onSecondaryContainer = Color(0xFFF2F2F2),
         tertiary = Color(0xFFBDBDBD), onTertiary = Color(0xFF000000), tertiaryContainer = Color(0xFF2C2C2C), onTertiaryContainer = Color(0xFFF2F2F2),
-        background = Color(0xFF0B0B0B), onBackground = Color(0xFFF2F2F2), surface = Color(0xFF0B0B0B), onSurface = Color(0xFFF2F2F2),
-        surfaceVariant = Color(0xFF1E1E1E), onSurfaceVariant = Color(0xFFA6A6A6), surfaceTint = Color(0xFFF2F2F2),
+        background = Color(0xFF0A0A0A), onBackground = Color(0xFFF2F2F2), surface = Color(0xFF0A0A0A), onSurface = Color(0xFFF2F2F2),
+        surfaceVariant = Color(0xFF1C1C1C), onSurfaceVariant = Color(0xFFA6A6A6), surfaceTint = Color(0xFFF2F2F2),
         inverseSurface = Color(0xFFF2F2F2), inverseOnSurface = Color(0xFF111111), inversePrimary = Color(0xFF111111),
         outline = Color(0xFF6E6E6E), outlineVariant = Color(0xFF333333), scrim = Color(0xFF000000),
-        surfaceBright = Color(0xFF2A2A2A), surfaceDim = Color(0xFF0B0B0B), surfaceContainerLowest = Color(0xFF050505), surfaceContainerLow = Color(0xFF141414),
-        surfaceContainer = Color(0xFF181818), surfaceContainerHigh = Color(0xFF1F1F1F), surfaceContainerHighest = Color(0xFF292929))
+        surfaceBright = Color(0xFF363636), surfaceDim = Color(0xFF0A0A0A), surfaceContainerLowest = Color(0xFF050505), surfaceContainerLow = Color(0xFF141414),
+        surfaceContainer = Color(0xFF1C1C1C), surfaceContainerHigh = Color(0xFF262626), surfaceContainerHighest = Color(0xFF313131))
     val light = lightColorScheme(
-        primary = Color(0xFF111111), onPrimary = Color(0xFFFFFFFF), primaryContainer = Color(0xFFDADADA), onPrimaryContainer = Color(0xFF000000),
+        primary = Color(0xFF111111), onPrimary = Color(0xFFFFFFFF), primaryContainer = Color(0xFFCFCFCF), onPrimaryContainer = Color(0xFF000000),
         secondary = Color(0xFF555555), onSecondary = Color(0xFFFFFFFF), secondaryContainer = Color(0xFFE6E6E6), onSecondaryContainer = Color(0xFF111111),
         tertiary = Color(0xFF555555), onTertiary = Color(0xFFFFFFFF), tertiaryContainer = Color(0xFFE6E6E6), onTertiaryContainer = Color(0xFF111111),
-        background = Color(0xFFFFFFFF), onBackground = Color(0xFF111111), surface = Color(0xFFFFFFFF), onSurface = Color(0xFF111111),
-        surfaceVariant = Color(0xFFF0F0F0), onSurfaceVariant = Color(0xFF5E5E5E), surfaceTint = Color(0xFF111111),
+        background = Color(0xFFFBFBFB), onBackground = Color(0xFF111111), surface = Color(0xFFFBFBFB), onSurface = Color(0xFF111111),
+        surfaceVariant = Color(0xFFEDEDED), onSurfaceVariant = Color(0xFF5E5E5E), surfaceTint = Color(0xFF111111),
         inverseSurface = Color(0xFF111111), inverseOnSurface = Color(0xFFF2F2F2), inversePrimary = Color(0xFFF2F2F2),
         outline = Color(0xFF8A8A8A), outlineVariant = Color(0xFFD6D6D6), scrim = Color(0xFF000000),
-        surfaceBright = Color(0xFFFFFFFF), surfaceDim = Color(0xFFE0E0E0), surfaceContainerLowest = Color(0xFFFFFFFF), surfaceContainerLow = Color(0xFFF7F7F7),
-        surfaceContainer = Color(0xFFF2F2F2), surfaceContainerHigh = Color(0xFFECECEC), surfaceContainerHighest = Color(0xFFE6E6E6))
+        surfaceBright = Color(0xFFFFFFFF), surfaceDim = Color(0xFFDADADA), surfaceContainerLowest = Color(0xFFFFFFFF), surfaceContainerLow = Color(0xFFF3F3F3),
+        surfaceContainer = Color(0xFFEDEDED), surfaceContainerHigh = Color(0xFFE3E3E3), surfaceContainerHighest = Color(0xFFD8D8D8))
     /** Dark theme with "Pure black (AMOLED)": #000000 background and surfaces; cards and sheets stay a little lighter so they remain visible. */
     val amoled = dark.copy(background = Color(0xFF000000), surface = Color(0xFF000000), surfaceDim = Color(0xFF000000),
-        surfaceContainerLowest = Color(0xFF000000), surfaceContainerLow = Color(0xFF0C0C0C), surfaceContainer = Color(0xFF111111),
-        surfaceContainerHigh = Color(0xFF171717), surfaceContainerHighest = Color(0xFF202020), surfaceVariant = Color(0xFF151515), surfaceBright = Color(0xFF242424))
+        surfaceContainerLowest = Color(0xFF000000), surfaceContainerLow = Color(0xFF0F0F0F), surfaceContainer = Color(0xFF161616),
+        surfaceContainerHigh = Color(0xFF1F1F1F), surfaceContainerHighest = Color(0xFF2A2A2A), surfaceVariant = Color(0xFF161616), surfaceBright = Color(0xFF2A2A2A),
+        primaryContainer = Color(0xFF363636))
     /** Larger, rounder components than the defaults. */
     val shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(20.dp),
         large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(32.dp))
@@ -243,13 +261,13 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
             Favorites.first(ServerOrder.sort(saved.profiles.filter { settings.filterShows(it) }, settings.serverSort, { it.name }) { p -> results["$kind:${p.id}"]?.latencyMs }, settings.favorites) { it.id }
         }
         val canSelect = !busy && !probing && tunnel != TunnelState.STOPPING
-        ModalBottomSheet(onDismissRequest = { sheet = false }, sheetState = state, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        ModalBottomSheet(onDismissRequest = { sheet = false }, sheetState = state, containerColor = NdTone.sheet()) {
             Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
             LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(ordered, key = { it.id }) { p ->
                     val chosen = p.id == selected?.id
                     Surface(onClick = { if (canSelect) { select(p.id, kind); sheet = false } }, enabled = canSelect, shape = MaterialTheme.shapes.medium,
-                        color = if (chosen) NewDesignRow.selectedColor() else MaterialTheme.colorScheme.surfaceContainerLow, border = NewDesignRow.selectedBorder(chosen),
+                        color = if (chosen) NewDesignRow.selectedColor() else NdTone.raised(), border = NewDesignRow.selectedBorder(chosen),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
                         Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
@@ -279,7 +297,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val clickable = all.size > 1 || !source.local
     val title = source.name.ifBlank { source.providerName }.ifBlank { if (source.local) tr(R.string.import_local_name) else host }
     // One subscription with provider links opens the sheet too, so its link buttons are reachable (the sheet also copies the link).
-    Surface(onClick = { if (all.size > 1 || !source.links.isEmpty) showAll = true else showLink = true }, enabled = clickable, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    Surface(onClick = { if (all.size > 1 || !source.links.isEmpty) showAll = true else showLink = true }, enabled = clickable, shape = MaterialTheme.shapes.large, color = NdTone.card(),
         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = title + ": " + tr(if (all.size > 1 || !source.links.isEmpty) R.string.sub_all_show else R.string.sub_link_show) }) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -306,11 +324,11 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun SubscriptionsSheet(sources: List<org.mothvpn.core.SubscriptionSource>, close: () -> Unit, copy: (String) -> Unit) {
     val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0])
-    ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+    ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false), containerColor = NdTone.sheet()) {
         Text(tr(R.string.sub_all_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(sources, key = { it.id }) { s ->
-                Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
+                Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
                     Column {
                     Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = if (s.links.isEmpty) 12.dp else 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -356,7 +374,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 /** Menu of the new design: a bottom sheet with a title and full-width rows ([NdSheetItem]), consistent with the server sheet. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun NdActionSheet(title: String, dismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    ModalBottomSheet(onDismissRequest = dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+    ModalBottomSheet(onDismissRequest = dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
         Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
             Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp))
             content()
@@ -389,7 +407,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     var text by remember { mutableStateOf("") }
     val keywords = settings.serverFilter
     fun add() { val next = org.mothvpn.core.ServerFilter.add(keywords, text); if (next != keywords) save(settings.copy(serverFilter = next)); text = "" }
-    ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+    ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
         Column(Modifier.fillMaxWidth().imePadding().padding(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(tr(R.string.nd_filter_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -411,7 +429,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
             if (keywords.isEmpty()) Text(tr(R.string.nd_filter_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
             else LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(keywords, key = { it }) { k ->
-                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                    Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
                         Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(k, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             IconButton(onClick = { save(settings.copy(serverFilter = keywords - k)) }, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.nd_filter_remove, k) }) {

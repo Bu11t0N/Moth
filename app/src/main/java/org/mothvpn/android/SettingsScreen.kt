@@ -184,7 +184,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     val languages = listOf("system" to tr(R.string.msg_system_default_80), "en" to "English", "ru" to "Русский")
                     var languageDialog by remember { mutableStateOf(false) }
                     val currentLanguage = languages.firstOrNull { it.first == language }?.second ?: languages[0].second
-                    Card(Modifier.fillMaxWidth().animateContentSize().clickable { languageDialog = true }) {
+                    Card(Modifier.fillMaxWidth().animateContentSize().clickable { languageDialog = true }, colors = ndCardColors()) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(tr(R.string.language), style = MaterialTheme.typography.titleMedium)
@@ -205,7 +205,7 @@ import org.mothvpn.core.SubscriptionSchedule
                         confirmButton = { TextButton(onClick = { languageDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
                     val sortModes = listOf(ServerOrder.SUBSCRIPTION to tr(R.string.set_sort_subscription), ServerOrder.LATENCY to tr(R.string.set_sort_latency), ServerOrder.NAME to tr(R.string.set_sort_name))
                     var sortDialog by remember { mutableStateOf(false) }
-                    Card(Modifier.fillMaxWidth().animateContentSize().clickable { sortDialog = true }) {
+                    Card(Modifier.fillMaxWidth().animateContentSize().clickable { sortDialog = true }, colors = ndCardColors()) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(tr(R.string.set_sort_servers), style = MaterialTheme.typography.titleMedium)
@@ -268,7 +268,7 @@ import org.mothvpn.core.SubscriptionSchedule
 }
 
 @Composable private fun SettingsCategory(title: String, subtitle: String, icon: String, open: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = open)) {
+    Card(Modifier.fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
         Row(Modifier.fillMaxWidth().heightIn(min = if (LocalNewDesign.current) 72.dp else 0.dp).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             // New design: a monochrome icon in a grey rounded-square tile (no colours, no circle).
             if (LocalNewDesign.current) IconTile(categoryIcon(icon))

@@ -98,7 +98,7 @@ private class AppEntry(val packageName: String, val label: String, val system: B
 
 /** Settings row that opens a dialog (same look as the language and sort rows). */
 @Composable fun DialogRow(title: String, value: String, enabled: Boolean = true, open: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = open)) {
+    Card(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = open), colors = ndCardColors()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)

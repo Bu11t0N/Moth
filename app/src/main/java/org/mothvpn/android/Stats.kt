@@ -87,7 +87,7 @@ object TrafficRecorder {
             StatCard(tr(R.string.stats_week), history.week(today, firstDay), units, locale, Modifier.weight(1f))
             StatCard(tr(R.string.stats_month), history.month(today), units, locale, Modifier.weight(1f))
         }
-        Card(Modifier.fillMaxWidth()) {
+        Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(tr(R.string.stats_chart), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))

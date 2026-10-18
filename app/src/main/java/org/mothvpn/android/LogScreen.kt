@@ -34,7 +34,7 @@ private const val VISIBLE_LINES = 400
 /** "For developers" page: entries for the log and the crash log. */
 @Composable fun DeveloperSection(openLog: () -> Unit, openCrash: () -> Unit) {
     for ((title, open) in listOf(tr(R.string.dev_log) to openLog, tr(R.string.dev_crash_log) to openCrash)) {
-        Card(Modifier.fillMaxWidth().clickable(onClick = open)) {
+        Card(Modifier.fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
             Row(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 Text("›", modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
@@ -79,7 +79,7 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
                 LogLevel.DEBUG to "DEBUG", LogLevel.VERBOSE to "VERBOSE")
             var levelDialog by remember { mutableStateOf(false) }
             fun choose(value: LogLevel) { levelDialog = false; if (value != level) { level = value; Logger.level = value } }
-            Card(Modifier.fillMaxWidth().clickable { levelDialog = true }) {
+            Card(Modifier.fillMaxWidth().clickable { levelDialog = true }, colors = ndCardColors()) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(tr(R.string.dev_log_level), style = MaterialTheme.typography.titleMedium)
