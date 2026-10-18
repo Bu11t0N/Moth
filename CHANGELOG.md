@@ -26,6 +26,7 @@ Not released yet.
 - New design: subscription traffic as a ring with a percentage, and the provider’s logo on the subscription card.
 - New design: auto-select and failover never pick servers hidden by the server filter.
 - The home-screen widget has a new monochrome look.
+- Ping now shows latency on an already open connection, like most clients; “Full latency” and “TCP” are available in Settings.
 
 ## 0.6.5
 

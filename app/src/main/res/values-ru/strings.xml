@@ -511,7 +511,7 @@
     <string name="nd_filter_hides_all">Фильтр скрывает все серверы, поэтому автовыбор оставил выбранный вами сервер. Измените фильтр на вкладке «Серверы».</string>
     <string name="nd_filter_title_for">Фильтр серверов: %1$s</string>
     <string name="ping_latency">Задержка</string>
-    <string name="ping_latency_hint">Второй запрос по уже открытому соединению, как показывают большинство клиентов.</string>
+    <string name="ping_latency_hint">Второй запрос по уже открытому соединению, без учёта рукопожатий.</string>
     <string name="ping_full">Полная задержка</string>
     <string name="ping_full_hint">Первый запрос вместе с подключением к серверу и всеми рукопожатиями.</string>
     <string name="ping_tcp">TCP</string>

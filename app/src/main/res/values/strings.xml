@@ -507,7 +507,7 @@
     <string name="nd_filter_hides_all">The server filter hides every server, so auto-select kept the server you chose. Change the filter on the Servers tab.</string>
     <string name="nd_filter_title_for">Server filter: %1$s</string>
     <string name="ping_latency">Latency</string>
-    <string name="ping_latency_hint">Second request on an already open connection, as most clients show.</string>
+    <string name="ping_latency_hint">Second request on an already open connection; handshakes are not counted.</string>
     <string name="ping_full">Full latency</string>
     <string name="ping_full_hint">First request, including connecting to the server and all handshakes.</string>
     <string name="ping_tcp">TCP</string>
