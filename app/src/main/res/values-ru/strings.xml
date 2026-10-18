@@ -83,7 +83,6 @@
     <string name="msg_hide_unavailable_servers_85" formatted="false">"Скрывать недоступные серверы"</string>
     <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Скрываются серверы с неудачной проверкой за последние 15 минут. Непроверенные и проверяемые остаются в списке. Перепроверь серверы при смене сети."</string>
     <string name="msg_screen_sharing_and_screenshots_are_allowed_su_87" formatted="false">"Можно транслировать экран и делать скриншоты. Ссылка подписки и HWID скрыты в полях ввода."</string>
-    <string name="msg_network_settings_are_available_after_disconne_88" formatted="false">"Сетевые настройки доступны после отключения VPN и завершения проверок."</string>
     <string name="msg_ipv6_through_vpn_89" formatted="false">"IPv6 через VPN"</string>
     <string name="msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90" formatted="false">"При выключении IPv6 блокируется внутри туннеля."</string>
     <string name="msg_server_bootstrap_dns_91" formatted="false">"DNS для адресов серверов"</string>
@@ -252,7 +251,6 @@
     <string name="split_mode_off">Выключено: все приложения через VPN</string>
     <string name="split_mode_only">Только выбранные через VPN</string>
     <string name="split_mode_bypass">Выбранные в обход VPN</string>
-    <string name="split_hint">Изменения применяются при следующем подключении.</string>
     <string name="split_hint_live">Изменения применяются через 5 секунд после последнего; подключённый VPN переподключится один раз.</string>
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
@@ -522,4 +520,6 @@
     <string name="dev_sub_headers_update">Обновите эту подписку, чтобы увидеть её заголовки.</string>
     <string name="dev_sub_headers_http">HTTP-заголовки: %1$s</string>
     <string name="dev_sub_headers_body">Поля в теле: %1$s</string>
+    <string name="settings_live_hint">VPN включён: изменения применятся через 5 секунд после последнего, с одним переподключением.</string>
+    <string name="settings_wait_hint">Дождитесь, пока VPN подключится или отключится.</string>
 </resources>

@@ -35,7 +35,11 @@ fun writeDocument(context: android.content.Context, uri: android.net.Uri, text: 
  * Settings → Backup. Export: everything in one JSON file (optionally password-encrypted). Import: validate, show what is inside,
  * then replace the current data. The file contents (links, keys, rules) are never logged.
  */
-@Composable fun BackupPage(settings: ClientSettings, locked: Boolean, restore: (Backup.Content) -> Unit, modifier: Modifier = Modifier) {
+@Composable fun BackupPage(settings: ClientSettings, transition: Boolean, restore: (Backup.Content) -> Unit, modifier: Modifier = Modifier) {
+    // Restoring replaces the whole server list (including the connected server), so it stays unavailable while the VPN is on or a check runs.
+    val tunnelState by TunnelStatus.state.collectAsState()
+    val checking by Diagnostics.running.collectAsState()
+    val locked = transition || checking || tunnelState !in setOf(TunnelState.OFF, TunnelState.ERROR)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf("") }

@@ -164,7 +164,6 @@ private val errorResources = mapOf(
         "Скрывать недоступные серверы" to R.string.msg_hide_unavailable_servers_85,
         "Скрываются серверы с неудачной проверкой за последние 15 минут. Непроверенные и проверяемые остаются в списке. Перепроверь серверы при смене сети." to R.string.msg_servers_with_failed_checks_in_the_last_15_min_86,
         "Можно транслировать экран и делать скриншоты. Ссылка подписки и HWID скрыты в полях ввода." to R.string.msg_screen_sharing_and_screenshots_are_allowed_su_87,
-        "Сетевые настройки доступны после отключения VPN и завершения проверок." to R.string.msg_network_settings_are_available_after_disconne_88,
         "IPv6 через VPN" to R.string.msg_ipv6_through_vpn_89,
         "При выключении IPv6 блокируется внутри туннеля." to R.string.msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90,
         "DNS для адресов серверов" to R.string.msg_server_bootstrap_dns_91,

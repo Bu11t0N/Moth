@@ -89,7 +89,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsCategory(tr(R.string.dev_for_developers), tr(R.string.set_sum_dev, if (Logger.level == LogLevel.OFF) tr(R.string.dev_level_off) else Logger.level.name), "dev") { section = tr(R.string.dev_for_developers) }
                 }
                 tr(R.string.msg_connection_75) -> {
-                    if (locked) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
+                    LiveApplyHint()
                     SettingsToggle(tr(R.string.auto_select), draft.autoSelect, !locked) { applySettings(draft.copy(autoSelect = it)) }
                     Text(tr(R.string.auto_select_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsCategory(tr(R.string.rules_title), if (draft.routingRules.isEmpty()) tr(R.string.rules_sum_none) else tr(R.string.rules_sum_count, draft.routingRules.size), "rules") { section = tr(R.string.rules_title) }
@@ -139,7 +139,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     Text(tr(R.string.msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.set_cat_routing) -> {
-                    if (locked) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
+                    LiveApplyHint()
                     SettingsToggle(tr(R.string.direct_ru), draft.directRu, !locked) { applySettings(draft.copy(directRu = it)) }
                     Text(tr(R.string.direct_ru_hint), style = MaterialTheme.typography.bodySmall)
                     var dnsDialog by remember { mutableStateOf(false) }
@@ -344,4 +344,11 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
             }
         }
     }, confirmButton = { TextButton(onClick = close) { Text(tr(R.string.sub_link_close)) } })
+}
+
+/** While the VPN is on: connection settings can still be changed; they apply with one reconnect 5 s after the last change. */
+@Composable private fun LiveApplyHint() {
+    val tunnel by TunnelStatus.state.collectAsState()
+    if (tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED)) Text(tr(R.string.settings_live_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    else if (tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)) Text(tr(R.string.settings_wait_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }

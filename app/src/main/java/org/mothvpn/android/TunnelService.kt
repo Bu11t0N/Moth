@@ -131,7 +131,9 @@ class TunnelService : VpnService(), PlatformInterface {
             if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR, TunnelState.BLOCKED) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING && !intent.getBooleanExtra("force", false)) return START_NOT_STICKY
             Logger.i("Tunnel", "server switch requested (state=${TunnelStatus.state.value})")
             cancelProbes()
-            manualPick = true; ranking = emptyList(); tried.clear(); cancelRetry()
+            // A reconnect that only applies changed settings keeps the same server and does not pause auto-select.
+            if (!intent.getBooleanExtra("settings", false)) manualPick = true
+            ranking = emptyList(); tried.clear(); cancelRetry()
             serverName = ""; stopped = false
             TunnelStatus.mutable.value = TunnelState.STARTING
             try { foreground() } catch (e: Exception) { Logger.e("Tunnel", "could not enter the foreground", e) }

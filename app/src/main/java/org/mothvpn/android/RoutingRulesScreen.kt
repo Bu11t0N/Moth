@@ -51,7 +51,7 @@ private fun actionLabel(action: String) = when (action) {
         }
     }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (!enabled) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
+        if (!enabled) Text(tr(R.string.settings_wait_hint))
         Text(tr(R.string.rules_hint), style = MaterialTheme.typography.bodySmall)
         Button(enabled = enabled && rules.size < CustomRouting.MAX_RULES, onClick = { editing = -1 }) { Text(tr(R.string.rules_add)) }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

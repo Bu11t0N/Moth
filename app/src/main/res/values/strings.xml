@@ -83,7 +83,6 @@
     <string name="msg_hide_unavailable_servers_85" formatted="false">"Hide unavailable servers"</string>
     <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Servers with failed checks in the last 15 minutes are hidden. Unchecked servers and checks in progress stay visible. Check again after switching networks."</string>
     <string name="msg_screen_sharing_and_screenshots_are_allowed_su_87" formatted="false">"Screen sharing and screenshots are allowed. Subscription links and HWID are masked in input fields."</string>
-    <string name="msg_network_settings_are_available_after_disconne_88" formatted="false">"Network settings are available after disconnecting VPN and finishing checks."</string>
     <string name="msg_ipv6_through_vpn_89" formatted="false">"IPv6 through VPN"</string>
     <string name="msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90" formatted="false">"When disabled, IPv6 is blocked inside the tunnel."</string>
     <string name="msg_server_bootstrap_dns_91" formatted="false">"Server bootstrap DNS"</string>
@@ -250,7 +249,6 @@
     <string name="split_mode_off">Off: all apps use the VPN</string>
     <string name="split_mode_only">Only selected apps use the VPN</string>
     <string name="split_mode_bypass">Selected apps bypass the VPN</string>
-    <string name="split_hint">Changes apply on the next connection.</string>
     <string name="split_hint_live">Changes apply 5 seconds after the last change; a connected VPN reconnects once.</string>
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
@@ -518,4 +516,6 @@
     <string name="dev_sub_headers_update">Update this subscription to see its headers.</string>
     <string name="dev_sub_headers_http">HTTP headers: %1$s</string>
     <string name="dev_sub_headers_body">Body fields: %1$s</string>
+    <string name="settings_live_hint">VPN is on: changes here apply 5 seconds after the last one, with one reconnect.</string>
+    <string name="settings_wait_hint">Wait until the VPN finishes connecting or disconnecting.</string>
 </resources>

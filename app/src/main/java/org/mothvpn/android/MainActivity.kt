@@ -44,7 +44,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 
 class MainActivity : AppCompatActivity() {
-    companion object { const val CONNECT_FROM_TILE = "org.mothvpn.android.CONNECT_FROM_TILE" }
+    companion object {
+        const val CONNECT_FROM_TILE = "org.mothvpn.android.CONNECT_FROM_TILE"
+        /** Debounced "apply connection settings" reconnect; process-wide so it survives the activity. */
+        private val reconnectScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Main)
+        private var reconnectJob: kotlinx.coroutines.Job? = null
+    }
     private lateinit var store: SubscriptionStore
     private var saved by mutableStateOf<SavedSubscription?>(null)
     /** All subscriptions; [saved] is the flattened list of their servers with the shared selection. */
@@ -159,7 +164,7 @@ class MainActivity : AppCompatActivity() {
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
-                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, probing || tunnel in setOf(TunnelState.STARTING, TunnelState.RUNNING, TunnelState.STOPPING, TunnelState.BLOCKED), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) })
+                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) })
                                 }
                             }
                             }
@@ -233,19 +238,29 @@ class MainActivity : AppCompatActivity() {
         Logger.d("Settings", "change requested: ${LogFacts.settingsChanges(settings, next).joinToString(", ")}")
         val hours = settings.subUpdateHours
         val kill = settings.killSwitch
-        val splitChanged = next.splitMode != settings.splitMode || next.splitApps != settings.splitApps
+        val reconnect = settings.needsReconnect(next)
         settings = next.validate()
         settingsQueue.trySend(next)
         if (next.subUpdateHours != hours) SubscriptionUpdates.schedule(this, next.subUpdateHours)
         if (next.killSwitch != kill && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED))
             runCatching { startService(Intent(this, TunnelService::class.java).setAction("KILL_SWITCH").putExtra("on", next.killSwitch)) }.onFailure { Logger.w("Settings", "kill switch update not delivered", it) }
-        // Split tunneling is fixed when the tunnel is built: after a (debounced) change while connected, restart on the same server once.
-        // The service reads the settings from the store, so wait until the queue has written them.
-        if (splitChanged && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) && TunnelStatus.activeProfile.value.isNotEmpty()) lifecycleScope.launch {
-            withTimeoutOrNull(5_000) { settingsApplied.first { it?.second == next } }
-            Logger.i("Settings", "split tunneling changed while connected: reconnecting")
-            runCatching { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("SWITCH").putExtra("profile", TunnelStatus.activeProfile.value).putExtra("force", true)) }
-                .onFailure { Logger.w("Settings", "split tunneling reconnect not delivered", it) }
+        // Settings fixed when the tunnel is built (DNS, MTU, routing, split tunneling, DPI tricks, health check…) can be changed while
+        // connected: they are saved at once and applied by ONE reconnect on the same server 5 s after the last such change (and after any
+        // running server check). The timer lives outside the activity, so leaving the app doesn't lose it.
+        if (reconnect && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) && TunnelStatus.activeProfile.value.isNotEmpty()) scheduleReconnect(next)
+    }
+    private fun scheduleReconnect(next: ClientSettings) {
+        val app = applicationContext
+        reconnectJob?.cancel()
+        reconnectJob = reconnectScope.launch {
+            kotlinx.coroutines.delay(5_000)
+            withTimeoutOrNull(5_000) { settingsApplied.first { it?.second == next || it?.second?.needsReconnect(next) == false } }
+            withTimeoutOrNull(120_000) { Diagnostics.running.first { !it } }
+            val profile = TunnelStatus.activeProfile.value
+            if (TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || profile.isEmpty()) return@launch
+            Logger.i("Settings", "connection settings changed while connected: reconnecting once")
+            runCatching { app.startService(Intent(app, TunnelService::class.java).setAction("SWITCH").putExtra("profile", profile).putExtra("force", true).putExtra("settings", true)) }
+                .onFailure { Logger.w("Settings", "settings reconnect not delivered", it) }
         }
     }
     /** [sourceId]: refresh or edit that subscription; null adds a new one. [name]: a name chosen by the user (never logged). */
