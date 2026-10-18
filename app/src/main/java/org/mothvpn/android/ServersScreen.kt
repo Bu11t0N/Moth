@@ -91,6 +91,7 @@ import org.mothvpn.core.SubscriptionSource
         }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$kind:${p.id}"]?.latencyMs } }.let { Favorites.first(it, settings.favorites) { p -> p.id } }
     }
     @Composable fun KindPage(k: String) {
+        val ndPage = LocalNewDesign.current
         val visibleK = remember(profiles, results, settings.hideUnavailable, settings.serverSort, settings.favorites, search, k, now, network) {
             profiles.filter { p ->
                 val r = results["$k:${p.id}"]
@@ -108,7 +109,8 @@ import org.mothvpn.core.SubscriptionSource
             val groups = ServerGroups.of(book ?: SubscriptionBook(emptyList()), visibleK, settings.favorites)
             groups.forEach { group ->
             val groupKey = group.sourceId ?: "favorites"
-            val folded = book != null && groupKey in collapsed
+            // New design: while searching, groups with matches open by themselves (the saved collapsed state returns when the query is cleared).
+            val folded = book != null && groupKey in collapsed && !(ndPage && search.isNotBlank())
             if (book != null) item(key = "header:$groupKey") {
                 val source = group.sourceId?.let(book::source)
                 val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true }
@@ -209,8 +211,8 @@ import org.mothvpn.core.SubscriptionSource
         // New design: switching servers shows no progress bar (the selection highlight is enough).
         if ((busy && !(nd && selecting)) || probing) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        if (nd) androidx.compose.animation.Crossfade(kind, Modifier.weight(1f).fillMaxWidth(), label = "network") { KindPage(it) }
-        else {
+        // Both designs swipe between the Wi-Fi and mobile data pages; the new design's segmented button follows the pager.
+        run {
         val pager = rememberPagerState(initialPage = if (kind == "wifi") 0 else 1) { 2 }
         LaunchedEffect(pager.currentPage) { kind = if (pager.currentPage == 0) "wifi" else "mobile" }
         LaunchedEffect(kind) { val i = if (kind == "wifi") 0 else 1; if (pager.currentPage != i) pager.animateScrollToPage(i) }
