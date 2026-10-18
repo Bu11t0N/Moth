@@ -30,6 +30,8 @@ object LogFacts {
         plain("trafficWarning", old.trafficWarning, new.trafficWarning)
         plain("fragment", old.fragment, new.fragment); plain("noise", old.noise, new.noise); plain("mux", old.mux, new.mux)
         plain("editServers", old.editServers, new.editServers); plain("newDesign", old.newDesign, new.newDesign); plain("amoled", old.amoled, new.amoled)
+        // Keywords can be provider or location names: only the count is logged.
+        plain("serverFilter", old.serverFilter.size, new.serverFilter.size); plain("serverFilterMode", old.serverFilterMode, new.serverFilterMode)
         return out
     }
 

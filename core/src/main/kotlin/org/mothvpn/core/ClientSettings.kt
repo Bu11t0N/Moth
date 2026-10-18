@@ -52,7 +52,11 @@ data class ClientSettings(
     /** Developer option: the experimental monochrome design (0.7). Off keeps the classic look. */
     val newDesign: Boolean = false,
     /** New design, dark theme: pure black (#000000) background and surfaces for AMOLED screens. */
-    val amoled: Boolean = false
+    val amoled: Boolean = false,
+    /** New design: keyword server filter, matched against server names at display time (see [ServerFilter]). */
+    val serverFilter: List<String> = emptyList(),
+    /** [ServerFilter.EXCLUDE] hides matching servers, [ServerFilter.ONLY] shows only them. */
+    val serverFilterMode: String = ServerFilter.EXCLUDE
 ) {
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
@@ -78,6 +82,7 @@ data class ClientSettings(
         require(CustomRouting.valid(routingRules)) { "Неверное правило маршрутизации" }
         require(fragment in DpiTricks.fragmentPresets.keys) { "Неверный режим фрагментации" }
         require(mux in DpiTricks.muxModes) { "Неверный режим мультиплексирования" }
+        require(ServerFilter.valid(serverFilter) && serverFilterMode in ServerFilter.modes) { "Неверный фильтр серверов" }
         listOf(probeUrl, bootstrapDns).forEach { value ->
             val u = URI(value)
             require(u.scheme == "https" && !u.host.isNullOrBlank() && u.rawUserInfo == null && u.fragment == null) { "Нужен корректный HTTPS-адрес" }
@@ -96,6 +101,7 @@ data class ClientSettings(
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
         .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("newDesign", newDesign).put("amoled", amoled)
+        .put("serverFilter", org.json.JSONArray(serverFilter)).put("serverFilterMode", serverFilterMode)
     companion object {
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
         private val autoUserAgent = Regex("Moth(/[0-9][0-9A-Za-z.+-]*)?")
@@ -127,6 +133,8 @@ data class ClientSettings(
             mux = j.optString("mux", "off").takeIf { it in DpiTricks.muxModes } ?: "off",
             editServers = j.optBoolean("editServers", false),
             newDesign = j.optBoolean("newDesign", false), amoled = j.optBoolean("amoled", false),
+            serverFilter = ServerFilter.normalize(j.optJSONArray("serverFilter")?.let { a -> (0 until a.length()).map { a.optString(it) } }.orEmpty()),
+            serverFilterMode = j.optString("serverFilterMode", ServerFilter.EXCLUDE).takeIf { it in ServerFilter.modes } ?: ServerFilter.EXCLUDE,
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
 }
