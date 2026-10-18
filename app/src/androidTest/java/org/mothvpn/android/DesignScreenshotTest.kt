@@ -56,6 +56,29 @@ class DesignScreenshotTest {
         assertTrue("sheet closed", device.findObject(By.text(title)) == null)
     }
 
+    /** The home-screen widget as the launcher draws it: its RemoteViews inflated in a night / day configuration and rendered at 4×1 cells. */
+    private fun widgetShot(name: String, night: Boolean) {
+        val config = android.content.res.Configuration(context.resources.configuration).apply {
+            uiMode = (uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                (if (night) android.content.res.Configuration.UI_MODE_NIGHT_YES else android.content.res.Configuration.UI_MODE_NIGHT_NO)
+        }
+        val themed = context.createConfigurationContext(config)
+        var bitmap: android.graphics.Bitmap? = null
+        instrumentation.runOnMainSync {
+            val d = themed.resources.displayMetrics.density
+            val view = MothWidget.views(themed).apply(themed, android.widget.FrameLayout(themed))
+            val w = (360 * d).toInt(); val h = (72 * d).toInt(); val pad = (12 * d).toInt()
+            view.measure(android.view.View.MeasureSpec.makeMeasureSpec(w, android.view.View.MeasureSpec.EXACTLY), android.view.View.MeasureSpec.makeMeasureSpec(h, android.view.View.MeasureSpec.EXACTLY))
+            view.layout(0, 0, w, h)
+            bitmap = android.graphics.Bitmap.createBitmap(w + 2 * pad, h + 2 * pad, android.graphics.Bitmap.Config.ARGB_8888).also { b ->
+                val c = android.graphics.Canvas(b); c.drawColor(if (night) 0xFF3A4048.toInt() else 0xFFB8C4D0.toInt()) // a plain "wallpaper"
+                c.translate(pad.toFloat(), pad.toFloat()); view.draw(c)
+            }
+        }
+        File(out, "$name.png").outputStream().use { bitmap!!.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        log("design screenshot: $name")
+    }
+
     private fun screens(theme: String, amoled: Boolean = false) {
         reset()
         SettingsStore(context).save(ClientSettings(hwid = hwid, theme = if (amoled) "dark" else theme, newDesign = true, amoled = amoled))
@@ -127,11 +150,14 @@ class DesignScreenshotTest {
         Thread.sleep(2500)
         assertEquals("moth button moved when the status changed", offBounds, wait(By.desc("Disconnect VPN")).visibleBounds)
         shot("home-on-$theme")
+        widgetShot("widget-on-$theme", theme != "light")
         wait(By.descStartsWith("Choose server")).click()
         wait(By.text("Servers")); Thread.sleep(1200)
         shot("sheet-$theme")
         device.pressBack(); Thread.sleep(800)
         stopVpn()
+        eventually(10_000, "off") { off() }
+        widgetShot("widget-off-$theme", theme != "light")
         // One subscription with provider links: the card opens the subscriptions sheet with the link buttons.
         tab("Home"); wait(By.descContains(": Show all subscriptions")).click(); wait(By.text("Subscriptions")); wait(By.desc("Support")); Thread.sleep(1000)
         shot("subscriptions-$theme"); device.pressBack(); Thread.sleep(800)

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget, monochrome like the new design: light tones here, dark tones in values-night (follows the system theme). -->
+<resources>
+    <color name="widget_surface">#FFEDEDED</color>
+    <color name="widget_tile">#FFDADADA</color>
+    <color name="widget_text">#FF111111</color>
+    <color name="widget_text_secondary">#FF5E5E5E</color>
+    <color name="widget_button">#FF111111</color>
+    <color name="widget_on_button">#FFFFFFFF</color>
+    <color name="widget_moth_on">#FF111111</color>
+    <color name="widget_moth_off">#FF9E9E9E</color>
+</resources>
