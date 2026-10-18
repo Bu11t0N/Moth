@@ -350,6 +350,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                             // Local servers ("My servers") are never downloaded, so they have no update date.
                             if (!s.local && s.updatedAt > 0) Text(tr(R.string.sub_updated_on, dates.format(java.util.Date(s.updatedAt))), style = MaterialTheme.typography.bodySmall, color = grey)
                         }
+                        if (s.totalBytes > 0) UsageRing(s.usedBytes.toDouble() / s.totalBytes, Modifier.padding(start = 8.dp))
                         if (!s.local) IconButton(onClick = { copy(s.url) }, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.sub_link_copy_link) }) {
                             Icon(androidx.compose.material.icons.Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(22.dp))
                         }
@@ -522,5 +523,38 @@ fun ClientSettings.filterShows(p: Profile) = !newDesign || org.mothvpn.core.Serv
                 }
             }
         }
+    }
+}
+
+/**
+ * Traffic used as a ring with the percent inside (Compose M3 1.4.0 has no wavy circular indicator, so it is drawn here):
+ * a tonal track and a gently wavy arc for the used share, monochrome; above 90 % the arc turns to the error colour.
+ */
+@Composable fun UsageRing(fraction: Double, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 52.dp) {
+    val f = fraction.coerceIn(0.0, 1.0).toFloat()
+    val percent = kotlin.math.round(fraction.coerceAtLeast(0.0) * 100).toInt()
+    val track = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    val arc = if (f >= 0.9f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val label = tr(R.string.nd_usage_ring, percent)
+    Box(modifier.size(size).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val stroke = 4.dp.toPx(); val wave = 1.2.dp.toPx()
+            val r = this.size.minDimension / 2 - stroke / 2 - wave
+            val c = center
+            drawCircle(track, r, c, style = Stroke(stroke))
+            if (f > 0f) {
+                val path = androidx.compose.ui.graphics.Path()
+                val steps = (180 * f).toInt().coerceAtLeast(2)
+                for (i in 0..steps) {
+                    val t = f * i / steps
+                    val a = (-90f + 360f * t) * (Math.PI / 180f).toFloat()
+                    val rr = r + wave * kotlin.math.sin(t * 2f * Math.PI.toFloat() * 12f)
+                    val p = Offset(c.x + rr * kotlin.math.cos(a), c.y + rr * kotlin.math.sin(a))
+                    if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y)
+                }
+                drawPath(path, arc, style = Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            }
+        }
+        Text("$percent%", style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }

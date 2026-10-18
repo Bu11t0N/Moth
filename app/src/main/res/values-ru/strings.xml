@@ -511,4 +511,5 @@
     <string name="nd_stat_traffic">За сеанс</string>
     <string name="nd_stat_time">Подключено</string>
     <string name="nd_per_second">/с</string>
+    <string name="nd_usage_ring">Израсходовано трафика: %1$d%%</string>
 </resources>
