@@ -494,4 +494,14 @@
     <string name="set_amoled">Чёрная тёмная тема (AMOLED)</string>
     <string name="nd_checks_current_network">Проверка работает только в сети, к которой вы подключены</string>
     <string name="nd_checks_no_network">Нет сети: проверка недоступна</string>
+    <string name="nd_filter">Фильтр</string>
+    <string name="nd_filter_active">Фильтр: %1$d</string>
+    <string name="nd_filter_title">Фильтр серверов</string>
+    <string name="nd_filter_exclude">Скрыть совпадения</string>
+    <string name="nd_filter_only">Только совпадения</string>
+    <string name="nd_filter_keyword">Слово, например Германия</string>
+    <string name="nd_filter_add">Добавить</string>
+    <string name="nd_filter_empty">Слов нет: показаны все серверы.</string>
+    <string name="nd_filter_remove">Удалить %1$s</string>
+    <string name="nd_filter_hint">Слова ищутся в названиях серверов без учёта регистра. Фильтр сохраняется после обновления подписок.</string>
 </resources>

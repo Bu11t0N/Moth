@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -234,8 +235,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     if (sheet && saved != null) {
         val state = rememberModalBottomSheetState(skipPartiallyExpanded = false)
         val kind = network.kind
-        val ordered = remember(saved, results, settings.serverSort, settings.favorites, kind) {
-            Favorites.first(ServerOrder.sort(saved.profiles, settings.serverSort, { it.name }) { p -> results["$kind:${p.id}"]?.latencyMs }, settings.favorites) { it.id }
+        val ordered = remember(saved, results, settings.serverSort, settings.favorites, settings.serverFilter, settings.serverFilterMode, kind) {
+            Favorites.first(ServerOrder.sort(saved.profiles.filter { settings.filterShows(it) }, settings.serverSort, { it.name }) { p -> results["$kind:${p.id}"]?.latencyMs }, settings.favorites) { it.id }
         }
         val canSelect = !busy && !probing && tunnel != TunnelState.STOPPING
         ModalBottomSheet(onDismissRequest = { sheet = false }, sheetState = state, containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
@@ -363,3 +364,53 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 /** The protocol line of a server, as in the server list. */
 @Composable fun serverSubtitle(p: Profile): String =
     org.mothvpn.core.ServerLabels.label(p, tr(R.string.server_balancer)) + if (org.mothvpn.core.ProxyProtocols.unencrypted(p)) " · " + tr(R.string.proto_unencrypted) else ""
+
+/**
+ * New design: keyword server filter. Keywords are added one by one (text field + Add) and listed as rows with a delete button;
+ * the mode hides matching servers or shows only them. Saved in settings and matched against server names when the list is shown,
+ * so it survives subscription updates.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable fun ServerFilterSheet(settings: ClientSettings, save: (ClientSettings) -> Unit, close: () -> Unit) {
+    var text by remember { mutableStateOf("") }
+    val keywords = settings.serverFilter
+    fun add() { val next = org.mothvpn.core.ServerFilter.add(keywords, text); if (next != keywords) save(settings.copy(serverFilter = next)); text = "" }
+    ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(Modifier.fillMaxWidth().imePadding().padding(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(tr(R.string.nd_filter_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf(org.mothvpn.core.ServerFilter.EXCLUDE to tr(R.string.nd_filter_exclude), org.mothvpn.core.ServerFilter.ONLY to tr(R.string.nd_filter_only)).forEachIndexed { i, (mode, label) ->
+                    SegmentedButton(selected = settings.serverFilterMode == mode, onClick = { save(settings.copy(serverFilterMode = mode)) }, shape = SegmentedButtonDefaults.itemShape(i, 2), icon = {},
+                        colors = SegmentedButtonDefaults.colors(activeContainerColor = MaterialTheme.colorScheme.primaryContainer, activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            inactiveContainerColor = Color.Transparent, activeBorderColor = MaterialTheme.colorScheme.outline, inactiveBorderColor = MaterialTheme.colorScheme.outline),
+                        modifier = Modifier.heightIn(min = 48.dp)) { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(text, { text = it.take(org.mothvpn.core.ServerFilter.MAX_LENGTH) }, singleLine = true, placeholder = { Text(tr(R.string.nd_filter_keyword)) },
+                    shape = RoundedCornerShape(16.dp), modifier = Modifier.weight(1f),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { add() }))
+                Button(onClick = { add() }, enabled = org.mothvpn.core.ServerFilter.clean(text) != null && keywords.size < org.mothvpn.core.ServerFilter.MAX_KEYWORDS,
+                    modifier = Modifier.heightIn(min = 56.dp), shape = RoundedCornerShape(16.dp)) { Text(tr(R.string.nd_filter_add)) }
+            }
+            if (keywords.isEmpty()) Text(tr(R.string.nd_filter_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
+            else LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(keywords, key = { it }) { k ->
+                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                        Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(k, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { save(settings.copy(serverFilter = keywords - k)) }, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.nd_filter_remove, k) }) {
+                                Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(22.dp))
+                            }
+                        }
+                    }
+                }
+            }
+            Text(tr(R.string.nd_filter_hint), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+}
+
+/** True when the new design's keyword filter shows this server (the classic design ignores the filter). */
+fun ClientSettings.filterShows(p: Profile) = !newDesign || org.mothvpn.core.ServerFilter.shows(p.name, serverFilter, serverFilterMode)

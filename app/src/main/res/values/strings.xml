@@ -490,4 +490,14 @@
     <string name="set_amoled">Pure black dark theme (AMOLED)</string>
     <string name="nd_checks_current_network">Checks run only on the network you are connected to</string>
     <string name="nd_checks_no_network">No network: checks are unavailable</string>
+    <string name="nd_filter">Filter</string>
+    <string name="nd_filter_active">Filter: %1$d</string>
+    <string name="nd_filter_title">Server filter</string>
+    <string name="nd_filter_exclude">Hide matching</string>
+    <string name="nd_filter_only">Show only matching</string>
+    <string name="nd_filter_keyword">Keyword, e.g. Germany</string>
+    <string name="nd_filter_add">Add</string>
+    <string name="nd_filter_empty">No keywords: all servers are shown.</string>
+    <string name="nd_filter_remove">Remove %1$s</string>
+    <string name="nd_filter_hint">Keywords are matched against server names, ignoring case. The filter stays after subscription updates.</string>
 </resources>
