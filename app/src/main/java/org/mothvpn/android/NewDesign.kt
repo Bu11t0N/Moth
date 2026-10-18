@@ -325,6 +325,19 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     }
 }
 
+/**
+ * Leading icon in a rounded-square tile (40 dp, 12 dp corners): a grey tile (darker grey in the dark theme, lighter in the light theme, still
+ * visible on AMOLED black) with a monochrome icon. Used for Settings rows; meant for future provider buttons too (bot, support, news).
+ * Server lists and menus keep plain icons.
+ */
+@Composable fun IconTile(icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp) {
+    val dark = MaterialTheme.colorScheme.background.luminanceLow()
+    // A translucent layer of the content colour: always a step lighter (dark) or darker (light) than the card it sits on.
+    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (dark) 0.13f else 0.08f), modifier = modifier.size(size)) {
+        Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(size * 0.55f)) }
+    }
+}
+
 /** Menu of the new design: a bottom sheet with a title and full-width rows ([NdSheetItem]), consistent with the server sheet. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun NdActionSheet(title: String, dismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {

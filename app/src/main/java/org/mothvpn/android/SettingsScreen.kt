@@ -270,10 +270,9 @@ import org.mothvpn.core.SubscriptionSchedule
 @Composable private fun SettingsCategory(title: String, subtitle: String, icon: String, open: () -> Unit) {
     Card(Modifier.fillMaxWidth().clickable(onClick = open)) {
         Row(Modifier.fillMaxWidth().heightIn(min = if (LocalNewDesign.current) 72.dp else 0.dp).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            // New design: a plain monochrome icon, no coloured circle behind it.
-            if (LocalNewDesign.current) Box(Modifier.size(40.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                Icon(categoryIcon(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
-            } else Surface(shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(40.dp)) {
+            // New design: a monochrome icon in a grey rounded-square tile (no colours, no circle).
+            if (LocalNewDesign.current) IconTile(categoryIcon(icon))
+            else Surface(shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(40.dp)) {
                 Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
                     Icon(categoryIcon(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(22.dp))
                 }
