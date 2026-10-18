@@ -25,6 +25,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.mothvpn.core.Subscriptions
 import org.mothvpn.core.TunnelConfig
 import org.mothvpn.core.ClientSettings
@@ -231,11 +232,20 @@ class MainActivity : AppCompatActivity() {
         Logger.d("Settings", "change requested: ${LogFacts.settingsChanges(settings, next).joinToString(", ")}")
         val hours = settings.subUpdateHours
         val kill = settings.killSwitch
+        val splitChanged = next.splitMode != settings.splitMode || next.splitApps != settings.splitApps
         settings = next.validate()
         settingsQueue.trySend(next)
         if (next.subUpdateHours != hours) SubscriptionUpdates.schedule(this, next.subUpdateHours)
         if (next.killSwitch != kill && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED))
             runCatching { startService(Intent(this, TunnelService::class.java).setAction("KILL_SWITCH").putExtra("on", next.killSwitch)) }.onFailure { Logger.w("Settings", "kill switch update not delivered", it) }
+        // Split tunneling is fixed when the tunnel is built: after a (debounced) change while connected, restart on the same server once.
+        // The service reads the settings from the store, so wait until the queue has written them.
+        if (splitChanged && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) && TunnelStatus.activeProfile.value.isNotEmpty()) lifecycleScope.launch {
+            withTimeoutOrNull(5_000) { settingsApplied.first { it?.second == next } }
+            Logger.i("Settings", "split tunneling changed while connected: reconnecting")
+            runCatching { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("SWITCH").putExtra("profile", TunnelStatus.activeProfile.value).putExtra("force", true)) }
+                .onFailure { Logger.w("Settings", "split tunneling reconnect not delivered", it) }
+        }
     }
     /** [sourceId]: refresh or edit that subscription; null adds a new one. [name]: a name chosen by the user (never logged). */
     private fun import(url: String, trigger: String = "add", sourceId: String? = null, name: String? = null, expectedUrl: String? = null) {

@@ -24,8 +24,21 @@ import org.mothvpn.core.ClientSettings
 private class AppEntry(val packageName: String, val label: String, val system: Boolean)
 
 /** Per-app split tunneling: mode dialog row, search and the list of installed apps that use the internet. */
-@Composable fun SplitTunnelPage(settings: ClientSettings, enabled: Boolean, apply: (ClientSettings) -> Unit, modifier: Modifier = Modifier) {
+@Composable fun SplitTunnelPage(saved: ClientSettings, enabledOff: Boolean, applyNow: (ClientSettings) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    // New design: editable while connected; toggles collect in [pending] and are saved 5 s after the last one (one reconnect instead of one per tap).
+    // Leaving the page saves them at once. The classic design keeps "edit only while disconnected, save on every tap".
+    val nd = LocalNewDesign.current
+    val tunnel by TunnelStatus.state.collectAsState()
+    val probing by Diagnostics.running.collectAsState()
+    val enabled = if (nd) !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING) else enabledOff
+    var pending by remember { mutableStateOf<ClientSettings?>(null) }
+    val settings = pending ?: saved
+    val apply: (ClientSettings) -> Unit = { next -> if (nd) pending = next else applyNow(next) }
+    LaunchedEffect(pending) { val p = pending ?: return@LaunchedEffect; kotlinx.coroutines.delay(5_000); pending = null; applyNow(p) }
+    val latest by rememberUpdatedState(pending)
+    val latestApply by rememberUpdatedState(applyNow)
+    DisposableEffect(Unit) { onDispose { latest?.let(latestApply) } }
     val pm = context.packageManager
     var apps by remember { mutableStateOf<List<AppEntry>?>(null) }
     var search by remember { mutableStateOf("") }
@@ -50,9 +63,9 @@ private class AppEntry(val packageName: String, val label: String, val system: B
     }
     val modes = listOf("off" to tr(R.string.split_mode_off), "only" to tr(R.string.split_mode_only), "bypass" to tr(R.string.split_mode_bypass))
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (!enabled) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
+        if (!enabled && !nd) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
         DialogRow(tr(R.string.split_mode), modes.first { it.first == settings.splitMode }.second, enabled) { modeDialog = true }
-        Text(tr(R.string.split_hint), style = MaterialTheme.typography.bodySmall)
+        Text(tr(if (nd) R.string.split_hint_live else R.string.split_hint), style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(search, { search = it }, label = { Text(tr(R.string.split_search)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { showSystem = !showSystem }) {
             Checkbox(showSystem, { showSystem = it }); Text(tr(R.string.split_show_system))

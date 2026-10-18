@@ -255,7 +255,8 @@
     <string name="split_mode_off">Off: all apps use the VPN</string>
     <string name="split_mode_only">Only selected apps use the VPN</string>
     <string name="split_mode_bypass">Selected apps bypass the VPN</string>
-    <string name="split_hint">Changes apply on the next connection. Only apps with an icon in the app list are shown.</string>
+    <string name="split_hint">Changes apply on the next connection.</string>
+    <string name="split_hint_live">Changes apply 5 seconds after the last change; a connected VPN reconnects once.</string>
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
     <string name="direct_ru">Russian sites and IPs directly</string>
