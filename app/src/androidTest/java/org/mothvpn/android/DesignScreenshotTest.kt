@@ -100,7 +100,7 @@ class DesignScreenshotTest {
                 assertTrue("moth overlaps the subscription card ($state)", moth.bottom <= card.top)
                 assertTrue("subscription card overlaps the server bar ($state)", card.bottom <= bar.top)
                 assertTrue("subscription card squeezed ($state)", card.height() >= (64 * context.resources.displayMetrics.density).toInt())
-                val until = wait(By.textStartsWith("Subscription expires on")).visibleBounds
+                val until = wait(By.textContains("Expires on")).visibleBounds
                 assertTrue("valid-until line covered ($state)", until.bottom <= bar.top && until.height() > 0)
                 return moth
             }
