@@ -52,6 +52,9 @@ object TunnelStatus {
     /** Connected, but the phone has no network at all (set by the service from its default-network callback). */
     internal val offlineMutable = MutableStateFlow(org.mothvpn.core.OfflineStatus.Kind.ONLINE)
     val offline = offlineMutable.asStateFlow()
+    /** Live session numbers while connected (same sample as the notification: speed, session traffic, time); null when not connected. */
+    internal val statsMutable = MutableStateFlow<org.mothvpn.core.TrafficFormat.Stats?>(null)
+    val stats = statsMutable.asStateFlow()
     /** Traffic is held by the kill switch: the user sees "Disconnect" and "Traffic blocked", not "Connect". Also when the network is gone with the kill switch on. */
     fun trafficBlocked(state: TunnelState, blocking: Boolean, offline: org.mothvpn.core.OfflineStatus.Kind = this.offline.value) = state == TunnelState.BLOCKED || (blocking && state == TunnelState.STARTING) ||
         (offline == org.mothvpn.core.OfflineStatus.Kind.BLOCKED && state in setOf(TunnelState.RUNNING, TunnelState.STARTING))
@@ -365,11 +368,11 @@ class TunnelService : VpnService(), PlatformInterface {
         if (tx == 0L && rx == 0L) Logger.w("Tunnel", "traffic statistics are unavailable on this device")
         baseTx = tx; baseRx = rx; lastTx = tx; lastRx = rx; lastAt = SystemClock.elapsedRealtime(); startedAt = lastAt
         // The first RUNNING notification already has the full layout (speed 0, totals 0, time 00:00); the ticker updates it every second.
-        statsActive = true; lastDetails = details(TrafficFormat.Stats.CONNECTED)
+        statsActive = true; lastDetails = details(TrafficFormat.Stats.CONNECTED); TunnelStatus.statsMutable.value = TrafficFormat.Stats.CONNECTED
         statsTask?.cancel(false)
         statsTask = statsExecutor.scheduleWithFixedDelay({ runCatching { tickStats() }.onFailure { Logger.w("Tunnel", "notification update failed", it) } }, 0, 1, TimeUnit.SECONDS)
     }
-    private fun stopStats() = synchronized(statsLock) { if (statsActive) runCatching { TrafficRecorder.flush(this) }; statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0 }
+    private fun stopStats() = synchronized(statsLock) { if (statsActive) runCatching { TrafficRecorder.flush(this) }; statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0; TunnelStatus.statsMutable.value = null }
     /** Speed line (collapsed text) and speed/total/time lines (expanded text). */
     private fun details(st: TrafficFormat.Stats): Details {
         val units = tr(R.string.notif_units).split("|"); val locale = AppLanguage.context().resources.configuration.locales[0]
@@ -382,7 +385,9 @@ class TunnelService : VpnService(), PlatformInterface {
         if (!statsActive || TunnelStatus.state.value != TunnelState.RUNNING) return
         val now = SystemClock.elapsedRealtime()
         val tx = TrafficStats.getUidTxBytes(Process.myUid()).coerceAtLeast(0); val rx = TrafficStats.getUidRxBytes(Process.myUid()).coerceAtLeast(0)
-        val details = details(TrafficFormat.Stats.sample(baseTx, baseRx, lastTx, lastRx, tx, rx, startedAt, lastAt, now))
+        val sample = TrafficFormat.Stats.sample(baseTx, baseRx, lastTx, lastRx, tx, rx, startedAt, lastAt, now)
+        TunnelStatus.statsMutable.value = sample
+        val details = details(sample)
         TrafficRecorder.add(this, TrafficHistory.delta(lastTx, tx), TrafficHistory.delta(lastRx, rx))
         lastTx = tx; lastRx = rx; lastAt = now
         if (lastDetails?.expanded == details.expanded) return // nothing changed (uptime changes every second, so this only skips duplicate ticks)

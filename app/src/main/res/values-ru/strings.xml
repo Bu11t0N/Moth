@@ -507,4 +507,8 @@
     <string name="nd_link_support">Поддержка</string>
     <string name="nd_link_news">Новости</string>
     <string name="nd_link_web">Сайт</string>
+    <string name="nd_stat_speed">Скорость</string>
+    <string name="nd_stat_traffic">За сеанс</string>
+    <string name="nd_stat_time">Подключено</string>
+    <string name="nd_per_second">/с</string>
 </resources>

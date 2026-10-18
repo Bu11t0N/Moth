@@ -503,4 +503,8 @@
     <string name="nd_link_support">Support</string>
     <string name="nd_link_news">News</string>
     <string name="nd_link_web">Website</string>
+    <string name="nd_stat_speed">Speed</string>
+    <string name="nd_stat_traffic">This session</string>
+    <string name="nd_stat_time">Connected</string>
+    <string name="nd_per_second">/s</string>
 </resources>

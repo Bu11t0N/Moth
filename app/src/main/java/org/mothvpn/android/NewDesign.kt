@@ -204,6 +204,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         saved?.profiles?.firstOrNull { it.id == if (tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) && active.isNotEmpty()) active else saved.selection(network.kind) }
     }
     val blockingTun by TunnelStatus.blocking.collectAsState()
+    val stats by TunnelStatus.stats.collectAsState()
     val offline by TunnelStatus.offline.collectAsState()
     val blocked = TunnelStatus.trafficBlocked(tunnel, blockingTun, offline)
     val running = tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || blocked
@@ -239,6 +240,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
         if (saved == null) Button(enabled = !busy, onClick = add, modifier = Modifier.heightIn(min = 56.dp)) { Text(tr(R.string.msg_add_subscription_16)) }
+        // Session tiles (speed, traffic, time) while connected. The space is always reserved, so the moth never moves when they appear.
+        else SessionTiles(stats.takeIf { on })
         Spacer(Modifier.weight(1f))
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
@@ -494,6 +497,27 @@ fun ClientSettings.filterShows(p: Profile) = !newDesign || org.mothvpn.core.Serv
                     Box(Modifier.weight(1f).fillMaxHeight().clip(CircleShape)
                         .selectable(selected = near > 0.5f, role = androidx.compose.ui.semantics.Role.Tab) { select(i) }, contentAlignment = Alignment.Center) {
                         Text(label, color = color, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Three tonal tiles with a big number and a small label: current speed, traffic of this session, connection time. Empty (but sized) when [stats] is null. */
+@Composable fun SessionTiles(stats: org.mothvpn.core.TrafficFormat.Stats?) {
+    Box(Modifier.fillMaxWidth().height(72.dp)) {
+        if (stats != null) {
+            val units = tr(R.string.notif_units).split("|"); val locale = AppLanguage.context().resources.configuration.locales[0]
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(org.mothvpn.core.TrafficFormat.bytes(stats.txRate + stats.rxRate, units, locale) + tr(R.string.nd_per_second) to tr(R.string.nd_stat_speed),
+                    org.mothvpn.core.TrafficFormat.bytes(stats.txTotal + stats.rxTotal, units, locale) to tr(R.string.nd_stat_traffic),
+                    org.mothvpn.core.TrafficFormat.duration(stats.seconds) to tr(R.string.nd_stat_time)).forEach { (value, label) ->
+                    Surface(shape = MaterialTheme.shapes.medium, color = NdTone.card(), modifier = Modifier.weight(1f).fillMaxHeight().semantics(mergeDescendants = true) {}) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.Center) {
+                            Text(value, style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
             }
