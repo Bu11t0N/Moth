@@ -531,7 +531,10 @@ class TunnelService : VpnService(), PlatformInterface {
                         val test = ProxyRequest(this, port, user, password, settings.probeTimeoutMs.toLong(), cancelled)
                         requests.add(test)
                         stage = "request ${Diagnostics.describeUrl(url)}"
-                        try { measured = test.run(url); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} $measured ms ($label)"); break }
+                        try {
+                            measured = test.run(url, warm = settings.probeMode == org.mothvpn.core.ProbePolicy.LATENCY)
+                            Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} $measured ms (first ${test.firstMs} ms, warm ${test.warmMs ?: "-"} ms, mode=${settings.probeMode}) ($label)"); break
+                        }
                         catch (e: Throwable) {
                             last = e
                             Logger.w("Probe", "request failed url=${Diagnostics.describeUrl(url)} handshakeStage=${test.stage} method=$method network=${access.kind} ($label)", e)
