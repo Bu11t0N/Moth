@@ -251,7 +251,7 @@
     <string name="split_mode_off">Выключено: все приложения через VPN</string>
     <string name="split_mode_only">Только выбранные через VPN</string>
     <string name="split_mode_bypass">Выбранные в обход VPN</string>
-    <string name="split_hint_live">Изменения применяются через 5 секунд после последнего; подключённый VPN переподключится один раз.</string>
+    <string name="split_hint_live">Подключённый VPN переподключится один раз, чтобы применить изменения.</string>
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
@@ -520,7 +520,7 @@
     <string name="dev_sub_headers_update">Обновите эту подписку, чтобы увидеть её заголовки.</string>
     <string name="dev_sub_headers_http">HTTP-заголовки: %1$s</string>
     <string name="dev_sub_headers_body">Поля в теле: %1$s</string>
-    <string name="settings_live_hint">VPN включён: изменения применятся через 5 секунд после последнего, с одним переподключением.</string>
+    <string name="settings_live_hint">VPN включён: изменения применятся с одним коротким переподключением.</string>
     <string name="settings_wait_hint">Дождитесь, пока VPN подключится или отключится.</string>
     <string name="device_os">Название системы · x-device-os</string>
     <string name="device_os_version">Версия системы · x-ver-os</string>
