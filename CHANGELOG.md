@@ -8,7 +8,7 @@ Not released yet.
 
 ### Changes
 
-- Experimental: a new monochrome design. The connect button is a moth that flaps its wings while connecting, the server list opens from the bottom of the home screen, and subscription groups have their own update and check buttons. Turn it on in Settings → For developers → New design.
+- Experimental: a new monochrome design. The connect button is a moth that flaps its wings while connecting, the server list opens from the bottom of the home screen, and subscription groups have their own update and check buttons.
 - The themed app icon on Android 13 and newer shows the moth silhouette clearly.
 - The speed test has been removed; server checks still show the ping.
 - New design: a pure black (AMOLED) option for the dark theme, a Wi-Fi / mobile data switch, menus that open from the bottom and a resting moth when the VPN is off.
@@ -37,6 +37,16 @@ Not released yet.
 - The provider’s logo is found in more places; without one, the icon of the provider’s website is used.
 - Removed the “subscription removed” message and the “checked on another network” label.
 - For developers: a list of the header names a subscription sends.
+- The new design is now the only one.
+- The VPN notification icon follows your system colours.
+- You can change the system name, version and device model sent to your provider, or reset them to the defaults. Sending the Android version is on by default.
+- While the VPN is on, the moth slowly moves its wings.
+- Statistics show today, this week and this month at the top.
+- Shorter settings hints.
+- Closing the app is no longer written to the log.
+- Without a logo, the provider’s avatar is taken from its public Telegram page.
+- Provider announcements are shown on the subscription card, and new ones appear on the home screen until you hide them.
+- Servers: update all subscriptions and check all servers from the ⋮ menu.
 
 ## 0.6.5
 
