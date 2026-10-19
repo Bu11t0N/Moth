@@ -184,17 +184,12 @@ import org.mothvpn.core.SubscriptionSchedule
                         modifier = Modifier.fillMaxWidth())
                     TextButton(onClick = { clipboard.setText(AnnotatedString(draft.hwid)) }) { Text(tr(R.string.msg_copy_hwid_107)) }
                     SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it, deviceInfoSet = true)) }
-                    // Custom device info instead of the system values (empty field = system value, shown as the placeholder). Never logged.
+                    // The device info that is sent (system values or the user's own), edited in a scrollable dialog. Never logged.
                     if (draft.deviceInfo) {
-                        val systemValues = listOf("Android", android.os.Build.VERSION.RELEASE.orEmpty(), "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
-                        listOf(Triple(tr(R.string.device_os), draft.deviceOs) { v: String -> draft.copy(deviceOs = v) },
-                            Triple(tr(R.string.device_os_version), draft.deviceOsVersion) { v: String -> draft.copy(deviceOsVersion = v) },
-                            Triple(tr(R.string.device_model), draft.deviceModel) { v: String -> draft.copy(deviceModel = v) }).forEachIndexed { i, (label, value, next) ->
-                            OutlinedTextField(value, { applySettings(next(it.take(if (i == 2) 120 else 64))) }, enabled = !locked, label = { Text(label) },
-                                placeholder = { Text(systemValues[i]) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                        }
-                        TextButton(enabled = !locked && (draft.deviceOs + draft.deviceOsVersion + draft.deviceModel).isNotEmpty(), onClick = { applySettings(draft.withDefaultDeviceInfo()) }) { Text(tr(R.string.device_reset)) }
-                        Text(tr(R.string.device_hint), style = MaterialTheme.typography.bodySmall)
+                        var deviceDialog by remember { mutableStateOf(false) }
+                        val sent = DeviceDefaults.sent(draft)
+                        DialogRow(tr(R.string.device_title), sent.joinToString(" · "), enabled = !locked) { deviceDialog = true }
+                        if (deviceDialog) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
                     }
                     OutlinedTextField(draft.userAgent, { applySettings(draft.copy(userAgent = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_user_agent_109)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text(tr(R.string.msg_providers_may_select_the_subscription_format_110), style = MaterialTheme.typography.bodySmall)
@@ -352,4 +347,37 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
 @Composable private fun LiveApplyHint() {
     val tunnel by TunnelStatus.state.collectAsState()
     if (tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)) Text(tr(R.string.settings_wait_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** The device info Moth sends by default (same values as the subscription headers) and what it sends with [settings]. */
+object DeviceDefaults {
+    val values get() = listOf("Android", org.mothvpn.core.DeviceInfo.clean(android.os.Build.VERSION.RELEASE.orEmpty(), 64),
+        org.mothvpn.core.DeviceInfo.clean("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}", 120))
+    val limits = listOf(64, 64, 120)
+    fun sent(settings: ClientSettings) = listOf(settings.deviceOs, settings.deviceOsVersion, settings.deviceModel).mapIndexed { i, v -> v.trim().ifEmpty { values[i] } }
+}
+
+/**
+ * Device info dialog: each field holds the value that is sent now (default or the user's own) as editable text; Reset puts the
+ * defaults back. A value equal to the default is stored as "default" (empty), so it follows system updates. Scrolls on short
+ * screens, with a large font and with the keyboard open. Values are never logged.
+ */
+@Composable private fun DeviceInfoDialog(settings: ClientSettings, close: () -> Unit, save: (ClientSettings) -> Unit) {
+    val defaults = remember { DeviceDefaults.values }
+    val fields = remember { DeviceDefaults.sent(settings).map { mutableStateOf(it) } }
+    val labels = listOf(tr(R.string.device_os), tr(R.string.device_os_version), tr(R.string.device_model))
+    val valid = fields.indices.all { i -> fields[i].value.trim().isNotEmpty() && org.mothvpn.core.DeviceInfo.valid(fields[i].value.trim(), DeviceDefaults.limits[i]) }
+    AlertDialog(onDismissRequest = close, title = { Text(tr(R.string.device_title)) }, text = {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            fields.forEachIndexed { i, field ->
+                OutlinedTextField(field.value, { field.value = it.take(DeviceDefaults.limits[i]) }, label = { Text(labels[i]) }, singleLine = true,
+                    isError = !org.mothvpn.core.DeviceInfo.valid(field.value.trim(), DeviceDefaults.limits[i]) || field.value.isBlank(), modifier = Modifier.fillMaxWidth())
+            }
+            TextButton(enabled = fields.indices.any { fields[it].value != defaults[it] }, onClick = { fields.forEachIndexed { i, f -> f.value = defaults[i] } }) { Text(tr(R.string.device_reset)) }
+            Text(tr(R.string.device_hint), style = MaterialTheme.typography.bodySmall)
+        }
+    }, confirmButton = { TextButton(enabled = valid, onClick = {
+        val v = fields.mapIndexed { i, f -> f.value.trim().takeIf { it != defaults[i] }.orEmpty() }
+        save(settings.copy(deviceOs = v[0], deviceOsVersion = v[1], deviceModel = v[2]))
+    }) { Text(tr(R.string.sub_save)) } }, dismissButton = { TextButton(onClick = close) { Text(tr(R.string.msg_cancel_32)) } })
 }

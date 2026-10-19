@@ -518,7 +518,8 @@
     <string name="device_os_version">Версия системы · x-ver-os</string>
     <string name="device_model">Модель устройства · x-device-model</string>
     <string name="device_reset">Сбросить</string>
-    <string name="device_hint">Оставьте поле пустым, чтобы отправлять настоящее значение этого телефона.</string>
+    <string name="device_hint">Значения, которые передаются провайдеру. «Сбросить» вернёт настоящие значения этого телефона.</string>
     <string name="servers_more">Другие действия с серверами</string>
     <string name="servers_check_all">Проверить все серверы</string>
+    <string name="device_title">Данные устройства</string>
 </resources>

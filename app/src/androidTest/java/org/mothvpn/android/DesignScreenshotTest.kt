@@ -230,6 +230,26 @@ class DesignScreenshotTest {
             scrollTo("For developers"); wait(By.text("For developers")).click(); Thread.sleep(800)
             wait(By.text("Subscription headers")).click(); wait(By.textStartsWith("HTTP headers:")); Thread.sleep(600)
             shot("dev-headers-$theme"); device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500)
+            // Device info: a scrollable dialog whose fields hold the values that are sent (here the defaults) as real text.
+            fun openDeviceInfo() {
+                wait(By.text("Subscription")).click(); Thread.sleep(800)
+                scrollTo("Device info"); wait(By.text("Device info")).click()
+                wait(By.clazz("android.widget.EditText").text("Android")); Thread.sleep(600)
+            }
+            openDeviceInfo()
+            shot("device-info-$theme")
+            device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500)
+            try {
+                // Short screen and a large font: the dialog scrolls so "Reset to defaults" stays reachable.
+                shell("wm size 1080x1600"); shell("settings put system font_scale 1.5"); Thread.sleep(1500)
+                tab("Settings"); Thread.sleep(800)
+                if (device.findObject(By.text("Subscription")) == null) { device.pressBack(); Thread.sleep(800) }
+                openDeviceInfo()
+                repeat(6) { if (device.findObject(By.text("Reset to defaults")) == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.6f); Thread.sleep(400) } }
+                wait(By.text("Reset to defaults")); Thread.sleep(400)
+                shot("device-info-font150-$theme")
+                device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500)
+            } finally { shell("wm size reset"); shell("settings put system font_scale 1.0"); Thread.sleep(1000) }
         }
     }
 
