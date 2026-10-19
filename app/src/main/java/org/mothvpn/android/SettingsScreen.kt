@@ -259,8 +259,8 @@ import org.mothvpn.core.SubscriptionSchedule
                             Text(label, modifier = Modifier.padding(top = 13.dp))
                         }
                     }
-                    // New design only: pure black for the dark theme (unavailable while the light theme is chosen).
-                    if (draft.newDesign) SettingsToggle(tr(R.string.set_amoled), draft.amoled, enabled = draft.theme != "light") { applySettings(draft.copy(amoled = it)) }
+                    // Pure black for the dark theme (unavailable while the light theme is chosen).
+                    SettingsToggle(tr(R.string.set_amoled), draft.amoled, enabled = draft.theme != "light") { applySettings(draft.copy(amoled = it)) }
                     SettingsToggle(tr(R.string.msg_compact_server_rows_83), draft.compactServers) { applySettings(draft.copy(compactServers = it)) }
                     SettingsToggle(tr(R.string.dev_detailed_icons), draft.detailedIcons) { applySettings(draft.copy(detailedIcons = it)) }
                     Text(tr(R.string.dev_detailed_icons_hint), style = MaterialTheme.typography.bodySmall)
@@ -272,8 +272,6 @@ import org.mothvpn.core.SubscriptionSchedule
                     if (headersDialog) SubscriptionHeadersDialog { headersDialog = false }
                     SettingsToggle(tr(R.string.dev_edit_servers), draft.editServers) { applySettings(draft.copy(editServers = it)) }
                     Text(tr(R.string.dev_edit_servers_hint), style = MaterialTheme.typography.bodySmall)
-                    SettingsToggle(tr(R.string.dev_new_design), draft.newDesign) { applySettings(draft.copy(newDesign = it)) }
-                    Text(tr(R.string.dev_new_design_hint), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.msg_about_78) -> {
                     Text(VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleLarge)

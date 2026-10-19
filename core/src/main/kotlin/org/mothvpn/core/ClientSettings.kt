@@ -51,8 +51,6 @@ data class ClientSettings(
     val mux: String = "off",
     /** Developer option: "Edit JSON" in the server long-press menu. */
     val editServers: Boolean = false,
-    /** Developer option: the experimental monochrome design (0.7). Off keeps the classic look. */
-    val newDesign: Boolean = false,
     /** New design, dark theme: pure black (#000000) background and surfaces for AMOLED screens. */
     val amoled: Boolean = false,
     /** New design: keyword server filter of the Wi-Fi page (keywords + mode), matched against server names at display time (see [ServerFilter]). */
@@ -126,7 +124,7 @@ data class ClientSettings(
         .put("autoSelect", autoSelect).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
-        .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("newDesign", newDesign).put("amoled", amoled)
+        .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("amoled", amoled)
         .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json()).put("probeUrlOnly", probeUrlOnly)
         .put("deviceInfoSet", deviceInfoSet).put("deviceOs", deviceOs).put("deviceOsVersion", deviceOsVersion).put("deviceModel", deviceModel)
     companion object {
@@ -159,7 +157,7 @@ data class ClientSettings(
             noise = j.optBoolean("noise", false),
             mux = j.optString("mux", "off").takeIf { it in DpiTricks.muxModes } ?: "off",
             editServers = j.optBoolean("editServers", false),
-            newDesign = j.optBoolean("newDesign", false), amoled = j.optBoolean("amoled", false),
+            amoled = j.optBoolean("amoled", false),
             // beta 4 had one filter ("serverFilter" + "serverFilterMode"); it becomes the filter of both networks.
             wifiFilter = j.optJSONObject("serverFilterWifi")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),
             mobileFilter = j.optJSONObject("serverFilterMobile")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),

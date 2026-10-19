@@ -527,7 +527,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 }
 
 /** True when the new design's keyword filter of network [kind] shows this server (the classic design ignores the filter). */
-fun ClientSettings.filterShows(p: Profile, kind: String) = !newDesign || filterFor(kind).shows(p.name)
+fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows(p.name)
 
 /**
  * Provider link buttons (support, web page, news) as [IconTile]s with a short caption. Telegram links get a paper-plane icon.

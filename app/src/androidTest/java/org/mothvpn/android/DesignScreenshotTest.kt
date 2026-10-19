@@ -125,7 +125,7 @@ class DesignScreenshotTest {
     private fun prepare(theme: String, amoled: Boolean, announce: Boolean = false) {
         reset()
         context.getSharedPreferences("announce_dismissed", android.content.Context.MODE_PRIVATE).edit().clear().commit()
-        SettingsStore(context).save(ClientSettings(hwid = hwid, theme = if (amoled) "dark" else theme, newDesign = true, amoled = amoled))
+        SettingsStore(context).save(ClientSettings(hwid = hwid, theme = if (amoled) "dark" else theme, amoled = amoled))
         eventually(30_000, "subscription downloaded") { SubscriptionRefresh.run(context, null, "https://10.0.2.2:8443/sub", null, SettingsStore(context).load(), "e2e"); true }
         val store = SubscriptionStore(context)
         val profile = store.load()!!.profiles.first { it.name == "E2E VLESS" }

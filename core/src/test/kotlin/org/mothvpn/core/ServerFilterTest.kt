@@ -59,7 +59,7 @@ class ServerFilterTest {
 
     @Test fun autoSelectPoolSkipsServersHiddenByTheCurrentNetworksFilter() {
         val all = listOf(p("Germany 1"), p("Netherlands"), p("Germany 2"))
-        val nd = ClientSettings(newDesign = true).withFilter("wifi", ServerFilter.Rule(listOf("germany")))
+        val nd = ClientSettings().withFilter("wifi", ServerFilter.Rule(listOf("germany")))
         assertEquals(listOf("Netherlands"), ServerFilter.pool(all, nd, "wifi").map { it.name })
         // The mobile data page has no keywords: every server is a candidate there.
         assertEquals(all, ServerFilter.pool(all, nd, "mobile"))
@@ -71,14 +71,13 @@ class ServerFilterTest {
         assertEquals(null, ServerPicker.next(ranking, all[1].id, emptySet()))
     }
 
-    @Test fun poolIsEverythingWithoutAFilterOrInTheClassicDesign() {
+    @Test fun poolIsEverythingWithoutAFilter() {
         val all = listOf(p("Germany 1"), p("Netherlands"))
-        assertEquals(all, ServerFilter.pool(all, ClientSettings(newDesign = true), "wifi"))
-        assertEquals(all, ServerFilter.pool(all, ClientSettings(newDesign = false).withFilter("wifi", ServerFilter.Rule(listOf("germany"))), "wifi"))
+        assertEquals(all, ServerFilter.pool(all, ClientSettings(), "wifi"))
     }
 
     @Test fun poolIsEmptyWhenTheFilterHidesEverything() {
         val all = listOf(p("Germany 1"), p("Germany 2"))
-        assertTrue(ServerFilter.pool(all, ClientSettings(newDesign = true).withFilter("mobile", ServerFilter.Rule(listOf("germany"))), "mobile").isEmpty())
+        assertTrue(ServerFilter.pool(all, ClientSettings().withFilter("mobile", ServerFilter.Rule(listOf("germany"))), "mobile").isEmpty())
     }
 }

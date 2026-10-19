@@ -158,7 +158,7 @@ class OfflineStatusTest {
             a.copy(fragment = "tlshello"), a.copy(mux = "smux"), a.copy(directRu = true), a.copy(healthIntervalSeconds = 120), a.copy(probeUrlOnly = true),
             a.copy(probeMode = ProbePolicy.TCP)).forEach { assertTrue(a.needsReconnect(it), it.toString()) }
         listOf(a.copy(autoSelect = true), a.copy(killSwitch = true), a.copy(probeParallel = 2), a.copy(probeTimeoutMs = 3000), a.copy(probeMode = ProbePolicy.FULL),
-            a.copy(userAgent = "x"), a.copy(theme = "dark"), a.copy(newDesign = true), a.copy(compactServers = false)).forEach { assertFalse(a.needsReconnect(it), it.toString()) }
+            a.copy(userAgent = "x"), a.copy(theme = "dark"), a.copy(compactServers = false)).forEach { assertFalse(a.needsReconnect(it), it.toString()) }
     }
 
     @Test fun deviceInfoOnByDefaultMigrationAndOverrides() {

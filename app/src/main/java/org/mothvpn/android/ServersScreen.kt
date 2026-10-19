@@ -84,7 +84,7 @@ import org.mothvpn.core.SubscriptionSource
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
     val canCheck = saved != null && !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING) && network.available && kind == network.kind
     val profiles = saved?.profiles.orEmpty()
-    val visible = remember(profiles, results, settings.hideUnavailable, settings.newDesign, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, kind, now, network) {
+    val visible = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, kind, now, network) {
         profiles.filter { p ->
             val r = results["$kind:${p.id}"]
             val current = r?.networkHandle == network.handle && kind == network.kind
@@ -94,7 +94,7 @@ import org.mothvpn.core.SubscriptionSource
     }
     @Composable fun KindPage(k: String) {
         val ndPage = LocalNewDesign.current
-        val visibleK = remember(profiles, results, settings.hideUnavailable, settings.newDesign, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, k, now, network) {
+        val visibleK = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, k, now, network) {
             profiles.filter { p ->
                 val r = results["$k:${p.id}"]
                 val current = r?.networkHandle == network.handle && k == network.kind

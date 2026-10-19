@@ -48,11 +48,10 @@ object ServerFilter {
     }
 
     /**
-     * Servers auto-select and failover may pick on network [kind]: the same ones that network's list shows. The keyword filter belongs to the new design,
-     * so with the classic design (or no keywords) every server is a candidate. Empty when the filter hides everything.
+     * Servers auto-select and failover may pick on network [kind]: the same ones that network's list shows. Without keywords every server is a candidate. Empty when the filter hides everything.
      */
     fun pool(profiles: List<Profile>, settings: ClientSettings, kind: String): List<Profile> {
         val rule = settings.filterFor(kind)
-        return if (!settings.newDesign || rule.keywords.isEmpty()) profiles else profiles.filter { rule.shows(it.name) }
+        return if (rule.keywords.isEmpty()) profiles else profiles.filter { rule.shows(it.name) }
     }
 }
