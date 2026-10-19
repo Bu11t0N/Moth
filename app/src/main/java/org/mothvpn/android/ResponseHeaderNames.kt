@@ -15,9 +15,9 @@ object ResponseHeaderNames {
     private fun dir(context: Context) = File(context.noBackupFilesDir, "sub-headers").apply { mkdirs() }
     private fun file(context: Context, sourceId: String) = File(dir(context), "${sourceId.filter { it.isLetterOrDigit() }.take(32)}.txt")
 
-    /** Header names as a name list: lowercase, letters/digits/'-'/'_' only, without the status line (null key). */
+    /** Header names as a name list: lowercase, letters/digits/'-'/'_' only, without the status line (null key) and Android's own x-android-* bookkeeping headers. */
     fun clean(names: Collection<String?>): List<String> = names.filterNotNull().map { it.trim().lowercase() }
-        .filter { n -> n.isNotEmpty() && n.length <= 64 && n.all { it.isLetterOrDigit() || it == '-' || it == '_' } }.distinct().sorted().take(MAX)
+        .filter { n -> n.isNotEmpty() && n.length <= 64 && n.all { it.isLetterOrDigit() || it == '-' || it == '_' } && !n.startsWith("x-android-") }.distinct().sorted().take(MAX)
 
     fun save(context: Context, sourceId: String, names: Names) {
         runCatching {
