@@ -225,20 +225,26 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     // nothing overlaps on a short screen or with a large font; the moth shrinks to fit (56-260 dp). Its size depends only on that height,
     // and the status lines below it have a fixed height, so it stays put between off and on. If even the smallest moth area does not fit
     // (tiny screen, huge font), the screen scrolls instead of overlapping or clipping.
-        val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
-        val statusHeight = 88.dp * fontScale.coerceAtLeast(1f)
-        val tilesHeight = 72.dp * fontScale.coerceAtLeast(1f)
-    val areaMin = statusHeight + 14.dp + 56.dp + (if (saved == null) 56.dp + 14.dp else 0.dp)
+    // Short screens (or a large font) get a compact layout: a lower header, a one-line status detail and lower tiles. The choice depends only
+    // on the window height and font size, never on the VPN state, so nothing moves between off and on.
     BoxWithConstraints(Modifier.fillMaxSize()) {
     val viewport = maxHeight
+    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val compact = viewport < 600.dp + 300.dp * (fontScale - 1f)
+    val headerHeight = if (compact) 44.dp else 56.dp
+    val statusHeight = (if (compact) 60.dp else 88.dp) * fontScale
+    val tilesHeight = (if (compact) 60.dp else 72.dp) * (1f + (fontScale - 1f) * 0.7f)
+    val statusGap = if (compact) 8.dp else 14.dp
+    val mothMin = if (compact) 48.dp else 56.dp
+    val areaMin = statusHeight + statusGap + mothMin + (if (saved == null) 56.dp + statusGap else 0.dp)
     androidx.compose.ui.layout.Layout(contents = listOf(
         { Column(Modifier.fillMaxWidth()) {
         // Fixed-height header: the update badge sits in its own reserved slot, so the title never moves.
-        Box(Modifier.fillMaxWidth().padding(top = 12.dp).height(56.dp)) {
+        Box(Modifier.fillMaxWidth().padding(top = if (compact) 4.dp else 12.dp).height(headerHeight)) {
             val name = tr(R.string.app_name)
             val about = VersionLabel.about(name, BuildConfig.VERSION_NAME)
             Row(Modifier.align(Alignment.CenterStart).padding(end = 56.dp), verticalAlignment = Alignment.Bottom) {
-                Text(name, style = MaterialTheme.typography.headlineLarge, maxLines = 1)
+                Text(name, style = if (compact) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineLarge, maxLines = 1)
                 Text(about.removePrefix(name).trim(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
                     modifier = Modifier.padding(start = 10.dp, bottom = 6.dp))
             }
@@ -248,21 +254,21 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         }
         } },
         { BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-        val below = statusHeight + 14.dp + (if (saved == null) 56.dp + 14.dp else 0.dp)
-        val mothSize = (maxHeight - below).coerceIn(56.dp, 260.dp)
+        val below = statusHeight + statusGap + (if (saved == null) 56.dp + statusGap else 0.dp)
+        val mothSize = (maxHeight - below).coerceIn(mothMin, 260.dp)
         // Free height: about a third above the moth, the rest between the status lines and the tiles.
         val free = (maxHeight - below - mothSize).coerceAtLeast(0.dp)
-        Column(Modifier.fillMaxWidth().padding(top = free * 0.35f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.fillMaxWidth().padding(top = free * 0.35f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(statusGap)) {
         MothButton(on = on, flapping = transition, dark = dark, enabled = enabled, onClick = connect,
             description = if (running) tr(R.string.msg_disconnect_vpn_8) else tr(R.string.msg_connect_vpn_9), size = mothSize)
         // Reserved space for the status lines (title + one detail line): nothing above or below moves when they change.
         Column(Modifier.fillMaxWidth().height(statusHeight), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (blocked) {
                 Text(tr(R.string.home_disconnect), style = MaterialTheme.typography.headlineSmall, maxLines = 1)
-                Text(tr(R.string.msg_blocked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text(tr(R.string.msg_blocked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             } else Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.tile_reconnecting) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
             if (tunnel == TunnelState.RUNNING && !blocked) Text(if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message), style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
         if (saved == null) Button(enabled = !busy, onClick = add, modifier = Modifier.heightIn(min = 56.dp)) { Text(tr(R.string.msg_add_subscription_16)) }
         }

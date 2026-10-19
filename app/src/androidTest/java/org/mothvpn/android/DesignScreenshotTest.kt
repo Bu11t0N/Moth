@@ -99,6 +99,8 @@ class DesignScreenshotTest {
                 log("short $tag $state: moth=$moth card=$card bar=$bar")
                 assertTrue("moth overlaps the subscription card ($state)", moth.bottom <= card.top)
                 assertTrue("subscription card overlaps the server bar ($state)", card.bottom <= bar.top)
+                val dp = context.resources.displayMetrics.density
+                assertTrue("server bar cut off by the screen edge ($state): $bar", bar.height() >= (64 * dp).toInt())
                 assertTrue("subscription card squeezed ($state)", card.height() >= (64 * context.resources.displayMetrics.density).toInt())
                 val until = wait(By.textContains("Expires on")).visibleBounds
                 assertTrue("valid-until line covered ($state)", until.bottom <= bar.top && until.height() > 0)
@@ -210,7 +212,12 @@ class DesignScreenshotTest {
         shot("settings-$theme")
         if (theme == "dark") {
             // Ping method choice (Connection) and the developer list of subscription header names.
-            fun scrollTo(text: String) = runCatching { androidx.test.uiautomator.UiScrollable(androidx.test.uiautomator.UiSelector().scrollable(true)).scrollTextIntoView(text) }
+            fun scrollTo(text: String) {
+                repeat(10) {
+                    if (device.findObject(By.text(text)) != null) return
+                    device.swipe(device.displayWidth / 2, device.displayHeight * 7 / 10, device.displayWidth / 2, device.displayHeight * 3 / 10, 25); Thread.sleep(400)
+                }
+            }
             wait(By.text("Connection")).click(); Thread.sleep(800)
             scrollTo("Full latency"); wait(By.text("Full latency")); Thread.sleep(500)
             shot("settings-ping-$theme"); device.pressBack(); Thread.sleep(800)
