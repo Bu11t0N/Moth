@@ -55,7 +55,6 @@ private class AppEntry(val packageName: String, val label: String, val system: B
     val modes = listOf("off" to tr(R.string.split_mode_off), "only" to tr(R.string.split_mode_only), "bypass" to tr(R.string.split_mode_bypass))
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         DialogRow(tr(R.string.split_mode), modes.first { it.first == settings.splitMode }.second, enabled) { modeDialog = true }
-        Text(tr(R.string.split_hint_live), style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(search, { search = it }, label = { Text(tr(R.string.split_search)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { showSystem = !showSystem }) {
             Checkbox(showSystem, { showSystem = it }); Text(tr(R.string.split_show_system))

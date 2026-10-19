@@ -245,7 +245,6 @@
     <string name="split_mode_off">Off: all apps use the VPN</string>
     <string name="split_mode_only">Only selected apps use the VPN</string>
     <string name="split_mode_bypass">Selected apps bypass the VPN</string>
-    <string name="split_hint_live">A connected VPN reconnects once to apply the changes.</string>
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
     <string name="direct_ru">Russian sites and IPs directly</string>
@@ -353,7 +352,7 @@
     <string name="rules_title">Routing rules</string>
     <string name="rules_sum_none">No rules</string>
     <string name="rules_sum_count">Rules: %1$d</string>
-    <string name="rules_hint">Rules are checked from top to bottom before the built-in rules; the first matching rule wins. Changes apply on the next connection.</string>
+    <string name="rules_hint">Rules are checked from top to bottom before the built-in rules; the first matching rule wins.</string>
     <string name="rules_add">Add rule</string>
     <string name="rules_edit">Edit rule</string>
     <string name="rules_type">Type</string>
@@ -510,7 +509,6 @@
     <string name="dev_sub_headers_update">Update this subscription to see its headers.</string>
     <string name="dev_sub_headers_http">HTTP headers: %1$s</string>
     <string name="dev_sub_headers_body">Body fields: %1$s</string>
-    <string name="settings_live_hint">VPN is on: changes here apply with one short reconnect.</string>
     <string name="settings_wait_hint">Wait until the VPN finishes connecting or disconnecting.</string>
     <string name="device_os">System name · x-device-os</string>
     <string name="device_os_version">System version · x-ver-os</string>

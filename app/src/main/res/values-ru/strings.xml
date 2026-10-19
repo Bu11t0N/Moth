@@ -247,7 +247,6 @@
     <string name="split_mode_off">Выключено: все приложения через VPN</string>
     <string name="split_mode_only">Только выбранные через VPN</string>
     <string name="split_mode_bypass">Выбранные в обход VPN</string>
-    <string name="split_hint_live">Подключённый VPN переподключится один раз, чтобы применить изменения.</string>
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
@@ -357,7 +356,7 @@
     <string name="rules_title">Правила маршрутизации</string>
     <string name="rules_sum_none">Нет правил</string>
     <string name="rules_sum_count">Правил: %1$d</string>
-    <string name="rules_hint">Правила проверяются сверху вниз до встроенных правил; срабатывает первое подходящее. Изменения применяются при следующем подключении.</string>
+    <string name="rules_hint">Правила проверяются сверху вниз до встроенных правил; срабатывает первое подходящее.</string>
     <string name="rules_add">Добавить правило</string>
     <string name="rules_edit">Изменить правило</string>
     <string name="rules_type">Тип</string>
@@ -514,7 +513,6 @@
     <string name="dev_sub_headers_update">Обновите эту подписку, чтобы увидеть её заголовки.</string>
     <string name="dev_sub_headers_http">HTTP-заголовки: %1$s</string>
     <string name="dev_sub_headers_body">Поля в теле: %1$s</string>
-    <string name="settings_live_hint">VPN включён: изменения применятся с одним коротким переподключением.</string>
     <string name="settings_wait_hint">Дождитесь, пока VPN подключится или отключится.</string>
     <string name="device_os">Название системы · x-device-os</string>
     <string name="device_os_version">Версия системы · x-ver-os</string>

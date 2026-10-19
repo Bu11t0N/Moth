@@ -348,9 +348,8 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
     }, confirmButton = { TextButton(onClick = close) { Text(tr(R.string.sub_link_close)) } })
 }
 
-/** While the VPN is on: connection settings can still be changed; they apply with one reconnect 5 s after the last change. */
+/** While the VPN is starting or stopping, settings wait. While it is on they can be changed (applied silently, no hint). */
 @Composable private fun LiveApplyHint() {
     val tunnel by TunnelStatus.state.collectAsState()
-    if (tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED)) Text(tr(R.string.settings_live_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    else if (tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)) Text(tr(R.string.settings_wait_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)) Text(tr(R.string.settings_wait_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }

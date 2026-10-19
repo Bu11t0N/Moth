@@ -244,7 +244,9 @@ class DesignScreenshotTest {
         wait(By.desc("Connect VPN").enabled(true)).click()
         wait(By.text("VPN is on"), 60_000); Thread.sleep(1500)
         tab("Settings"); wait(By.text(tr(R.string.set_cat_routing))).click(); Thread.sleep(800)
-        wait(By.textStartsWith("VPN is on: changes"))
+        wait(By.text(tr(R.string.direct_ru)))
+        // No user-facing mention of reconnecting to apply settings (the behaviour is unchanged).
+        assertTrue("no reconnect hint", device.findObject(By.textContains("reconnect")) == null)
         val row = wait(By.text(tr(R.string.direct_ru)))
         row.click()
         val changed = System.currentTimeMillis()
