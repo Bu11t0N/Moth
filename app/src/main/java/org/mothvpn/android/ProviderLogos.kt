@@ -20,7 +20,8 @@ object ProviderLogos {
     private fun marker(context: Context, sourceId: String) = File(dir(context), "${sourceId.filter { it.isLetterOrDigit() }.take(32)}.url")
 
     /** Keeps the cached logo in step with [url]: downloads when it changed or is missing, removes it when the provider stopped sending one. */
-    fun refresh(context: Context, sourceId: String, url: String, userAgent: String, fallback: Boolean = false) {
+    /** [telegram]: [url] is a public t.me page; its profile picture (og:image) is the avatar. A miss is not retried for the same page. */
+    fun refresh(context: Context, sourceId: String, url: String, userAgent: String, fallback: Boolean = false, telegram: Boolean = false) {
         val f = file(context, sourceId); val m = marker(context, sourceId)
         if (url.isEmpty()) { f.delete(); m.delete(); return }
         val hash = sha(url)
@@ -29,19 +30,39 @@ object ProviderLogos {
         // A web page icon that failed once (most often a 404) is not asked for again on every update.
         if (fallback && mark == "x$hash") return
         runCatching {
-            val bitmap = download(url, userAgent, if (fallback) 96 else 1)
+            val bitmap = if (telegram) download(org.mothvpn.core.ProviderLinks.telegramPhoto(page(url, userAgent)) ?: error("no profile picture"), userAgent, 64)
+                else download(url, userAgent, if (fallback) 96 else 1)
             val tmp = File(f.parentFile, f.name + ".tmp")
             tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
             if (!tmp.renameTo(f)) { tmp.delete(); error("rename failed") }
             m.writeText(hash)
-            Logger.i("Logo", "provider logo cached (${f.length()} bytes${if (fallback) ", from the web page icon" else ""})")
+            Logger.i("Logo", "provider logo cached (${f.length()} bytes${if (telegram) ", from Telegram" else if (fallback) ", from the web page icon" else ""})")
         }.onFailure {
-            Logger.w("Logo", "provider logo not used${if (fallback) " (web page icon)" else ""}: ${it.javaClass.simpleName}")
+            Logger.w("Logo", "provider logo not used${if (telegram) " (Telegram)" else if (fallback) " (web page icon)" else ""}: ${it.javaClass.simpleName}")
             if (fallback) { f.delete(); runCatching { m.writeText("x$hash") } }
         }
     }
     fun remove(context: Context, sourceId: String) { file(context, sourceId).delete(); marker(context, sourceId).delete() }
+
+    /** A public t.me page as text (https, no redirects, at most 256 KB). */
+    private fun page(address: String, userAgent: String): String {
+        val url = URL(address)
+        require(url.protocol == "https" && url.host.isNotBlank() && url.userInfo == null) { "https only" }
+        val c = url.openConnection() as HttpsURLConnection
+        c.connectTimeout = 10_000; c.readTimeout = 10_000; c.instanceFollowRedirects = false
+        c.setRequestProperty("User-Agent", userAgent); c.setRequestProperty("Accept", "text/html")
+        try {
+            val code = c.responseCode
+            require(code == 200) { "HTTP $code" }
+            val bytes = c.inputStream.use { input ->
+                val out = java.io.ByteArrayOutputStream(); val chunk = ByteArray(8192)
+                while (out.size() < 256 * 1024) { val n = input.read(chunk); if (n < 0) break; out.write(chunk, 0, n) }
+                out.toByteArray()
+            }
+            return String(bytes, Charsets.UTF_8)
+        } finally { c.disconnect() }
+    }
 
     /** [minSide]: smaller images are rejected (a web page icon below 96 px would look blurry as an avatar). */
     private fun download(address: String, userAgent: String, minSide: Int = 1): Bitmap {

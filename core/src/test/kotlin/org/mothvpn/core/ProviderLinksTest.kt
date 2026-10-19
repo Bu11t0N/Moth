@@ -83,4 +83,20 @@ class ProviderLinksTest {
         assertTrue(links.stored); assertTrue(links.isEmpty)
         assertEquals(links, SubscriptionSource.from(SubscriptionSource("id3", "", "https://s.example.com/x", emptyList(), links = links).json()).links)
     }
+
+    @Test fun telegramAvatarPageAndPhoto() {
+        assertEquals("https://t.me/dendi_support_bot", ProviderLinks.telegramPage(ProviderLinks(support = "https://t.me/dendi_support_bot?start=1", web = "https://example.com")))
+        assertEquals("https://t.me/news_chan", ProviderLinks.telegramPage(ProviderLinks(web = "https://sub.example.com", announce = "https://telegram.me/s/news_chan/42")))
+        assertEquals("abc_user", ProviderLinks.telegramUsername("tg://resolve?domain=abc_user"))
+        for (bad in listOf("https://t.me/+AbCdEf123", "https://t.me/joinchat/xyz", "https://t.me/c/123/4", "https://t.me/share/url?url=x", "https://evil.example/t.me/abcde", "ftp://t.me/abcde", "https://t.me/"))
+            assertNull(bad, ProviderLinks.telegramUsername(bad))
+        assertNull(ProviderLinks.telegramPage(ProviderLinks(support = "https://example.com/help")))
+        val page = """<html><head><meta property="og:title" content="Dendi"><meta property="og:image" content="https://cdn4.telesco.pe/file/abc.jpg?x=1&amp;y=2"></head>
+            <body><img class="tgme_page_photo_image" src="https://cdn4.telesco.pe/file/photo.jpg"></body></html>"""
+        assertEquals("https://cdn4.telesco.pe/file/photo.jpg", ProviderLinks.telegramPhoto(page))
+        assertEquals("https://cdn4.telesco.pe/file/abc.jpg?x=1&y=2", ProviderLinks.telegramPhoto(page.replace("tgme_page_photo_image", "other")))
+        assertNull(ProviderLinks.telegramPhoto("<meta property='og:image' content='https://telegram.org/img/t_logo.png'>"))
+        assertNull(ProviderLinks.telegramPhoto("<meta property=\"og:image\" content=\"http://cdn.example/a.jpg\">"))
+        assertNull(ProviderLinks.telegramPhoto("<html></html>"))
+    }
 }

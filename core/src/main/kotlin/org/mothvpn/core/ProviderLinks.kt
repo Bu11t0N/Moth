@@ -116,6 +116,49 @@ data class ProviderLinks(val support: String = "", val web: String = "", val ann
             return "https://" + u.host + (if (u.port > 0 && u.port != 443) ":" + u.port else "") + "/apple-touch-icon.png"
         }
 
+        /**
+         * The public Telegram page (`https://t.me/<username>`) of the first support / web page / announcements link that points to a
+         * public bot, channel or user, for the avatar when the provider sends no logo. Invite links, posts in private chats and service
+         * paths are not used.
+         */
+        fun telegramPage(links: ProviderLinks): String? = listOf(links.support, links.web, links.announce).firstNotNullOfOrNull { telegramUsername(it) }?.let { "https://t.me/$it" }
+
+        private val USERNAME = Regex("[A-Za-z][A-Za-z0-9_]{3,31}")
+        private val RESERVED = setOf("joinchat", "addstickers", "addemoji", "addtheme", "addlist", "share", "proxy", "socks", "login", "setlanguage",
+            "confirmphone", "invoice", "boost", "contact", "giftcode", "nft", "iv")
+        fun telegramUsername(url: String): String? {
+            val u = runCatching { URI(url.trim()) }.getOrNull() ?: return null
+            val name = if (u.scheme.equals("tg", true)) {
+                if (!u.schemeSpecificPart.orEmpty().startsWith("//resolve", true)) return null
+                u.rawQuery.orEmpty().split('&').firstOrNull { it.startsWith("domain=", true) }?.substringAfter('=')
+            } else {
+                if (!(u.scheme.equals("https", true) || u.scheme.equals("http", true)) || u.rawUserInfo != null) return null
+                val host = u.host?.lowercase()?.removePrefix("www.") ?: return null
+                if (host !in setOf("t.me", "telegram.me", "telegram.dog")) return null
+                val parts = u.path.orEmpty().split('/').filter { it.isNotEmpty() }
+                (if (parts.firstOrNull() == "s") parts.getOrNull(1) else parts.firstOrNull())
+            } ?: return null
+            return name.takeIf { USERNAME.matches(it) && it.lowercase() !in RESERVED && !it.endsWith("_") }
+        }
+
+        /**
+         * The profile picture on a public t.me page: `og:image` or the `tgme_page_photo_image` img; https only. Telegram's generic logo
+         * (pages without a photo) is not a profile picture and gives null.
+         */
+        fun telegramPhoto(html: String): String? {
+            val meta = Regex("<meta\\b[^>]*>", RegexOption.IGNORE_CASE).findAll(html).map { it.value }
+                .firstOrNull { Regex("property\\s*=\\s*[\"']og:image[\"']", RegexOption.IGNORE_CASE).containsMatchIn(it) }
+                ?.let { attr(it, "content") }
+            val img = Regex("<img\\b[^>]*tgme_page_photo_image[^>]*>", RegexOption.IGNORE_CASE).find(html)?.value?.let { attr(it, "src") }
+            return listOfNotNull(img, meta).map { it.replace("&amp;", "&").trim() }.firstOrNull { link ->
+                val u = runCatching { URI(link) }.getOrNull()
+                u != null && u.scheme.equals("https", true) && !u.host.isNullOrBlank() && u.rawUserInfo == null &&
+                    !(u.host.lowercase().endsWith("telegram.org") && u.path.orEmpty().startsWith("/img/"))
+            }
+        }
+        private fun attr(tag: String, name: String) =
+            Regex("\\b$name\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')", RegexOption.IGNORE_CASE).find(tag)?.let { m -> m.groupValues[1].ifEmpty { m.groupValues[2] } }?.takeIf { it.isNotBlank() }
+
         /** Names of the `#name: value` body lines (lowercase), for the developer diagnostic. Values are never returned. */
         fun bodyNames(body: String): List<String> = bodyLines(body).mapNotNull { line ->
             val i = line.indexOf(':'); if (i > 1) line.substring(1, i).trim().lowercase().takeIf { n -> n.isNotEmpty() && n.length <= 64 && n.all { it.isLetterOrDigit() || it == '-' || it == '_' } } else null
