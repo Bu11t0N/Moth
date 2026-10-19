@@ -27,7 +27,7 @@ class NetworkTracker(context: Context) : AutoCloseable {
         override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) { update("capabilities changed") }
     }
     init { Logger.i("Network", "tracking started: ${mutable.value.let { if (it.available) it.kind else "none" }}"); manager.registerDefaultNetworkCallback(callback, Handler(Looper.getMainLooper())) }
-    override fun close() { Logger.d("Network", "tracking stopped"); manager.unregisterNetworkCallback(callback) }
+    override fun close() { manager.unregisterNetworkCallback(callback) }
     companion object {
         fun physical(manager: ConnectivityManager): Network? {
             val caps = manager.getNetworkCapabilities(manager.activeNetwork)

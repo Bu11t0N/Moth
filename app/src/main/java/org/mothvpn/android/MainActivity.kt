@@ -472,6 +472,7 @@ class MainActivity : AppCompatActivity() {
         if (saved == null) message = tr(R.string.tile_setup)
         else if (TunnelStatus.state.value in setOf(TunnelState.OFF, TunnelState.ERROR) && !Diagnostics.running.value) connect()
     }
-    override fun onDestroy() { Logger.d("App", "activity destroyed (finishing=$isFinishing)"); networks.close(); settingsQueue.close(); super.onDestroy() }
+    // Closing the app is not logged (not useful for diagnostics).
+    override fun onDestroy() { networks.close(); settingsQueue.close(); super.onDestroy() }
 }
 
