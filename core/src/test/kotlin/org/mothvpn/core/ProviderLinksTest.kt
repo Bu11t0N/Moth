@@ -68,4 +68,19 @@ class ProviderLinksTest {
         assertEquals(null, ProviderLinks.webIcon("tg://resolve?domain=x"))
         assertEquals(null, ProviderLinks.webIcon(""))
     }
+
+    @Test fun announceTextPlainBase64BodySanitizedAndPersisted() {
+        val ru = "Техработы в воскресенье"
+        // Plain UTF-8 in a header arrives as Latin-1 from HttpURLConnection: repaired.
+        val latin1 = String(ru.toByteArray(Charsets.UTF_8), Charsets.ISO_8859_1)
+        assertEquals(ru, ProviderLinks.parse({ if (it == "announce") latin1 else null }).announceText)
+        assertEquals(ru, ProviderLinks.parse({ if (it == "announce") "base64:" + java.util.Base64.getEncoder().encodeToString(ru.toByteArray()) else null }).announceText)
+        assertEquals("Hello there", ProviderLinks.parse({ null }, "#announce: Hello   there\nvless://x").announceText)
+        assertEquals("a\n\nb", ProviderLinks.announceText("a\u0007\r\n\n\n\nb\u202E"))
+        val long = ProviderLinks.announceText("x".repeat(2000))
+        assertEquals(ProviderLinks.MAX_ANNOUNCE, long.length); assertTrue(long.endsWith("…"))
+        val links = ProviderLinks(announceText = ru)
+        assertTrue(links.stored); assertTrue(links.isEmpty)
+        assertEquals(links, SubscriptionSource.from(SubscriptionSource("id3", "", "https://s.example.com/x", emptyList(), links = links).json()).links)
+    }
 }

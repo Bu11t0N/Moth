@@ -16,16 +16,22 @@ import java.net.URI
  *   web page icon, see [webIcon].
  * Only https:// and tg:// links are kept. These URLs can identify the user: they are stored with the subscription and never logged.
  */
-data class ProviderLinks(val support: String = "", val web: String = "", val announce: String = "", val logo: String = "") {
-    /** No link buttons (the logo is not a button). */
+data class ProviderLinks(val support: String = "", val web: String = "", val announce: String = "", val logo: String = "",
+    /** The provider's announcement text (`announce` header or `#announce:` body line), sanitized, see [announceText]. Never logged. */
+    val announceText: String = "") {
+    /** No link buttons (the logo and the announcement are not buttons). */
     val isEmpty get() = support.isEmpty() && web.isEmpty() && announce.isEmpty()
-    val stored get() = !isEmpty || logo.isNotEmpty()
-    fun json(): JSONObject = JSONObject().apply { if (support.isNotEmpty()) put("support", support); if (web.isNotEmpty()) put("web", web); if (announce.isNotEmpty()) put("announce", announce); if (logo.isNotEmpty()) put("logo", logo) }
+    val stored get() = !isEmpty || logo.isNotEmpty() || announceText.isNotEmpty()
+    fun json(): JSONObject = JSONObject().apply { if (support.isNotEmpty()) put("support", support); if (web.isNotEmpty()) put("web", web); if (announce.isNotEmpty()) put("announce", announce); if (logo.isNotEmpty()) put("logo", logo)
+        if (announceText.isNotEmpty()) put("announceText", announceText) }
 
     companion object {
         const val SUPPORT = "support-url"
         const val WEB = "profile-web-page-url"
         const val ANNOUNCE = "announce-url"
+        /** Announcement text (Happ, v2RayTun, INCY, Remnawave): plain text or `base64:`. */
+        const val ANNOUNCE_TEXT = "announce"
+        const val MAX_ANNOUNCE = 500
         const val LOGO = "profile-logo"
         const val LOGO_ALIAS = "profile-icon"
         /** Every logo header / body name, in priority order. */
@@ -37,12 +43,31 @@ data class ProviderLinks(val support: String = "", val web: String = "", val ann
             val lines = bodyValues(body)
             fun value(name: String) = (header(name)?.let(::link) ?: lines[name]?.let(::link)).orEmpty()
             val logo = (LOGO_NAMES.firstNotNullOfOrNull { name -> header(name)?.let(::logoUrl) } ?: LOGO_NAMES.firstNotNullOfOrNull { name -> lines[name]?.let(::logoUrl) }).orEmpty()
-            return ProviderLinks(value(SUPPORT), value(WEB), value(ANNOUNCE), logo)
+            val text = (header(ANNOUNCE_TEXT)?.let { announceText(it, fromHeader = true) }?.takeIf { it.isNotEmpty() } ?: lines[ANNOUNCE_TEXT]?.let { announceText(it) }).orEmpty()
+            return ProviderLinks(value(SUPPORT), value(WEB), value(ANNOUNCE), logo, text)
+        }
+
+        /**
+         * An announcement as shown to the user: `base64:` decoded, a UTF-8 header value read as Latin-1 by the HTTP stack repaired,
+         * control characters dropped (line breaks kept, at most two in a row), surrounding spaces trimmed, at most [MAX_ANNOUNCE] characters.
+         */
+        fun announceText(raw: String, fromHeader: Boolean = false): String {
+            var v = raw.trim().removeSurrounding("\"").trim()
+            if (v.startsWith("base64:", ignoreCase = true)) v = decode(v.substring(7)) ?: return ""
+            else if (fromHeader && v.all { it.code < 256 } && v.any { it.code >= 128 }) {
+                val bytes = v.toByteArray(Charsets.ISO_8859_1)
+                val utf8 = Charsets.UTF_8.newDecoder().runCatching { decode(java.nio.ByteBuffer.wrap(bytes)).toString() }.getOrNull()
+                if (utf8 != null) v = utf8
+            }
+            val clean = v.replace("\r\n", "\n").replace('\r', '\n').filter { it == '\n' || !it.isISOControl() }
+                .replace(Regex("[\\u200B-\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]"), "")
+                .replace(Regex("[ \\t]+"), " ").replace(Regex("\\n{3,}"), "\n\n").trim()
+            return if (clean.length <= MAX_ANNOUNCE) clean else clean.take(MAX_ANNOUNCE - 1).trimEnd() + "…"
         }
 
         fun from(j: JSONObject?): ProviderLinks = if (j == null) ProviderLinks() else
             ProviderLinks(j.optString("support").let { safe(it).orEmpty() }, j.optString("web").let { safe(it).orEmpty() }, j.optString("announce").let { safe(it).orEmpty() },
-                j.optString("logo").let { logoUrl(it).orEmpty() })
+                j.optString("logo").let { logoUrl(it).orEmpty() }, announceText(j.optString("announceText")))
 
         /** A header value as a link: quotes trimmed, `base64:` decoded, then checked with [safe]. */
         fun link(raw: String): String? {
@@ -113,7 +138,7 @@ data class ProviderLinks(val support: String = "", val web: String = "", val ann
                 val i = line.indexOf(':')
                 if (i > 1) {
                     val name = line.substring(1, i).trim().lowercase()
-                    if ((name in setOf(SUPPORT, WEB, ANNOUNCE) || name in LOGO_NAMES) && name !in out) out[name] = line.substring(i + 1).trim()
+                    if ((name in setOf(SUPPORT, WEB, ANNOUNCE, ANNOUNCE_TEXT) || name in LOGO_NAMES) && name !in out) out[name] = line.substring(i + 1).trim()
                 }
             }
             return out

@@ -116,7 +116,7 @@ object SubscriptionDownload {
                         val text = String(bytes, Charsets.UTF_8)
                         // Support / web page / news links: personal URLs, so only which ones were sent is logged.
                         val links = org.mothvpn.core.ProviderLinks.parse({ connection.getHeaderField(it) }, text)
-                        Logger.d("Download", "provider links: support=${links.support.isNotEmpty()} web=${links.web.isNotEmpty()} news=${links.announce.isNotEmpty()} logo=${links.logo.isNotEmpty()}")
+                        Logger.d("Download", "provider links: support=${links.support.isNotEmpty()} web=${links.web.isNotEmpty()} news=${links.announce.isNotEmpty()} logo=${links.logo.isNotEmpty()} announce=${links.announceText.isNotEmpty()}")
                         // Developer diagnostic: which header / body-line NAMES the provider sends (never their values).
                         val names = ResponseHeaderNames.Names(ResponseHeaderNames.clean(connection.headerFields.keys), ResponseHeaderNames.clean(org.mothvpn.core.ProviderLinks.bodyNames(text)))
                         Logger.d("Download", "response header names: ${names.headers.joinToString(",")}; body field names: ${names.body.joinToString(",").ifEmpty { "none" }}")
