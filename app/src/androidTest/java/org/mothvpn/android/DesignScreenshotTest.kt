@@ -82,13 +82,13 @@ class DesignScreenshotTest {
     private fun shell(cmd: String) { instrumentation.uiAutomation.executeShellCommand(cmd).use { pfd -> android.os.ParcelFileDescriptor.AutoCloseInputStream(pfd).readBytes() } }
 
     /**
-     * A short phone (1080×1600 px at the emulator density, about 600 dp tall), optionally with a large font: on Home (off and on) the moth,
+     * A short phone (1080×1600 px at the emulator density, about 610 dp tall; 1080×1800 with the 1.3 font): on Home (off and on) the moth,
      * the subscription card (with its "valid until" line) and the server bar must not overlap, and the moth must not move between off and on.
      * Then the server sheet: it opens at a usable height and one swipe down closes it.
      */
-    private fun shortScreen(tag: String, fontScale: Float) {
+    private fun shortScreen(tag: String, fontScale: Float, size: String = "1080x1600") {
         try {
-            shell("wm size 1080x1600"); shell("settings put system font_scale $fontScale"); Thread.sleep(1500)
+            shell("wm size $size"); shell("settings put system font_scale $fontScale"); Thread.sleep(1500)
             prepare("dark", false)
             context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
             wait(By.text("Settings")); Thread.sleep(1200)
@@ -237,5 +237,5 @@ class DesignScreenshotTest {
         stopVpn()
     }
     @Test fun newDesignShortScreen() = shortScreen("1x", 1.0f)
-    @Test fun newDesignShortScreenLargeFont() = shortScreen("font130", 1.3f)
+    @Test fun newDesignShortScreenLargeFont() = shortScreen("font130", 1.3f, "1080x1800")
 }

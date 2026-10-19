@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -219,9 +220,19 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val dark = MaterialTheme.colorScheme.background.luminanceLow()
     var sheet by remember { mutableStateOf(false) }
     val enabled = if (blocked) true else !busy && (!probing || running) && !transition && selected != null
-    // One even column: the stat tiles, subscription card and server bar are stacked with the same 10 dp gap and the same 20 dp side
-    // margins; any free height goes to the moth area above them (between the status lines and the tiles).
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    // Layout: header, the moth area, then the bottom group (stat tiles, subscription card, server bar) stacked with one even 10 dp gap and
+    // the same 20 dp side margins. The header and the bottom group are measured first and the moth area gets the height that is left, so
+    // nothing overlaps on a short screen or with a large font; the moth shrinks to fit (56-260 dp). Its size depends only on that height,
+    // and the status lines below it have a fixed height, so it stays put between off and on. If even the smallest moth area does not fit
+    // (tiny screen, huge font), the screen scrolls instead of overlapping or clipping.
+        val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+        val statusHeight = 88.dp * fontScale.coerceAtLeast(1f)
+        val tilesHeight = 72.dp * fontScale.coerceAtLeast(1f)
+    val areaMin = statusHeight + 14.dp + 56.dp + (if (saved == null) 56.dp + 14.dp else 0.dp)
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val viewport = maxHeight
+    androidx.compose.ui.layout.Layout(contents = listOf(
+        { Column(Modifier.fillMaxWidth()) {
         // Fixed-height header: the update badge sits in its own reserved slot, so the title never moves.
         Box(Modifier.fillMaxWidth().padding(top = 12.dp).height(56.dp)) {
             val name = tr(R.string.app_name)
@@ -235,13 +246,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                 BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.onSurface) }) { MothIcon("update", Modifier.size(26.dp)) }
             }
         }
-        // Everything below (subscription card, server bar) is measured first; the moth area takes only the height that is left, so nothing
-        // overlaps on a short screen or with a large font. The moth shrinks to fit that area. Its size depends only on the area height, and
-        // the status lines below it have a fixed height (the session tiles sit outside, above the card), so the moth stays put between off and on.
-        val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
-        val statusHeight = 88.dp * fontScale.coerceAtLeast(1f)
-        val tilesHeight = 72.dp * fontScale.coerceAtLeast(1f)
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopCenter) {
+        } },
+        { BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         val below = statusHeight + 14.dp + (if (saved == null) 56.dp + 14.dp else 0.dp)
         val mothSize = (maxHeight - below).coerceIn(56.dp, 260.dp)
         // Free height: about a third above the moth, the rest between the status lines and the tiles.
@@ -260,7 +266,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         }
         if (saved == null) Button(enabled = !busy, onClick = add, modifier = Modifier.heightIn(min = 56.dp)) { Text(tr(R.string.msg_add_subscription_16)) }
         }
-        }
+        } },
+        { Column(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // Session tiles (speed, traffic, time) while connected, directly above the subscription card with the same edges, corner radius,
         // tone and gap as the card and the server bar. The space is always reserved, so the moth never moves when they appear.
         if (saved != null) SessionTiles(stats.takeIf { on }, tilesHeight)
@@ -286,7 +293,17 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                 }
             }
         }
-        Spacer(Modifier.height(2.dp))
+        } }),
+        modifier = Modifier.fillMaxWidth().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 20.dp)) { (h, a, b), constraints ->
+        val gap = 10.dp.roundToPx()
+        val loose = androidx.compose.ui.unit.Constraints(maxWidth = constraints.maxWidth)
+        val hp = h.first().measure(loose); val bp = b.first().measure(loose)
+        val areaH = maxOf(viewport.roundToPx() - hp.height - bp.height - 2 * gap, areaMin.roundToPx())
+        val ap = a.first().measure(androidx.compose.ui.unit.Constraints.fixed(constraints.maxWidth, areaH))
+        layout(constraints.maxWidth, hp.height + gap + areaH + gap + bp.height) {
+            hp.place(0, 0); ap.place(0, hp.height + gap); bp.place(0, hp.height + gap + areaH + gap)
+        }
+    }
     }
     if (sheet && saved != null) {
         // Opens straight at its full (content) height, no half-open step: the list is capped at ~70 % of the window and scrolls at once;
