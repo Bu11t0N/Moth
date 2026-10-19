@@ -35,6 +35,11 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -647,4 +652,40 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
     else androidx.compose.foundation.Image(image, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
         colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) }),
         modifier = modifier.size(size).clip(RoundedCornerShape(12.dp)))
+}
+
+/**
+ * In-app notice at the top of the screen (not an Android notification): monochrome inverse surface, shown for 2 seconds or until
+ * tapped or swiped away. [seq] restarts the timer for a repeated message. With "Remove animations" it appears and disappears at once.
+ */
+@Composable fun TopNotice(text: String?, seq: Int, dismiss: () -> Unit, modifier: Modifier = Modifier) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val animations = remember { runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) > 0f }
+    var shown by remember { mutableStateOf("") }
+    if (text != null) shown = text
+    LaunchedEffect(text, seq) { if (text != null) { kotlinx.coroutines.delay(2000); dismiss() } }
+    val drag = remember(seq) { androidx.compose.animation.core.Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    androidx.compose.animation.AnimatedVisibility(visible = text != null, modifier = modifier,
+        enter = if (animations) androidx.compose.animation.slideInVertically(tween(220)) { -it } + androidx.compose.animation.fadeIn(tween(220)) else androidx.compose.animation.EnterTransition.None,
+        exit = if (animations) androidx.compose.animation.slideOutVertically(tween(180)) { -it } + androidx.compose.animation.fadeOut(tween(180)) else androidx.compose.animation.ExitTransition.None) {
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface, shadowElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                .graphicsLayer { translationX = drag.value; alpha = 1f - (kotlin.math.abs(drag.value) / (size.width.coerceAtLeast(1f))).coerceIn(0f, 0.8f) }
+                .pointerInput(seq) {
+                    // Swipe sideways or up to dismiss; a short drag springs back.
+                    var dy = 0f
+                    detectDragGestures(onDragStart = { dy = 0f },
+                        onDragEnd = { if (kotlin.math.abs(drag.value) > size.width / 4f || dy < -size.height / 3f) dismiss() else scope.launch { if (animations) drag.animateTo(0f) else drag.snapTo(0f) } }) { change, amount ->
+                        change.consume(); dy += amount.y; scope.launch { drag.snapTo(drag.value + amount.x) }
+                    }
+                }
+                .clickable(onClick = dismiss)
+                .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite; contentDescription = shown }) {
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(androidx.compose.material.icons.Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(20.dp))
+                Text(shown, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 12.dp))
+            }
+        }
+    }
 }

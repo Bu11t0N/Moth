@@ -156,6 +156,20 @@ class DesignScreenshotTest {
         // The ⋮ menu: update all subscriptions and check all servers on the page (the old toolbar actions).
         wait(By.desc("More server actions")).click(); wait(By.text("Check all servers")); wait(By.text("Update subscription")); Thread.sleep(700)
         shot("servers-menu-$theme"); device.pressBack(); Thread.sleep(700)
+        // The other network's page: a check shows a short in-app notice at the top (no inline hint); it goes away by itself or on a tap.
+        val current = NetworkTracker.read(context.getSystemService(android.net.ConnectivityManager::class.java)).kind
+        val other = if (current == "mobile") "Wi-Fi" else "Mobile data"
+        assertTrue("no inline network hint", device.findObject(By.textStartsWith("Checks run only")) == null)
+        wait(By.text(other)).click(); Thread.sleep(900)
+        wait(By.desc("Check servers").enabled(true)).click()
+        val notice = wait(By.descStartsWith("To check these servers"), 3_000); Thread.sleep(350)
+        shot("servers-notice-$theme")
+        eventually(4_000, "notice hides after 2 s") { device.findObject(By.descStartsWith("To check these servers")) == null }
+        wait(By.desc("Check servers").enabled(true)).click()
+        wait(By.descStartsWith("To check these servers"), 3_000).click()
+        eventually(1_500, "notice hides on tap") { device.findObject(By.descStartsWith("To check these servers")) == null }
+        assertTrue("no checks started on the other network", !Diagnostics.running.value)
+        wait(By.text(if (current == "mobile") "Mobile data" else "Wi-Fi")).click(); Thread.sleep(900)
         wait(By.descStartsWith("Collapse:")).click(); Thread.sleep(700)
         shot("servers-collapsed-$theme")
         wait(By.descStartsWith("Expand:")).click(); Thread.sleep(500)

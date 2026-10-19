@@ -474,7 +474,6 @@
     <string name="server_balancer">Balancer</string>
     <string name="nd_group_servers">Servers: %1$d</string>
     <string name="set_amoled">Pure black dark theme (AMOLED)</string>
-    <string name="nd_checks_current_network">Checks run only on the network you are connected to</string>
     <string name="nd_checks_no_network">No network: checks are unavailable</string>
     <string name="nd_filter">Filter</string>
     <string name="nd_filter_active">Filter: %1$d</string>
@@ -518,4 +517,6 @@
     <string name="servers_more">More server actions</string>
     <string name="servers_check_all">Check all servers</string>
     <string name="device_title">Device info</string>
+    <string name="check_needs_mobile">To check these servers, turn on mobile data and turn off Wi-Fi</string>
+    <string name="check_needs_wifi">To check these servers, connect to Wi-Fi</string>
 </resources>

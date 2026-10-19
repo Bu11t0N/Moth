@@ -478,7 +478,6 @@
     <string name="server_balancer">Балансировщик</string>
     <string name="nd_group_servers">Серверов: %1$d</string>
     <string name="set_amoled">Чёрная тёмная тема (AMOLED)</string>
-    <string name="nd_checks_current_network">Проверка работает только в сети, к которой вы подключены</string>
     <string name="nd_checks_no_network">Нет сети: проверка недоступна</string>
     <string name="nd_filter">Фильтр</string>
     <string name="nd_filter_active">Фильтр: %1$d</string>
@@ -522,4 +521,6 @@
     <string name="servers_more">Другие действия с серверами</string>
     <string name="servers_check_all">Проверить все серверы</string>
     <string name="device_title">Данные устройства</string>
+    <string name="check_needs_mobile">Чтобы проверить эти серверы, включите мобильные данные и отключите Wi-Fi</string>
+    <string name="check_needs_wifi">Чтобы проверить эти серверы, подключитесь к Wi-Fi</string>
 </resources>

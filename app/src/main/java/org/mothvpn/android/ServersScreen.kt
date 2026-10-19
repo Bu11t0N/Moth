@@ -84,7 +84,18 @@ import org.mothvpn.core.SubscriptionSource
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
     // Updating subscriptions works while connected (the running session keeps its server even if the update removed it).
     val refreshLocked = busy || probing || tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)
-    val canCheck = saved != null && !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING) && network.available && kind == network.kind
+    // Check buttons stay tappable on the other network's page; a tap there shows a short notice at the top instead of checking.
+    val canCheck = saved != null && !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING)
+    var notice by remember { mutableStateOf<String?>(null) }
+    var noticeSeq by remember { mutableStateOf(0) }
+    fun show(text: String) { notice = text; noticeSeq++ }
+    fun checkOn(k: String, action: () -> Unit) {
+        when {
+            !network.available -> show(tr(R.string.nd_checks_no_network))
+            k != network.kind -> show(tr(if (k == "mobile") R.string.check_needs_mobile else R.string.check_needs_wifi))
+            else -> action()
+        }
+    }
     val profiles = saved?.profiles.orEmpty()
     val visible = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, kind, now, network) {
         profiles.filter { p ->
@@ -107,7 +118,7 @@ import org.mothvpn.core.SubscriptionSource
             if (saved != null) Text(tr(R.string.msg_no_servers_found_59))
             if (saved == null) TextButton(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
             else TextButton(onClick = { search = ""; preferences(settings.copy(hideUnavailable = false)) }) { Text(tr(R.string.msg_show_all_60)) }
-        } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 96.dp)) {
+        } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
             // Favorites first (from every subscription), then one section per subscription.
             val groups = ServerGroups.of(book ?: SubscriptionBook(emptyList()), visibleK, settings.favorites)
             groups.forEach { group ->
@@ -120,7 +131,7 @@ import org.mothvpn.core.SubscriptionSource
                 // This group's servers in the order shown (favorites: the favorite servers).
                 val ids = group.profiles.map { it.id }
                 NewGroupHeader(source, group.profiles.size, folded, checking, probing, canRefresh = source != null && !source.local && !refreshLocked, canCheck = canCheck && ids.isNotEmpty(),
-                    toggle = { toggleGroup(groupKey) }, refresh = { source?.let { refreshOne(it.id) } }, check = { probeGroup(k, ids) }, cancel = cancel,
+                    toggle = { toggleGroup(groupKey) }, refresh = { source?.let { refreshOne(it.id) } }, check = { checkOn(k) { probeGroup(k, ids) } }, cancel = cancel,
                     actions = { if (source != null) actionsFor = source.id })
             }
             if (!folded) items(group.profiles, key = { it.id }) { p ->
@@ -165,9 +176,14 @@ import org.mothvpn.core.SubscriptionSource
     var allActions by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Refresh and check live in each group header and Add is the floating button; "update all" and "check all" are in the ⋮ menu.
+        // Refresh and check live in each group header; Add (+) and the ⋮ menu ("update all", "check all") are in the top bar.
         Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            // Adding is not possible while connected or checking: the + dims and a tap explains why.
+            IconButton(onClick = { if (locked) show(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104)) else add() },
+                modifier = Modifier.size(40.dp).graphicsLayer { alpha = if (locked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) }) {
+                Icon(androidx.compose.material.icons.Icons.Rounded.Add, contentDescription = null)
+            }
             if (saved != null) IconButton(onClick = { allActions = true }, modifier = Modifier.size(40.dp).semantics { contentDescription = tr(R.string.servers_more) }) {
                 Icon(androidx.compose.material.icons.Icons.Rounded.MoreVert, contentDescription = null)
             }
@@ -175,8 +191,6 @@ import org.mothvpn.core.SubscriptionSource
         val pager = rememberPagerState(initialPage = if (kind == "wifi") 0 else 1) { 2 }
         // A pill switch; the filled pill follows the pager while swiping between the Wi-Fi and mobile data pages.
         NdPillSwitch(listOf("Wi-Fi", tr(R.string.msg_mobile_data_21)), pager.currentPage + pager.currentPageOffsetFraction) { kind = if (it == 0) "wifi" else "mobile" }
-        if (!network.available || kind != network.kind) Text(if (!network.available) tr(R.string.nd_checks_no_network) else tr(R.string.nd_checks_current_network),
-            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${visible.size} / ${profiles.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
             val pageFilter = settings.filterFor(kind).keywords
@@ -200,11 +214,7 @@ import org.mothvpn.core.SubscriptionSource
         }
     }
     if (filterSheet) ServerFilterSheet(settings, kind, preferences) { filterSheet = false }
-    // Thumb reach: bottom-right. Adding is not possible while connected or checking, so the button dims then.
-    FloatingActionButton(onClick = { if (!locked) add() }, containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shape = MaterialTheme.shapes.large,
-        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp).graphicsLayer { alpha = if (locked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) }) {
-        Icon(androidx.compose.material.icons.Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(26.dp))
-    }
+    TopNotice(notice, noticeSeq, { notice = null }, Modifier.align(Alignment.TopCenter))
     }
     jsonFor?.let { p -> ServerJsonEditor(p, cancel = { jsonFor = null }) { outbound -> jsonFor = null; editServer(p.id, outbound) } }
     // Every subscription at once: update all links, check (or cancel checking) all servers shown on this page in their order.
@@ -212,7 +222,7 @@ import org.mothvpn.core.SubscriptionSource
         val remote = book?.sources?.count { !it.local } ?: 0
         if (remote > 0) NdSheetItem(if (remote > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !refreshLocked) { allActions = false; refresh() }
         if (probing) NdSheetItem(tr(R.string.msg_cancel_checks_49), androidx.compose.material.icons.Icons.Rounded.Close) { allActions = false; cancel() }
-        else NdSheetItem(tr(R.string.servers_check_all), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck && visible.isNotEmpty()) { allActions = false; probe(kind, visible.map { it.id }) }
+        else NdSheetItem(tr(R.string.servers_check_all), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck && visible.isNotEmpty()) { allActions = false; checkOn(kind) { probe(kind, visible.map { it.id }) } }
     }
     menuFor?.let { p ->
         NdActionSheet(p.name, { menuFor = null }) {
@@ -228,7 +238,7 @@ import org.mothvpn.core.SubscriptionSource
             NdSheetItem(tr(R.string.sub_edit), androidx.compose.material.icons.Icons.Rounded.Edit, enabled = !busy) { actionsFor = null; editFor = source.id }
             if (!source.local) NdSheetItem(tr(R.string.sub_update), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !refreshLocked) { actionsFor = null; refreshOne(source.id) }
             val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }.ifEmpty { source.profiles.map { it.id } }
-            NdSheetItem(tr(R.string.sub_check), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck) { actionsFor = null; probeGroup(kind, ids) }
+            NdSheetItem(tr(R.string.sub_check), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck) { actionsFor = null; checkOn(kind) { probeGroup(kind, ids) } }
             NdSheetItem(tr(R.string.sub_delete), androidx.compose.material.icons.Icons.Rounded.Delete, enabled = !locked) { actionsFor = null; delete = source.id }
             if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
