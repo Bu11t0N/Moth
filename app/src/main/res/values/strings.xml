@@ -98,7 +98,7 @@
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Send device model and Android version"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"Subscription User-Agent"</string>
     <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Providers may select the subscription format by User-Agent. HWID is sent only to the original subscription website."</string>
-    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.7.28\nOpen source · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
+    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.17\nOpen source · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Use an HTTPS link without a username or password in the URL"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Subscription device limit reached. Contact the provider."</string>
     <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"The provider requires HWID. Enable it in settings."</string>

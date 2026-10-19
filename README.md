@@ -89,7 +89,7 @@ Never include subscription links, credentials or private keys in public issues o
 
 Android Studio, **JDK 21** and **Android SDK 34** are required. The Gradle 8.13 wrapper is included. Set `ANDROID_HOME` or `sdk.dir` in a local `local.properties` file.
 
-The app needs `libbox.aar` in the repository root. On Linux, build it with Go 1.26.9, JDK 17 and Android NDK 28.0.13004108:
+The app needs `libbox.aar` in the repository root. On Linux, build it with Go 1.27.2, JDK 17 and Android NDK 28.0.13004108:
 
 ```bash
 bash scripts/build-libbox.sh
@@ -115,7 +115,7 @@ e326f86f82b63071ee23a49b174b4cb5d25df1595e46c00571560a62f5ec210a
 - `e2e-helper/` — a tiny test app used only by the emulator tests (never shipped).
 - `licenses/` — third-party notices included in the APK.
 
-The native core uses **sing-box 1.12.25** for TUN and **Xray 26.7.28** for XHTTP. Sources are pinned by commit in the build script.
+The native core uses **sing-box 1.12.25** for TUN and **Xray 26.10.17** for XHTTP. Sources are pinned by commit in the build script.
 
 Android is the only implemented platform. Other operating systems require their own tunnel integration and interfaces; the Android UI is not directly portable to iOS.
 
