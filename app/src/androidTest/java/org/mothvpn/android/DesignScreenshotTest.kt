@@ -208,6 +208,16 @@ class DesignScreenshotTest {
         shot("subscriptions-$theme"); device.pressBack(); Thread.sleep(800)
         tab("Settings"); Thread.sleep(600)
         shot("settings-$theme")
+        if (theme == "dark") {
+            // Ping method choice (Connection) and the developer list of subscription header names.
+            fun scrollTo(text: String) = runCatching { androidx.test.uiautomator.UiScrollable(androidx.test.uiautomator.UiSelector().scrollable(true)).scrollTextIntoView(text) }
+            wait(By.text("Connection")).click(); Thread.sleep(800)
+            scrollTo("Full latency"); wait(By.text("Full latency")); Thread.sleep(500)
+            shot("settings-ping-$theme"); device.pressBack(); Thread.sleep(800)
+            scrollTo("For developers"); wait(By.text("For developers")).click(); Thread.sleep(800)
+            wait(By.text("Subscription headers")).click(); wait(By.textStartsWith("HTTP headers:")); Thread.sleep(600)
+            shot("dev-headers-$theme"); device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500)
+        }
     }
 
     @Test fun newDesignDark() = screens("dark")
