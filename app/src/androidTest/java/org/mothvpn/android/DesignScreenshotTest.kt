@@ -122,8 +122,9 @@ class DesignScreenshotTest {
         } finally { shell("wm size reset"); shell("settings put system font_scale 1.0"); Thread.sleep(1000) }
     }
 
-    private fun prepare(theme: String, amoled: Boolean) {
+    private fun prepare(theme: String, amoled: Boolean, announce: Boolean = false) {
         reset()
+        context.getSharedPreferences("announce_dismissed", android.content.Context.MODE_PRIVATE).edit().clear().commit()
         SettingsStore(context).save(ClientSettings(hwid = hwid, theme = if (amoled) "dark" else theme, newDesign = true, amoled = amoled))
         eventually(30_000, "subscription downloaded") { SubscriptionRefresh.run(context, null, "https://10.0.2.2:8443/sub", null, SettingsStore(context).load(), "e2e"); true }
         val store = SubscriptionStore(context)
@@ -132,7 +133,8 @@ class DesignScreenshotTest {
         // Provider links as a Remnawave/Marzban panel sends them (support-url, announce-url, profile-web-page-url), for the subscriptions sheet.
         // Plus a logo (cached as if downloaded) and a traffic limit, for the avatar and the usage ring.
         val book = store.update { b -> b.copy(sources = b.sources.map { it.copy(usedBytes = 37L shl 30, totalBytes = 100L shl 30,
-            expires = System.currentTimeMillis() / 1000 + 40L * 86400, links = org.mothvpn.core.ProviderLinks("https://t.me/moth_e2e_support_bot", "https://sub.example.com/e2e", "https://t.me/moth_e2e_news", "https://sub.example.com/logo.png")) }) }
+            expires = System.currentTimeMillis() / 1000 + 40L * 86400, links = org.mothvpn.core.ProviderLinks("https://t.me/moth_e2e_support_bot", "https://sub.example.com/e2e", "https://t.me/moth_e2e_news", "https://sub.example.com/logo.png",
+                announceText = if (announce) "Maintenance on Sunday 03:00–04:00. Servers in NL will reconnect once." else "")) }) }
         val logo = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888).apply {
             val c = android.graphics.Canvas(this); c.drawColor(0xFF2D6CDF.toInt())
             c.drawCircle(48f, 48f, 26f, android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() })
@@ -141,7 +143,7 @@ class DesignScreenshotTest {
     }
 
     private fun screens(theme: String, amoled: Boolean = false) {
-        prepare(theme, amoled)
+        prepare(theme, amoled, announce = true)
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         wait(By.text("Settings")); Thread.sleep(800)
         // Ping values for the dots: the group header's check button (the new design has no toolbar icons).
@@ -171,6 +173,12 @@ class DesignScreenshotTest {
         wait(By.text("Filter: 1")).click(); wait(By.desc("Remove Trojan")).click(); Thread.sleep(300); closeSheet("Server filter: Wi-Fi")
         wait(By.descStartsWith("E2E Trojan"))
         tab("Home")
+        // The provider's announcement: a banner above the subscription card; hidden after dismissal (it returns only for a new text).
+        wait(By.desc("Hide announcement")); wait(By.textStartsWith("Maintenance on Sunday")); Thread.sleep(500)
+        shot("home-announce-$theme")
+        wait(By.desc("Hide announcement")).click()
+        eventually(5_000, "announcement dismissed") { device.findObject(By.desc("Hide announcement")) == null }
+        assertTrue("dismissal stored", AnnounceDismissals.dismissed(context, SubscriptionStore(context).loadBook()!!.sources.first().id, "Maintenance on Sunday 03:00–04:00. Servers in NL will reconnect once."))
         val offBounds = wait(By.desc("Connect VPN").enabled(true)).visibleBounds
         shot("home-off-$theme")
         // Connecting lasts about a second here: grab frames while STARTING, keep the last few (moth flapping) and save three of them.
@@ -206,7 +214,7 @@ class DesignScreenshotTest {
         eventually(10_000, "off") { off() }
         widgetShot("widget-off-$theme", theme != "light")
         // One subscription with provider links: the card opens the subscriptions sheet with the link buttons.
-        tab("Home"); wait(By.descContains(": Show all subscriptions")).click(); wait(By.text("Subscriptions")); wait(By.desc("Support")); Thread.sleep(1000)
+        tab("Home"); wait(By.descContains(": Show all subscriptions")).click(); wait(By.text("Subscriptions")); wait(By.desc("Support")); wait(By.textStartsWith("Maintenance on Sunday")); Thread.sleep(1000)
         shot("subscriptions-$theme"); device.pressBack(); Thread.sleep(800)
         tab("Settings"); Thread.sleep(600)
         shot("settings-$theme")

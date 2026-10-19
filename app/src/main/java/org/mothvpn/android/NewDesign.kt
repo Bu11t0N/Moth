@@ -289,6 +289,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         // tone and gap as the card and the server bar. The space is always reserved, so the moth never moves when they appear.
         if (saved != null) SessionTiles(stats.takeIf { on }, tilesHeight)
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
+        // The provider's announcement, when new or changed: a small banner above the card until dismissed (it returns only for a new text).
+        if (saved != null && source != null) AnnounceBanner(source)
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
@@ -419,6 +421,9 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                         }
                     }
                     if (!s.links.isEmpty) ProviderLinkButtons(s.links, Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp))
+                    // The full announcement at the bottom of the card.
+                    if (s.links.announceText.isNotEmpty()) Text(s.links.announceText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = if (s.links.isEmpty) 0.dp else 4.dp, bottom = 14.dp))
                     }
                 }
             }
@@ -643,4 +648,29 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = !newDesign || filterF
     else androidx.compose.foundation.Image(image, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
         colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) }),
         modifier = modifier.size(size).clip(RoundedCornerShape(12.dp)))
+}
+
+/** Remembers which announcement the user dismissed, per subscription, as a hash of the text (the text itself is not stored here). */
+object AnnounceDismissals {
+    private fun prefs(context: android.content.Context) = context.getSharedPreferences("announce_dismissed", android.content.Context.MODE_PRIVATE)
+    fun hash(text: String) = java.security.MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).take(12).joinToString("") { "%02x".format(it) }
+    fun dismissed(context: android.content.Context, sourceId: String, text: String) = prefs(context).getString(sourceId, null) == hash(text)
+    fun dismiss(context: android.content.Context, sourceId: String, text: String) { prefs(context).edit().putString(sourceId, hash(text)).apply() }
+}
+
+/** Home: a small banner with the provider's announcement while it is new; the close button hides it until the text changes. */
+@Composable fun AnnounceBanner(source: org.mothvpn.core.SubscriptionSource) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val text = source.links.announceText
+    var hidden by remember(source.id, text) { mutableStateOf(text.isEmpty() || AnnounceDismissals.dismissed(context, source.id, text)) }
+    if (hidden) return
+    Surface(shape = MaterialTheme.shapes.large, color = NdTone.raised(), modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}) {
+        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(androidx.compose.material.icons.Icons.Rounded.Campaign, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            Text(text, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 12.dp))
+            IconButton(onClick = { AnnounceDismissals.dismiss(context, source.id, text); hidden = true }, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.announce_dismiss) }) {
+                Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
 }
