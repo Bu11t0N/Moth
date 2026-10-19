@@ -90,6 +90,30 @@ class FeaturesE2ETest {
     }
     private fun waitRules(expected: List<RoutingRule>) = eventually(15_000, "rules saved") { SettingsStore(context).load().routingRules == expected }
 
+    @Test fun subscriptionUpdateWhileConnectedKeepsTheSession() {
+        val first = add(sub1, "First E2E")
+        launch(); connect()
+        val active = TunnelStatus.activeProfile.value
+        assertTrue("active server", active.isNotEmpty())
+        val before = SubscriptionStore(context).loadBook()!!.source(first.sourceId)!!.updatedAt
+        // The group's update button works while connected and does not reconnect.
+        tab("Servers")
+        wait(By.desc("Update subscription").enabled(true)).click()
+        eventually(30_000, "updated while connected") { SubscriptionStore(context).loadBook()!!.source(first.sourceId)!!.updatedAt > before }
+        assertEquals(TunnelState.RUNNING, TunnelStatus.state.value); assertEquals(active, TunnelStatus.activeProfile.value)
+        // An update that removed the server in use: the session stays on it, also across a restart (as a settings change does).
+        SubscriptionStore(context).update { b -> b.copy(sources = b.sources.map { it.copy(profiles = it.profiles.filter { p -> p.id != active }) }).normalized() }
+        VpnLauncher.changed.value++
+        context.startService(Intent(context, TunnelService::class.java).setAction("SWITCH").putExtra("profile", active).putExtra("force", true).putExtra("settings", true))
+        eventually(10_000, "restart begun") { TunnelStatus.state.value == TunnelState.STARTING || TunnelStatus.state.value == TunnelState.RUNNING }
+        Thread.sleep(5000)
+        eventually(60_000, "running again on the removed server") { TunnelStatus.state.value == TunnelState.RUNNING && TunnelStatus.activeProfile.value == active }
+        assertNull(SubscriptionStore(context).loadBook()!!.profiles.firstOrNull { it.id == active })
+        tab("Home"); wait(By.text("VPN is on"))
+        disconnect()
+        log("subscription updated while connected; removed server kept until disconnect")
+    }
+
     @Test fun multipleSubscriptionsGroupRefreshAndDelete() {
         val first = add(sub1, "First E2E")
         val second = add(sub2, null)

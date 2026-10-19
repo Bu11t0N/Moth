@@ -215,8 +215,12 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val probing by Diagnostics.running.collectAsState()
     val active by TunnelStatus.activeProfile.collectAsState()
     val results by Diagnostics.results.collectAsState()
-    val selected = remember(saved, network.kind, active, tunnel) {
-        saved?.profiles?.firstOrNull { it.id == if (tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) && active.isNotEmpty()) active else saved.selection(network.kind) }
+    val activeServer by TunnelStatus.activeServer.collectAsState()
+    val selected = remember(saved, network.kind, active, tunnel, activeServer) {
+        val connected = tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) && active.isNotEmpty()
+        // Connected to a server a subscription update removed: it stays shown (and can be disconnected) until the session ends.
+        saved?.profiles?.firstOrNull { it.id == if (connected) active else saved.selection(network.kind) }
+            ?: activeServer?.takeIf { connected && it.id == active }
     }
     val blockingTun by TunnelStatus.blocking.collectAsState()
     val stats by TunnelStatus.stats.collectAsState()

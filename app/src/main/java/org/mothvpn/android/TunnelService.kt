@@ -46,6 +46,9 @@ object TunnelStatus {
     val state = mutable.asStateFlow()
     internal val activeMutable = MutableStateFlow("")
     val activeProfile = activeMutable.asStateFlow()
+    /** The server of the running session as it was started; it stays usable after a subscription update removed it. */
+    internal val activeServerMutable = MutableStateFlow<org.mothvpn.core.Profile?>(null)
+    val activeServer = activeServerMutable.asStateFlow()
     /** True while the kill switch's blocking interface is up (BLOCKED, and the reconnect attempts made from it). */
     internal val blockingMutable = MutableStateFlow(false)
     val blocking = blockingMutable.asStateFlow()
@@ -159,6 +162,8 @@ class TunnelService : VpnService(), PlatformInterface {
         return START_NOT_STICKY
     }
     @Volatile private var ranking = emptyList<String>()
+    /** The server last started, kept for restarts after a subscription update removed it (see startTunnel). */
+    @Volatile private var lastStarted: org.mothvpn.core.Profile? = null
     @Volatile private var manualPick = false // set by a manual server switch while connected: auto-select is paused for this session
     private val tried = java.util.Collections.synchronizedSet(HashSet<String>())
     @Volatile private var activeSettings = ClientSettings()
@@ -177,7 +182,10 @@ class TunnelService : VpnService(), PlatformInterface {
             val subscription = SubscriptionStore(this).load() ?: error("Missing subscription")
             if (settings.autoSelect && pickBest && subscription.profiles.size > 1 && !stopped) { stage = "auto select"; id = pickFastest(subscription, settings) ?: id }
             if (stopped || TunnelStatus.state.value != TunnelState.STARTING) { Logger.i("Tunnel", "start abandoned (state=${TunnelStatus.state.value})"); return }
-            var profile = subscription.profiles.firstOrNull { it.id == id } ?: error("Missing profile")
+            // A subscription update while connected may have removed the server in use: a restart on it (same server, settings
+            // change, kill switch retry) keeps using the copy it was started with instead of dropping the tunnel.
+            var profile = subscription.profiles.firstOrNull { it.id == id } ?: lastStarted?.takeIf { it.id == id }?.also { Logger.i("Tunnel", "server no longer in the subscription; keeping the running one") } ?: error("Missing profile")
+            val started = profile
             activeEngine = profile.engine; activeKind = trackedKind()
             serverName = profile.name; foreground() // the name is shown in the notification only, never logged
             Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled} split=${settings.splitMode} directRu=${settings.directRu} auto=${settings.autoSelect}")
@@ -211,7 +219,7 @@ class TunnelService : VpnService(), PlatformInterface {
                 TunnelStatus.mutable.value = TunnelState.RUNNING
                 updateOffline(networkState.current != null || NetworkTracker.read(connectivity).available)
                 startStats(); foreground() // startStats first: it sets the connect time the notification chronometer counts from
-                TunnelStatus.activeMutable.value = id
+                TunnelStatus.activeMutable.value = id; lastStarted = started; TunnelStatus.activeServerMutable.value = started
                 Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) tr(R.string.msg_checking_internet_access_through_vpn_120) else tr(R.string.msg_checks_are_disabled_in_settings_121))
                 if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
             }
@@ -314,7 +322,9 @@ class TunnelService : VpnService(), PlatformInterface {
     private fun failover(current: Long) {
         val active = TunnelStatus.activeProfile.value
         tried += active
-        val next = ServerPicker.next(ranking, active, tried)
+        // Servers removed by a subscription update are skipped.
+        val present = runCatching { SubscriptionStore(this).load()?.profiles?.map { it.id }?.toHashSet() }.getOrNull()
+        val next = ServerPicker.next(if (present == null) ranking else ranking.filter { it in present }, active, tried)
         Logger.w("Health", "failover: ${if (next == null) "all ranked servers tried, measuring again" else "switching to the next fastest server"}")
         if (next == null) tried.clear()
         executor.execute {
@@ -436,7 +446,7 @@ class TunnelService : VpnService(), PlatformInterface {
         Logger.d("Tunnel", "closeTunnel (box=${box != null}, xray=${xray != null})")
         stopStats()
         generation.incrementAndGet(); healthTask?.cancel(true); healthTask = null
-        TunnelStatus.activeMutable.value = ""
+        TunnelStatus.activeMutable.value = ""; TunnelStatus.activeServerMutable.value = null
         Diagnostics.healthMutable.value = HealthResult()
         runCatching { box?.close() }.onFailure { Logger.w("Core", "closing the core failed", it) }; box = null
         runCatching { tun?.close() }.onFailure { Logger.w("Tunnel", "closing the tun device failed", it) }; tun = null

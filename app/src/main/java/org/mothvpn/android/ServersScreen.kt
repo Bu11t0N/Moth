@@ -82,6 +82,8 @@ import org.mothvpn.core.SubscriptionSource
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(results) { now = System.currentTimeMillis(); while (true) { delay(60_000); now = System.currentTimeMillis() } }
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
+    // Updating subscriptions works while connected (the running session keeps its server even if the update removed it).
+    val refreshLocked = busy || probing || tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)
     val canCheck = saved != null && !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING) && network.available && kind == network.kind
     val profiles = saved?.profiles.orEmpty()
     val visible = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, kind, now, network) {
@@ -117,7 +119,7 @@ import org.mothvpn.core.SubscriptionSource
                 val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true }
                 // This group's servers in the order shown (favorites: the favorite servers).
                 val ids = group.profiles.map { it.id }
-                NewGroupHeader(source, group.profiles.size, folded, checking, probing, canRefresh = source != null && !source.local && !locked, canCheck = canCheck && ids.isNotEmpty(),
+                NewGroupHeader(source, group.profiles.size, folded, checking, probing, canRefresh = source != null && !source.local && !refreshLocked, canCheck = canCheck && ids.isNotEmpty(),
                     toggle = { toggleGroup(groupKey) }, refresh = { source?.let { refreshOne(it.id) } }, check = { probeGroup(k, ids) }, cancel = cancel,
                     actions = { if (source != null) actionsFor = source.id })
             }
@@ -208,7 +210,7 @@ import org.mothvpn.core.SubscriptionSource
     // Every subscription at once: update all links, check (or cancel checking) all servers shown on this page in their order.
     if (allActions) NdActionSheet(tr(R.string.msg_servers_27), { allActions = false }) {
         val remote = book?.sources?.count { !it.local } ?: 0
-        if (remote > 0) NdSheetItem(if (remote > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !locked) { allActions = false; refresh() }
+        if (remote > 0) NdSheetItem(if (remote > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !refreshLocked) { allActions = false; refresh() }
         if (probing) NdSheetItem(tr(R.string.msg_cancel_checks_49), androidx.compose.material.icons.Icons.Rounded.Close) { allActions = false; cancel() }
         else NdSheetItem(tr(R.string.servers_check_all), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck && visible.isNotEmpty()) { allActions = false; probe(kind, visible.map { it.id }) }
     }
@@ -224,7 +226,7 @@ import org.mothvpn.core.SubscriptionSource
     actionsFor?.let { id -> book?.source(id) }?.let { source ->
         NdActionSheet(source.title(), { actionsFor = null }) {
             NdSheetItem(tr(R.string.sub_edit), androidx.compose.material.icons.Icons.Rounded.Edit, enabled = !busy) { actionsFor = null; editFor = source.id }
-            if (!source.local) NdSheetItem(tr(R.string.sub_update), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !locked) { actionsFor = null; refreshOne(source.id) }
+            if (!source.local) NdSheetItem(tr(R.string.sub_update), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !refreshLocked) { actionsFor = null; refreshOne(source.id) }
             val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }.ifEmpty { source.profiles.map { it.id } }
             NdSheetItem(tr(R.string.sub_check), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck) { actionsFor = null; probeGroup(kind, ids) }
             NdSheetItem(tr(R.string.sub_delete), androidx.compose.material.icons.Icons.Rounded.Delete, enabled = !locked) { actionsFor = null; delete = source.id }
