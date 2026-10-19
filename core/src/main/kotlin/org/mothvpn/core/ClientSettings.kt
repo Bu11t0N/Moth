@@ -10,7 +10,8 @@ data class ClientSettings(
     val probeUrl: String = "https://www.gstatic.com/generate_204", val timeoutMs: Int = 10000,
     val healthEnabled: Boolean = true, val healthIntervalSeconds: Int = 60,
     val hwidEnabled: Boolean = true, val hwid: String = UUID.randomUUID().toString(),
-    val deviceInfo: Boolean = false, val userAgent: String = "Moth",
+    /** Send x-device-os / x-ver-os / x-device-model with the HWID. On by default (see [deviceInfoSet] for the migration). */
+    val deviceInfo: Boolean = true, val userAgent: String = "Moth",
     val serverSort: String = ServerOrder.SUBSCRIPTION,
     val compactServers: Boolean = true, val hideUnavailable: Boolean = false,
     /** Server check: [ProbePolicy.LATENCY] (second request on the warm connection), [ProbePolicy.FULL] (first request with every handshake) or "tcp". */
@@ -59,8 +60,14 @@ data class ClientSettings(
     /** The same for the mobile data page: each network has its own keywords and mode. */
     val mobileFilter: ServerFilter.Rule = ServerFilter.Rule(),
     /** HTTPS checks use only [probeUrl], without the fallback addresses (the former "HTTPS · custom URL" method). */
-    val probeUrlOnly: Boolean = false
+    val probeUrlOnly: Boolean = false,
+    /** True once the user changed the device-info switch; files without it never had a real choice and get the new default (on). */
+    val deviceInfoSet: Boolean = false,
+    /** Custom device info sent instead of the system values; empty = the system value ("Android", Build.VERSION.RELEASE, the model). */
+    val deviceOs: String = "", val deviceOsVersion: String = "", val deviceModel: String = ""
 ) {
+    /** The custom device info cleared (system values are sent again). */
+    fun withDefaultDeviceInfo() = copy(deviceOs = "", deviceOsVersion = "", deviceModel = "")
     /** The filter of a network kind ("wifi" or "mobile"; anything else is Wi-Fi). */
     fun filterFor(kind: String) = if (kind == "mobile") mobileFilter else wifiFilter
     fun withFilter(kind: String, rule: ServerFilter.Rule) = if (kind == "mobile") copy(mobileFilter = rule) else copy(wifiFilter = rule)
@@ -91,6 +98,7 @@ data class ClientSettings(
         require(healthIntervalSeconds in 30..600) { "Интервал проверки: от 30 до 600 секунд" }
         require(hwid.matches(Regex("[a-zA-Z0-9=-]{10,64}"))) { "HWID: 10–64 символа, буквы, цифры, = или -" }
         require(userAgent.isNotBlank() && userAgent.length <= 160 && userAgent.all { it.code in 32..126 }) { "User-Agent должен содержать печатные латинские символы" }
+        require(DeviceInfo.valid(deviceOs, 64) && DeviceInfo.valid(deviceOsVersion, 64) && DeviceInfo.valid(deviceModel, 120)) { "Данные устройства: печатные латинские символы" }
         require(splitMode in SplitTunnel.modes) { "Неверный режим раздельного туннеля" }
         require(subUpdateHours in SubscriptionSchedule.intervals) { "Неверный интервал обновления подписки" }
         require(splitApps.size <= 2000 && splitApps.all { SplitTunnel.validPackage(it) }) { "Неверный список приложений" }
@@ -120,6 +128,7 @@ data class ClientSettings(
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
         .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("newDesign", newDesign).put("amoled", amoled)
         .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json()).put("probeUrlOnly", probeUrlOnly)
+        .put("deviceInfoSet", deviceInfoSet).put("deviceOs", deviceOs).put("deviceOsVersion", deviceOsVersion).put("deviceModel", deviceModel)
     companion object {
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
         private val autoUserAgent = Regex("Moth(/[0-9][0-9A-Za-z.+-]*)?")
@@ -156,8 +165,20 @@ data class ClientSettings(
             mobileFilter = j.optJSONObject("serverFilterMobile")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),
             // 0.7.0 beta 5 and earlier: "https" meant "only the custom URL"; that choice is kept as probeUrlOnly.
             probeUrlOnly = j.optBoolean("probeUrlOnly", j.optString("probeMode") == "https"),
+            // Up to beta 6 "deviceInfo" was always written (default off), so a stored false is not a real choice: only files with
+            // "deviceInfoSet" keep their value; everyone else gets the new default (on).
+            deviceInfoSet = j.optBoolean("deviceInfoSet", false),
+            deviceInfo = if (j.optBoolean("deviceInfoSet", false)) j.optBoolean("deviceInfo", true) else true,
+            deviceOs = DeviceInfo.clean(j.optString("deviceOs", ""), 64), deviceOsVersion = DeviceInfo.clean(j.optString("deviceOsVersion", ""), 64),
+            deviceModel = DeviceInfo.clean(j.optString("deviceModel", ""), 120),
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
+}
+
+/** Device info values sent in subscription headers: printable ASCII, no leading/trailing spaces, length-capped. */
+object DeviceInfo {
+    fun clean(value: String, max: Int) = value.filter { it.code in 32..126 }.trim().take(max)
+    fun valid(value: String, max: Int) = value.length <= max && value.all { it.code in 32..126 } && value == value.trim()
 }
 
 object SubscriptionHeaders {
@@ -168,9 +189,10 @@ object SubscriptionHeaders {
         if (settings.hwidEnabled && sameOrigin) {
             headers["x-hwid"] = settings.hwid
             if (settings.deviceInfo) {
-                headers["x-device-os"] = "Android"
-                headers["x-ver-os"] = osVersion.filter { it.code in 32..126 }.take(64)
-                headers["x-device-model"] = model.filter { it.code in 32..126 }.take(120)
+                // Custom values (Settings → Subscription) replace the system ones; empty fields keep the system value.
+                headers["x-device-os"] = settings.deviceOs.ifBlank { "Android" }
+                headers["x-ver-os"] = settings.deviceOsVersion.ifBlank { DeviceInfo.clean(osVersion, 64) }
+                headers["x-device-model"] = settings.deviceModel.ifBlank { DeviceInfo.clean(model, 120) }
             }
         }
         return headers

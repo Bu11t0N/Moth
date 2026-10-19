@@ -16,6 +16,8 @@ object LogFacts {
         plain("healthIntervalSeconds", old.healthIntervalSeconds, new.healthIntervalSeconds)
         plain("hwidEnabled", old.hwidEnabled, new.hwidEnabled); hidden("hwid", old.hwid, new.hwid)
         plain("deviceInfo", old.deviceInfo, new.deviceInfo); hidden("userAgent", old.userAgent, new.userAgent)
+        // Custom device info: only that it changed, never the values.
+        hidden("deviceOs", old.deviceOs, new.deviceOs); hidden("deviceOsVersion", old.deviceOsVersion, new.deviceOsVersion); hidden("deviceModel", old.deviceModel, new.deviceModel)
         plain("serverSort", old.serverSort, new.serverSort); plain("compactServers", old.compactServers, new.compactServers)
         plain("hideUnavailable", old.hideUnavailable, new.hideUnavailable); plain("probeMode", old.probeMode, new.probeMode); plain("probeUrlOnly", old.probeUrlOnly, new.probeUrlOnly)
         plain("probeParallel", old.probeParallel, new.probeParallel); plain("probeTimeoutMs", old.probeTimeoutMs, new.probeTimeoutMs)
