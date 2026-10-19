@@ -175,10 +175,10 @@ data class ClientSettings(
     }
 }
 
-/** Device info values sent in subscription headers: printable ASCII, no leading/trailing spaces, length-capped. */
+/** Device info values sent in subscription headers: printable ASCII, length-capped; surrounding spaces are trimmed when sent. */
 object DeviceInfo {
     fun clean(value: String, max: Int) = value.filter { it.code in 32..126 }.trim().take(max)
-    fun valid(value: String, max: Int) = value.length <= max && value.all { it.code in 32..126 } && value == value.trim()
+    fun valid(value: String, max: Int) = value.length <= max && value.all { it.code in 32..126 }
 }
 
 object SubscriptionHeaders {
@@ -190,9 +190,9 @@ object SubscriptionHeaders {
             headers["x-hwid"] = settings.hwid
             if (settings.deviceInfo) {
                 // Custom values (Settings → Subscription) replace the system ones; empty fields keep the system value.
-                headers["x-device-os"] = settings.deviceOs.ifBlank { "Android" }
-                headers["x-ver-os"] = settings.deviceOsVersion.ifBlank { DeviceInfo.clean(osVersion, 64) }
-                headers["x-device-model"] = settings.deviceModel.ifBlank { DeviceInfo.clean(model, 120) }
+                headers["x-device-os"] = settings.deviceOs.trim().ifEmpty { "Android" }
+                headers["x-ver-os"] = settings.deviceOsVersion.trim().ifEmpty { DeviceInfo.clean(osVersion, 64) }
+                headers["x-device-model"] = settings.deviceModel.trim().ifEmpty { DeviceInfo.clean(model, 120) }
             }
         }
         return headers

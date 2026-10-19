@@ -518,4 +518,9 @@
     <string name="dev_sub_headers_body">Body fields: %1$s</string>
     <string name="settings_live_hint">VPN is on: changes here apply 5 seconds after the last one, with one reconnect.</string>
     <string name="settings_wait_hint">Wait until the VPN finishes connecting or disconnecting.</string>
+    <string name="device_os">System name · x-device-os</string>
+    <string name="device_os_version">System version · x-ver-os</string>
+    <string name="device_model">Device model · x-device-model</string>
+    <string name="device_reset">Reset to defaults</string>
+    <string name="device_hint">Leave a field empty to send this phone\'s real value.</string>
 </resources>

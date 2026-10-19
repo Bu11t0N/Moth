@@ -522,4 +522,9 @@
     <string name="dev_sub_headers_body">Поля в теле: %1$s</string>
     <string name="settings_live_hint">VPN включён: изменения применятся через 5 секунд после последнего, с одним переподключением.</string>
     <string name="settings_wait_hint">Дождитесь, пока VPN подключится или отключится.</string>
+    <string name="device_os">Название системы · x-device-os</string>
+    <string name="device_os_version">Версия системы · x-ver-os</string>
+    <string name="device_model">Модель устройства · x-device-model</string>
+    <string name="device_reset">Сбросить</string>
+    <string name="device_hint">Оставьте поле пустым, чтобы отправлять настоящее значение этого телефона.</string>
 </resources>

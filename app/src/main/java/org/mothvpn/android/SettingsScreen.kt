@@ -183,7 +183,19 @@ import org.mothvpn.core.SubscriptionSchedule
                         trailingIcon = { IconButton(onClick = { showHwid = !showHwid }) { MothIcon(if (showHwid) "eye_off" else "eye") } },
                         modifier = Modifier.fillMaxWidth())
                     TextButton(onClick = { clipboard.setText(AnnotatedString(draft.hwid)) }) { Text(tr(R.string.msg_copy_hwid_107)) }
-                    SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it)) }
+                    SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it, deviceInfoSet = true)) }
+                    // Custom device info instead of the system values (empty field = system value, shown as the placeholder). Never logged.
+                    if (draft.deviceInfo) {
+                        val systemValues = listOf("Android", android.os.Build.VERSION.RELEASE.orEmpty(), "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+                        listOf(Triple(tr(R.string.device_os), draft.deviceOs) { v: String -> draft.copy(deviceOs = v) },
+                            Triple(tr(R.string.device_os_version), draft.deviceOsVersion) { v: String -> draft.copy(deviceOsVersion = v) },
+                            Triple(tr(R.string.device_model), draft.deviceModel) { v: String -> draft.copy(deviceModel = v) }).forEachIndexed { i, (label, value, next) ->
+                            OutlinedTextField(value, { applySettings(next(it.take(if (i == 2) 120 else 64))) }, enabled = !locked, label = { Text(label) },
+                                placeholder = { Text(systemValues[i]) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        }
+                        TextButton(enabled = !locked && (draft.deviceOs + draft.deviceOsVersion + draft.deviceModel).isNotEmpty(), onClick = { applySettings(draft.withDefaultDeviceInfo()) }) { Text(tr(R.string.device_reset)) }
+                        Text(tr(R.string.device_hint), style = MaterialTheme.typography.bodySmall)
+                    }
                     OutlinedTextField(draft.userAgent, { applySettings(draft.copy(userAgent = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_user_agent_109)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text(tr(R.string.msg_providers_may_select_the_subscription_format_110), style = MaterialTheme.typography.bodySmall)
                 }

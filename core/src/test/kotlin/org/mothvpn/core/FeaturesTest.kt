@@ -177,7 +177,8 @@ class OfflineStatusTest {
         val d = SubscriptionHeaders.create(custom.withDefaultDeviceInfo(), o, o, "16", "Samsung")
         assertEquals("Android", d["x-device-os"]); assertEquals("16", d["x-ver-os"]); assertEquals("Samsung", d["x-device-model"])
         assertFails { custom.copy(deviceModel = "x\r\nx-hwid: injected").validate() }
-        assertFails { custom.copy(deviceOs = " padded").validate() }
+        assertFails { custom.copy(deviceOs = "a".repeat(65)).validate() }
+        assertEquals("Linux", SubscriptionHeaders.create(custom.copy(deviceOs = " Linux "), o, o, "16", "S")["x-device-os"])
         // Values are never logged, only that they changed.
         val facts = LogFacts.settingsChanges(ClientSettings(), custom.copy(hwid = ClientSettings().hwid))
         assertTrue(facts.none { "Linux" in it || "Pixel" in it || "6.1" in it }, facts.toString())
