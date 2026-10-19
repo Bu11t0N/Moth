@@ -336,7 +336,7 @@ class TunnelService : VpnService(), PlatformInterface {
         val manager = getSystemService(NotificationManager::class.java)
         // Kept as high in the shade as Android allows: the old "vpn" channel was LOW, which puts the notification in the bottom "Silent"
         // section. The "vpn_status" channel is DEFAULT importance with no sound or vibration (the 1 Hz updates stay quiet: only-alert-once),
-        // and a colorized foreground-service notification is ranked first within its section by the system comparator.
+        // and an ongoing foreground-service notification is ranked high within its section by the system comparator.
         // Channel importance can't be raised in place, so the old channel is deleted once.
         if (manager.getNotificationChannel(CHANNEL) == null) {
             manager.createNotificationChannel(NotificationChannel(CHANNEL, tr(R.string.msg_vpn_connection_125), NotificationManager.IMPORTANCE_DEFAULT).apply {
@@ -350,7 +350,9 @@ class TunnelService : VpnService(), PlatformInterface {
         val name = serverName
         val builder = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_moth_notification)
             .setContentIntent(open).setOngoing(true).setShowWhen(false).setOnlyAlertOnce(true)
-            .setCategory(Notification.CATEGORY_SERVICE).setColor(0xFF262626.toInt()).setColorized(true).setLocalOnly(true)
+            // No setColor / setColorized: a hard-set grey made the moth icon grey even where the system tints notifications
+            // (Material You, API 31+). Without them the system applies its own (dynamic) colour to the white-on-transparent moth.
+            .setCategory(Notification.CATEGORY_SERVICE).setLocalOnly(true)
             .apply { if (android.os.Build.VERSION.SDK_INT >= 31) setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE) }
             .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build())
         val offline = TunnelStatus.offline.value
