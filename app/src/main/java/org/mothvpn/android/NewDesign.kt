@@ -136,11 +136,22 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
 @Composable fun MothButton(on: Boolean, flapping: Boolean, dark: Boolean, enabled: Boolean, onClick: () -> Unit, description: String, modifier: Modifier = Modifier,
     size: androidx.compose.ui.unit.Dp = 260.dp) {
     val open = remember { androidx.compose.animation.core.Animatable(if (on) 1f else 0f) }
-    LaunchedEffect(flapping, on) {
+    // "Remove animations" (animator duration scale 0): no looping motion at all, the moth just shows its open / closed state.
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val animations = remember { runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) > 0f }
+    LaunchedEffect(flapping, on, animations) {
+        if (!animations) { open.snapTo(if (on && !flapping) 1f else if (flapping) 0.5f else 0f); return@LaunchedEffect }
         if (flapping) while (true) {
             open.animateTo(1f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
             open.animateTo(0f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
-        } else open.animateTo(if (on) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 220f))
+        } else {
+            open.animateTo(if (on) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 220f))
+            // Connected: gentle gliding, the wings dip slightly and rise again (small amplitude, ~5 s per beat, smooth easing).
+            if (on) while (true) {
+                open.animateTo(0.86f, tween(2600, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                open.animateTo(1f, tween(2600, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            }
+        }
     }
     val lit = on || flapping
     val color by androidx.compose.animation.animateColorAsState(when {
