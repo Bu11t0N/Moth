@@ -134,9 +134,7 @@ class MainActivity : AppCompatActivity() {
             var url by remember { mutableStateOf("") }
             var subName by remember { mutableStateOf("") }
             val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
-            val newDesign = true
             val scheme = if (dark) (if (settings.amoled) MonoTheme.amoled else MonoTheme.dark) else MonoTheme.light
-            CompositionLocalProvider(LocalNewDesign provides newDesign) {
             MaterialTheme(colorScheme = scheme, shapes = MonoTheme.shapes) {
                 Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -146,14 +144,10 @@ class MainActivity : AppCompatActivity() {
                                 (fadeIn(tween(220, delayMillis = 60)) + slideInHorizontally(tween(260)) { it / 12 * dir }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(260)) { -it / 12 * dir })
                             }, label = "tab") { shown ->
                             when (shown) {
-                                0 -> if (newDesign) NewHomeScreen(saved, book, settings, network, busy, message,
+                                0 -> NewHomeScreen(saved, book, settings, network, busy, message,
                                     add = { url = ""; subName = ""; dialog = true },
                                     connect = { if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || TunnelStatus.trafficBlocked(TunnelStatus.state.value, TunnelStatus.blocking.value)) stop() else connect() },
                                     select = { id, kind -> select(id, kind) }, updateAvailable = updateAvailable, openUpdates = { openUpdates = true; tab = 2 })
-                                else HomeScreen(saved, book, network, busy, message,
-                                    add = { url = ""; subName = ""; dialog = true },
-                                    connect = { if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || TunnelStatus.trafficBlocked(TunnelStatus.state.value, TunnelStatus.blocking.value)) stop() else connect() }, servers = { tab = 1 },
-                                    updateAvailable = updateAvailable, openUpdates = { openUpdates = true; tab = 2 })
                                 1 -> ServersScreen(saved, book, settings, network, busy, message,
                                     add = { url = ""; subName = ""; dialog = true }, refresh = { refreshAll() }, refreshOne = { id -> book?.source(id)?.takeIf { !it.local }?.let { import(it.url, "refresh", id) } },
                                     edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
@@ -172,11 +166,10 @@ class MainActivity : AppCompatActivity() {
                         NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                             listOf(tr(R.string.msg_home_26) to "home", tr(R.string.msg_servers_27) to "list", tr(R.string.msg_settings_28) to "settings").forEachIndexed { i, item ->
                                 NavigationBarItem(selected = tab == i, onClick = { tab = i }, label = { Text(item.first) }, icon = {
-                                    // New design: Material icons that are clearly different (house, bulleted list, gear); the classic UI keeps its drawn icons.
-                                    if (newDesign) Icon(when (item.second) { "home" -> androidx.compose.material.icons.Icons.Outlined.Home
+                                    // Material icons that are clearly different (house, bulleted list, gear).
+                                    Icon(when (item.second) { "home" -> androidx.compose.material.icons.Icons.Outlined.Home
                                         "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.FormatListBulleted
-                                        else -> androidx.compose.material.icons.Icons.Outlined.Settings }, contentDescription = null)
-                                    else MothIcon(item.second) })
+                                        else -> androidx.compose.material.icons.Icons.Outlined.Settings }, contentDescription = null) })
                             }
                         }
                     }
@@ -218,7 +211,6 @@ class MainActivity : AppCompatActivity() {
                         }
                     }, confirmButton = { TextButton(enabled = url.isNotBlank(), onClick = { dialog = false; import(url, name = subName.trim().ifEmpty { null }); url = ""; subName = "" }) { Text(tr(R.string.msg_add_31)) } }, dismissButton = { TextButton(onClick = { dialog = false; url = ""; subName = "" }) { Text(tr(R.string.msg_cancel_32)) } })
                 }
-            }
             }
         }
     }

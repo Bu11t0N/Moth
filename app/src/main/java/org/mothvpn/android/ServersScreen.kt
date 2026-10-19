@@ -93,7 +93,6 @@ import org.mothvpn.core.SubscriptionSource
         }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$kind:${p.id}"]?.latencyMs } }.let { Favorites.first(it, settings.favorites) { p -> p.id } }
     }
     @Composable fun KindPage(k: String) {
-        val ndPage = LocalNewDesign.current
         val visibleK = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, k, now, network) {
             profiles.filter { p ->
                 val r = results["$k:${p.id}"]
@@ -106,34 +105,30 @@ import org.mothvpn.core.SubscriptionSource
             if (saved != null) Text(tr(R.string.msg_no_servers_found_59))
             if (saved == null) TextButton(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
             else TextButton(onClick = { search = ""; preferences(settings.copy(hideUnavailable = false)) }) { Text(tr(R.string.msg_show_all_60)) }
-        } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(if (LocalNewDesign.current) 6.dp else 4.dp), contentPadding = PaddingValues(bottom = if (LocalNewDesign.current) 96.dp else 8.dp)) {
+        } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 96.dp)) {
             // Favorites first (from every subscription), then one section per subscription.
             val groups = ServerGroups.of(book ?: SubscriptionBook(emptyList()), visibleK, settings.favorites)
             groups.forEach { group ->
             val groupKey = group.sourceId ?: "favorites"
-            // New design: while searching, groups with matches open by themselves (the saved collapsed state returns when the query is cleared).
-            val folded = book != null && groupKey in collapsed && !(ndPage && search.isNotBlank())
+            // While searching, groups with matches open by themselves (the saved collapsed state returns when the query is cleared).
+            val folded = book != null && groupKey in collapsed && search.isBlank()
             if (book != null) item(key = "header:$groupKey") {
                 val source = group.sourceId?.let(book::source)
                 val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true }
-                if (LocalNewDesign.current) {
-                    // This group's servers in the order shown (favorites: the favorite servers).
-                    val ids = group.profiles.map { it.id }
-                    NewGroupHeader(source, group.profiles.size, folded, checking, probing, canRefresh = source != null && !source.local && !locked, canCheck = canCheck && ids.isNotEmpty(),
-                        toggle = { toggleGroup(groupKey) }, refresh = { source?.let { refreshOne(it.id) } }, check = { probeGroup(k, ids) }, cancel = cancel,
-                        actions = { if (source != null) actionsFor = source.id })
-                } else GroupHeader(source, group.profiles.size, folded, checking, toggle = { toggleGroup(groupKey) }) { if (source != null) actionsFor = source.id }
+                // This group's servers in the order shown (favorites: the favorite servers).
+                val ids = group.profiles.map { it.id }
+                NewGroupHeader(source, group.profiles.size, folded, checking, probing, canRefresh = source != null && !source.local && !locked, canCheck = canCheck && ids.isNotEmpty(),
+                    toggle = { toggleGroup(groupKey) }, refresh = { source?.let { refreshOne(it.id) } }, check = { probeGroup(k, ids) }, cancel = cancel,
+                    actions = { if (source != null) actionsFor = source.id })
             }
             if (!folded) items(group.profiles, key = { it.id }) { p ->
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED } // cancelled checks show no indicator
-                val nd = LocalNewDesign.current
-                Surface(color = if (nd) (if (chosen) NewDesignRow.selectedColor() else NdTone.raised())
-                        else if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                    border = if (nd) NewDesignRow.selectedBorder(chosen) else null,
-                    shape = if (nd) MaterialTheme.shapes.medium else RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().heightIn(min = if (nd) (if (settings.compactServers) 64.dp else 72.dp) else 0.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
+                Surface(color = if (chosen) NewDesignRow.selectedColor() else NdTone.raised(),
+                    border = NewDesignRow.selectedBorder(chosen),
+                    shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth().heightIn(min = if (settings.compactServers) 64.dp else 72.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
                         .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
-                    Row(Modifier.padding(horizontal = if (nd) 18.dp else 14.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.padding(horizontal = 18.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (p.id in settings.favorites) CompositionLocalProvider(LocalContentColor provides (if (isSystemInDarkTheme()) Color(0xFFFF6B8A) else Color(0xFFD81B60))) {
@@ -143,23 +138,12 @@ import org.mothvpn.core.SubscriptionSource
                             }
                             Text(org.mothvpn.core.ServerLabels.label(p, tr(R.string.server_balancer)) + if (org.mothvpn.core.ProxyProtocols.unencrypted(p)) " · " + tr(R.string.proto_unencrypted) else "", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        val dark = isSystemInDarkTheme()
                         val detailed = settings.detailedIcons
-                        val red = if (dark) Color(0xFFFF6B6B) else Color(0xFFC62828)
                         when {
                             r?.checking == true -> CircularProgressIndicator(Modifier.padding(start = 12.dp).size(20.dp), strokeWidth = 2.dp) // only actively probed rows; queued rows show nothing
-                            r?.latencyMs != null && nd -> {
-                                if (detailed && r.method == "TCP") DetailBadge(DetailIcon.TCP_OK, tr(R.string.msg_port_is_reachable_vpn_traffic_has_not_been_ch_65), "TCP")
-                                PingDot(r.latencyMs, false, Modifier.padding(start = 10.dp))
-                            }
                             r?.latencyMs != null -> {
                                 if (detailed && r.method == "TCP") DetailBadge(DetailIcon.TCP_OK, tr(R.string.msg_port_is_reachable_vpn_traffic_has_not_been_ch_65), "TCP")
-                                Text("${r.latencyMs} ms", fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, modifier = Modifier.padding(start = 6.dp),
-                                    color = when (LatencyBand.of(r.latencyMs)) {
-                                        LatencyBand.GOOD -> if (dark) Color(0xFF66DD88) else Color(0xFF1B7F3A)
-                                        LatencyBand.MEDIUM -> if (dark) Color(0xFFFFC247) else Color(0xFFB36B00)
-                                        LatencyBand.POOR -> red
-                                    })
+                                PingDot(r.latencyMs, false, Modifier.padding(start = 10.dp))
                             }
                             r?.error != null -> if (detailed) {
                                 val kind = r.kind ?: ProbeErrorKind.FAILED
@@ -168,7 +152,7 @@ import org.mothvpn.core.SubscriptionSource
                                     else -> Diagnostics.kindText(kind)
                                 }
                                 DetailBadge(DetailIcon.of(kind), text, null)
-                            } else if (nd) PingDot(null, true, Modifier.padding(start = 12.dp)) else Text("—", color = red, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(start = 12.dp))
+                            } else PingDot(null, true, Modifier.padding(start = 12.dp))
                         }
                     }
                 }
@@ -176,42 +160,35 @@ import org.mothvpn.core.SubscriptionSource
             }
         }
     }
-    val nd = LocalNewDesign.current
+    var allActions by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // New design: no toolbar icons; refresh and check live in each group header, Add is the floating button.
-        if (nd) Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.headlineSmall, maxLines = 1, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-        else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            ActionIcon("add", tr(R.string.msg_add_subscription_16), !locked, add)
-            ActionIcon("refresh", if ((book?.sources?.count { !it.local } ?: 0) > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), book?.sources?.any { !it.local } == true && !locked, refresh)
-            ActionIcon(if (probing) "stop" else "check", if (probing) tr(R.string.msg_cancel_checks_49) else tr(R.string.msg_check_servers_50), probing || canCheck) { if (probing) cancel() else probe(kind, visible.map { it.id }) } // snapshot of the displayed order at the moment of the tap
+        // Refresh and check live in each group header and Add is the floating button; "update all" and "check all" are in the ⋮ menu.
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            if (saved != null) IconButton(onClick = { allActions = true }, modifier = Modifier.size(40.dp).semantics { contentDescription = tr(R.string.servers_more) }) {
+                Icon(androidx.compose.material.icons.Icons.Rounded.MoreVert, contentDescription = null)
+            }
         }
         val pager = rememberPagerState(initialPage = if (kind == "wifi") 0 else 1) { 2 }
-        if (nd) {
-            // New design: a pill switch; the filled pill follows the pager while swiping between the Wi-Fi and mobile data pages.
-            NdPillSwitch(listOf("Wi-Fi", tr(R.string.msg_mobile_data_21)), pager.currentPage + pager.currentPageOffsetFraction) { kind = if (it == 0) "wifi" else "mobile" }
-            if (!network.available || kind != network.kind) Text(if (!network.available) tr(R.string.nd_checks_no_network) else tr(R.string.nd_checks_current_network),
-                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
-        } else TabRow(selectedTabIndex = if (kind == "wifi") 0 else 1) {
-            Tab(selected = kind == "wifi", onClick = { kind = "wifi" }, text = { Text("Wi-Fi") })
-            Tab(selected = kind == "mobile", onClick = { kind = "mobile" }, text = { Text(tr(R.string.msg_mobile_data_21)) })
-        }
-        if (!nd && (!network.available || kind != network.kind)) Text(if (!network.available) tr(R.string.msg_no_network_available_for_this_check_53) else if (kind == "mobile") tr(R.string.msg_to_check_mobile_data_enable_it_and_turn_off_w_54) else tr(R.string.msg_connect_to_wi_fi_to_run_this_check_55), style = MaterialTheme.typography.bodySmall)
+        // A pill switch; the filled pill follows the pager while swiping between the Wi-Fi and mobile data pages.
+        NdPillSwitch(listOf("Wi-Fi", tr(R.string.msg_mobile_data_21)), pager.currentPage + pager.currentPageOffsetFraction) { kind = if (it == 0) "wifi" else "mobile" }
+        if (!network.available || kind != network.kind) Text(if (!network.available) tr(R.string.nd_checks_no_network) else tr(R.string.nd_checks_current_network),
+            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${visible.size} / ${profiles.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
             val pageFilter = settings.filterFor(kind).keywords
-            if (nd) FilterChip(selected = pageFilter.isNotEmpty(), onClick = { filterSheet = true },
+            FilterChip(selected = pageFilter.isNotEmpty(), onClick = { filterSheet = true },
                 label = { Text(if (pageFilter.isEmpty()) tr(R.string.nd_filter) else tr(R.string.nd_filter_active, pageFilter.size)) },
                 leadingIcon = { Icon(androidx.compose.material.icons.Icons.Rounded.FilterList, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 modifier = Modifier.padding(end = 8.dp))
             FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text(tr(R.string.msg_hide_unavailable_56)) })
         }
         OutlinedTextField(search, { search = it }, singleLine = true, placeholder = { Text(tr(R.string.msg_search_servers_57)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
-        // New design: switching servers shows no progress bar (the selection highlight is enough).
-        if ((busy && !(nd && selecting)) || probing) LinearProgressIndicator(Modifier.fillMaxWidth())
+        // Switching servers shows no progress bar (the selection highlight is enough).
+        if ((busy && !selecting) || probing) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        // Both designs swipe between the Wi-Fi and mobile data pages; the new design's segmented button follows the pager.
+        // Swipe between the Wi-Fi and mobile data pages; the pill switch follows the pager.
         run {
         LaunchedEffect(pager.currentPage) { kind = if (pager.currentPage == 0) "wifi" else "mobile" }
         LaunchedEffect(kind) { val i = if (kind == "wifi") 0 else 1; if (pager.currentPage != i) pager.animateScrollToPage(i) }
@@ -221,32 +198,30 @@ import org.mothvpn.core.SubscriptionSource
         }
     }
     if (filterSheet) ServerFilterSheet(settings, kind, preferences) { filterSheet = false }
-    // Thumb reach: bottom-right. Adding is not possible while connected or checking (same rule as the classic toolbar button), so the button dims then.
-    if (nd) FloatingActionButton(onClick = { if (!locked) add() }, containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shape = MaterialTheme.shapes.large,
+    // Thumb reach: bottom-right. Adding is not possible while connected or checking, so the button dims then.
+    FloatingActionButton(onClick = { if (!locked) add() }, containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shape = MaterialTheme.shapes.large,
         modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp).graphicsLayer { alpha = if (locked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) }) {
         Icon(androidx.compose.material.icons.Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(26.dp))
     }
     }
     jsonFor?.let { p -> ServerJsonEditor(p, cancel = { jsonFor = null }) { outbound -> jsonFor = null; editServer(p.id, outbound) } }
-    if (nd) menuFor?.let { p ->
+    // Every subscription at once: update all links, check (or cancel checking) all servers shown on this page in their order.
+    if (allActions) NdActionSheet(tr(R.string.msg_servers_27), { allActions = false }) {
+        val remote = book?.sources?.count { !it.local } ?: 0
+        if (remote > 0) NdSheetItem(if (remote > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !locked) { allActions = false; refresh() }
+        if (probing) NdSheetItem(tr(R.string.msg_cancel_checks_49), androidx.compose.material.icons.Icons.Rounded.Close) { allActions = false; cancel() }
+        else NdSheetItem(tr(R.string.servers_check_all), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck && visible.isNotEmpty()) { allActions = false; probe(kind, visible.map { it.id }) }
+    }
+    menuFor?.let { p ->
         NdActionSheet(p.name, { menuFor = null }) {
             NdSheetItem(tr(R.string.server_share), androidx.compose.material.icons.Icons.Rounded.Share) { menuFor = null; shareFor = p }
             val favorite = p.id in settings.favorites
             NdSheetItem(tr(if (favorite) R.string.fav_remove else R.string.fav_add), if (favorite) androidx.compose.material.icons.Icons.Rounded.FavoriteBorder else androidx.compose.material.icons.Icons.Rounded.Favorite) { menuFor = null; preferences(settings.copy(favorites = Favorites.toggle(settings.favorites, p.id))) }
             if (settings.editServers) NdSheetItem(tr(R.string.edit_json), androidx.compose.material.icons.Icons.Rounded.Code, enabled = !busy) { menuFor = null; jsonFor = p }
         }
-    } else menuFor?.let { p ->
-        AlertDialog(onDismissRequest = { menuFor = null }, title = { Text(p.name, maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
-            Column {
-                TextButton(onClick = { menuFor = null; shareFor = p }) { Text(tr(R.string.server_share)) }
-                val favorite = p.id in settings.favorites
-                TextButton(onClick = { menuFor = null; preferences(settings.copy(favorites = Favorites.toggle(settings.favorites, p.id))) }) { Text(tr(if (favorite) R.string.fav_remove else R.string.fav_add)) }
-                if (settings.editServers) TextButton(enabled = !busy, onClick = { menuFor = null; jsonFor = p }) { Text(tr(R.string.edit_json)) }
-            }
-        }, confirmButton = { TextButton(onClick = { menuFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
     }
     shareFor?.let { p -> ShareServerDialog(p) { shareFor = null } }
-    if (nd) actionsFor?.let { id -> book?.source(id) }?.let { source ->
+    actionsFor?.let { id -> book?.source(id) }?.let { source ->
         NdActionSheet(source.title(), { actionsFor = null }) {
             NdSheetItem(tr(R.string.sub_edit), androidx.compose.material.icons.Icons.Rounded.Edit, enabled = !busy) { actionsFor = null; editFor = source.id }
             if (!source.local) NdSheetItem(tr(R.string.sub_update), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !locked) { actionsFor = null; refreshOne(source.id) }
@@ -256,18 +231,6 @@ import org.mothvpn.core.SubscriptionSource
             if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         }
-    } else actionsFor?.let { id -> book?.source(id) }?.let { source ->
-        AlertDialog(onDismissRequest = { actionsFor = null }, title = { Text(source.title(), maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
-            Column {
-                TextButton(enabled = !busy, onClick = { actionsFor = null; editFor = source.id }) { Text(tr(R.string.sub_edit)) }
-                if (!source.local) TextButton(enabled = !locked, onClick = { actionsFor = null; refreshOne(source.id) }) { Text(tr(R.string.sub_update)) }
-                // Checks only this subscription's servers, in the order shown; other groups keep their results.
-                val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }.ifEmpty { source.profiles.map { it.id } }
-                TextButton(enabled = canCheck, onClick = { actionsFor = null; probeGroup(kind, ids) }) { Text(tr(R.string.sub_check)) }
-                TextButton(enabled = !locked, onClick = { actionsFor = null; delete = source.id }) { Text(tr(R.string.sub_delete)) }
-                if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104), style = MaterialTheme.typography.bodySmall)
-            }
-        }, confirmButton = { TextButton(onClick = { actionsFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
     }
     editFor?.let { id -> book?.source(id) }?.let { source ->
         var name by remember(source.id) { mutableStateOf(source.name.ifBlank { source.providerName }) }
@@ -290,10 +253,6 @@ import org.mothvpn.core.SubscriptionSource
             confirmButton = { TextButton(enabled = !locked, onClick = { delete = null; remove(source.id) }) { Text(tr(R.string.msg_remove_69)) } },
             dismissButton = { TextButton(onClick = { delete = null }) { Text(tr(R.string.msg_cancel_32)) } })
     }
-}
-
-@Composable private fun ActionIcon(icon: String, label: String, enabled: Boolean, action: () -> Unit) {
-    IconButton(enabled = enabled, onClick = action, modifier = Modifier.size(40.dp).semantics { contentDescription = label }) { MothIcon(icon) }
 }
 
 private enum class DetailIcon {
@@ -341,25 +300,6 @@ private enum class DetailIcon {
 }
 
 /** Section title in the server list: a subscription (name, traffic and end date, actions button) or the favorites. */
-@Composable private fun GroupHeader(source: SubscriptionSource?, count: Int, collapsed: Boolean, checking: Boolean, toggle: () -> Unit, actions: () -> Unit) {
-    // Tap the header (or the arrow) to collapse or expand the group; a collapsed group keeps its name, count, traffic and end date.
-    Row(Modifier.fillMaxWidth().padding(top = 6.dp).clickable(onClick = toggle).semantics { contentDescription = tr(if (collapsed) R.string.group_expand else R.string.group_collapse) + ": " + (source?.title() ?: tr(R.string.fav_group)) },
-        verticalAlignment = Alignment.CenterVertically) {
-        Text(if (collapsed) "▸" else "▾", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 6.dp))
-        Column(Modifier.weight(1f)) {
-            Text((source?.title() ?: tr(R.string.fav_group)) + " · " + count, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (source != null) SubscriptionQuotaLine(SubscriptionRecord(source.url, source.profiles, "", usedBytes = source.usedBytes, totalBytes = source.totalBytes, expires = source.expires))
-        }
-        if (checking) CircularProgressIndicator(Modifier.padding(horizontal = 8.dp).size(16.dp), strokeWidth = 2.dp)
-        if (source != null) IconButton(onClick = actions, modifier = Modifier.size(36.dp).semantics { contentDescription = tr(R.string.sub_actions) }) { MothIcon("menu", Modifier.size(20.dp)) }
-    }
-}
-
-/**
- * Group header of the new design: one card with an animated chevron, the subscription name, the server count and quota, and 48 dp icon buttons
- * to update this subscription, check its servers (stop while checking) and open the subscription menu.
- */
 @Composable private fun NewGroupHeader(source: SubscriptionSource?, count: Int, collapsed: Boolean, checking: Boolean, probing: Boolean, canRefresh: Boolean, canCheck: Boolean,
     toggle: () -> Unit, refresh: () -> Unit, check: () -> Unit, cancel: () -> Unit, actions: () -> Unit) {
     val title = source?.title() ?: tr(R.string.fav_group)

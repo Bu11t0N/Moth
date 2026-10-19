@@ -528,4 +528,6 @@
     <string name="device_reset">Сбросить</string>
     <string name="device_hint">Оставьте поле пустым, чтобы отправлять настоящее значение этого телефона.</string>
     <string name="announce_dismiss">Скрыть объявление</string>
+    <string name="servers_more">Другие действия с серверами</string>
+    <string name="servers_check_all">Проверить все серверы</string>
 </resources>

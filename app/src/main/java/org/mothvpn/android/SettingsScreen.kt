@@ -290,14 +290,9 @@ import org.mothvpn.core.SubscriptionSchedule
 
 @Composable private fun SettingsCategory(title: String, subtitle: String, icon: String, open: () -> Unit) {
     Card(Modifier.fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
-        Row(Modifier.fillMaxWidth().heightIn(min = if (LocalNewDesign.current) 72.dp else 0.dp).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            // New design: a monochrome icon in a grey rounded-square tile (no colours, no circle).
-            if (LocalNewDesign.current) IconTile(categoryIcon(icon))
-            else Surface(shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(40.dp)) {
-                Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
-                    Icon(categoryIcon(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(22.dp))
-                }
-            }
+        Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            // A monochrome icon in a grey rounded-square tile (no colours, no circle).
+            IconTile(categoryIcon(icon))
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 if (subtitle.isNotEmpty()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -318,13 +313,10 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
     Text(text, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
 }
 @Composable private fun SettingsToggle(label: String, checked: Boolean, enabled: Boolean = true, change: (Boolean) -> Unit) {
-    // New design: the whole row (at least 56 dp high) toggles the switch.
-    if (LocalNewDesign.current) Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = enabled) { change(!checked) },
+    // The whole row (at least 56 dp high) toggles the switch.
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = enabled) { change(!checked) },
         horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
         Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp))
-        Switch(checked = checked, onCheckedChange = change, enabled = enabled)
-    } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, modifier = Modifier.weight(1f).padding(top = 12.dp, end = 12.dp))
         Switch(checked = checked, onCheckedChange = change, enabled = enabled)
     }
 }

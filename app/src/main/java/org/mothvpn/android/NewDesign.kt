@@ -46,9 +46,6 @@ import org.mothvpn.core.Profile
 import org.mothvpn.core.ServerOrder
 import org.mothvpn.core.VersionLabel
 
-/** True while the experimental design (Settings → For developers → New design) is on. The classic UI reads false. */
-val LocalNewDesign = staticCompositionLocalOf { false }
-
 /** The new design's tonal levels (see [MonoTheme]). */
 object NdTone {
     @Composable fun background() = MaterialTheme.colorScheme.background
@@ -59,7 +56,7 @@ object NdTone {
 }
 
 /** Card colours: the new design's L1 card tone; the classic design keeps the Material default. */
-@Composable fun ndCardColors() = if (LocalNewDesign.current) CardDefaults.cardColors(containerColor = NdTone.card()) else CardDefaults.cardColors()
+@Composable fun ndCardColors() = CardDefaults.cardColors(containerColor = NdTone.card())
 
 /** Selected server row in the new design: no check mark, a stronger fill plus an outline so it stands out in both themes. */
 object NewDesignRow {
