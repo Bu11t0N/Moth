@@ -124,7 +124,6 @@ class DesignScreenshotTest {
 
     private fun prepare(theme: String, amoled: Boolean, announce: Boolean = false) {
         reset()
-        context.getSharedPreferences("announce_dismissed", android.content.Context.MODE_PRIVATE).edit().clear().commit()
         SettingsStore(context).save(ClientSettings(hwid = hwid, theme = if (amoled) "dark" else theme, amoled = amoled))
         eventually(30_000, "subscription downloaded") { SubscriptionRefresh.run(context, null, "https://10.0.2.2:8443/sub", null, SettingsStore(context).load(), "e2e"); true }
         val store = SubscriptionStore(context)
@@ -176,12 +175,8 @@ class DesignScreenshotTest {
         wait(By.text("Filter: 1")).click(); wait(By.desc("Remove Trojan")).click(); Thread.sleep(300); closeSheet("Server filter: Wi-Fi")
         wait(By.descStartsWith("E2E Trojan"))
         tab("Home")
-        // The provider's announcement: a banner above the subscription card; hidden after dismissal (it returns only for a new text).
-        wait(By.desc("Hide announcement")); wait(By.textStartsWith("Maintenance on Sunday")); Thread.sleep(500)
-        shot("home-announce-$theme")
-        wait(By.desc("Hide announcement")).click()
-        eventually(5_000, "announcement dismissed") { device.findObject(By.desc("Hide announcement")) == null }
-        assertTrue("dismissal stored", AnnounceDismissals.dismissed(context, SubscriptionStore(context).loadBook()!!.sources.first().id, "Maintenance on Sunday 03:00–04:00. Servers in NL will reconnect once."))
+        // The announcement is shown only in the subscriptions sheet (no banner on Home since beta 8).
+        assertTrue("no announcement banner on Home", device.findObject(By.textStartsWith("Maintenance on Sunday")) == null)
         val offBounds = wait(By.desc("Connect VPN").enabled(true)).visibleBounds
         shot("home-off-$theme")
         // Connecting lasts about a second here: grab frames while STARTING, keep the last few (moth flapping) and save three of them.

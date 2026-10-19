@@ -88,6 +88,8 @@ class MainActivity : AppCompatActivity() {
     private fun scanQr() = scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(tr(R.string.import_scan_prompt)).setBeepEnabled(false).setOrientationLocked(true).setCaptureActivity(PortraitCaptureActivity::class.java))
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        // Beta 7 stored hashes of dismissed Home announcement banners; the banner is gone (beta 8), so is its state.
+        if (state == null) runCatching { deleteSharedPreferences("announce_dismissed") }
         @Suppress("DEPRECATION")
         val restoredAction = state?.getParcelable<Intent>("pending_vpn_action")
         pendingAction = restoredAction

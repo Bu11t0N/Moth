@@ -517,7 +517,6 @@
     <string name="device_model">Device model · x-device-model</string>
     <string name="device_reset">Reset to defaults</string>
     <string name="device_hint">Leave a field empty to send this phone\'s real value.</string>
-    <string name="announce_dismiss">Hide announcement</string>
     <string name="servers_more">More server actions</string>
     <string name="servers_check_all">Check all servers</string>
 </resources>
