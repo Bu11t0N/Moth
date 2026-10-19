@@ -19,7 +19,7 @@ Not released yet.
 - New design: settings icons in rounded tiles and a gear icon for Settings in the bottom bar.
 - New design: a server filter by keywords — hide matching servers or show only them, separately for Wi-Fi and mobile data.
 - New design: support, news and website buttons from the provider on the subscription card.
-- New design: split tunneling can be changed while connected; changes apply 5 seconds after the last one.
+- New design: split tunneling can be changed while connected.
 - New design: searching servers opens collapsed groups with matches.
 - New design: clearer depth with tonal surfaces, a highlighted server card on the home screen and a pill switch for Wi-Fi / mobile data.
 - New design: speed, session traffic and connection time under the moth while connected.
@@ -29,7 +29,7 @@ Not released yet.
 - Ping now shows latency on an already open connection, like most clients; “Full latency” and “TCP” are available in Settings.
 - New design: the home screen fits short screens and large fonts — nothing overlaps, the moth gets smaller when space is tight, and the stat tiles line up with the cards below.
 - New design: the server list on the home screen opens at full height and scrolls right away; one swipe down closes it.
-- Connection settings can be changed while the VPN is on; they apply with one reconnect 5 seconds after the last change.
+- Connection settings can be changed while the VPN is on.
 - The VPN notification stays near the top of the notification shade.
 - Quick Settings tile: a tap toggles the VPN without closing the shade; a long press opens Moth.
 - Split tunneling: selected apps are listed first.
@@ -45,8 +45,13 @@ Not released yet.
 - Shorter settings hints.
 - Closing the app is no longer written to the log.
 - Without a logo, the provider’s avatar is taken from its public Telegram page.
-- Provider announcements are shown on the subscription card, and new ones appear on the home screen until you hide them.
+- Provider announcements are shown on the subscription card.
 - Servers: update all subscriptions and check all servers from the ⋮ menu.
+- Subscriptions can be updated while the VPN is on; the connection stays on its server even if the update removed it.
+- Servers: the add button moved to the top bar.
+- Servers: checking the other network’s list shows a short notice at the top instead of a permanent hint.
+- Device info opens in a scrollable dialog that shows the values being sent.
+- Updated Xray to 26.10.17.
 
 ## 0.6.5
 
