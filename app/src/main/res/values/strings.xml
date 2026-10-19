@@ -18,7 +18,6 @@
     <string name="msg_could_not_connect_14" formatted="false">"Could not connect"</string>
     <string name="msg_checking_internet_access_15" formatted="false">"Checking internet access…"</string>
     <string name="msg_add_subscription_16" formatted="false">"Add subscription"</string>
-    <string name="msg_host_saved_profiles_size_servers_17" formatted="false">"%1$s · %2$s servers"</string>
     <string name="msg_traffic_1f_1f_gib_18" formatted="false">"Traffic: %.1f / %.1f GiB"</string>
     <string name="msg_subscription_expires_on_19" formatted="false">"Subscription expires on "</string>
     <string name="msg_no_network_20" formatted="false">"No network"</string>
@@ -50,9 +49,6 @@
     <string name="msg_cancel_checks_49" formatted="false">"Cancel checks"</string>
     <string name="msg_check_servers_50" formatted="false">"Check servers"</string>
     <string name="msg_remove_subscription_52" formatted="false">"Remove subscription"</string>
-    <string name="msg_no_network_available_for_this_check_53" formatted="false">"No network available for this check"</string>
-    <string name="msg_to_check_mobile_data_enable_it_and_turn_off_w_54" formatted="false">"To check mobile data, enable it and turn off Wi-Fi"</string>
-    <string name="msg_connect_to_wi_fi_to_run_this_check_55" formatted="false">"Connect to Wi-Fi to run this check"</string>
     <string name="msg_hide_unavailable_56" formatted="false">"Hide unavailable"</string>
     <string name="msg_search_servers_57" formatted="false">"Search servers"</string>
     <string name="msg_add_a_subscription_58" formatted="false">"Add a subscription"</string>
@@ -464,8 +460,6 @@
     <string name="sub_all_title">Subscriptions</string>
     <string name="sub_updated_on">Updated: %1$s</string>
     <string name="sub_link_copy_link">Copy link</string>
-    <string name="dev_new_design">New design</string>
-    <string name="dev_new_design_hint">Experimental: monochrome look with larger buttons and a server sheet on the home screen.</string>
     <string name="nd_choose_server">Choose server</string>
     <string name="dev_edit_servers">Edit servers</string>
     <string name="dev_edit_servers_hint">Adds \"Edit JSON\" to the long-press menu of a server.</string>

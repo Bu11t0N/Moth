@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Home-screen widget, monochrome like the new design: light tones here, dark tones in values-night (follows the system theme). -->
+<!-- Home-screen widget, monochrome like the app: light tones here, dark tones in values-night (follows the system theme). -->
 <resources>
     <color name="widget_surface">#FFEDEDED</color>
     <color name="widget_tile">#FFDADADA</color>

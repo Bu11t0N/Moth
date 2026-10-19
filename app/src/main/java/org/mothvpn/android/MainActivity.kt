@@ -58,7 +58,7 @@ class MainActivity : AppCompatActivity() {
     private var updateAvailable by mutableStateOf(false)
     private var openUpdates by mutableStateOf(false)
     private var busy by mutableStateOf(false)
-    /** True while [select] saves a server choice (busy for that short moment); the new design shows no progress bar for it. */
+    /** True while [select] saves a server choice (busy for that short moment); the Servers page shows no progress bar for it. */
     private var selecting by mutableStateOf(false)
     /** Import offered by a link that opened the app; shown in a confirmation dialog, never logged. */
     private var deepLink by mutableStateOf<org.mothvpn.core.DeepLinks.Action?>(null)

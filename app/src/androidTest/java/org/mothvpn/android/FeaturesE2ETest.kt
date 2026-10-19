@@ -116,15 +116,17 @@ class FeaturesE2ETest {
         log("two subscriptions refreshed, traffic warning shown")
 
         launch(); tab("Servers")
-        val header = wait(By.text("Second E2E · 2"))
-        wait(By.text("First E2E · 3")); wait(By.text("Second Trojan")); wait(By.text("E2E VLESS"))
+        // Group headers and server rows are single merged nodes: found by their descriptions.
+        val header = wait(By.desc("Collapse: Second E2E"))
+        wait(By.desc("Collapse: First E2E")); wait(By.descStartsWith("Second Trojan")); wait(By.descStartsWith("E2E VLESS"))
+        assertEquals(listOf(3, 2), SubscriptionStore(context).loadBook()!!.sources.map { it.profiles.size }.sortedDescending())
         val y = header.visibleBounds.centerY()
         device.findObjects(By.desc("Subscription actions")).minByOrNull { kotlin.math.abs(it.visibleBounds.centerY() - y) }!!.click()
         wait(By.text("Delete")).click()
         wait(By.text("Remove")).click()
-        assertTrue("second group still shown", device.wait(Until.gone(By.text("Second E2E · 2")), 15_000))
+        assertTrue("second group still shown", device.wait(Until.gone(By.desc("Collapse: Second E2E")), 15_000))
         eventually(10_000, "store has one subscription") { SubscriptionStore(context).loadBook()!!.sources.map { it.id } == listOf(first.sourceId) }
-        wait(By.text("First E2E · 3"))
+        wait(By.desc("Collapse: First E2E"))
         log("grouped list shown, second subscription deleted")
     }
 
@@ -218,7 +220,7 @@ class FeaturesE2ETest {
         }
         // The restored data is what the app shows.
         launch(); tab("Servers")
-        wait(By.text("First E2E · 2")); wait(By.text("My servers · 1")); wait(By.text("Favorites · 1"))
+        wait(By.desc("Collapse: First E2E")); wait(By.desc("Collapse: My servers")); wait(By.desc("Collapse: Favorites"))
         tab("Settings"); wait(By.text("Connection")).click()
         scrollTo("Rules: 2")
         device.pressBack()

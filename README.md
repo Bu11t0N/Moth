@@ -15,7 +15,7 @@ An open-source Android VPN client built with Kotlin, Jetpack Compose, sing-box a
 - DNS settings with DNS leak protection; DPI bypass (TLS fragmentation, UDP noise) and multiplexing, off by default.
 - Traffic statistics, backup and restore (optionally password-protected), optional in-app updates.
 - Quick Settings tile and home screen widget, both showing "Traffic blocked" / "Reconnecting…".
-- English and Russian, system language detection and the Russian app name **Мотылёк**. Light, dark and system themes.
+- English and Russian, system language detection and the Russian app name **Мотылёк**. A monochrome design with light, dark, pure black (AMOLED) and system themes.
 
 Moth requires a subscription from a compatible provider or your own server. It does not supply VPN servers.
 
@@ -76,7 +76,7 @@ Checks run on the current physical network. Switch off Wi-Fi to test mobile data
 - No advertising, analytics, accounts or hidden telemetry.
 - Subscription links, profiles and settings are stored in AES-GCM encrypted files using Android Keystore. Configuration backup and core logs are disabled.
 - Subscription links are sent to their subscription service, not to Moth's developers.
-- HWID is a random installation UUID, not an IMEI or hardware serial number. Device model and Android version are optional. Device headers are restricted to the original HTTPS origin and are not forwarded across origins on redirects.
+- HWID is a random installation UUID, not an IMEI or hardware serial number. Device model and Android version are sent by default, can be turned off or replaced with your own values. Device headers are restricted to the original HTTPS origin and are not forwarded across origins on redirects.
 - Subscription and HWID fields are masked. Screenshots and screen sharing are allowed.
 
 Subscription downloads and bootstrap DNS requests may use the direct connection. Traffic DNS inside the tunnel uses the selected server. Bootstrap DNS defaults to Cloudflare DoH and can be changed in Connection settings.

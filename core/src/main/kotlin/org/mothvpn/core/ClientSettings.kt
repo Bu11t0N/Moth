@@ -51,9 +51,9 @@ data class ClientSettings(
     val mux: String = "off",
     /** Developer option: "Edit JSON" in the server long-press menu. */
     val editServers: Boolean = false,
-    /** New design, dark theme: pure black (#000000) background and surfaces for AMOLED screens. */
+    /** Dark theme: pure black (#000000) background and surfaces for AMOLED screens. */
     val amoled: Boolean = false,
-    /** New design: keyword server filter of the Wi-Fi page (keywords + mode), matched against server names at display time (see [ServerFilter]). */
+    /** Keyword server filter of the Wi-Fi page (keywords + mode), matched against server names at display time (see [ServerFilter]). */
     val wifiFilter: ServerFilter.Rule = ServerFilter.Rule(),
     /** The same for the mobile data page: each network has its own keywords and mode. */
     val mobileFilter: ServerFilter.Rule = ServerFilter.Rule(),

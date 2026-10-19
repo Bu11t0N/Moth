@@ -46,7 +46,7 @@ import org.mothvpn.core.Profile
 import org.mothvpn.core.ServerOrder
 import org.mothvpn.core.VersionLabel
 
-/** The new design's tonal levels (see [MonoTheme]). */
+/** The app's tonal levels (see [MonoTheme]). */
 object NdTone {
     @Composable fun background() = MaterialTheme.colorScheme.background
     @Composable fun sheet() = MaterialTheme.colorScheme.surfaceContainerLow
@@ -55,10 +55,10 @@ object NdTone {
     @Composable fun highlight() = MaterialTheme.colorScheme.primaryContainer
 }
 
-/** Card colours: the new design's L1 card tone; the classic design keeps the Material default. */
+/** Card colours: the L1 card tone. */
 @Composable fun ndCardColors() = CardDefaults.cardColors(containerColor = NdTone.card())
 
-/** Selected server row in the new design: no check mark, a stronger fill plus an outline so it stands out in both themes. */
+/** Selected server row: no check mark, a stronger fill plus an outline so it stands out in both themes. */
 object NewDesignRow {
     @Composable fun selectedColor(): Color = MaterialTheme.colorScheme.primaryContainer
     @Composable fun selectedBorder(chosen: Boolean): androidx.compose.foundation.BorderStroke? =
@@ -127,7 +127,7 @@ object MonoTheme {
 private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * blue) < 0.5f
 
 /**
- * The connect button of the new design: a moth seen from above. Off = resting delta pose (wings partly open, swept back), connecting = flapping between rest and spread (loop),
+ * The connect button: a moth seen from above. Off = resting delta pose (wings partly open, swept back), connecting = flapping between rest and spread (loop),
  * on = wings spread. Monochrome: dark theme grey off / near-white on, light theme grey off / black on. One large circular touch target.
  */
 @Composable fun MothButton(on: Boolean, flapping: Boolean, dark: Boolean, enabled: Boolean, onClick: () -> Unit, description: String, modifier: Modifier = Modifier,
@@ -206,7 +206,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     return r.latencyMs to (r.latencyMs == null && r.error != null)
 }
 
-/** Home screen of the new design: same content and actions as [HomeScreen], moth connect button and a server bar with a bottom sheet. */
+/** Home screen: moth connect button, status, stat tiles, subscription card and a server bar with a bottom sheet. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun NewHomeScreen(saved: SavedSubscription?, book: org.mothvpn.core.SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
     add: () -> Unit, connect: () -> Unit, select: (String, String) -> Unit, updateAvailable: Boolean = false, openUpdates: () -> Unit = {}) {
@@ -447,7 +447,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     else Surface(shape = RoundedCornerShape(12.dp), color = color, modifier = modifier.size(size), content = content)
 }
 
-/** Menu of the new design: a bottom sheet with a title and full-width rows ([NdSheetItem]), consistent with the server sheet. */
+/** Menu: a bottom sheet with a title and full-width rows ([NdSheetItem]), consistent with the server sheet. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun NdActionSheet(title: String, dismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     ModalBottomSheet(onDismissRequest = dismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
@@ -463,7 +463,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val alpha = if (enabled) 1f else 0.38f
     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = enabled, onClick = onClick, role = androidx.compose.ui.semantics.Role.Button).padding(horizontal = 24.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        // Monochrome leading icon, as in the rest of the new design.
+        // Monochrome leading icon, as in the rest of the app.
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha), modifier = Modifier.padding(end = 16.dp).size(24.dp))
         Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f))
     }
@@ -474,7 +474,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     org.mothvpn.core.ServerLabels.label(p, tr(R.string.server_balancer)) + if (org.mothvpn.core.ProxyProtocols.unencrypted(p)) " · " + tr(R.string.proto_unencrypted) else ""
 
 /**
- * New design: keyword server filter. Keywords are added one by one (text field + Add) and listed as rows with a delete button;
+ * Keyword server filter. Keywords are added one by one (text field + Add) and listed as rows with a delete button;
  * the mode hides matching servers or shows only them. Saved in settings and matched against server names when the list is shown,
  * so it survives subscription updates.
  */
@@ -523,7 +523,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     }
 }
 
-/** True when the new design's keyword filter of network [kind] shows this server (the classic design ignores the filter). */
+/** True when the keyword filter of network [kind] shows this server. */
 fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows(p.name)
 
 /**
@@ -550,7 +550,7 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
 }
 
 /**
- * Two-option switch of the new design: a tonal track with a filled pill behind the active option (not an underline).
+ * Two-option switch: a tonal track with a filled pill behind the active option (not an underline).
  * [position] is 0..1 (the pager position, fractions while swiping), so the pill slides with the finger.
  */
 @Composable fun NdPillSwitch(labels: List<String>, position: Float, select: (Int) -> Unit) {

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Monochrome widget (new design): tonal surface, the moth in a rounded tile (grey off, full tone on), server name, state and a pill button. -->
+<!-- Monochrome widget: tonal surface, the moth in a rounded tile (grey off, full tone on), server name, state and a pill button. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" android:id="@+id/widget_root"
     android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal"
     android:gravity="center_vertical" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="8dp" android:paddingBottom="8dp"

@@ -154,6 +154,9 @@ class DesignScreenshotTest {
         eventually(90_000, "checks finished") { !Diagnostics.running.value }
         Thread.sleep(800)
         shot("servers-$theme")
+        // The ⋮ menu: update all subscriptions and check all servers on the page (the old toolbar actions).
+        wait(By.desc("More server actions")).click(); wait(By.text("Check all servers")); wait(By.text("Update subscription")); Thread.sleep(700)
+        shot("servers-menu-$theme"); device.pressBack(); Thread.sleep(700)
         wait(By.descStartsWith("Collapse:")).click(); Thread.sleep(700)
         shot("servers-collapsed-$theme")
         wait(By.descStartsWith("Expand:")).click(); Thread.sleep(500)

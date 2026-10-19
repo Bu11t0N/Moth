@@ -1,7 +1,7 @@
 package org.mothvpn.core
 
 /**
- * Keyword server filter (new design). Keywords match server names case-insensitively as substrings, at display time,
+ * Keyword server filter. Keywords match server names case-insensitively as substrings, at display time,
  * so the filter keeps working after a subscription update renames or replaces the servers.
  */
 object ServerFilter {

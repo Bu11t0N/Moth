@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
-/** Home-screen widget in the monochrome style of the new design (for both designs): moth tile, server name, tunnel state and a Connect/Disconnect pill (same logic as the tile). */
+/** Home-screen widget in the app's monochrome style: moth tile, server name, tunnel state and a Connect/Disconnect pill (same logic as the tile). */
 class MothWidget : AppWidgetProvider() {
     companion object {
         private const val TOGGLE = "org.mothvpn.android.WIDGET_TOGGLE"

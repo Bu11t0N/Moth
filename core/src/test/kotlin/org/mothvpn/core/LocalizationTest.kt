@@ -48,7 +48,7 @@ class LocalizationTest {
     @Test fun formattedMessagesAcceptTheRuntimeArguments() {
         for (folder in listOf("values", "values-ru")) {
             val resources = strings(folder)
-            assertTrue(resources.getValue("msg_host_saved_profiles_size_servers_17").format("example.com", 12).contains("12"))
+            assertTrue(resources.getValue("sub_servers_count").format(12).contains("12"))
         }
     }
 }
