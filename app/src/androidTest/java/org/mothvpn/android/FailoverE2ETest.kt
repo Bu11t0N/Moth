@@ -104,7 +104,11 @@ class FailoverE2ETest {
                 assertTrue("state while on the dead server: $state", state == TunnelState.RUNNING || state == TunnelState.STARTING)
             }
             val seen = fetch("/ip", 3000)
-            if (seen != null) assertTrue("traffic left outside the tunnel ($seen)", seen in tunneled)
+            // Direct traffic is a leak while the tunnel stays on the dead server. Only the fast switch itself (kill switch off) has a
+            // short gap: the active server is cleared, the old tunnel closes and the new one comes up.
+            if (seen != null && seen !in tunneled && onDead && TunnelStatus.activeProfile.value == dead.value.first)
+                fail("traffic left outside the tunnel while staying on the dead server ($seen)")
+            if (seen != null && seen !in tunneled) log("direct answer during the switch")
             if (seen == live.value.third) { switched = true; break }
             Thread.sleep(500)
         }

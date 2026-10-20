@@ -161,12 +161,17 @@ class UiE2ETest {
         val current = NetworkTracker.read(context.getSystemService(android.net.ConnectivityManager::class.java)).kind
         val other = if (current == "mobile") "Wi-Fi" else "Mobile data"
         assertTrue("no inline network hint", device.findObject(By.textStartsWith("Checks run only")) == null)
-        wait(By.text(other)).click(); Thread.sleep(900)
-        wait(By.desc("Check servers").enabled(true)).click()
-        val notice = wait(By.descStartsWith("To check these servers"), 3_000); Thread.sleep(350)
+        tap(By.text(other)); Thread.sleep(900)
+        tap(By.desc("Check servers").enabled(true))
+        wait(By.descStartsWith("To check these servers"), 3_000)
+        // The notice is hosted above the tabs: switching to Home keeps it on screen, then it hides by itself after 2 s.
+        tap(By.text("Home"))
+        assertNotNull("notice kept across the tab switch", device.wait(Until.findObject(By.descStartsWith("To check these servers")), 400))
         eventually(4_000, "notice hides after 2 s") { device.findObject(By.descStartsWith("To check these servers")) == null }
-        wait(By.desc("Check servers").enabled(true)).click()
-        wait(By.descStartsWith("To check these servers"), 3_000).click()
+        tap(By.text("Servers")); Thread.sleep(900)
+        tap(By.text(other)); Thread.sleep(900)
+        tap(By.desc("Check servers").enabled(true))
+        tap(By.descStartsWith("To check these servers"))
         eventually(1_500, "notice hides on tap") { device.findObject(By.descStartsWith("To check these servers")) == null }
         assertTrue("no checks started on the other network", !Diagnostics.running.value)
         wait(By.text(if (current == "mobile") "Mobile data" else "Wi-Fi")).click(); Thread.sleep(900)
