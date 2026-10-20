@@ -82,8 +82,12 @@ import org.mothvpn.core.SubscriptionSource
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(results) { now = System.currentTimeMillis(); while (true) { delay(60_000); now = System.currentTimeMillis() } }
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
-    // Updating subscriptions works while connected (the running session keeps its server even if the update removed it).
+    // Updating, adding and deleting subscriptions work while connected (the running session keeps its server even if an update removed it).
     val refreshLocked = busy || probing || tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)
+    val activeId by TunnelStatus.activeProfile.collectAsState()
+    // The subscription with the server in use cannot be deleted while connected (or blocked by the kill switch).
+    fun inUse(sourceId: String) = tunnel in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) && book?.inUse(sourceId, activeId) == true
+    fun deleteLocked(sourceId: String) = refreshLocked || inUse(sourceId)
     // Check buttons stay tappable on the other network's page; a tap there shows a short notice at the top instead of checking.
     val canCheck = saved != null && !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING)
     var notice by remember { mutableStateOf<String?>(null) }
@@ -179,9 +183,9 @@ import org.mothvpn.core.SubscriptionSource
         // Refresh and check live in each group header; Add (+) and the ⋮ menu ("update all", "check all") are in the top bar.
         Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            // Adding is not possible while connected or checking: the + dims and a tap explains why.
-            IconButton(onClick = { if (locked) show(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104)) else add() },
-                modifier = Modifier.size(40.dp).graphicsLayer { alpha = if (locked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) }) {
+            // Adding works while connected; only during checks, a connect/disconnect or another operation the + dims and a tap explains why (top notice).
+            IconButton(onClick = { if (refreshLocked) show(tr(R.string.sub_wait_notice)) else add() },
+                modifier = Modifier.size(40.dp).graphicsLayer { alpha = if (refreshLocked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) }) {
                 Icon(androidx.compose.material.icons.Icons.Rounded.Add, contentDescription = null)
             }
             if (saved != null) IconButton(onClick = { allActions = true }, modifier = Modifier.size(40.dp).semantics { contentDescription = tr(R.string.servers_more) }) {
@@ -239,9 +243,15 @@ import org.mothvpn.core.SubscriptionSource
             if (!source.local) NdSheetItem(tr(R.string.sub_update), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !refreshLocked) { actionsFor = null; refreshOne(source.id) }
             val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }.ifEmpty { source.profiles.map { it.id } }
             NdSheetItem(tr(R.string.sub_check), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck) { actionsFor = null; checkOn(kind) { probeGroup(kind, ids) } }
-            NdSheetItem(tr(R.string.sub_delete), androidx.compose.material.icons.Icons.Rounded.Delete, enabled = !locked) { actionsFor = null; delete = source.id }
-            if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            // Dimmed but tappable when locked: the tap closes the sheet and explains why in the top notice.
+            NdSheetItem(tr(R.string.sub_delete), androidx.compose.material.icons.Icons.Rounded.Delete, dimmed = deleteLocked(source.id)) {
+                actionsFor = null
+                when {
+                    inUse(source.id) -> show(tr(R.string.sub_delete_in_use))
+                    refreshLocked -> show(tr(R.string.sub_wait_notice))
+                    else -> delete = source.id
+                }
+            }
         }
     }
     editFor?.let { id -> book?.source(id) }?.let { source ->
@@ -262,7 +272,7 @@ import org.mothvpn.core.SubscriptionSource
     delete?.let { id -> book?.source(id) }?.let { source ->
         AlertDialog(onDismissRequest = { delete = null }, title = { Text(tr(R.string.sub_delete_title, source.title())) },
             text = { Text(if ((book?.sources?.size ?: 0) > 1) tr(R.string.sub_delete_text) else tr(R.string.msg_the_subscription_link_will_need_to_be_added_a_68)) },
-            confirmButton = { TextButton(enabled = !locked, onClick = { delete = null; remove(source.id) }) { Text(tr(R.string.msg_remove_69)) } },
+            confirmButton = { TextButton(enabled = !deleteLocked(source.id), onClick = { delete = null; remove(source.id) }) { Text(tr(R.string.msg_remove_69)) } },
             dismissButton = { TextButton(onClick = { delete = null }) { Text(tr(R.string.msg_cancel_32)) } })
     }
 }

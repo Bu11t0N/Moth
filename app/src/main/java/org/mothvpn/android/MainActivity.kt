@@ -395,6 +395,12 @@ class MainActivity : AppCompatActivity() {
     }
     private fun removeSubscription(id: String) {
         if (busy) return
+        // Never delete the subscription whose server the running VPN uses (the Servers tab already dims Delete for it).
+        val state = TunnelStatus.state.value
+        if (state in setOf(TunnelState.STARTING, TunnelState.STOPPING) ||
+            (state in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) && book?.inUse(id, TunnelStatus.activeProfile.value) == true)) {
+            Logger.w("Store", "delete ignored: the subscription is in use"); return
+        }
         busy = true
         lifecycleScope.launch {
             try {

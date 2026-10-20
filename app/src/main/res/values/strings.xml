@@ -279,7 +279,10 @@
     <string name="sub_left">Traffic left: %1$s of %2$s</string>
     <string name="sub_expires">Expires on %1$s</string>
     <string name="stats_title">Statistics</string>
+    <string name="sub_delete_in_use">This subscription’s server is in use. Disconnect to delete it.</string>
+    <string name="sub_wait_notice">Wait until checks and the connection change finish.</string>
     <string name="stats_today">Today</string>
+    <string name="stats_day">Day</string>
     <string name="stats_month">Month</string>
     <string name="stats_week">Week</string>
     <string name="stats_chart">Daily traffic</string>

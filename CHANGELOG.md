@@ -4,53 +4,37 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ## 0.7.0
 
-Not released yet.
+Released 2026-10-20.
 
-### Changes
+### Design
 
-- Experimental: a new monochrome design. The connect button is a moth that flaps its wings while connecting, the server list opens from the bottom of the home screen, and subscription groups have their own update and check buttons.
-- The themed app icon on Android 13 and newer shows the moth silhouette clearly.
-- The speed test has been removed; server checks still show the ping.
-- New design: a pure black (AMOLED) option for the dark theme, a Wi-Fi / mobile data switch, menus that open from the bottom and a resting moth when the VPN is off.
-- “My servers” no longer show an update date.
-- Split tunneling lists all installed apps that use the internet, including apps without a launcher icon.
-- The keyboard no longer covers the server JSON editor.
-- Swiping between Wi-Fi and mobile data works again on the Servers tab.
-- New design: settings icons in rounded tiles and a gear icon for Settings in the bottom bar.
-- New design: a server filter by keywords — hide matching servers or show only them, separately for Wi-Fi and mobile data.
-- New design: support, news and website buttons from the provider on the subscription card.
-- New design: split tunneling can be changed while connected.
-- New design: searching servers opens collapsed groups with matches.
-- New design: clearer depth with tonal surfaces, a highlighted server card on the home screen and a pill switch for Wi-Fi / mobile data.
-- New design: speed, session traffic and connection time under the moth while connected.
-- New design: subscription traffic as a ring with a percentage, and the provider’s logo on the subscription card.
-- New design: auto-select and failover never pick servers hidden by the server filter.
-- The home-screen widget has a new monochrome look.
-- Ping now shows latency on an already open connection, like most clients; “Full latency” and “TCP” are available in Settings.
-- New design: the home screen fits short screens and large fonts — nothing overlaps, the moth gets smaller when space is tight, and the stat tiles line up with the cards below.
-- New design: the server list on the home screen opens at full height and scrolls right away; one swipe down closes it.
-- Connection settings can be changed while the VPN is on.
-- The VPN notification stays near the top of the notification shade.
-- Quick Settings tile: a tap toggles the VPN without closing the shade; a long press opens Moth.
-- Split tunneling: selected apps are listed first.
-- A subscription can be renamed while connected.
-- The provider’s logo is found in more places; without one, the icon of the provider’s website is used.
-- Removed the “subscription removed” message and the “checked on another network” label.
+- A new monochrome design, now the only one. The connect button is a moth: it flaps its wings while connecting, moves them slowly while connected and rests when the VPN is off.
+- A pure black (AMOLED) option for the dark theme. The themed app icon, the home-screen widget and the VPN notification icon follow the new look and your system colours.
+- The home screen shows speed, session traffic and connection time, a highlighted server card and the subscription card, and fits short screens and large fonts.
+- Menus open from the bottom of the screen; short notices appear at the top.
+
+### Servers and subscriptions
+
+- The server list opens from the bottom of the home screen. The Servers tab has a Wi-Fi / mobile data switch, a group per subscription with its own update and check buttons, and search that opens groups with matches.
+- The ⋮ menu updates all subscriptions and checks all servers; the add button is in the top bar.
+- A keyword filter hides matching servers or shows only them, separately for Wi-Fi and mobile data. Auto-select and failover never pick hidden servers.
+- Subscriptions can be added, updated, renamed and deleted while the VPN is on. The connection stays on its server even if an update removed it; only the subscription with the server in use can’t be deleted until you disconnect.
+- The subscription card shows traffic as a ring, the provider’s logo (or its website icon or Telegram avatar), support, news and website buttons, and announcements.
+- Ping measures latency on an open connection, like most clients; “Full latency” and “TCP” are in Settings. The speed test has been removed.
+
+### Connection and settings
+
+- Connection settings and split tunneling can be changed while the VPN is on.
+- Split tunneling lists every app that uses the internet, including apps without a launcher icon, with selected apps first.
+- Quick Settings tile: a tap toggles the VPN without closing the shade; a long press opens Moth. The VPN notification stays near the top of the shade.
+- The system name, version and device model sent to your provider can be changed in a dialog or reset to the defaults. The Android version is sent by default.
+- Statistics show the totals for the day, week and month at the top.
 - For developers: a list of the header names a subscription sends.
-- The new design is now the only one.
-- The VPN notification icon follows your system colours.
-- You can change the system name, version and device model sent to your provider, or reset them to the defaults. Sending the Android version is on by default.
-- While the VPN is on, the moth slowly moves its wings.
-- Statistics show today, this week and this month at the top.
-- Shorter settings hints.
-- Closing the app is no longer written to the log.
-- Without a logo, the provider’s avatar is taken from its public Telegram page.
-- Provider announcements are shown on the subscription card.
-- Servers: update all subscriptions and check all servers from the ⋮ menu.
-- Subscriptions can be updated while the VPN is on; the connection stays on its server even if the update removed it.
-- Servers: the add button moved to the top bar.
-- Servers: checking the other network’s list shows a short notice at the top instead of a permanent hint.
-- Device info opens in a scrollable dialog that shows the values being sent.
+
+### Fixes and updates
+
+- The keyboard no longer covers the server JSON editor, and swiping between Wi-Fi and mobile data works again.
+- Shorter settings hints and fewer unneeded messages and log lines.
 - Updated Xray to 26.10.17.
 
 ## 0.6.5

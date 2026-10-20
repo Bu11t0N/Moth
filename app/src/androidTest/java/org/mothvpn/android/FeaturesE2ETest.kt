@@ -114,6 +114,45 @@ class FeaturesE2ETest {
         log("subscription updated while connected; removed server kept until disconnect")
     }
 
+    private fun groupActions(title: String) {
+        val y = wait(By.desc("Collapse: $title")).visibleBounds.centerY()
+        device.findObjects(By.desc("Subscription actions")).minByOrNull { kotlin.math.abs(it.visibleBounds.centerY() - y) }!!.click()
+    }
+
+    @Test fun addAndDeleteSubscriptionsWhileConnected() {
+        val first = add(sub1, "First E2E")
+        launch(); connect()
+        val active = TunnelStatus.activeProfile.value
+        assertTrue("active server in the first subscription", SubscriptionStore(context).loadBook()!!.inUse(first.sourceId, active))
+        tab("Servers")
+        // Adding works while connected (the + is not dimmed and opens the add dialog).
+        wait(By.desc("Add subscription")).click()
+        wait(By.clazz("android.widget.EditText")).text = sub2
+        wait(By.text("Add")).click()
+        wait(By.desc("Collapse: Second E2E"), 60_000)
+        eventually(15_000, "two subscriptions") { SubscriptionStore(context).loadBook()!!.sources.size == 2 }
+        assertEquals(TunnelState.RUNNING, TunnelStatus.state.value); assertEquals(active, TunnelStatus.activeProfile.value)
+        // The subscription with the server in use: Delete only shows the top notice, nothing is deleted.
+        groupActions("First E2E")
+        wait(By.text("Delete")).click()
+        wait(By.descStartsWith("This subscription’s server is in use"), 5_000)
+        assertNull("no delete dialog", device.findObject(By.text("Remove")))
+        eventually(4_000, "notice hides after 2 s") { device.findObject(By.descStartsWith("This subscription’s server is in use")) == null }
+        assertEquals(2, SubscriptionStore(context).loadBook()!!.sources.size)
+        // Any other subscription can be deleted; the session stays on its server.
+        groupActions("Second E2E")
+        wait(By.text("Delete")).click()
+        wait(By.text("Remove")).click()
+        eventually(15_000, "second deleted") { SubscriptionStore(context).loadBook()!!.sources.map { it.id } == listOf(first.sourceId) }
+        val book = SubscriptionStore(context).loadBook()!!
+        assertTrue("selection still valid", book.profiles.any { it.id == book.selected })
+        Thread.sleep(3000)
+        assertEquals(TunnelState.RUNNING, TunnelStatus.state.value); assertEquals(active, TunnelStatus.activeProfile.value)
+        tab("Home"); wait(By.text("VPN is on"))
+        disconnect()
+        log("added and deleted subscriptions while connected; in-use subscription stayed")
+    }
+
     @Test fun multipleSubscriptionsGroupRefreshAndDelete() {
         val first = add(sub1, "First E2E")
         val second = add(sub2, null)

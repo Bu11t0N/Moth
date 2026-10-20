@@ -281,7 +281,10 @@
     <string name="sub_left">Осталось трафика: %1$s из %2$s</string>
     <string name="sub_expires">Действует до %1$s</string>
     <string name="stats_title">Статистика</string>
+    <string name="sub_delete_in_use">Сервер этой подписки сейчас используется. Отключись, чтобы её удалить.</string>
+    <string name="sub_wait_notice">Дождись окончания проверок и смены подключения.</string>
     <string name="stats_today">Сегодня</string>
+    <string name="stats_day">День</string>
     <string name="stats_month">Месяц</string>
     <string name="stats_week">Неделя</string>
     <string name="stats_chart">Трафик по дням</string>

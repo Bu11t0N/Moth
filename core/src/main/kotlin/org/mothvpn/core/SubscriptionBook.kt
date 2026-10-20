@@ -47,6 +47,8 @@ data class SubscriptionBook(val sources: List<SubscriptionSource>, val selected:
     }
     /** The subscription a server belongs to (the first one that contains it). */
     fun sourceOf(profileId: String) = sources.firstOrNull { s -> s.profiles.any { it.id == profileId } }
+    /** True when [sourceId] contains the server the VPN is using now ([activeId], empty when not connected): it cannot be deleted then. */
+    fun inUse(sourceId: String, activeId: String): Boolean = activeId.isNotEmpty() && source(sourceId)?.profiles?.any { it.id == activeId } == true
     /** Selection fixed up so that each choice points at an existing server. */
     fun normalized(): SubscriptionBook {
         val ids = profiles.map { it.id }.toHashSet()

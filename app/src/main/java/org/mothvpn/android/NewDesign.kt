@@ -466,13 +466,14 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 }
 
 /** One menu row: the whole row, edge to edge, is the touch target (at least 56 dp high). */
-@Composable fun NdSheetItem(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, enabled: Boolean = true, onClick: () -> Unit) {
-    val alpha = if (enabled) 1f else 0.38f
+/** [dimmed]: looks disabled but stays tappable (the tap explains why the action is not available). */
+@Composable fun NdSheetItem(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, enabled: Boolean = true, dimmed: Boolean = false, onClick: () -> Unit) {
+    val alpha = if (enabled && !dimmed) 1f else 0.38f
     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = enabled, onClick = onClick, role = androidx.compose.ui.semantics.Role.Button).padding(horizontal = 24.dp),
         verticalAlignment = Alignment.CenterVertically) {
         // Monochrome leading icon, as in the rest of the app.
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha), modifier = Modifier.padding(end = 16.dp).size(24.dp))
-        Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f))
+        Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha))
     }
 }
 

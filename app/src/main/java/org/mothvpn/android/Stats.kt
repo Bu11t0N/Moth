@@ -84,7 +84,7 @@ object TrafficRecorder {
     val series = remember(history, today, range) { history.series(today, range) }
     Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard(tr(R.string.stats_today), history.day(today), units, locale, Modifier.weight(1f))
+            StatCard(tr(R.string.stats_day), history.day(today), units, locale, Modifier.weight(1f))
             StatCard(tr(R.string.stats_week), history.week(today, firstDay), units, locale, Modifier.weight(1f))
             StatCard(tr(R.string.stats_month), history.month(today), units, locale, Modifier.weight(1f))
         }
@@ -125,7 +125,7 @@ object TrafficRecorder {
     }
 }
 
-/** One of the three top items (Today / Week / Month): a short label and the total, nothing else (sent/received are in the chart). */
+/** One of the three top items (Day / Week / Month): a short label and the total, nothing else (sent/received are in the chart). */
 @Composable private fun StatCard(title: String, value: Pair<Long, Long>, units: List<String>, locale: java.util.Locale, modifier: Modifier) {
     Surface(shape = MaterialTheme.shapes.large, color = NdTone.card(), modifier = modifier.semantics(mergeDescendants = true) {}) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
