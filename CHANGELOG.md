@@ -14,6 +14,7 @@ Not released yet.
 - Servers: “Update all” and “Check all” are now buttons in the top bar instead of the ⋮ menu.
 - Notices at the top of the screen stay visible when you switch tabs.
 - Auto-select and failover no longer drop the VPN while checking servers: the connection stays up on the current server and switches only to a server that answers.
+- The TCP server check now works while the VPN is on (before, every server showed as failed).
 
 ## 0.7.0
 

@@ -86,7 +86,7 @@ class TunnelService : VpnService(), PlatformInterface {
     private val generation = AtomicLong()
     private var probeCancel = AtomicBoolean(false)
     private var initialized = false
-    private var tun: ParcelFileDescriptor? = null
+    @Volatile private var tun: ParcelFileDescriptor? = null
     @Volatile private var stopped = false
     private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
     /** Newest start id: finish() stops the service only if no command arrived after it (a Connect right after Disconnect must survive). */
@@ -705,7 +705,11 @@ class TunnelService : VpnService(), PlatformInterface {
             java.net.Socket().use { socket ->
                 tcpSockets.add(socket)
                 try {
-                    val tunnelActive = TunnelStatus.state.value !in setOf(TunnelState.OFF, TunnelState.ERROR)
+                    // An unconnected java.net.Socket has no descriptor until it is used, and protect() of such a socket always returned
+                    // false (so every TCP check failed while connected): reading an option creates the descriptor first.
+                    socket.reuseAddress
+                    // A VPN interface exists (the tunnel or the kill switch's block): the probe socket must be protected from it.
+                    val tunnelActive = tun != null || blockTun != null
                     val protectedOk = protect(socket)
                     if (!protectedOk) Logger.w("Probe", "tcpProbe: protect(socket) returned false (tunnelActive=$tunnelActive)")
                     check(ProtectPolicy.allows(protectedOk, tunnelActive)) { "protect(socket) failed" }
