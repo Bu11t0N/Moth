@@ -42,6 +42,11 @@ class StatsScreenshotTest {
             val left = b.left + (48 * context.resources.displayMetrics.density).toInt()
             device.click(b.right - (b.right - left) / 14, b.bottom - b.height() / 4)
             detail = device.wait(Until.findObject(By.textContains("↑")), 3_000)
+            // The detail line sits above the chart and may have scrolled out of view.
+            if (detail == null && device.findObject(By.text("Tap a bar for that day.")) == null) {
+                device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.UP, 0.25f); Thread.sleep(600)
+                detail = device.findObject(By.textContains("↑"))
+            }
         }
         assertNotNull("tap detail not shown", detail)
         device.takeScreenshot(File(context.externalCacheDir, "stats.png"))

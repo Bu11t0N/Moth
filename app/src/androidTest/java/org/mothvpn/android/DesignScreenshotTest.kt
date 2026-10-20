@@ -32,6 +32,12 @@ class DesignScreenshotTest {
     private val hwid by lazy { runCatching { SettingsStore(context).load().hwid }.getOrDefault("e2e-hwid-0000") }
 
     private fun log(msg: String) = android.util.Log.i("MothE2E", msg)
+    /** Click that survives a recomposition between finding the node and clicking it. */
+    private fun tap(selector: BySelector) {
+        repeat(3) { attempt ->
+            try { wait(selector).click(); return } catch (e: androidx.test.uiautomator.StaleObjectException) { if (attempt == 2) throw e; Thread.sleep(400) }
+        }
+    }
     private fun wait(selector: BySelector, ms: Long = 30_000): UiObject2 =
         device.wait(Until.findObject(selector), ms) ?: run { runCatching { device.dumpWindowHierarchy(File(out, "window.xml")) }; throw AssertionError("not found: $selector") }
     private fun eventually(ms: Long, what: String, check: () -> Boolean) {
@@ -170,9 +176,9 @@ class DesignScreenshotTest {
         eventually(1_500, "notice hides on tap") { device.findObject(By.descStartsWith("To check these servers")) == null }
         assertTrue("no checks started on the other network", !Diagnostics.running.value)
         wait(By.text(if (current == "mobile") "Mobile data" else "Wi-Fi")).click(); Thread.sleep(900)
-        wait(By.descStartsWith("Collapse:")).click(); Thread.sleep(700)
+        tap(By.descStartsWith("Collapse:")); Thread.sleep(700)
         shot("servers-collapsed-$theme")
-        wait(By.descStartsWith("Expand:")).click(); Thread.sleep(500)
+        tap(By.descStartsWith("Expand:")); Thread.sleep(500)
         // Menus are bottom sheets with full-width rows: the subscription menu and a server's long-press menu.
         wait(By.desc("Subscription actions")).click(); wait(By.text("Delete")); Thread.sleep(700)
         shot("group-menu-$theme"); device.pressBack(); Thread.sleep(700)
