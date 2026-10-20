@@ -148,13 +148,13 @@ class MainActivity : AppCompatActivity() {
                             when (shown) {
                                 0 -> NewHomeScreen(saved, book, settings, network, busy, message,
                                     add = { url = ""; subName = ""; dialog = true },
-                                    connect = { if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || TunnelStatus.trafficBlocked(TunnelStatus.state.value, TunnelStatus.blocking.value)) stop() else connect() },
+                                    connect = { homeTap() },
                                     select = { id, kind -> select(id, kind) }, updateAvailable = updateAvailable, openUpdates = { openUpdates = true; tab = 2 })
                                 1 -> ServersScreen(saved, book, settings, network, busy, message,
                                     add = { url = ""; subName = ""; dialog = true }, refresh = { refreshAll() }, refreshOne = { id -> book?.source(id)?.takeIf { !it.local }?.let { import(it.url, "refresh", id) } },
                                     edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
                                     select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
-                                    cancel = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("CANCEL_PROBES")) },
+                                    cancel = { cancelChecks() },
                                     preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) }, selecting = selecting)
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
@@ -412,6 +412,19 @@ class MainActivity : AppCompatActivity() {
             finally { busy = false }
         }
     }
+    /** The home moth button: disconnect, connect, or (VPN off, servers being checked) stop the check without connecting. */
+    private fun homeTap() {
+        val state = TunnelStatus.state.value
+        val blocked = TunnelStatus.trafficBlocked(state, TunnelStatus.blocking.value)
+        val running = state in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || blocked
+        val transition = state in setOf(TunnelState.STARTING, TunnelState.STOPPING) && !blocked
+        when (org.mothvpn.core.HomeButton.tap(Diagnostics.running.value, running, transition)) {
+            org.mothvpn.core.HomeButton.Tap.DISCONNECT -> stop()
+            org.mothvpn.core.HomeButton.Tap.STOP_CHECKS -> { Logger.i("Probe", "checks stopped from the home button"); cancelChecks() }
+            org.mothvpn.core.HomeButton.Tap.CONNECT -> connect()
+        }
+    }
+    private fun cancelChecks() { startService(Intent(this, TunnelService::class.java).setAction("CANCEL_PROBES")) }
     private fun connect() {
         Logger.i("Tunnel", "connect tapped (network=${networks.state.value.kind}, available=${networks.state.value.available})")
         if (!networks.state.value.available) { message = tr(R.string.msg_no_network_20); return }

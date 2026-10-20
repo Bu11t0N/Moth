@@ -281,6 +281,8 @@
     <string name="stats_title">Statistics</string>
     <string name="sub_delete_in_use">This subscription’s server is in use. Disconnect to delete it.</string>
     <string name="sub_wait_notice">Wait until checks and the connection change finish.</string>
+    <string name="home_checking_servers">Checking servers…</string>
+    <string name="home_stop_checks">Stop checking servers</string>
     <string name="stats_today">Today</string>
     <string name="stats_day">Day</string>
     <string name="stats_month">Month</string>

@@ -136,14 +136,16 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
  * on = wings spread. Monochrome: dark theme grey off / near-white on, light theme grey off / black on. One large circular touch target.
  */
 @Composable fun MothButton(on: Boolean, flapping: Boolean, dark: Boolean, enabled: Boolean, onClick: () -> Unit, description: String, modifier: Modifier = Modifier,
-    size: androidx.compose.ui.unit.Dp = 260.dp) {
+    size: androidx.compose.ui.unit.Dp = 260.dp, pinging: Boolean = false) {
+    // pinging: VPN off and servers being checked: the connecting wing beat, but in the off colours (still with animations off).
+    val beat = flapping || pinging
     val open = remember { androidx.compose.animation.core.Animatable(if (on) 1f else 0f) }
     // "Remove animations" (animator duration scale 0): no looping motion at all, the moth just shows its open / closed state.
     val context = androidx.compose.ui.platform.LocalContext.current
     val animations = remember { runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) > 0f }
-    LaunchedEffect(flapping, on, animations) {
-        if (!animations) { open.snapTo(if (on && !flapping) 1f else if (flapping) 0.5f else 0f); return@LaunchedEffect }
-        if (flapping) while (true) {
+    LaunchedEffect(beat, on, animations) {
+        if (!animations) { open.snapTo(if (on && !beat) 1f else if (flapping) 0.5f else 0f); return@LaunchedEffect }
+        if (beat) while (true) {
             open.animateTo(1f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
             open.animateTo(0f, tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing))
         } else {
@@ -163,7 +165,7 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
     Box(modifier.size(size).clip(CircleShape)
         .clickable(enabled = enabled, onClick = onClick, role = androidx.compose.ui.semantics.Role.Button)
         .semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(size * (210f / 260f)).graphicsLayer { alpha = if (enabled || flapping) 1f else 0.55f }) { drawMoth(open.value, color, vein) }
+        Canvas(Modifier.size(size * (210f / 260f)).graphicsLayer { alpha = if (enabled || beat) 1f else 0.55f }) { drawMoth(open.value, color, vein) }
     }
 }
 
@@ -236,7 +238,9 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val on = running && !blocked
     val dark = MaterialTheme.colorScheme.background.luminanceLow()
     var sheet by remember { mutableStateOf(false) }
-    val enabled = if (blocked) true else !busy && (!probing || running) && !transition && selected != null
+    // VPN off and servers being checked: the moth flaps in the off colours, the status says so, and a tap stops the check (never connects).
+    val pinging = org.mothvpn.core.HomeButton.pinging(probing, running, transition)
+    val enabled = if (blocked || pinging) true else !busy && (!probing || running) && !transition && selected != null
     // Layout: header, the moth area, then the bottom group (stat tiles, subscription card, server bar) stacked with one even 10 dp gap and
     // the same 20 dp side margins. The header and the bottom group are measured first and the moth area gets the height that is left, so
     // nothing overlaps on a short screen or with a large font; the moth shrinks to fit (56-260 dp). Its size depends only on that height,
@@ -276,14 +280,14 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         // Free height: about a third above the moth, the rest between the status lines and the tiles.
         val free = (maxHeight - below - mothSize).coerceAtLeast(0.dp)
         Column(Modifier.fillMaxWidth().padding(top = free * 0.35f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(statusGap)) {
-        MothButton(on = on, flapping = transition, dark = dark, enabled = enabled, onClick = connect,
-            description = if (running) tr(R.string.msg_disconnect_vpn_8) else tr(R.string.msg_connect_vpn_9), size = mothSize)
+        MothButton(on = on, flapping = transition, dark = dark, enabled = enabled, onClick = connect, pinging = pinging,
+            description = if (running) tr(R.string.msg_disconnect_vpn_8) else if (pinging) tr(R.string.home_stop_checks) else tr(R.string.msg_connect_vpn_9), size = mothSize)
         // Reserved space for the status lines (title + one detail line): nothing above or below moves when they change.
         Column(Modifier.fillMaxWidth().height(statusHeight), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (blocked) {
                 Text(tr(R.string.home_disconnect), style = MaterialTheme.typography.headlineSmall, maxLines = 1)
                 Text(tr(R.string.msg_blocked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            } else Text(when (tunnel) { TunnelState.OFF -> tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.tile_reconnecting) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
+            } else Text(when (tunnel) { TunnelState.OFF -> if (pinging) tr(R.string.home_checking_servers) else tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.tile_reconnecting) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
             if (tunnel == TunnelState.RUNNING && !blocked) Text(if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }

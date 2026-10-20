@@ -283,6 +283,8 @@
     <string name="stats_title">Статистика</string>
     <string name="sub_delete_in_use">Сервер этой подписки сейчас используется. Отключись, чтобы её удалить.</string>
     <string name="sub_wait_notice">Дождись окончания проверок и смены подключения.</string>
+    <string name="home_checking_servers">Проверяем серверы…</string>
+    <string name="home_stop_checks">Остановить проверку серверов</string>
     <string name="stats_today">Сегодня</string>
     <string name="stats_day">День</string>
     <string name="stats_month">Месяц</string>
