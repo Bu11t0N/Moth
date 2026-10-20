@@ -127,8 +127,13 @@ class FeaturesE2ETest {
         tab("Servers")
         // Adding works while connected (the + is not dimmed and opens the add dialog).
         wait(By.desc("Add subscription")).click()
-        wait(By.clazz("android.widget.EditText")).text = sub2
-        wait(By.text("Add")).click()
+        wait(By.text("Add subscription")); Thread.sleep(800)
+        // The dialog may still recompose right after opening: retry a stale field.
+        eventually(10_000, "link typed") {
+            runCatching { wait(By.clazz("android.widget.EditText"), 3_000).text = sub2 }
+            device.findObject(By.text(sub2)) != null
+        }
+        wait(By.text("Add").enabled(true)).click()
         wait(By.desc("Collapse: Second E2E"), 60_000)
         eventually(15_000, "two subscriptions") { SubscriptionStore(context).loadBook()!!.sources.size == 2 }
         assertEquals(TunnelState.RUNNING, TunnelStatus.state.value); assertEquals(active, TunnelStatus.activeProfile.value)
