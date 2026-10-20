@@ -26,6 +26,9 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # Pushes: compare with the previous push of the same branch (without this, a push to a release branch is compared with
+          # main and every change since the last release would count). Pull requests always compare with their base.
+          base: ${{ github.event_name == 'push' && github.ref_name || '' }}
           filters: |
             core:
               - '.github/workflows/android.yml'
