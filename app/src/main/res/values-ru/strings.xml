@@ -523,7 +523,6 @@
     <string name="device_model">Модель устройства · x-device-model</string>
     <string name="device_reset">Сбросить</string>
     <string name="device_hint">Значения, которые передаются провайдеру. «Сбросить» вернёт настоящие значения этого телефона.</string>
-    <string name="servers_more">Другие действия с серверами</string>
     <string name="servers_check_all">Проверить все серверы</string>
     <string name="device_title">Данные устройства</string>
     <string name="check_needs_mobile">Чтобы проверить эти серверы, включите мобильные данные и отключите Wi-Fi</string>

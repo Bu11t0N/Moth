@@ -154,9 +154,9 @@ class UiE2ETest {
         eventually(5_000, "checks started") { Diagnostics.running.value }
         eventually(90_000, "checks finished") { !Diagnostics.running.value }
         Thread.sleep(800)
-        // The ⋮ menu: update all subscriptions and check all servers on the page (the old toolbar actions).
-        wait(By.desc("More server actions")).click(); wait(By.text("Check all servers")); wait(By.text("Update subscription")); Thread.sleep(700)
-        device.pressBack(); Thread.sleep(700)
+        // Top bar: update all subscriptions and check all servers on the page are direct buttons (no ⋮ menu any more).
+        wait(By.desc("Check all servers")); wait(By.desc("Update subscription"))
+        assertTrue("no overflow menu", device.findObject(By.desc("More server actions")) == null)
         // The other network's page: a check shows a short in-app notice at the top (no inline hint); it goes away by itself or on a tap.
         val current = NetworkTracker.read(context.getSystemService(android.net.ConnectivityManager::class.java)).kind
         val other = if (current == "mobile") "Wi-Fi" else "Mobile data"

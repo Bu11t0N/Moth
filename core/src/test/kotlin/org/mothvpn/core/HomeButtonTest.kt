@@ -17,4 +17,11 @@ class HomeButtonTest {
         assertEquals(HomeButton.Tap.DISCONNECT, HomeButton.tap(probing = true, running = true, transition = false))
         assertEquals(HomeButton.Tap.DISCONNECT, HomeButton.tap(probing = false, running = true, transition = false))
     }
+    @Test fun checksWhileConnectedFlapLitAndATapStillDisconnects() {
+        assertTrue(HomeButton.checkingOn(probing = true, on = true, transition = false))
+        assertFalse(HomeButton.checkingOn(probing = false, on = true, transition = false))
+        assertFalse(HomeButton.checkingOn(probing = true, on = false, transition = false)) // blocked or off
+        assertFalse(HomeButton.checkingOn(probing = true, on = true, transition = true))
+        assertEquals(HomeButton.Tap.DISCONNECT, HomeButton.tap(probing = true, running = true, transition = false))
+    }
 }

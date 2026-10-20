@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 
 /**
  * Shared motion for the UI: short (about 200–300 ms) standard easing and springs. Everything checks the system
@@ -39,14 +40,17 @@ object Motion {
 @Composable fun animationsOn(): Boolean { val context = LocalContext.current; return remember { Motion.enabled(context) } }
 
 /**
- * A subtle press scale (0.96, spring) for clickable cards, tiles and buttons. It only observes the touch (initial pass, nothing is
- * consumed), so ripple, clicks and accessibility of the element itself are unchanged. No effect with animations off.
+ * The shared press feedback for everything clickable (cards, rows, buttons, icon buttons, chips, dialog buttons): a short spring scale
+ * of the whole element while it is held. It only observes the touch (initial pass, nothing is consumed) and scales in the graphics
+ * layer, so ripple, clicks, touch targets and accessibility of the element are unchanged. The shrink is at most 1 - [scale] (0.96 for
+ * small buttons) and at most about 10 dp in total, so wide rows and cards move less. No effect when [enabled] is false or with
+ * animations off.
  */
-fun Modifier.pressScale(scale: Float = 0.96f): Modifier = composed {
+fun Modifier.pressScale(scale: Float = 0.96f, enabled: Boolean = true): Modifier = composed {
     val on = animationsOn()
-    if (!on) return@composed this
+    if (!on || !enabled) return@composed this
     var pressed by remember { mutableStateOf(false) }
-    val s by animateFloatAsState(if (pressed) scale else 1f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium), label = "press")
+    val p by animateFloatAsState(if (pressed) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium), label = "press")
     this
         .pointerInput(Unit) {
             awaitEachGesture {
@@ -63,7 +67,12 @@ fun Modifier.pressScale(scale: Float = 0.96f): Modifier = composed {
                 } finally { pressed = false }
             }
         }
-        .graphicsLayer { scaleX = s; scaleY = s }
+        .graphicsLayer {
+            val longest = maxOf(size.width, size.height)
+            val shrink = if (longest <= 0f) 0f else minOf(1f - scale, 10.dp.toPx() / longest)
+            val s = 1f - p * shrink
+            scaleX = s; scaleY = s
+        }
 }
 
 /** The shared-transition scope of the Settings pages and the page scope of the page being composed (null outside Settings). */
@@ -95,5 +104,27 @@ val LocalPageScope = androidx.compose.runtime.compositionLocalOf<androidx.compos
     return with(scope) {
         this@listItemMotion.animateItem(fadeInSpec = tween(Motion.SHORT), fadeOutSpec = tween(180),
             placementSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold))
+    }
+}
+
+/**
+ * A bottom navigation icon: when its tab becomes selected it gives a small spring bounce and crossfades from the outlined to the filled
+ * icon (the M3 indicator pill animates on its own). Instant with "Remove animations"; no bounce on first composition.
+ */
+@Composable fun NavIcon(selected: Boolean, outlined: androidx.compose.ui.graphics.vector.ImageVector, filled: androidx.compose.ui.graphics.vector.ImageVector) {
+    val on = animationsOn()
+    val bounce = remember { androidx.compose.animation.core.Animatable(1f) }
+    var previous by remember { mutableStateOf(selected) }
+    androidx.compose.runtime.LaunchedEffect(selected) {
+        val becameSelected = selected && !previous
+        previous = selected
+        if (on && becameSelected) {
+            bounce.snapTo(0.8f)
+            bounce.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow))
+        } else bounce.snapTo(1f)
+    }
+    androidx.compose.animation.Crossfade(selected, animationSpec = Motion.tweenOr(on, 180), label = "nav icon") { s ->
+        androidx.compose.material3.Icon(if (s) filled else outlined, contentDescription = null,
+            modifier = Modifier.graphicsLayer { scaleX = bounce.value; scaleY = bounce.value })
     }
 }

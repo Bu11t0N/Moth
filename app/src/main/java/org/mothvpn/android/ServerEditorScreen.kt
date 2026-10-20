@@ -27,7 +27,7 @@ import org.mothvpn.core.ServerEditor
                     textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), isError = error != null)
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = cancel) { Text(tr(R.string.msg_cancel_32)) }
+                    TextButton(onClick = cancel, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) }
                     Button(onClick = {
                         when (val r = ServerEditor.validate(text, profile.engine)) {
                             is ServerEditor.Result.Ok -> save(r.outbound)
@@ -39,7 +39,7 @@ import org.mothvpn.core.ServerEditor
                                 ServerEditor.Error.NO_PROTOCOL -> R.string.edit_json_err_protocol
                             })
                         }
-                    }) { Text(tr(R.string.edit_json_save)) }
+                    }, modifier = Modifier.pressScale()) { Text(tr(R.string.edit_json_save)) }
                 }
             }
         }

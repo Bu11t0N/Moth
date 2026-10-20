@@ -119,7 +119,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsToggle(tr(R.string.kill_switch), draft.killSwitch) { applySettings(draft.copy(killSwitch = it)) }
                     Text(tr(R.string.kill_switch_hint), style = MaterialTheme.typography.bodySmall)
                     val ctx = androidx.compose.ui.platform.LocalContext.current
-                    TextButton(onClick = { runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS)) }.onFailure { Logger.w("Settings", "system VPN settings unavailable", it) } }) { Text(tr(R.string.kill_switch_system)) }
+                    TextButton(onClick = { runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS)) }.onFailure { Logger.w("Settings", "system VPN settings unavailable", it) } }, modifier = Modifier.pressScale()) { Text(tr(R.string.kill_switch_system)) }
                     SettingsToggle(tr(R.string.boot_connect), draft.bootConnect) { applySettings(draft.copy(bootConnect = it)) }
                     Text(tr(R.string.boot_connect_hint), style = MaterialTheme.typography.bodySmall)
                     SectionHeader(tr(R.string.set_head_dpi))
@@ -150,7 +150,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     listOf(Triple(org.mothvpn.core.ProbePolicy.LATENCY, tr(R.string.ping_latency), tr(R.string.ping_latency_hint)),
                         Triple(org.mothvpn.core.ProbePolicy.FULL, tr(R.string.ping_full), tr(R.string.ping_full_hint)),
                         Triple(org.mothvpn.core.ProbePolicy.TCP, tr(R.string.ping_tcp), tr(R.string.ping_tcp_hint))).forEach { (value, label, hint) ->
-                        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = !locked) { applySettings(draft.copy(probeMode = value)) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Row(Modifier.pressScale(enabled = !locked).fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = !locked) { applySettings(draft.copy(probeMode = value)) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             RadioButton(draft.probeMode == value, { applySettings(draft.copy(probeMode = value)) }, enabled = !locked)
                             Column(Modifier.padding(vertical = 6.dp)) {
                                 Text(label, style = MaterialTheme.typography.bodyLarge)
@@ -175,8 +175,8 @@ import org.mothvpn.core.SubscriptionSchedule
                         AlertDialog(onDismissRequest = { customDns = false }, title = { Text(tr(R.string.dns_custom)) }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(text, { text = it.trim() }, singleLine = true, isError = !DnsServers.valid(text), modifier = Modifier.fillMaxWidth())
                             Text(tr(R.string.dns_custom_hint), style = MaterialTheme.typography.bodySmall)
-                        } }, confirmButton = { TextButton(enabled = DnsServers.valid(text), onClick = { customDns = false; applySettings(draft.copy(dns = text)) }) { Text(tr(R.string.ok)) } },
-                            dismissButton = { TextButton(onClick = { customDns = false }) { Text(tr(R.string.msg_cancel_32)) } })
+                        } }, confirmButton = { TextButton(enabled = DnsServers.valid(text), onClick = { customDns = false; applySettings(draft.copy(dns = text)) }, modifier = Modifier.pressScale(enabled = DnsServers.valid(text))) { Text(tr(R.string.ok)) } },
+                            dismissButton = { TextButton(onClick = { customDns = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
                     }
                     SettingsToggle(tr(R.string.dns_leak), draft.dnsLeakProtection, !locked) { applySettings(draft.copy(dnsLeakProtection = it)) }
                     Text(tr(R.string.dns_leak_hint), style = MaterialTheme.typography.bodySmall)
@@ -203,9 +203,9 @@ import org.mothvpn.core.SubscriptionSchedule
                     Text(tr(R.string.msg_a_persistent_installation_identifier_without_106), style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(draft.hwid, { applySettings(draft.copy(hwid = it)) }, enabled = !locked, label = { Text("HWID · x-hwid") }, singleLine = true,
                         visualTransformation = if (showHwid) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
-                        trailingIcon = { IconButton(onClick = { showHwid = !showHwid }) { MothIcon(if (showHwid) "eye_off" else "eye") } },
+                        trailingIcon = { IconButton(onClick = { showHwid = !showHwid }, modifier = Modifier.pressScale()) { MothIcon(if (showHwid) "eye_off" else "eye") } },
                         modifier = Modifier.fillMaxWidth())
-                    TextButton(onClick = { clipboard.setText(AnnotatedString(draft.hwid)) }) { Text(tr(R.string.msg_copy_hwid_107)) }
+                    TextButton(onClick = { clipboard.setText(AnnotatedString(draft.hwid)) }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_copy_hwid_107)) }
                     SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it, deviceInfoSet = true)) }
                     // The device info that is sent (system values or the user's own), edited in a scrollable dialog. Never logged.
                     if (draft.deviceInfo) {
@@ -222,7 +222,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     val languages = listOf("system" to tr(R.string.msg_system_default_80), "en" to "English", "ru" to "Русский")
                     var languageDialog by remember { mutableStateOf(false) }
                     val currentLanguage = languages.firstOrNull { it.first == language }?.second ?: languages[0].second
-                    Card(Modifier.fillMaxWidth().animateContentSize().clickable { languageDialog = true }, colors = ndCardColors()) {
+                    Card(Modifier.pressScale().fillMaxWidth().animateContentSize().clickable { languageDialog = true }, colors = ndCardColors()) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(tr(R.string.language), style = MaterialTheme.typography.titleMedium)
@@ -234,16 +234,16 @@ import org.mothvpn.core.SubscriptionSchedule
                     if (languageDialog) AlertDialog(onDismissRequest = { languageDialog = false }, title = { Text(tr(R.string.language)) },
                         text = { Column {
                             languages.forEach { (value, label) ->
-                                Row(Modifier.fillMaxWidth().clickable { languageDialog = false; AppLanguage.select(value) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Row(Modifier.pressScale().fillMaxWidth().clickable { languageDialog = false; AppLanguage.select(value) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                                     RadioButton(language == value || (value == "system" && languages.none { it.first == language }), { languageDialog = false; AppLanguage.select(value) })
                                     Text(label)
                                 }
                             }
                         } },
-                        confirmButton = { TextButton(onClick = { languageDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
+                        confirmButton = { TextButton(onClick = { languageDialog = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
                     val sortModes = listOf(ServerOrder.SUBSCRIPTION to tr(R.string.set_sort_subscription), ServerOrder.LATENCY to tr(R.string.set_sort_latency), ServerOrder.NAME to tr(R.string.set_sort_name))
                     var sortDialog by remember { mutableStateOf(false) }
-                    Card(Modifier.fillMaxWidth().animateContentSize().clickable { sortDialog = true }, colors = ndCardColors()) {
+                    Card(Modifier.pressScale().fillMaxWidth().animateContentSize().clickable { sortDialog = true }, colors = ndCardColors()) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(tr(R.string.set_sort_servers), style = MaterialTheme.typography.titleMedium)
@@ -255,24 +255,24 @@ import org.mothvpn.core.SubscriptionSchedule
                     if (sortDialog) AlertDialog(onDismissRequest = { sortDialog = false }, title = { Text(tr(R.string.set_sort_servers)) },
                         text = { Column {
                             sortModes.forEach { (value, label) ->
-                                Row(Modifier.fillMaxWidth().clickable { sortDialog = false; applySettings(draft.copy(serverSort = value)) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                Row(Modifier.pressScale().fillMaxWidth().clickable { sortDialog = false; applySettings(draft.copy(serverSort = value)) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                                     RadioButton(draft.serverSort == value, { sortDialog = false; applySettings(draft.copy(serverSort = value)) })
                                     Text(label)
                                 }
                             }
                         } },
-                        confirmButton = { TextButton(onClick = { sortDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
+                        confirmButton = { TextButton(onClick = { sortDialog = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
                     if (android.os.Build.VERSION.SDK_INT >= 33) {
                         val context = LocalContext.current
                         TextButton(onClick = {
                             context.getSystemService(android.app.StatusBarManager::class.java).requestAddTileService(
                                 android.content.ComponentName(context, VpnTileService::class.java), tr(R.string.app_name),
                                 android.graphics.drawable.Icon.createWithResource(context, R.drawable.ic_moth_tile), context.mainExecutor) { }
-                        }) { Text(tr(R.string.add_tile)) }
+                        }, modifier = Modifier.pressScale()) { Text(tr(R.string.add_tile)) }
                     }
                     Text(tr(R.string.msg_theme_79), style = MaterialTheme.typography.titleMedium)
                     listOf("system" to tr(R.string.msg_system_default_80), "dark" to tr(R.string.msg_dark_81), "light" to tr(R.string.msg_light_82)).forEach { (value, label) ->
-                        Row(Modifier.fillMaxWidth().clickable { applySettings(draft.copy(theme = value)) }) {
+                        Row(Modifier.pressScale().fillMaxWidth().clickable { applySettings(draft.copy(theme = value)) }) {
                             RadioButton(draft.theme == value, { applySettings(draft.copy(theme = value)) })
                             Text(label, modifier = Modifier.padding(top = 13.dp))
                         }
@@ -335,7 +335,7 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
 }
 @Composable private fun SettingsToggle(label: String, checked: Boolean, enabled: Boolean = true, change: (Boolean) -> Unit) {
     // The whole row (at least 56 dp high) toggles the switch.
-    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = enabled) { change(!checked) },
+    Row(Modifier.pressScale(enabled = enabled).fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = enabled) { change(!checked) },
         horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
         Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp))
         Switch(checked = checked, onCheckedChange = change, enabled = enabled)
@@ -366,7 +366,7 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
                 }
             }
         }
-    }, confirmButton = { TextButton(onClick = close) { Text(tr(R.string.sub_link_close)) } })
+    }, confirmButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.sub_link_close)) } })
 }
 
 /** While the VPN is starting or stopping, settings wait. While it is on they can be changed (applied silently, no hint). */
@@ -399,11 +399,11 @@ object DeviceDefaults {
                 OutlinedTextField(field.value, { field.value = it.take(DeviceDefaults.limits[i]) }, label = { Text(labels[i]) }, singleLine = true,
                     isError = !org.mothvpn.core.DeviceInfo.valid(field.value.trim(), DeviceDefaults.limits[i]) || field.value.isBlank(), modifier = Modifier.fillMaxWidth())
             }
-            TextButton(enabled = fields.indices.any { fields[it].value != defaults[it] }, onClick = { fields.forEachIndexed { i, f -> f.value = defaults[i] } }) { Text(tr(R.string.device_reset)) }
+            TextButton(enabled = fields.indices.any { fields[it].value != defaults[it] }, onClick = { fields.forEachIndexed { i, f -> f.value = defaults[i] } }, modifier = Modifier.pressScale(enabled = fields.indices.any { fields[it].value != defaults[it] })) { Text(tr(R.string.device_reset)) }
             Text(tr(R.string.device_hint), style = MaterialTheme.typography.bodySmall)
         }
     }, confirmButton = { TextButton(enabled = valid, onClick = {
         val v = fields.mapIndexed { i, f -> f.value.trim().takeIf { it != defaults[i] }.orEmpty() }
         save(settings.copy(deviceOs = v[0], deviceOsVersion = v[1], deviceModel = v[2]))
-    }) { Text(tr(R.string.sub_save)) } }, dismissButton = { TextButton(onClick = close) { Text(tr(R.string.msg_cancel_32)) } })
+    }, modifier = Modifier.pressScale(enabled = valid)) { Text(tr(R.string.sub_save)) } }, dismissButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
 }

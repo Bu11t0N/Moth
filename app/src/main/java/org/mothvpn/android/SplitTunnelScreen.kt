@@ -56,7 +56,7 @@ private class AppEntry(val packageName: String, val label: String, val system: B
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         DialogRow(tr(R.string.split_mode), modes.first { it.first == settings.splitMode }.second, enabled) { modeDialog = true }
         OutlinedTextField(search, { search = it }, label = { Text(tr(R.string.split_search)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { showSystem = !showSystem }) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.pressScale().fillMaxWidth().clickable { showSystem = !showSystem }) {
             Checkbox(showSystem, { showSystem = it }); Text(tr(R.string.split_show_system))
         }
         // Selected apps on top. The order is a snapshot so rows don't jump under the finger: it is refreshed when the page opens, when the
@@ -71,7 +71,7 @@ private class AppEntry(val packageName: String, val label: String, val system: B
                 items(shown, key = { it.packageName }) { app ->
                     val checked = app.packageName in settings.splitApps
                     fun toggle() { apply(settings.copy(splitApps = if (checked) settings.splitApps - app.packageName else (settings.splitApps + app.packageName).distinct().sorted())) }
-                    Row(Modifier.fillMaxWidth().clickable(enabled = enabled) { toggle() }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.pressScale(enabled = enabled).fillMaxWidth().clickable(enabled = enabled) { toggle() }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         val icon by produceState<ImageBitmap?>(null, app.packageName) {
                             value = withContext(Dispatchers.IO) { runCatching { pm.getApplicationIcon(app.packageName).toBitmap(96, 96).asImageBitmap() }.getOrNull() }
                         }
@@ -91,7 +91,7 @@ private class AppEntry(val packageName: String, val label: String, val system: B
 
 /** Settings row that opens a dialog (same look as the language and sort rows). */
 @Composable fun DialogRow(title: String, value: String, enabled: Boolean = true, open: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = open), colors = ndCardColors()) {
+    Card(Modifier.pressScale(enabled = enabled).fillMaxWidth().clickable(enabled = enabled, onClick = open), colors = ndCardColors()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
@@ -105,9 +105,9 @@ private class AppEntry(val packageName: String, val label: String, val system: B
 @Composable fun <T> ChoiceDialog(title: String, options: List<Pair<T, String>>, current: T, close: () -> Unit, choose: (T) -> Unit) {
     AlertDialog(onDismissRequest = close, title = { Text(title) }, text = { Column {
         options.forEach { (value, label) ->
-            Row(Modifier.fillMaxWidth().clickable { close(); choose(value) }, verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.pressScale().fillMaxWidth().clickable { close(); choose(value) }, verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(current == value, { close(); choose(value) }); Text(label)
             }
         }
-    } }, confirmButton = { TextButton(onClick = close) { Text(tr(R.string.msg_cancel_32)) } })
+    } }, confirmButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
 }

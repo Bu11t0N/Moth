@@ -82,14 +82,14 @@ import java.io.File
             release?.let { Text(tr(R.string.update_available, it.version)) }
             if (busy) {
                 progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
-                TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }) { Text(tr(R.string.update_cancel)) }
+                TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_cancel)) }
             }
             if (message.isNotEmpty()) Text(message)
         }
         release?.let { available ->
-            Button(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.fillMaxWidth()) { Text(tr(R.string.update_install)) }
+            Button(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth())) { Text(tr(R.string.update_install)) }
         }
-        Button(enabled = !busy, onClick = { check() }, modifier = Modifier.fillMaxWidth()) { Text(tr(R.string.update_check)) }
+        Button(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth())) { Text(tr(R.string.update_check)) }
         warning?.let {
             AlertDialog(onDismissRequest = { warning = null; waiting = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }, title = { Text(tr(R.string.update_unknown_title)) },
                 text = { Text(tr(R.string.update_unknown_body)) },
@@ -97,12 +97,12 @@ import java.io.File
                     warning = null
                     Logger.i("Update", "opening the unknown-sources settings for the app")
                     permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
-                }) { Text(tr(R.string.update_unknown_ok)) } },
-                dismissButton = { TextButton(onClick = { warning = null; waiting = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }) { Text(tr(R.string.update_cancel)) } })
+                }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_unknown_ok)) } },
+                dismissButton = { TextButton(onClick = { warning = null; waiting = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_cancel)) } })
         }
         val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
         var channelDialog by remember { mutableStateOf(false) }
-        Card(Modifier.fillMaxWidth().clickable(enabled = !busy) { channelDialog = true }, colors = ndCardColors()) {
+        Card(Modifier.pressScale(enabled = !busy).fillMaxWidth().clickable(enabled = !busy) { channelDialog = true }, colors = ndCardColors()) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(tr(R.string.update_channel), style = MaterialTheme.typography.titleMedium)
@@ -119,13 +119,13 @@ import java.io.File
             AlertDialog(onDismissRequest = { channelDialog = false }, title = { Text(tr(R.string.update_channel)) },
                 text = { Column {
                     channels.forEach { (value, label) ->
-                        Row(Modifier.fillMaxWidth().clickable { pick(value) }, verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.pressScale().fillMaxWidth().clickable { pick(value) }, verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(channel == value, { pick(value) })
                             Text(label)
                         }
                     }
                 } },
-                confirmButton = { TextButton(onClick = { channelDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
+                confirmButton = { TextButton(onClick = { channelDialog = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
         }
         if (channel == UpdateChannel.BETA) Text(tr(R.string.update_channel_beta_note), style = MaterialTheme.typography.bodySmall)
     }

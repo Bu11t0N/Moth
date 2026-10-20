@@ -519,7 +519,6 @@
     <string name="device_model">Device model · x-device-model</string>
     <string name="device_reset">Reset to defaults</string>
     <string name="device_hint">The values sent to your provider. Reset puts back this phone’s real values.</string>
-    <string name="servers_more">More server actions</string>
     <string name="servers_check_all">Check all servers</string>
     <string name="device_title">Device info</string>
     <string name="check_needs_mobile">To check these servers, turn on mobile data and turn off Wi-Fi</string>

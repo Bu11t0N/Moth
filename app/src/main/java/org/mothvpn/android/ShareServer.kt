@@ -38,6 +38,6 @@ fun qrBitmap(text: String, size: Int = 720): Bitmap {
                 if (copied) Text(tr(R.string.share_copied), style = MaterialTheme.typography.bodySmall)
             }
         }
-    }, confirmButton = { TextButton(onClick = close) { Text(tr(R.string.share_close)) } },
-        dismissButton = { if (bitmap != null) TextButton(onClick = { clipboard.setText(AnnotatedString(link)); copied = true }) { Text(tr(R.string.share_copy)) } })
+    }, confirmButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.share_close)) } },
+        dismissButton = { if (bitmap != null) TextButton(onClick = { clipboard.setText(AnnotatedString(link)); copied = true }, modifier = Modifier.pressScale()) { Text(tr(R.string.share_copy)) } })
 }

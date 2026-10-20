@@ -8,9 +8,11 @@ Not released yet.
 
 ### Changes
 
-- Smoother motion: subscription groups open and close softly, the server list moves into place after checks and changes, settings pages grow out of the item you tap, and cards and buttons react to a press.
+- Smoother motion: subscription groups open and close softly, the server list moves into place after checks and changes, settings pages grow out of the item you tap, every button, row and card reacts to a press, and the bottom bar icons bounce and fill in when you switch tabs.
 - Home: the status text and the server card change with a short fade; the traffic ring fills smoothly.
-- While servers are being checked and the VPN is off, the moth flaps in its off colours with “Checking servers…”; tap it to stop the check.
+- While servers are being checked and the VPN is off, the moth flaps in its off colours with “Checking servers…”; tap it to stop the check. While the VPN is on, a check makes the moth flap in its on colours.
+- Servers: “Update all” and “Check all” are now buttons in the top bar instead of the ⋮ menu.
+- Notices at the top of the screen stay visible when you switch tabs.
 - Auto-select and failover no longer drop the VPN while checking servers: the connection stays up on the current server and switches only to a server that answers.
 
 ## 0.7.0

@@ -34,7 +34,7 @@ private const val VISIBLE_LINES = 400
 /** "For developers" page: entries for the log and the crash log. */
 @Composable fun DeveloperSection(openLog: () -> Unit, openCrash: () -> Unit) {
     for ((title, open) in listOf(tr(R.string.dev_log) to openLog, tr(R.string.dev_crash_log) to openCrash)) {
-        Card(Modifier.fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
+        Card(Modifier.pressScale().fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
             Row(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 Text("›", modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
@@ -79,7 +79,7 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
                 LogLevel.DEBUG to "DEBUG", LogLevel.VERBOSE to "VERBOSE")
             var levelDialog by remember { mutableStateOf(false) }
             fun choose(value: LogLevel) { levelDialog = false; if (value != level) { level = value; Logger.level = value } }
-            Card(Modifier.fillMaxWidth().clickable { levelDialog = true }, colors = ndCardColors()) {
+            Card(Modifier.pressScale().fillMaxWidth().clickable { levelDialog = true }, colors = ndCardColors()) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(tr(R.string.dev_log_level), style = MaterialTheme.typography.titleMedium)
@@ -91,13 +91,13 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
             if (levelDialog) AlertDialog(onDismissRequest = { levelDialog = false }, title = { Text(tr(R.string.dev_log_level)) },
                 text = { Column {
                     levels.forEach { (value, label) ->
-                        Row(Modifier.fillMaxWidth().clickable { choose(value) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Row(Modifier.pressScale().fillMaxWidth().clickable { choose(value) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             RadioButton(level == value, { choose(value) })
                             Text(label)
                         }
                     }
                 } },
-                confirmButton = { TextButton(onClick = { levelDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
+                confirmButton = { TextButton(onClick = { levelDialog = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
             Text(tr(R.string.dev_log_privacy_note), style = MaterialTheme.typography.bodySmall)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -108,17 +108,17 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
                 val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_STREAM, uri)
                     .putExtra(Intent.EXTRA_SUBJECT, "Moth log").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 context.startActivity(Intent.createChooser(send, tr(R.string.dev_share_log)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
-            }) { Text(tr(R.string.dev_share_log)) }
+            }, modifier = Modifier.pressScale()) { Text(tr(R.string.dev_share_log)) }
             Button(onClick = {
                 if (Build.VERSION.SDK_INT >= 29) {
                     val ok = saveToDownloads(context, fileName(), full())
                     Logger.i("UI", "toast: log ${if (ok) "saved" else "save failed"}"); Toast.makeText(context, if (ok) tr(R.string.dev_saved_to_downloads) else tr(R.string.dev_save_failed), Toast.LENGTH_SHORT).show()
                 } else createDocument.launch(fileName())
-            }) { Text(tr(R.string.dev_download_log)) }
+            }, modifier = Modifier.pressScale()) { Text(tr(R.string.dev_download_log)) }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { if (crash) CrashLog.clear() else Logger.clear(); version++ }) { Text(tr(R.string.dev_clear_log)) }
-            TextButton(onClick = { version++ }) { Text(tr(R.string.dev_refresh)) }
+            OutlinedButton(onClick = { if (crash) CrashLog.clear() else Logger.clear(); version++ }, modifier = Modifier.pressScale()) { Text(tr(R.string.dev_clear_log)) }
+            TextButton(onClick = { version++ }, modifier = Modifier.pressScale()) { Text(tr(R.string.dev_refresh)) }
         }
         if (lines.isEmpty()) Text(if (!crash && level == LogLevel.OFF) tr(R.string.dev_log_is_off) else tr(R.string.dev_log_empty))
         else {
