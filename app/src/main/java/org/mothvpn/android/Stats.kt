@@ -56,7 +56,7 @@ object TrafficRecorder {
         mutable.value = history!!
         if (System.currentTimeMillis() - lastFlush >= 60_000) flushLocked(context)
     }
-    /** Test hook: replaces the stored history (used by the instrumented screenshot test). */
+    /** Test hook: replaces the stored history (used by the instrumented UI test). */
     internal fun replaceForTest(context: Context, value: TrafficHistory) = synchronized(lock) {
         history = value; dirty = true; flushLocked(context)
     }
