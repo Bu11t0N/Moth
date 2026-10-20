@@ -9,13 +9,13 @@ An open-source Android VPN client built with Kotlin, Jetpack Compose, sing-box a
 - Several subscriptions with their own name, traffic, end date, reminders and automatic updates, plus your own servers ("My servers").
 - Add a subscription or a server by opening a link (Moth, v2rayNG, Happ, Hiddify and sing-box import links, and server links); Moth always asks first.
 - Independent server selection for Wi-Fi and mobile data, favorites, and "Auto-select the best server".
-- HTTPS checks through each server, TCP port checks, tunnel health checks and a small download test.
+- HTTPS checks through each server, TCP port checks and tunnel health checks.
 - Kill switch, reconnection after network changes, start on boot and Android's Always-on VPN.
 - Split tunneling by app, routing rules (domains, keywords, IP ranges: VPN, direct or block) and "Russian sites and IPs directly".
 - DNS settings with DNS leak protection; DPI bypass (TLS fragmentation, UDP noise) and multiplexing, off by default.
 - Traffic statistics, backup and restore (optionally password-protected), optional in-app updates.
 - Quick Settings tile and home screen widget, both showing "Traffic blocked" / "Reconnecting…".
-- English and Russian, system language detection and the Russian app name **Мотылёк**. Light, dark and system themes.
+- English and Russian, system language detection and the Russian app name **Мотылёк**. A monochrome design with light, dark, pure black (AMOLED) and system themes.
 
 Moth requires a subscription from a compatible provider or your own server. It does not supply VPN servers.
 
@@ -67,7 +67,7 @@ Hysteria port hopping, TUIC v4, AmneziaWG, Shadowsocks plugins and Clash `dialer
 
 HTTPS checks establish a connection **through the selected server**. The default tries the configured URL, Cloudflare and Google; a custom URL can be used instead. Latency includes HTTPS connection setup and is not ICMP ping. Tunnel health is checked separately through Android's VPN network, without a direct-network fallback.
 
-TCP checks only show whether a port is reachable; they do not verify VPN traffic and cannot check UDP protocols such as Hysteria or TUIC. The speed icon downloads at most 1 MiB from Cloudflare and gives an approximate short-download rate.
+TCP checks only show whether a port is reachable; they do not verify VPN traffic and cannot check UDP protocols such as Hysteria or TUIC.
 
 Checks run on the current physical network. Switch off Wi-Fi to test mobile data. Results are separated by network type, marked when the network changes and reset when the app process ends. The unavailable-server filter only hides failed HTTPS checks from the last 15 minutes on the current network; unchecked, cancelled and TCP checks remain visible.
 
@@ -76,7 +76,7 @@ Checks run on the current physical network. Switch off Wi-Fi to test mobile data
 - No advertising, analytics, accounts or hidden telemetry.
 - Subscription links, profiles and settings are stored in AES-GCM encrypted files using Android Keystore. Configuration backup and core logs are disabled.
 - Subscription links are sent to their subscription service, not to Moth's developers.
-- HWID is a random installation UUID, not an IMEI or hardware serial number. Device model and Android version are optional. Device headers are restricted to the original HTTPS origin and are not forwarded across origins on redirects.
+- HWID is a random installation UUID, not an IMEI or hardware serial number. Device model and Android version are sent by default, can be turned off or replaced with your own values. Device headers are restricted to the original HTTPS origin and are not forwarded across origins on redirects.
 - Subscription and HWID fields are masked. Screenshots and screen sharing are allowed.
 
 Subscription downloads and bootstrap DNS requests may use the direct connection. Traffic DNS inside the tunnel uses the selected server. Bootstrap DNS defaults to Cloudflare DoH and can be changed in Connection settings.
@@ -89,7 +89,7 @@ Never include subscription links, credentials or private keys in public issues o
 
 Android Studio, **JDK 21** and **Android SDK 34** are required. The Gradle 8.13 wrapper is included. Set `ANDROID_HOME` or `sdk.dir` in a local `local.properties` file.
 
-The app needs `libbox.aar` in the repository root. On Linux, build it with Go 1.26.9, JDK 17 and Android NDK 28.0.13004108:
+The app needs `libbox.aar` in the repository root. On Linux, build it with Go 1.27.2, JDK 17 and Android NDK 28.0.13004108:
 
 ```bash
 bash scripts/build-libbox.sh
@@ -115,7 +115,7 @@ e326f86f82b63071ee23a49b174b4cb5d25df1595e46c00571560a62f5ec210a
 - `e2e-helper/` — a tiny test app used only by the emulator tests (never shipped).
 - `licenses/` — third-party notices included in the APK.
 
-The native core uses **sing-box 1.12.25** for TUN and **Xray 26.7.28** for XHTTP. Sources are pinned by commit in the build script.
+The native core uses **sing-box 1.12.25** for TUN and **Xray 26.10.17** for XHTTP. Sources are pinned by commit in the build script.
 
 Android is the only implemented platform. Other operating systems require their own tunnel integration and interfaces; the Android UI is not directly portable to iOS.
 

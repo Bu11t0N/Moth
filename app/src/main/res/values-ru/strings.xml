@@ -18,7 +18,6 @@
     <string name="msg_could_not_connect_14" formatted="false">"Не удалось подключиться"</string>
     <string name="msg_checking_internet_access_15" formatted="false">"Проверяем интернет…"</string>
     <string name="msg_add_subscription_16" formatted="false">"Добавить подписку"</string>
-    <string name="msg_host_saved_profiles_size_servers_17" formatted="false">"%1$s · %2$s серверов"</string>
     <string name="msg_traffic_1f_1f_gib_18" formatted="false">"Трафик: %.1f / %.1f ГиБ"</string>
     <string name="msg_subscription_expires_on_19" formatted="false">"Подписка до "</string>
     <string name="msg_no_network_20" formatted="false">"Нет сети"</string>
@@ -41,7 +40,6 @@
     <string name="msg_could_not_add_the_subscription_39" formatted="false">"Не удалось добавить подписку"</string>
     <string name="msg_could_not_download_the_subscription_check_the_40" formatted="false">"Не удалось загрузить подписку. Проверь ссылку и интернет."</string>
     <string name="msg_could_not_save_the_selected_server_41" formatted="false">"Не удалось сохранить выбранный сервер"</string>
-    <string name="msg_subscription_removed_42" formatted="false">"Подписка удалена"</string>
     <string name="msg_could_not_remove_the_subscription_43" formatted="false">"Не удалось удалить подписку"</string>
     <string name="msg_switch_networks_to_run_this_check_44" formatted="false">"Переключи сеть для этой проверки"</string>
     <string name="msg_could_not_start_the_check_or_vpn_45" formatted="false">"Не удалось запустить проверку или VPN"</string>
@@ -50,11 +48,7 @@
     <string name="msg_update_subscription_48" formatted="false">"Обновить подписку"</string>
     <string name="msg_cancel_checks_49" formatted="false">"Отменить проверки"</string>
     <string name="msg_check_servers_50" formatted="false">"Проверить серверы"</string>
-    <string name="msg_measure_speed_download_up_to_1_mib_51" formatted="false">"Измерить скорость: загрузка 10 МБ"</string>
     <string name="msg_remove_subscription_52" formatted="false">"Удалить подписку"</string>
-    <string name="msg_no_network_available_for_this_check_53" formatted="false">"Нет сети для проверки"</string>
-    <string name="msg_to_check_mobile_data_enable_it_and_turn_off_w_54" formatted="false">"Для проверки включи мобильные данные и отключи Wi-Fi"</string>
-    <string name="msg_connect_to_wi_fi_to_run_this_check_55" formatted="false">"Для проверки подключись к Wi-Fi"</string>
     <string name="msg_hide_unavailable_56" formatted="false">"Без недоступных"</string>
     <string name="msg_search_servers_57" formatted="false">"Поиск сервера"</string>
     <string name="msg_add_a_subscription_58" formatted="false">"Добавь подписку"</string>
@@ -64,7 +58,6 @@
     <string name="msg_checking_62" formatted="false">"проверяем…"</string>
     <string name="msg_not_checked_64" formatted="false">"не проверен"</string>
     <string name="msg_port_is_reachable_vpn_traffic_has_not_been_ch_65" formatted="false">"Порт доступен; работа VPN не проверена"</string>
-    <string name="msg_checked_on_a_different_network_66" formatted="false">"Проверено в другой сети"</string>
     <string name="msg_remove_subscription_67" formatted="false">"Удалить подписку?"</string>
     <string name="msg_the_subscription_link_will_need_to_be_added_a_68" formatted="false">"Для подключения понадобится снова добавить ссылку."</string>
     <string name="msg_remove_69" formatted="false">"Удалить"</string>
@@ -86,7 +79,6 @@
     <string name="msg_hide_unavailable_servers_85" formatted="false">"Скрывать недоступные серверы"</string>
     <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Скрываются серверы с неудачной проверкой за последние 15 минут. Непроверенные и проверяемые остаются в списке. Перепроверь серверы при смене сети."</string>
     <string name="msg_screen_sharing_and_screenshots_are_allowed_su_87" formatted="false">"Можно транслировать экран и делать скриншоты. Ссылка подписки и HWID скрыты в полях ввода."</string>
-    <string name="msg_network_settings_are_available_after_disconne_88" formatted="false">"Сетевые настройки доступны после отключения VPN и завершения проверок."</string>
     <string name="msg_ipv6_through_vpn_89" formatted="false">"IPv6 через VPN"</string>
     <string name="msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90" formatted="false">"При выключении IPv6 блокируется внутри туннеля."</string>
     <string name="msg_server_bootstrap_dns_91" formatted="false">"DNS для адресов серверов"</string>
@@ -96,11 +88,8 @@
     <string name="msg_interval_30_600_seconds_95" formatted="false">"Интервал · 30–600 секунд"</string>
     <string name="msg_timeout_3_30_seconds_96" formatted="false">"Тайм-аут, мс · 1000–60000"</string>
     <string name="msg_https_check_url_97" formatted="false">"HTTPS-адрес проверки"</string>
-    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Задержка включает установление HTTPS-соединения. Отказ этого адреса не доказывает недоступность всех сайтов."</string>
+    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Проверка идёт по HTTPS через сервер. Отказ этого адреса не доказывает недоступность всех сайтов."</string>
     <string name="msg_check_method_99" formatted="false">"Способ проверки"</string>
-    <string name="msg_https_multiple_urls_100" formatted="false">"HTTPS · несколько адресов"</string>
-    <string name="msg_https_custom_url_101" formatted="false">"HTTPS · свой адрес"</string>
-    <string name="msg_tcp_port_reachability_102" formatted="false">"TCP · доступность порта"</string>
     <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP не подтверждает работу VPN и не подходит для Hysteria/TUIC на UDP. HTTPS проверяет передачу трафика через сервер."</string>
     <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Заверши подключение и проверки, чтобы менять параметры подписки."</string>
     <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Передавать HWID провайдеру"</string>
@@ -109,7 +98,7 @@
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Передавать модель и версию Android"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"User-Agent подписки"</string>
     <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Провайдер может выбирать формат подписки по User-Agent. HWID отправляется только исходному сайту подписки."</string>
-    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.7.28\nОткрытый исходный код · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
+    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.17\nОткрытый исходный код · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Нужна HTTPS-ссылка без логина и пароля в адресе"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Достигнут лимит устройств подписки. Обратись к провайдеру."</string>
     <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"Провайдер требует HWID. Включи его отправку в настройках."</string>
@@ -120,15 +109,11 @@
     <string name="msg_too_many_redirects_119" formatted="false">"Слишком много перенаправлений"</string>
     <string name="msg_checking_internet_access_through_vpn_120" formatted="false">"Проверяем интернет через VPN…"</string>
     <string name="msg_checks_are_disabled_in_settings_121" formatted="false">"Проверка отключена в настройках"</string>
-    <string name="msg_download_test_up_to_1_mib_123" formatted="false">"Тест загрузки: 10 МБ…"</string>
     <string name="msg_vpn_connection_125" formatted="false">"VPN-подключение"</string>
     <string name="msg_disconnect_126" formatted="false">"Отключить"</string>
     <string name="msg_internet_access_through_vpn_is_available_127" formatted="false">"Интернет через VPN доступен"</string>
     <string name="msg_internet_check_through_vpn_failed_128" formatted="false">"Проверка интернета через VPN не прошла"</string>
     <string name="msg_udp_protocol_choose_an_https_check_129" formatted="false">"UDP-протокол: выбери HTTPS-проверку"</string>
-    <string name="msg_profile_name_1f_mbit_s_2f_mib_130" formatted="false">"%1$s: %2$.1f Мбит/с · %3$.2f МиБ"</string>
-    <string name="msg_speed_test_failed_131" formatted="false">"Тест скорости не прошёл"</string>
-    <string name="msg_test_cancelled_132" formatted="false">"Тест отменён"</string>
     <string name="msg_no_address_found_133" formatted="false">"Нет адреса"</string>
     <string name="msg_use_a_clash_subscription_with_a_proxies_list_134" formatted="false">"Нужна Clash-подписка с разделом proxies"</string>
     <string name="msg_clash_an_embedded_proxies_list_is_required_pr_135" formatted="false">"Clash: нужен встроенный список proxies; proxy-providers пока не поддерживаются"</string>
@@ -251,7 +236,6 @@
     <string name="import_paste">Вставить</string>
     <string name="import_scan">Сканировать QR</string>
     <string name="import_hint">Можно вставить или отсканировать и ссылку на отдельный сервер: такие серверы добавляются в «Мои серверы».</string>
-    <string name="server_speed_test">Тест скорости (загрузка 10 МБ)</string>
     <string name="server_share">Поделиться сервером</string>
     <string name="share_unavailable">Для этого сервера нет ссылки. Серверы из подписок Clash или Xray JSON поделиться нельзя; для остальных сначала обновите подписку.</string>
     <string name="share_warning">Ссылка содержит ключ сервера. Делитесь ею только с теми, кому доверяете.</string>
@@ -263,7 +247,6 @@
     <string name="split_mode_off">Выключено: все приложения через VPN</string>
     <string name="split_mode_only">Только выбранные через VPN</string>
     <string name="split_mode_bypass">Выбранные в обход VPN</string>
-    <string name="split_hint">Изменения применяются при следующем подключении. Показываются только приложения со значком в списке приложений.</string>
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
@@ -298,9 +281,12 @@
     <string name="sub_left">Осталось трафика: %1$s из %2$s</string>
     <string name="sub_expires">Действует до %1$s</string>
     <string name="stats_title">Статистика</string>
+    <string name="sub_delete_in_use">Сервер этой подписки сейчас используется. Отключись, чтобы её удалить.</string>
+    <string name="sub_wait_notice">Дождись окончания проверок и смены подключения.</string>
     <string name="stats_today">Сегодня</string>
-    <string name="stats_month">За этот месяц</string>
-    <string name="stats_week">На этой неделе</string>
+    <string name="stats_day">День</string>
+    <string name="stats_month">Месяц</string>
+    <string name="stats_week">Неделя</string>
     <string name="stats_chart">Трафик по дням</string>
     <string name="stats_range_7">7 дней</string>
     <string name="stats_range_30">30 дней</string>
@@ -308,7 +294,7 @@
     <string name="stats_sent">Отправлено</string>
     <string name="stats_received">Получено</string>
     <string name="stats_updown">↑ %1$s · ↓ %2$s</string>
-    <string name="stats_hint">Трафик VPN на этом устройстве, включая служебные данные протокола. Хранится 90 дней.</string>
+    <string name="stats_hint">Трафик VPN на этом устройстве. Хранится 90 дней.</string>
     <string name="expiry_channel">Напоминания о подписке</string>
     <string name="expiry_title">Подписка скоро закончится</string>
     <plurals name="expiry_soon">
@@ -373,7 +359,7 @@
     <string name="rules_title">Правила маршрутизации</string>
     <string name="rules_sum_none">Нет правил</string>
     <string name="rules_sum_count">Правил: %1$d</string>
-    <string name="rules_hint">Правила проверяются сверху вниз до встроенных правил; срабатывает первое подходящее. Изменения применяются при следующем подключении.</string>
+    <string name="rules_hint">Правила проверяются сверху вниз до встроенных правил; срабатывает первое подходящее.</string>
     <string name="rules_add">Добавить правило</string>
     <string name="rules_edit">Изменить правило</string>
     <string name="rules_type">Тип</string>
@@ -480,6 +466,7 @@
     <string name="sub_all_title">Подписки</string>
     <string name="sub_updated_on">Обновлена: %1$s</string>
     <string name="sub_link_copy_link">Скопировать ссылку</string>
+    <string name="nd_choose_server">Выбрать сервер</string>
     <string name="dev_edit_servers">Редактирование серверов</string>
     <string name="dev_edit_servers_hint">Добавляет «Изменить JSON» в меню сервера по долгому нажатию.</string>
     <string name="edit_json">Изменить JSON</string>
@@ -492,4 +479,51 @@
     <string name="edit_json_err_type">Нет поля «type».</string>
     <string name="edit_json_err_protocol">Нет поля «protocol».</string>
     <string name="server_balancer">Балансировщик</string>
+    <string name="nd_group_servers">Серверов: %1$d</string>
+    <string name="set_amoled">Чёрная тёмная тема (AMOLED)</string>
+    <string name="nd_checks_no_network">Нет сети: проверка недоступна</string>
+    <string name="nd_filter">Фильтр</string>
+    <string name="nd_filter_active">Фильтр: %1$d</string>
+    <string name="nd_filter_exclude">Скрыть совпадения</string>
+    <string name="nd_filter_only">Только совпадения</string>
+    <string name="nd_filter_keyword">Слово, например Германия</string>
+    <string name="nd_filter_add">Добавить</string>
+    <string name="nd_filter_empty">Слов нет: показаны все серверы.</string>
+    <string name="nd_filter_remove">Удалить %1$s</string>
+    <string name="nd_filter_hint">Слова ищутся в названиях серверов без учёта регистра. У Wi-Fi и мобильных данных свои фильтры; они сохраняются после обновления подписок.</string>
+    <string name="nd_link_support">Поддержка</string>
+    <string name="nd_link_news">Новости</string>
+    <string name="nd_link_web">Сайт</string>
+    <string name="nd_stat_speed">Скорость</string>
+    <string name="nd_stat_traffic">За сеанс</string>
+    <string name="nd_stat_time">Подключено</string>
+    <string name="nd_per_second">/с</string>
+    <string name="nd_usage_ring">Израсходовано трафика: %1$d%%</string>
+    <string name="nd_filter_hides_all">Фильтр скрывает все серверы, поэтому автовыбор оставил выбранный вами сервер. Измените фильтр на вкладке «Серверы».</string>
+    <string name="nd_filter_title_for">Фильтр серверов: %1$s</string>
+    <string name="ping_latency">Задержка</string>
+    <string name="ping_latency_hint">Второй запрос по уже открытому соединению, без учёта рукопожатий.</string>
+    <string name="ping_full">Полная задержка</string>
+    <string name="ping_full_hint">Первый запрос вместе с подключением к серверу и всеми рукопожатиями.</string>
+    <string name="ping_tcp">TCP</string>
+    <string name="ping_tcp_hint">Только проверяет, что порт сервера отвечает; трафик через сервер не идёт.</string>
+    <string name="ping_url_only">Только этот адрес (без запасных)</string>
+    <string name="dev_sub_headers">Заголовки подписки</string>
+    <string name="dev_sub_headers_sum">Названия заголовков, которые прислал провайдер</string>
+    <string name="dev_sub_headers_hint">Только названия, с последнего обновления каждой подписки. Значения и ссылки не сохраняются.</string>
+    <string name="dev_sub_headers_none">Нет загруженных подписок.</string>
+    <string name="dev_sub_headers_update">Обновите эту подписку, чтобы увидеть её заголовки.</string>
+    <string name="dev_sub_headers_http">HTTP-заголовки: %1$s</string>
+    <string name="dev_sub_headers_body">Поля в теле: %1$s</string>
+    <string name="settings_wait_hint">Дождитесь, пока VPN подключится или отключится.</string>
+    <string name="device_os">Название системы · x-device-os</string>
+    <string name="device_os_version">Версия системы · x-ver-os</string>
+    <string name="device_model">Модель устройства · x-device-model</string>
+    <string name="device_reset">Сбросить</string>
+    <string name="device_hint">Значения, которые передаются провайдеру. «Сбросить» вернёт настоящие значения этого телефона.</string>
+    <string name="servers_more">Другие действия с серверами</string>
+    <string name="servers_check_all">Проверить все серверы</string>
+    <string name="device_title">Данные устройства</string>
+    <string name="check_needs_mobile">Чтобы проверить эти серверы, включите мобильные данные и отключите Wi-Fi</string>
+    <string name="check_needs_wifi">Чтобы проверить эти серверы, подключитесь к Wi-Fi</string>
 </resources>

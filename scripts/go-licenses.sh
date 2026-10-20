@@ -7,12 +7,12 @@
 # scripts/go-licenses/go.mod). Unidentified licenses are kept with a note and reported as CI warnings.
 set -euo pipefail
 # Same Go release as CI, so the generated file (including the standard library entry) matches.
-export GOTOOLCHAIN=go1.26.9
+export GOTOOLCHAIN=go1.27.2
 src="$(cd "$1" && pwd)"
 out="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"
 tool_dir="$(cd "$(dirname "$0")/go-licenses" && pwd)"
 # Must match the tags build-libbox.sh leaves in cmd/internal/build_libbox (Android: shared + memc tags).
-tags=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_conntrack
+tags=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_conntrack,http2legacy
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 # Go standard library and runtime are linked in too.

@@ -18,7 +18,6 @@
     <string name="msg_could_not_connect_14" formatted="false">"Could not connect"</string>
     <string name="msg_checking_internet_access_15" formatted="false">"Checking internet access…"</string>
     <string name="msg_add_subscription_16" formatted="false">"Add subscription"</string>
-    <string name="msg_host_saved_profiles_size_servers_17" formatted="false">"%1$s · %2$s servers"</string>
     <string name="msg_traffic_1f_1f_gib_18" formatted="false">"Traffic: %.1f / %.1f GiB"</string>
     <string name="msg_subscription_expires_on_19" formatted="false">"Subscription expires on "</string>
     <string name="msg_no_network_20" formatted="false">"No network"</string>
@@ -41,7 +40,6 @@
     <string name="msg_could_not_add_the_subscription_39" formatted="false">"Could not add the subscription"</string>
     <string name="msg_could_not_download_the_subscription_check_the_40" formatted="false">"Could not download the subscription. Check the link and your internet connection."</string>
     <string name="msg_could_not_save_the_selected_server_41" formatted="false">"Could not save the selected server"</string>
-    <string name="msg_subscription_removed_42" formatted="false">"Subscription removed"</string>
     <string name="msg_could_not_remove_the_subscription_43" formatted="false">"Could not remove the subscription"</string>
     <string name="msg_switch_networks_to_run_this_check_44" formatted="false">"Switch networks to run this check"</string>
     <string name="msg_could_not_start_the_check_or_vpn_45" formatted="false">"Could not start the check or VPN"</string>
@@ -50,11 +48,7 @@
     <string name="msg_update_subscription_48" formatted="false">"Update subscription"</string>
     <string name="msg_cancel_checks_49" formatted="false">"Cancel checks"</string>
     <string name="msg_check_servers_50" formatted="false">"Check servers"</string>
-    <string name="msg_measure_speed_download_up_to_1_mib_51" formatted="false">"Measure speed: download 10 MB"</string>
     <string name="msg_remove_subscription_52" formatted="false">"Remove subscription"</string>
-    <string name="msg_no_network_available_for_this_check_53" formatted="false">"No network available for this check"</string>
-    <string name="msg_to_check_mobile_data_enable_it_and_turn_off_w_54" formatted="false">"To check mobile data, enable it and turn off Wi-Fi"</string>
-    <string name="msg_connect_to_wi_fi_to_run_this_check_55" formatted="false">"Connect to Wi-Fi to run this check"</string>
     <string name="msg_hide_unavailable_56" formatted="false">"Hide unavailable"</string>
     <string name="msg_search_servers_57" formatted="false">"Search servers"</string>
     <string name="msg_add_a_subscription_58" formatted="false">"Add a subscription"</string>
@@ -64,7 +58,6 @@
     <string name="msg_checking_62" formatted="false">"checking…"</string>
     <string name="msg_not_checked_64" formatted="false">"not checked"</string>
     <string name="msg_port_is_reachable_vpn_traffic_has_not_been_ch_65" formatted="false">"Port is reachable; VPN traffic has not been checked"</string>
-    <string name="msg_checked_on_a_different_network_66" formatted="false">"Checked on a different network"</string>
     <string name="msg_remove_subscription_67" formatted="false">"Remove subscription?"</string>
     <string name="msg_the_subscription_link_will_need_to_be_added_a_68" formatted="false">"The subscription link will need to be added again to connect."</string>
     <string name="msg_remove_69" formatted="false">"Remove"</string>
@@ -86,7 +79,6 @@
     <string name="msg_hide_unavailable_servers_85" formatted="false">"Hide unavailable servers"</string>
     <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Servers with failed checks in the last 15 minutes are hidden. Unchecked servers and checks in progress stay visible. Check again after switching networks."</string>
     <string name="msg_screen_sharing_and_screenshots_are_allowed_su_87" formatted="false">"Screen sharing and screenshots are allowed. Subscription links and HWID are masked in input fields."</string>
-    <string name="msg_network_settings_are_available_after_disconne_88" formatted="false">"Network settings are available after disconnecting VPN and finishing checks."</string>
     <string name="msg_ipv6_through_vpn_89" formatted="false">"IPv6 through VPN"</string>
     <string name="msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90" formatted="false">"When disabled, IPv6 is blocked inside the tunnel."</string>
     <string name="msg_server_bootstrap_dns_91" formatted="false">"Server bootstrap DNS"</string>
@@ -96,11 +88,8 @@
     <string name="msg_interval_30_600_seconds_95" formatted="false">"Interval · 30–600 seconds"</string>
     <string name="msg_timeout_3_30_seconds_96" formatted="false">"Timeout, ms · 1000–60000"</string>
     <string name="msg_https_check_url_97" formatted="false">"HTTPS check URL"</string>
-    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Latency includes establishing an HTTPS connection. A failed check does not mean every website is unavailable."</string>
+    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Checks use HTTPS through the server. A failed check does not mean every website is unavailable."</string>
     <string name="msg_check_method_99" formatted="false">"Check method"</string>
-    <string name="msg_https_multiple_urls_100" formatted="false">"HTTPS · multiple URLs"</string>
-    <string name="msg_https_custom_url_101" formatted="false">"HTTPS · custom URL"</string>
-    <string name="msg_tcp_port_reachability_102" formatted="false">"TCP · port reachability"</string>
     <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP does not verify VPN traffic and cannot check UDP-based Hysteria/TUIC. HTTPS checks traffic through the server."</string>
     <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Disconnect and finish checks to change subscription settings."</string>
     <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Send HWID to the provider"</string>
@@ -109,7 +98,7 @@
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Send device model and Android version"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"Subscription User-Agent"</string>
     <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Providers may select the subscription format by User-Agent. HWID is sent only to the original subscription website."</string>
-    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.7.28\nOpen source · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
+    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.17\nOpen source · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Use an HTTPS link without a username or password in the URL"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Subscription device limit reached. Contact the provider."</string>
     <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"The provider requires HWID. Enable it in settings."</string>
@@ -120,15 +109,11 @@
     <string name="msg_too_many_redirects_119" formatted="false">"Too many redirects"</string>
     <string name="msg_checking_internet_access_through_vpn_120" formatted="false">"Checking internet access through VPN…"</string>
     <string name="msg_checks_are_disabled_in_settings_121" formatted="false">"Checks are disabled in settings"</string>
-    <string name="msg_download_test_up_to_1_mib_123" formatted="false">"Download test: 10 MB…"</string>
     <string name="msg_vpn_connection_125" formatted="false">"VPN connection"</string>
     <string name="msg_disconnect_126" formatted="false">"Disconnect"</string>
     <string name="msg_internet_access_through_vpn_is_available_127" formatted="false">"Internet access through VPN is available"</string>
     <string name="msg_internet_check_through_vpn_failed_128" formatted="false">"Internet check through VPN failed"</string>
     <string name="msg_udp_protocol_choose_an_https_check_129" formatted="false">"UDP protocol: choose an HTTPS check"</string>
-    <string name="msg_profile_name_1f_mbit_s_2f_mib_130" formatted="false">"%1$s: %2$.1f Mbit/s · %3$.2f MiB"</string>
-    <string name="msg_speed_test_failed_131" formatted="false">"Speed test failed"</string>
-    <string name="msg_test_cancelled_132" formatted="false">"Test cancelled"</string>
     <string name="msg_no_address_found_133" formatted="false">"No address found"</string>
     <string name="msg_use_a_clash_subscription_with_a_proxies_list_134" formatted="false">"Use a Clash subscription with a proxies list"</string>
     <string name="msg_clash_an_embedded_proxies_list_is_required_pr_135" formatted="false">"Clash: an embedded proxies list is required; proxy-providers are not supported yet"</string>
@@ -249,7 +234,6 @@
     <string name="import_paste">Paste</string>
     <string name="import_scan">Scan QR</string>
     <string name="import_hint">You can also paste or scan a single server link: such servers are added to “My servers”.</string>
-    <string name="server_speed_test">Speed test (download 10 MB)</string>
     <string name="server_share">Share server</string>
     <string name="share_unavailable">There is no share link for this server. Servers from Clash or Xray JSON subscriptions cannot be shared; for other servers, update the subscription first.</string>
     <string name="share_warning">The link contains the server key. Share it only with people you trust.</string>
@@ -261,7 +245,6 @@
     <string name="split_mode_off">Off: all apps use the VPN</string>
     <string name="split_mode_only">Only selected apps use the VPN</string>
     <string name="split_mode_bypass">Selected apps bypass the VPN</string>
-    <string name="split_hint">Changes apply on the next connection. Only apps with an icon in the app list are shown.</string>
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
     <string name="direct_ru">Russian sites and IPs directly</string>
@@ -296,17 +279,20 @@
     <string name="sub_left">Traffic left: %1$s of %2$s</string>
     <string name="sub_expires">Expires on %1$s</string>
     <string name="stats_title">Statistics</string>
+    <string name="sub_delete_in_use">This subscription’s server is in use. Disconnect to delete it.</string>
+    <string name="sub_wait_notice">Wait until checks and the connection change finish.</string>
     <string name="stats_today">Today</string>
-    <string name="stats_month">This month</string>
-    <string name="stats_week">This week</string>
+    <string name="stats_day">Day</string>
+    <string name="stats_month">Month</string>
+    <string name="stats_week">Week</string>
     <string name="stats_chart">Daily traffic</string>
     <string name="stats_range_7">7 days</string>
     <string name="stats_range_30">30 days</string>
-    <string name="stats_tap_hint">Tap a bar to see that day.</string>
+    <string name="stats_tap_hint">Tap a bar for that day.</string>
     <string name="stats_sent">Sent</string>
     <string name="stats_received">Received</string>
     <string name="stats_updown">↑ %1$s · ↓ %2$s</string>
-    <string name="stats_hint">VPN traffic counted on this device, including protocol overhead. Kept for 90 days.</string>
+    <string name="stats_hint">VPN traffic on this device. Kept for 90 days.</string>
     <string name="expiry_channel">Subscription reminders</string>
     <string name="expiry_title">Subscription ends soon</string>
     <plurals name="expiry_soon">
@@ -369,7 +355,7 @@
     <string name="rules_title">Routing rules</string>
     <string name="rules_sum_none">No rules</string>
     <string name="rules_sum_count">Rules: %1$d</string>
-    <string name="rules_hint">Rules are checked from top to bottom before the built-in rules; the first matching rule wins. Changes apply on the next connection.</string>
+    <string name="rules_hint">Rules are checked from top to bottom before the built-in rules; the first matching rule wins.</string>
     <string name="rules_add">Add rule</string>
     <string name="rules_edit">Edit rule</string>
     <string name="rules_type">Type</string>
@@ -476,6 +462,7 @@
     <string name="sub_all_title">Subscriptions</string>
     <string name="sub_updated_on">Updated: %1$s</string>
     <string name="sub_link_copy_link">Copy link</string>
+    <string name="nd_choose_server">Choose server</string>
     <string name="dev_edit_servers">Edit servers</string>
     <string name="dev_edit_servers_hint">Adds \"Edit JSON\" to the long-press menu of a server.</string>
     <string name="edit_json">Edit JSON</string>
@@ -488,4 +475,51 @@
     <string name="edit_json_err_type">The \"type\" field is missing.</string>
     <string name="edit_json_err_protocol">The \"protocol\" field is missing.</string>
     <string name="server_balancer">Balancer</string>
+    <string name="nd_group_servers">Servers: %1$d</string>
+    <string name="set_amoled">Pure black dark theme (AMOLED)</string>
+    <string name="nd_checks_no_network">No network: checks are unavailable</string>
+    <string name="nd_filter">Filter</string>
+    <string name="nd_filter_active">Filter: %1$d</string>
+    <string name="nd_filter_exclude">Hide matching</string>
+    <string name="nd_filter_only">Show only matching</string>
+    <string name="nd_filter_keyword">Keyword, e.g. Germany</string>
+    <string name="nd_filter_add">Add</string>
+    <string name="nd_filter_empty">No keywords: all servers are shown.</string>
+    <string name="nd_filter_remove">Remove %1$s</string>
+    <string name="nd_filter_hint">Keywords are matched against server names, ignoring case. Wi-Fi and mobile data have separate filters; each stays after subscription updates.</string>
+    <string name="nd_link_support">Support</string>
+    <string name="nd_link_news">News</string>
+    <string name="nd_link_web">Website</string>
+    <string name="nd_stat_speed">Speed</string>
+    <string name="nd_stat_traffic">This session</string>
+    <string name="nd_stat_time">Connected</string>
+    <string name="nd_per_second">/s</string>
+    <string name="nd_usage_ring">Traffic used: %1$d%%</string>
+    <string name="nd_filter_hides_all">The server filter hides every server, so auto-select kept the server you chose. Change the filter on the Servers tab.</string>
+    <string name="nd_filter_title_for">Server filter: %1$s</string>
+    <string name="ping_latency">Latency</string>
+    <string name="ping_latency_hint">Second request on an already open connection; handshakes are not counted.</string>
+    <string name="ping_full">Full latency</string>
+    <string name="ping_full_hint">First request, including connecting to the server and all handshakes.</string>
+    <string name="ping_tcp">TCP</string>
+    <string name="ping_tcp_hint">Only checks that the server port answers; no traffic goes through.</string>
+    <string name="ping_url_only">Use only this address (no backup addresses)</string>
+    <string name="dev_sub_headers">Subscription headers</string>
+    <string name="dev_sub_headers_sum">Names of the headers the provider sent</string>
+    <string name="dev_sub_headers_hint">Names only, from the last update of each subscription. Values and links are never stored.</string>
+    <string name="dev_sub_headers_none">No downloaded subscriptions.</string>
+    <string name="dev_sub_headers_update">Update this subscription to see its headers.</string>
+    <string name="dev_sub_headers_http">HTTP headers: %1$s</string>
+    <string name="dev_sub_headers_body">Body fields: %1$s</string>
+    <string name="settings_wait_hint">Wait until the VPN finishes connecting or disconnecting.</string>
+    <string name="device_os">System name · x-device-os</string>
+    <string name="device_os_version">System version · x-ver-os</string>
+    <string name="device_model">Device model · x-device-model</string>
+    <string name="device_reset">Reset to defaults</string>
+    <string name="device_hint">The values sent to your provider. Reset puts back this phone’s real values.</string>
+    <string name="servers_more">More server actions</string>
+    <string name="servers_check_all">Check all servers</string>
+    <string name="device_title">Device info</string>
+    <string name="check_needs_mobile">To check these servers, turn on mobile data and turn off Wi-Fi</string>
+    <string name="check_needs_wifi">To check these servers, connect to Wi-Fi</string>
 </resources>

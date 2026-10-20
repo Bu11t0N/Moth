@@ -102,7 +102,7 @@ import java.io.File
         }
         val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
         var channelDialog by remember { mutableStateOf(false) }
-        Card(Modifier.fillMaxWidth().clickable(enabled = !busy) { channelDialog = true }) {
+        Card(Modifier.fillMaxWidth().clickable(enabled = !busy) { channelDialog = true }, colors = ndCardColors()) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(tr(R.string.update_channel), style = MaterialTheme.typography.titleMedium)

@@ -57,4 +57,17 @@ class ServerOrderTest {
         assertEquals(ServerOrder.LATENCY, old(true).serverSort)
         assertEquals(ServerOrder.NAME, old(false).serverSort)
     }
+    @Test fun oldNewDesignToggleIsIgnored() {
+        // The developer "New design" toggle is gone (0.7.0 beta 7): a stored value reads fine and is not written again.
+        val base = ClientSettings(hwid = "abcdefghij12")
+        val a = ClientSettings.from(base.json().put("newDesign", false))
+        assertEquals(base.json().toString(), a.json().toString())
+        assertFalse(a.json().has("newDesign"))
+    }
+    @Test fun amoledToggleIsOffByDefaultAndPersists() {
+        assertFalse(ClientSettings().amoled)
+        assertFalse(ClientSettings.from(ClientSettings().json().apply { remove("amoled") }).amoled)
+        assertTrue(ClientSettings.from(ClientSettings(amoled = true).json()).amoled)
+        assertEquals(listOf("amoled=false->true"), ClientSettings().let { s -> LogFacts.settingsChanges(s, s.copy(amoled = true)) })
+    }
 }

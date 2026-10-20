@@ -10,10 +10,12 @@ data class ClientSettings(
     val probeUrl: String = "https://www.gstatic.com/generate_204", val timeoutMs: Int = 10000,
     val healthEnabled: Boolean = true, val healthIntervalSeconds: Int = 60,
     val hwidEnabled: Boolean = true, val hwid: String = UUID.randomUUID().toString(),
-    val deviceInfo: Boolean = false, val userAgent: String = "Moth",
+    /** Send x-device-os / x-ver-os / x-device-model with the HWID. On by default (see [deviceInfoSet] for the migration). */
+    val deviceInfo: Boolean = true, val userAgent: String = "Moth",
     val serverSort: String = ServerOrder.SUBSCRIPTION,
     val compactServers: Boolean = true, val hideUnavailable: Boolean = false,
-    val probeMode: String = "auto", val bootstrapDns: String = "https://1.1.1.1/dns-query",
+    /** Server check: [ProbePolicy.LATENCY] (second request on the warm connection), [ProbePolicy.FULL] (first request with every handshake) or "tcp". */
+    val probeMode: String = ProbePolicy.LATENCY, val bootstrapDns: String = "https://1.1.1.1/dns-query",
     val probeParallel: Int = 5, val probeTimeoutMs: Int = 5000,
     /** "release", "beta" or "" (not chosen yet: the default follows the installed build, see UpdateChannel.effective). */
     val updateChannel: String = "",
@@ -48,16 +50,45 @@ data class ClientSettings(
     /** Connection multiplexing: "off", or the sing-box protocol "smux" / "yamux" / "h2mux" (Xray servers use Mux.Cool instead). */
     val mux: String = "off",
     /** Developer option: "Edit JSON" in the server long-press menu. */
-    val editServers: Boolean = false
+    val editServers: Boolean = false,
+    /** Dark theme: pure black (#000000) background and surfaces for AMOLED screens. */
+    val amoled: Boolean = false,
+    /** Keyword server filter of the Wi-Fi page (keywords + mode), matched against server names at display time (see [ServerFilter]). */
+    val wifiFilter: ServerFilter.Rule = ServerFilter.Rule(),
+    /** The same for the mobile data page: each network has its own keywords and mode. */
+    val mobileFilter: ServerFilter.Rule = ServerFilter.Rule(),
+    /** HTTPS checks use only [probeUrl], without the fallback addresses (the former "HTTPS · custom URL" method). */
+    val probeUrlOnly: Boolean = false,
+    /** True once the user changed the device-info switch; files without it never had a real choice and get the new default (on). */
+    val deviceInfoSet: Boolean = false,
+    /** Custom device info sent instead of the system values; empty = the system value ("Android", Build.VERSION.RELEASE, the model). */
+    val deviceOs: String = "", val deviceOsVersion: String = "", val deviceModel: String = ""
 ) {
+    /** The custom device info cleared (system values are sent again). */
+    fun withDefaultDeviceInfo() = copy(deviceOs = "", deviceOsVersion = "", deviceModel = "")
+    /** The filter of a network kind ("wifi" or "mobile"; anything else is Wi-Fi). */
+    fun filterFor(kind: String) = if (kind == "mobile") mobileFilter else wifiFilter
+    fun withFilter(kind: String, rule: ServerFilter.Rule) = if (kind == "mobile") copy(mobileFilter = rule) else copy(wifiFilter = rule)
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
         if (autoUserAgent.matches(userAgent)) copy(userAgent = "Moth/$version") else this
+    /**
+     * True when going from this to [next] changes something fixed when the tunnel is built (core config, TUN interface, split tunneling,
+     * DPI helper, the health check scheduled at connect), so a running VPN must reconnect once to apply it. Everything else applies live:
+     * server checks (read per run), auto-select, kill switch (sent to the service), subscription headers (used by downloads), the UI.
+     */
+    fun needsReconnect(next: ClientSettings): Boolean =
+        mtu != next.mtu || ipv6 != next.ipv6 || dns != next.dns || bootstrapDns != next.bootstrapDns || dnsLeakProtection != next.dnsLeakProtection ||
+            directRu != next.directRu || routingRules != next.routingRules || splitMode != next.splitMode || splitApps != next.splitApps ||
+            fragment != next.fragment || noise != next.noise || mux != next.mux ||
+            healthEnabled != next.healthEnabled || healthIntervalSeconds != next.healthIntervalSeconds || timeoutMs != next.timeoutMs ||
+            probeUrl != next.probeUrl || probeUrlOnly != next.probeUrlOnly || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP)
+
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
         require(updateChannel in setOf("", "release", "beta")) { "Неверный канал обновлений" }
         require(serverSort in ServerOrder.all) { "Неверная сортировка" }
-        require(probeMode in setOf("auto", "https", "tcp")) { "Неверный способ проверки" }
+        require(probeMode in ProbePolicy.modes) { "Неверный способ проверки" }
         require(mtu in 1280..9000) { "MTU: от 1280 до 9000" }
         require(probeParallel in 1..16) { "Параллельных проверок: от 1 до 16" }
         require(probeTimeoutMs in 500..30000) { "Таймаут пинга: от 500 до 30000 мс" }
@@ -65,6 +96,7 @@ data class ClientSettings(
         require(healthIntervalSeconds in 30..600) { "Интервал проверки: от 30 до 600 секунд" }
         require(hwid.matches(Regex("[a-zA-Z0-9=-]{10,64}"))) { "HWID: 10–64 символа, буквы, цифры, = или -" }
         require(userAgent.isNotBlank() && userAgent.length <= 160 && userAgent.all { it.code in 32..126 }) { "User-Agent должен содержать печатные латинские символы" }
+        require(DeviceInfo.valid(deviceOs, 64) && DeviceInfo.valid(deviceOsVersion, 64) && DeviceInfo.valid(deviceModel, 120)) { "Данные устройства: печатные латинские символы" }
         require(splitMode in SplitTunnel.modes) { "Неверный режим раздельного туннеля" }
         require(subUpdateHours in SubscriptionSchedule.intervals) { "Неверный интервал обновления подписки" }
         require(splitApps.size <= 2000 && splitApps.all { SplitTunnel.validPackage(it) }) { "Неверный список приложений" }
@@ -74,6 +106,7 @@ data class ClientSettings(
         require(CustomRouting.valid(routingRules)) { "Неверное правило маршрутизации" }
         require(fragment in DpiTricks.fragmentPresets.keys) { "Неверный режим фрагментации" }
         require(mux in DpiTricks.muxModes) { "Неверный режим мультиплексирования" }
+        require(wifiFilter.valid() && mobileFilter.valid()) { "Неверный фильтр серверов" }
         listOf(probeUrl, bootstrapDns).forEach { value ->
             val u = URI(value)
             require(u.scheme == "https" && !u.host.isNullOrBlank() && u.rawUserInfo == null && u.fragment == null) { "Нужен корректный HTTPS-адрес" }
@@ -91,7 +124,9 @@ data class ClientSettings(
         .put("autoSelect", autoSelect).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
-        .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers)
+        .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("amoled", amoled)
+        .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json()).put("probeUrlOnly", probeUrlOnly)
+        .put("deviceInfoSet", deviceInfoSet).put("deviceOs", deviceOs).put("deviceOsVersion", deviceOsVersion).put("deviceModel", deviceModel)
     companion object {
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
         private val autoUserAgent = Regex("Moth(/[0-9][0-9A-Za-z.+-]*)?")
@@ -101,7 +136,7 @@ data class ClientSettings(
             j.optBoolean("hwidEnabled", true), j.getString("hwid"), j.optBoolean("deviceInfo", false),
             j.optString("userAgent", "Moth"), j.optString("serverSort", if (j.optBoolean("sortByLatency", false)) "latency" else "name").takeIf { it in ServerOrder.all } ?: "name",
             j.optBoolean("compactServers", true), j.optBoolean("hideUnavailable", false),
-            j.optString("probeMode", "auto"), j.optString("bootstrapDns", "https://1.1.1.1/dns-query"),
+            ProbePolicy.migrateMode(j.optString("probeMode", ProbePolicy.LATENCY)), j.optString("bootstrapDns", "https://1.1.1.1/dns-query"),
             j.optInt("probeParallel", 5).coerceIn(1, 16),
             (if (j.has("probeTimeoutMs")) j.getInt("probeTimeoutMs") else if (j.has("probeTimeoutSeconds")) j.getInt("probeTimeoutSeconds") * 1000
                 else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(500, 30000),
@@ -122,8 +157,26 @@ data class ClientSettings(
             noise = j.optBoolean("noise", false),
             mux = j.optString("mux", "off").takeIf { it in DpiTricks.muxModes } ?: "off",
             editServers = j.optBoolean("editServers", false),
+            amoled = j.optBoolean("amoled", false),
+            // beta 4 had one filter ("serverFilter" + "serverFilterMode"); it becomes the filter of both networks.
+            wifiFilter = j.optJSONObject("serverFilterWifi")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),
+            mobileFilter = j.optJSONObject("serverFilterMobile")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),
+            // 0.7.0 beta 5 and earlier: "https" meant "only the custom URL"; that choice is kept as probeUrlOnly.
+            probeUrlOnly = j.optBoolean("probeUrlOnly", j.optString("probeMode") == "https"),
+            // Up to beta 6 "deviceInfo" was always written (default off), so a stored false is not a real choice: only files with
+            // "deviceInfoSet" keep their value; everyone else gets the new default (on).
+            deviceInfoSet = j.optBoolean("deviceInfoSet", false),
+            deviceInfo = if (j.optBoolean("deviceInfoSet", false)) j.optBoolean("deviceInfo", true) else true,
+            deviceOs = DeviceInfo.clean(j.optString("deviceOs", ""), 64), deviceOsVersion = DeviceInfo.clean(j.optString("deviceOsVersion", ""), 64),
+            deviceModel = DeviceInfo.clean(j.optString("deviceModel", ""), 120),
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
+}
+
+/** Device info values sent in subscription headers: printable ASCII, length-capped; surrounding spaces are trimmed when sent. */
+object DeviceInfo {
+    fun clean(value: String, max: Int) = value.filter { it.code in 32..126 }.trim().take(max)
+    fun valid(value: String, max: Int) = value.length <= max && value.all { it.code in 32..126 }
 }
 
 object SubscriptionHeaders {
@@ -134,9 +187,10 @@ object SubscriptionHeaders {
         if (settings.hwidEnabled && sameOrigin) {
             headers["x-hwid"] = settings.hwid
             if (settings.deviceInfo) {
-                headers["x-device-os"] = "Android"
-                headers["x-ver-os"] = osVersion.filter { it.code in 32..126 }.take(64)
-                headers["x-device-model"] = model.filter { it.code in 32..126 }.take(120)
+                // Custom values (Settings → Subscription) replace the system ones; empty fields keep the system value.
+                headers["x-device-os"] = settings.deviceOs.trim().ifEmpty { "Android" }
+                headers["x-ver-os"] = settings.deviceOsVersion.trim().ifEmpty { DeviceInfo.clean(osVersion, 64) }
+                headers["x-device-model"] = settings.deviceModel.trim().ifEmpty { DeviceInfo.clean(model, 120) }
             }
         }
         return headers
@@ -178,11 +232,27 @@ object LocalProxyConfig {
      * Xray engine config. [bridge] = true: the tunnel bridge (VLESS inbound, [username] is the session UUID, UDP via XUDP);
      * false: a probe proxy (SOCKS5 with [username]/[password], TCP only).
      */
+    /**
+     * Xray 26.9+ verifies TLS against its built-in Mozilla bundle unless "useSystemCA" is set. Moth trusts the system and the
+     * user-installed CAs (see TrustedCertificates), so every tlsSettings (also nested ones such as XHTTP downloadSettings) gets it.
+     */
+    fun useSystemCa(value: Any?, depth: Int = 0) {
+        if (depth > 12) return
+        when (value) {
+            is JSONObject -> value.keys().asSequence().toList().forEach { k ->
+                val v = value.opt(k)
+                if (k == "tlsSettings" && v is JSONObject && !v.has("useSystemCA")) v.put("useSystemCA", true)
+                useSystemCa(v, depth + 1)
+            }
+            is org.json.JSONArray -> (0 until value.length()).forEach { useSystemCa(value.opt(it), depth + 1) }
+        }
+    }
     fun xray(profile: Profile, port: Int, username: String, password: String, settings: ClientSettings = ClientSettings(), bridge: Boolean = false): String {
         val source = JSONObject(profile.outbound)
         val group = source.optBoolean("group")
         val dpi = DpiTricks.active(settings)
         fun protectedOutbound(o: JSONObject) = o.apply {
+            useSystemCa(this)
             val stream = optJSONObject("streamSettings") ?: JSONObject().also { put("streamSettings", it) }
             stream.put("sockopt", JSONObject().put("domainStrategy", "ForceIPv4"))
         }

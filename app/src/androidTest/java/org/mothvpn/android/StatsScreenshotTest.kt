@@ -7,6 +7,7 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mothvpn.core.TrafficHistory
@@ -32,13 +33,26 @@ class StatsScreenshotTest {
         device.wait(Until.findObject(By.text("Statistics")), 10_000).click()
         val chart = device.wait(Until.findObject(By.desc("Daily traffic")), 10_000)
         assertNotNull("chart not shown", chart)
+        // The three totals at the top are labelled Day / Week / Month.
+        listOf("Day", "Week", "Month").forEach { assertNotNull("total $it missing", device.findObject(By.text(it))) }
+        assertNull("old Today label", device.findObject(By.text("Today")))
         device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.25f)
         Thread.sleep(1200)
-        val b = chart.visibleBounds
-        val left = b.left + (48 * context.resources.displayMetrics.density).toInt()
-        device.click(b.right - (b.right - left) / 14, b.bottom - b.height() / 4)
-        Thread.sleep(800)
-        assertNotNull("tap detail not shown", device.findObject(By.textContains("↑")))
+        // Re-find the chart after the scroll and retry the tap: a tap during the scroll settle was lost on CI.
+        var detail: androidx.test.uiautomator.UiObject2? = null
+        repeat(3) {
+            if (detail != null) return@repeat
+            val b = (device.findObject(By.desc("Daily traffic")) ?: chart).visibleBounds
+            val left = b.left + (48 * context.resources.displayMetrics.density).toInt()
+            device.click(b.right - (b.right - left) / 14, b.bottom - b.height() / 4)
+            detail = device.wait(Until.findObject(By.textContains("↑")), 3_000)
+            // The detail line sits above the chart and may have scrolled out of view.
+            if (detail == null && device.findObject(By.text("Tap a bar for that day.")) == null) {
+                device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.UP, 0.25f); Thread.sleep(600)
+                detail = device.findObject(By.textContains("↑"))
+            }
+        }
+        assertNotNull("tap detail not shown", detail)
         device.takeScreenshot(File(context.externalCacheDir, "stats.png"))
         device.pressBack(); Thread.sleep(500)
     }

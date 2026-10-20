@@ -26,13 +26,11 @@ object Diagnostics {
     val health = healthMutable.asStateFlow()
     internal val runningMutable = MutableStateFlow(false)
     val running = runningMutable.asStateFlow()
-    internal val speedMutable = MutableStateFlow("")
-    val speed = speedMutable.asStateFlow()
     /** Puts back [previous] (or removes the entry) after a check was cancelled. */
     @Synchronized fun restore(id: String, previous: ProbeResult?) { resultsMutable.value = if (previous != null) resultsMutable.value + (id to previous) else resultsMutable.value - id }
     @Synchronized fun result(id: String, value: ProbeResult) { resultsMutable.value = resultsMutable.value + (id to value) }
     /** Built-in probe URLs are public and logged verbatim; a user-supplied URL is only reported as "custom". */
-    fun describeUrl(url: String): String = if (url in setOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204", "https://www.google.com/generate_204", "https://speed.cloudflare.com/__down?bytes=1048576")) url else "custom"
+    fun describeUrl(url: String): String = if (url in setOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204", "https://www.google.com/generate_204")) url else "custom"
     fun friendly(e: Throwable) = kindText(ProbeErrorKind.of(e))
     /** Localized text for an outcome code (used for the log-free tooltip of the detailed icons). */
     fun kindText(k: ProbeErrorKind) = when (k) {
@@ -72,9 +70,19 @@ class ProxyRequest(private val service: VpnService, private val port: Int, priva
     /** Last handshake stage reached by run(); only for diagnostics. */
     @Volatile var stage = "not started"; private set
     fun cancel() { runCatching { socket?.close() } }
-    fun run(address: String, downloadLimit: Int = 0): Pair<Long, Long> {
+    /** Time of the warm second request when [warm] measured one (null: it was not possible and the first request's time is used). */
+    @Volatile var warmMs: Long? = null; private set
+    @Volatile var firstMs: Long? = null; private set
+    /**
+     * HTTPS request through the local proxy. The first request (local SOCKS, the server, remote TCP + TLS, status and headers) must
+     * succeed. With [warm] (the "Latency" method) a second request then goes over the same kept-alive TLS connection and its time
+     * (request sent → status and headers) is returned; if the connection cannot be reused or the second request fails, the first
+     * request's time is returned. Without [warm] ("Full latency") the first request's time is returned.
+     */
+    fun run(address: String, warm: Boolean = false): Long {
         val url = URL(address)
         require(url.protocol == "https" && url.userInfo == null)
+        warmMs = null; firstMs = null
         val start = System.nanoTime()
         val deadline = start + timeoutMs * 1_000_000L
         fun timeout(): Int {
@@ -112,10 +120,8 @@ class ProxyRequest(private val service: VpnService, private val port: Int, priva
             tls.sslParameters = tls.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
             tls.soTimeout = timeout()
             stage = "TLS handshake"; tls.startHandshake()
-            stage = "HTTP request/status line"
             val target = url.file.ifBlank { "/" }
-            require(!target.contains('\r') && !target.contains('\n'))
-            tls.getOutputStream().write("GET $target HTTP/1.1\r\nHost: ${url.authority}\r\nConnection: close\r\nAccept-Encoding: identity\r\nCache-Control: no-cache\r\n\r\n".toByteArray(Charsets.US_ASCII))
+            val out = tls.getOutputStream()
             val response = BufferedInputStream(tls.getInputStream())
             var headerBytes = 0
             fun line(): String {
@@ -128,38 +134,50 @@ class ProxyRequest(private val service: VpnService, private val port: Int, priva
                     b.append(ch.toChar())
                 }
             }
-            val status = line().split(' ').getOrNull(1)?.toIntOrNull()
-            check(status in setOf(200, 204)) { "unexpected HTTP status $status" }
-            stage = "HTTP headers"
-            val headers = mutableMapOf<String, String>()
-            while (true) { val l = line(); if (l.isEmpty()) break; headers[l.substringBefore(':').lowercase()] = l.substringAfter(':').trim() }
-            val latency = (System.nanoTime() - start) / 1_000_000
-            stage = "HTTP body"
-            if (downloadLimit == 0) {
+            /** Sends one request and reads its status line and headers. */
+            fun exchange(keepAlive: Boolean): Triple<String, Int, Map<String, String>> {
+                headerBytes = 0
+                out.write(org.mothvpn.core.ProbeHttp.request(target, url.authority, keepAlive).toByteArray(Charsets.US_ASCII)); out.flush()
+                val statusLine = line()
+                val status = org.mothvpn.core.ProbeHttp.status(statusLine)
+                check(status in setOf(200, 204)) { "unexpected HTTP status $status" }
+                stage = "HTTP headers"
+                val headers = mutableListOf<String>()
+                while (true) { val l = line(); if (l.isEmpty()) break; headers += l }
+                return Triple(statusLine, status!!, org.mothvpn.core.ProbeHttp.headers(headers))
+            }
+            stage = "HTTP request/status line"
+            val (statusLine, status, headers) = exchange(keepAlive = warm)
+            val first = (System.nanoTime() - start) / 1_000_000
+            firstMs = first
+            val body = org.mothvpn.core.ProbeHttp.bodyLength(status, headers)
+            if (!warm || !org.mothvpn.core.ProbeHttp.reusable(statusLine, headers, body)) {
+                stage = "HTTP body"
                 if (status == 200) { tls.soTimeout = timeout(); check(response.read() >= 0) }
+                if (warm) Logger.d("Probe", "warm request not possible (connection not reusable); using the first request")
                 stage = "done"
-                return latency to 0L
+                return first
             }
-            check(status == 200)
-            var bytes = 0L
-            val buffer = ByteArray(8192)
-            var remaining = headers["content-length"]?.toLongOrNull() ?: Long.MAX_VALUE
-            val chunked = headers["transfer-encoding"]?.lowercase()?.contains("chunked") == true
-            val downloadStart = System.nanoTime()
-            while (bytes < downloadLimit && remaining > 0) {
-                if (chunked) { headerBytes = 0; remaining = line().substringBefore(';').trim().toLong(16); if (remaining == 0L) break }
-                while (remaining > 0 && bytes < downloadLimit) {
-                    tls.soTimeout = timeout()
-                    val n = response.read(buffer, 0, minOf(buffer.size.toLong(), remaining, downloadLimit - bytes).toInt())
-                    if (n < 0) { if (headers["content-length"] != null || chunked) error("Incomplete download"); remaining = 0; break }
-                    remaining -= n; bytes += n
-                }
-                if (!chunked) break
-                if (remaining == 0L) { headerBytes = 0; check(line().isEmpty()) }
+            // Warm-up done: skip its body (generate_204 has none), then time the second request on the same connection.
+            val second = try {
+                stage = "warm-up body"
+                fun skip(n: Long) { var left = n; while (left > 0) { tls.soTimeout = timeout(); val k = response.skip(left); if (k <= 0) { check(response.read() >= 0); left-- } else left -= k } }
+                if (body == org.mothvpn.core.ProbeHttp.CHUNKED) {
+                    var total = 0L
+                    while (true) { val size = org.mothvpn.core.ProbeHttp.chunkSize(line()); total += size; require(total <= 1_048_576); if (size == 0L) { while (line().isNotEmpty()) {}; break }; skip(size); line() }
+                } else { require(body!! <= 1_048_576); skip(body) }
+                stage = "second request"
+                val t = System.nanoTime()
+                exchange(keepAlive = false)
+                (System.nanoTime() - t) / 1_000_000
+            } catch (e: Exception) {
+                if (cancelled.get()) throw e
+                Logger.d("Probe", "second request failed at '$stage' (${e.javaClass.simpleName}); using the first request")
+                null
             }
-            check(bytes > 0)
+            warmMs = second
             stage = "done"
-            return bytes to (System.nanoTime() - downloadStart).coerceAtLeast(1L)
+            return org.mothvpn.core.ProbeHttp.shown(first, second)
         } finally { runCatching { socket?.close() }; socket = null }
     }
 }

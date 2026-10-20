@@ -9,17 +9,20 @@ class StaleSubscriptionRefresh : IllegalStateException("Subscription changed whi
 
 /** One subscription (or the local list of servers added from links): its own link, name, servers and provider info. */
 data class SubscriptionSource(val id: String, val name: String, val url: String, val profiles: List<Profile>,
-    val providerName: String = "", val expires: Long = 0, val usedBytes: Long = 0, val totalBytes: Long = 0, val updatedAt: Long = 0) {
+    val providerName: String = "", val expires: Long = 0, val usedBytes: Long = 0, val totalBytes: Long = 0, val updatedAt: Long = 0,
+    /** Support / web page / news links from the provider's headers (never logged). */
+    val links: ProviderLinks = ProviderLinks()) {
     val local get() = url == SubscriptionRecord.LOCAL_URL
     /** Name to show: the user's name, else the provider's profile-title, else the host of the link. */
     fun title(): String = name.ifBlank { providerName }.ifBlank { runCatching { java.net.URI(url).host }.getOrNull().orEmpty() }
     fun json(): JSONObject = SubscriptionRecord(url, profiles, "", providerName = providerName, expires = expires, usedBytes = usedBytes,
-        totalBytes = totalBytes, updatedAt = updatedAt).json().put("id", id).put("name", name).apply { remove("selected"); remove("wifiSelected"); remove("mobileSelected") }
+        totalBytes = totalBytes, updatedAt = updatedAt).json().put("id", id).put("name", name).apply { remove("selected"); remove("wifiSelected"); remove("mobileSelected"); if (links.stored) put("providerLinks", links.json()) }
     companion object {
         const val LOCAL_ID = "local"
         fun from(j: JSONObject): SubscriptionSource {
             val r = SubscriptionRecord.from(JSONObject(j.toString()).put("selected", ""))
-            return SubscriptionSource(j.getString("id"), j.optString("name", ""), r.url, r.profiles, r.providerName, r.expires, r.usedBytes, r.totalBytes, r.updatedAt)
+            return SubscriptionSource(j.getString("id"), j.optString("name", ""), r.url, r.profiles, r.providerName, r.expires, r.usedBytes, r.totalBytes, r.updatedAt,
+                if (r.local) ProviderLinks() else ProviderLinks.from(j.optJSONObject("providerLinks")))
         }
         fun newId(url: String, now: Long): String = MessageDigest.getInstance("SHA-256").digest("$url|$now|${System.nanoTime()}".toByteArray())
             .joinToString("") { "%02x".format(it) }.take(16)
@@ -44,6 +47,8 @@ data class SubscriptionBook(val sources: List<SubscriptionSource>, val selected:
     }
     /** The subscription a server belongs to (the first one that contains it). */
     fun sourceOf(profileId: String) = sources.firstOrNull { s -> s.profiles.any { it.id == profileId } }
+    /** True when [sourceId] contains the server the VPN is using now ([activeId], empty when not connected): it cannot be deleted then. */
+    fun inUse(sourceId: String, activeId: String): Boolean = activeId.isNotEmpty() && source(sourceId)?.profiles?.any { it.id == activeId } == true
     /** Selection fixed up so that each choice points at an existing server. */
     fun normalized(): SubscriptionBook {
         val ids = profiles.map { it.id }.toHashSet()

@@ -51,7 +51,7 @@ private fun actionLabel(action: String) = when (action) {
         }
     }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (!enabled) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
+        if (!enabled) Text(tr(R.string.settings_wait_hint))
         Text(tr(R.string.rules_hint), style = MaterialTheme.typography.bodySmall)
         Button(enabled = enabled && rules.size < CustomRouting.MAX_RULES, onClick = { editing = -1 }) { Text(tr(R.string.rules_add)) }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -63,7 +63,7 @@ private fun actionLabel(action: String) = when (action) {
         if (rules.isEmpty()) Text(tr(R.string.rules_empty), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             itemsIndexed(rules) { i, rule ->
-                Card(Modifier.fillMaxWidth().clickable(enabled = enabled) { editing = i }) {
+                Card(Modifier.fillMaxWidth().clickable(enabled = enabled) { editing = i }, colors = ndCardColors()) {
                     Row(Modifier.fillMaxWidth().padding(start = 14.dp, top = 6.dp, bottom = 6.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(rule.value, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)

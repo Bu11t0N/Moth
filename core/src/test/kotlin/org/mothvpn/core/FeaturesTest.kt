@@ -113,7 +113,7 @@ class FeaturesTest {
         val s = ClientSettings()
         assertEquals(3, ProbePolicy.urls(s).size)
         assertEquals(2, ProbePolicy.urls(s.copy(probeUrl = "https://cp.cloudflare.com/generate_204")).size)
-        assertEquals(listOf(s.probeUrl), ProbePolicy.urls(s.copy(probeMode = "https")))
+        assertEquals(listOf(s.probeUrl), ProbePolicy.urls(s.copy(probeUrlOnly = true)))
         val tcp = Subscriptions.parseLink("vless://$uuid@example.com:443?security=tls")
         assertEquals("example.com" to 443, ProbePolicy.tcpEndpoint(tcp))
         val xhttp = Subscriptions.parseLink("vless://$uuid@example.com:443?type=xhttp&security=tls")
@@ -123,7 +123,7 @@ class FeaturesTest {
         assertFails { s.copy(probeMode = "icmp").validate() }
     }
     @Test fun customBootstrapDnsIsUsedByAllCoreConfigs() {
-        val s = ClientSettings(bootstrapDns = "https://8.8.8.8/dns-query", probeMode = "https")
+        val s = ClientSettings(bootstrapDns = "https://8.8.8.8/dns-query", probeUrlOnly = true)
         val p = Subscriptions.parseLink("hy2://secret@example.com:443")
         JSONObject(TunnelConfig.create(p, s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(1).let { assertEquals("https", it.getString("type")); assertEquals("8.8.8.8", it.getString("server")); assertFalse(it.has("domain_resolver")) }
         assertEquals("8.8.8.8", JSONObject(LocalProxyConfig.singBox(p, 18080, "u", "p", s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("server"))
@@ -150,5 +150,37 @@ class OfflineStatusTest {
     @Test fun onlineOrDisconnected() {
         assertEquals(OfflineStatus.Kind.ONLINE, OfflineStatus.of(connected = true, hasNetwork = true, killSwitch = true))
         assertEquals(OfflineStatus.Kind.ONLINE, OfflineStatus.of(connected = false, hasNetwork = false, killSwitch = true))
+    }
+
+    @Test fun reconnectOnlyForSettingsFixedAtConnect() {
+        val a = ClientSettings()
+        listOf(a.copy(mtu = 1300), a.copy(dns = "https://9.9.9.9/dns-query"), a.copy(splitMode = "only"), a.copy(splitApps = listOf("com.example")),
+            a.copy(fragment = "tlshello"), a.copy(mux = "smux"), a.copy(directRu = true), a.copy(healthIntervalSeconds = 120), a.copy(probeUrlOnly = true),
+            a.copy(probeMode = ProbePolicy.TCP)).forEach { assertTrue(a.needsReconnect(it), it.toString()) }
+        listOf(a.copy(autoSelect = true), a.copy(killSwitch = true), a.copy(probeParallel = 2), a.copy(probeTimeoutMs = 3000), a.copy(probeMode = ProbePolicy.FULL),
+            a.copy(userAgent = "x"), a.copy(theme = "dark"), a.copy(compactServers = false)).forEach { assertFalse(a.needsReconnect(it), it.toString()) }
+    }
+
+    @Test fun deviceInfoOnByDefaultMigrationAndOverrides() {
+        assertTrue(ClientSettings().deviceInfo)
+        // Beta 6 and earlier always wrote deviceInfo=false: not a real choice, so it becomes on; an explicit choice is kept.
+        val legacy = ClientSettings().json().apply { put("deviceInfo", false); remove("deviceInfoSet") }
+        assertTrue(ClientSettings.from(legacy).deviceInfo)
+        val chosenOff = ClientSettings(deviceInfo = false, deviceInfoSet = true)
+        assertFalse(ClientSettings.from(chosenOff.json()).deviceInfo)
+        // Custom values replace the system ones, empty keeps them; reset clears all three.
+        val custom = ClientSettings(deviceOs = "Linux", deviceOsVersion = "6.1", deviceModel = "Pixel 9")
+        assertEquals(custom, ClientSettings.from(custom.json()))
+        val o = URI("https://sub.example.com/t")
+        val h = SubscriptionHeaders.create(custom, o, o, "16", "Samsung")
+        assertEquals("Linux", h["x-device-os"]); assertEquals("6.1", h["x-ver-os"]); assertEquals("Pixel 9", h["x-device-model"])
+        val d = SubscriptionHeaders.create(custom.withDefaultDeviceInfo(), o, o, "16", "Samsung")
+        assertEquals("Android", d["x-device-os"]); assertEquals("16", d["x-ver-os"]); assertEquals("Samsung", d["x-device-model"])
+        assertFails { custom.copy(deviceModel = "x\r\nx-hwid: injected").validate() }
+        assertFails { custom.copy(deviceOs = "a".repeat(65)).validate() }
+        assertEquals("Linux", SubscriptionHeaders.create(custom.copy(deviceOs = " Linux "), o, o, "16", "S")["x-device-os"])
+        // Values are never logged, only that they changed.
+        val facts = LogFacts.settingsChanges(ClientSettings(), custom.copy(hwid = ClientSettings().hwid))
+        assertTrue(facts.none { "Linux" in it || "Pixel" in it || "6.1" in it }, facts.toString())
     }
 }

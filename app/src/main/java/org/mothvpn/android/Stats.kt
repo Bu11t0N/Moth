@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.drawText
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -83,11 +84,11 @@ object TrafficRecorder {
     val series = remember(history, today, range) { history.series(today, range) }
     Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard(tr(R.string.stats_today), history.day(today), units, locale, Modifier.weight(1f))
+            StatCard(tr(R.string.stats_day), history.day(today), units, locale, Modifier.weight(1f))
             StatCard(tr(R.string.stats_week), history.week(today, firstDay), units, locale, Modifier.weight(1f))
             StatCard(tr(R.string.stats_month), history.month(today), units, locale, Modifier.weight(1f))
         }
-        Card(Modifier.fillMaxWidth()) {
+        Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(tr(R.string.stats_chart), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -124,14 +125,14 @@ object TrafficRecorder {
     }
 }
 
+/** One of the three top items (Day / Week / Month): a short label and the total, nothing else (sent/received are in the chart). */
 @Composable private fun StatCard(title: String, value: Pair<Long, Long>, units: List<String>, locale: java.util.Locale, modifier: Modifier) {
-    ElevatedCard(modifier) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, minLines = 2)
-            Text(TrafficFormat.bytes(value.first + value.second, units, locale), style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary, maxLines = 1)
-            Text("↑ " + TrafficFormat.bytes(value.first, units, locale), style = MaterialTheme.typography.labelSmall, maxLines = 1)
-            Text("↓ " + TrafficFormat.bytes(value.second, units, locale), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+    Surface(shape = MaterialTheme.shapes.large, color = NdTone.card(), modifier = modifier.semantics(mergeDescendants = true) {}) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            val big = MaterialTheme.typography.titleLarge
+            androidx.compose.foundation.text.BasicText(TrafficFormat.bytes(value.first + value.second, units, locale), style = big.copy(color = MaterialTheme.colorScheme.onSurface), maxLines = 1,
+                autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = big.fontSize, stepSize = 0.5.sp))
         }
     }
 }

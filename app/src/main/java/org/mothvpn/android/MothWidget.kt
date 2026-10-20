@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
-/** Home-screen widget: Moth icon, server name, tunnel state and a Connect/Disconnect button (same logic as the tile). */
+/** Home-screen widget in the app's monochrome style: moth tile, server name, tunnel state and a Connect/Disconnect pill (same logic as the tile). */
 class MothWidget : AppWidgetProvider() {
     companion object {
         private const val TOGGLE = "org.mothvpn.android.WIDGET_TOGGLE"
@@ -36,6 +36,11 @@ class MothWidget : AppWidgetProvider() {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, MothWidget::class.java))
             if (ids.isEmpty()) return
+            manager.updateAppWidget(ids, views(context))
+        }
+
+        /** The widget's views for the current state (also used by the design screenshot test). */
+        fun views(context: Context): RemoteViews {
             val state = TunnelStatus.state.value
             val blocked = TunnelStatus.trafficBlocked(state, TunnelStatus.blocking.value)
             val subscription = runCatching { SubscriptionStore(context).load() }.getOrNull()
@@ -55,13 +60,14 @@ class MothWidget : AppWidgetProvider() {
                 setTextViewText(R.id.widget_server, profile?.name ?: tr(R.string.tile_setup))
                 setTextViewText(R.id.widget_state, status)
                 setTextViewText(R.id.widget_button, tr(if (on) R.string.widget_disconnect else R.string.widget_connect))
-                setInt(R.id.widget_icon, "setAlpha", if (on) 255 else 140)
+                // Monochrome moth: grey while off, the full text tone while connected (colours follow the system dark/light theme).
+                setInt(R.id.widget_icon, "setColorFilter", context.getColor(if (on && !blocked) R.color.widget_moth_on else R.color.widget_moth_off))
                 setOnClickPendingIntent(R.id.widget_button, PendingIntent.getBroadcast(context, 0,
                     Intent(context, MothWidget::class.java).setAction(TOGGLE), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
                 setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context, 1,
                     Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             }
-            manager.updateAppWidget(ids, views)
+            return views
         }
     }
 

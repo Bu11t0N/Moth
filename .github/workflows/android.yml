@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.26.9'
+          go-version: '1.27.2'
           cache: false
       - uses: actions/setup-java@v4
         with:
@@ -25,7 +25,7 @@ jobs:
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
       - name: Install pinned Android NDK
-        run: sdkmanager 'ndk;28.0.13004108' 'platforms;android-34' 'build-tools;34.0.0'
+        run: sdkmanager 'ndk;28.0.13004108' 'platforms;android-36' 'build-tools;35.0.0'
       - name: Cache pinned mobile core and corresponding source
         id: native-cache
         uses: actions/cache@v4
@@ -34,7 +34,7 @@ jobs:
             libbox.aar
             .core-build/sing-box
             ~/go/pkg/mod
-          key: moth-native-${{ runner.os }}-go1.26.9-ndk28-${{ hashFiles('scripts/build-libbox.sh', 'scripts/native/**') }}
+          key: moth-native-${{ runner.os }}-go1.27.2-ndk28-${{ hashFiles('scripts/build-libbox.sh', 'scripts/native/**') }}
       - name: Build official mobile core
         if: steps.native-cache.outputs.cache-hit != 'true'
         run: bash scripts/build-libbox.sh
@@ -128,8 +128,8 @@ jobs:
           curl -fsSL -o sb.tgz https://github.com/SagerNet/sing-box/releases/download/v1.12.25/sing-box-1.12.25-linux-amd64.tar.gz
           tar xzf sb.tgz
           # Xray server for XHTTP (same release as the core in libbox).
-          curl -fsSL -o xray.zip https://github.com/XTLS/Xray-core/releases/download/v26.7.28/Xray-linux-64.zip
-          echo "8195d909f1109b8f3d99eefe401a3c451d7bf4af71f24d3815420f77e5dd2a40  xray.zip" | sha256sum -c -
+          curl -fsSL -o xray.zip https://github.com/XTLS/Xray-core/releases/download/v26.10.17/Xray-linux-64.zip
+          echo "ecdd54eccd24c4c21a8f00968e7dbf7f5996da92383d2321170b560dc4a95158  xray.zip" | sha256sum -c -
           unzip -oq xray.zip xray -d xray-bin
           nohup python3 scripts/e2e/server.py "$PWD/sing-box-1.12.25-linux-amd64/sing-box" "$PWD/xray-bin/xray" > e2e-server.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8081/health && break; sleep 1; done

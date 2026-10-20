@@ -7,6 +7,18 @@ class SubscriptionBookTest {
     private val a = listOf(Subscriptions.parseLink("hy2://secret@a.example.com:443#A1"), Subscriptions.parseLink("trojan://secret@a2.example.com:443#A2"))
     private val b = listOf(Subscriptions.parseLink("trojan://secret@b.example.com:443#B1"), a[1])
 
+    @Test fun onlyTheSubscriptionWithTheServerInUseIsLocked() {
+        val book = SubscriptionBook(listOf(SubscriptionSource("sa", "A", "https://a.example.com/s", a), SubscriptionSource("sb", "B", "https://b.example.com/s", listOf(b[0]))), a[0].id)
+        assertTrue(book.inUse("sa", a[0].id)); assertFalse(book.inUse("sb", a[0].id))
+        assertFalse(book.inUse("sa", "")); assertFalse(book.inUse("missing", a[0].id))
+        // Deleting the other one keeps the selection on the server in use.
+        val next = book.remove("sb")
+        assertEquals(a[0].id, next.selected); assertEquals(listOf("sa"), next.sources.map { it.id })
+        // A server present in both: both subscriptions are locked.
+        val shared = book.upsert(SubscriptionSource("sb", "B", "https://b.example.com/s", b))
+        assertTrue(shared.inUse("sa", a[1].id)); assertTrue(shared.inUse("sb", a[1].id))
+    }
+
     @Test fun legacySubscriptionMigratesWithoutDataLoss() {
         val old = SubscriptionRecord("https://sub.example.com/secret", a, a[0].id, wifiSelected = a[0].id, mobileSelected = a[1].id,
             providerName = "Provider", expires = 1_900_000_000, usedBytes = 300, totalBytes = 1000, updatedAt = 1234)

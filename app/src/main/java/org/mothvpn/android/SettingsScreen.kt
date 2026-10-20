@@ -89,7 +89,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsCategory(tr(R.string.dev_for_developers), tr(R.string.set_sum_dev, if (Logger.level == LogLevel.OFF) tr(R.string.dev_level_off) else Logger.level.name), "dev") { section = tr(R.string.dev_for_developers) }
                 }
                 tr(R.string.msg_connection_75) -> {
-                    if (locked) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
+                    LiveApplyHint()
                     SettingsToggle(tr(R.string.auto_select), draft.autoSelect, !locked) { applySettings(draft.copy(autoSelect = it)) }
                     Text(tr(R.string.auto_select_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsCategory(tr(R.string.rules_title), if (draft.routingRules.isEmpty()) tr(R.string.rules_sum_none) else tr(R.string.rules_sum_count, draft.routingRules.size), "rules") { section = tr(R.string.rules_title) }
@@ -122,16 +122,24 @@ import org.mothvpn.core.SubscriptionSchedule
                     OutlinedTextField(pingTimeout, { pingTimeout = it; number(it, "pingTimeout") }, enabled = !locked, label = { Text(tr(R.string.set_ping_timeout)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(parallel, { parallel = it; number(it, "parallel") }, enabled = !locked, label = { Text(tr(R.string.set_ping_parallel)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text(tr(R.string.msg_check_method_99), style = MaterialTheme.typography.titleMedium)
-                    listOf("auto" to tr(R.string.msg_https_multiple_urls_100), "https" to tr(R.string.msg_https_custom_url_101), "tcp" to tr(R.string.msg_tcp_port_reachability_102)).forEach { (value, label) ->
-                        Row(Modifier.fillMaxWidth().clickable(enabled = !locked) { applySettings(draft.copy(probeMode = value)) }) {
+                    // Latency (default): warm-up request, then the second request on the same connection; Full latency: the first request with
+                    // every handshake; TCP: only the server port. Each with a one-line explanation.
+                    listOf(Triple(org.mothvpn.core.ProbePolicy.LATENCY, tr(R.string.ping_latency), tr(R.string.ping_latency_hint)),
+                        Triple(org.mothvpn.core.ProbePolicy.FULL, tr(R.string.ping_full), tr(R.string.ping_full_hint)),
+                        Triple(org.mothvpn.core.ProbePolicy.TCP, tr(R.string.ping_tcp), tr(R.string.ping_tcp_hint))).forEach { (value, label, hint) ->
+                        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = !locked) { applySettings(draft.copy(probeMode = value)) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             RadioButton(draft.probeMode == value, { applySettings(draft.copy(probeMode = value)) }, enabled = !locked)
-                            Text(label, modifier = Modifier.padding(top = 13.dp))
+                            Column(Modifier.padding(vertical = 6.dp)) {
+                                Text(label, style = MaterialTheme.typography.bodyLarge)
+                                Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
+                    SettingsToggle(tr(R.string.ping_url_only), draft.probeUrlOnly, !locked && draft.probeMode != org.mothvpn.core.ProbePolicy.TCP) { applySettings(draft.copy(probeUrlOnly = it)) }
                     Text(tr(R.string.msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.set_cat_routing) -> {
-                    if (locked) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
+                    LiveApplyHint()
                     SettingsToggle(tr(R.string.direct_ru), draft.directRu, !locked) { applySettings(draft.copy(directRu = it)) }
                     Text(tr(R.string.direct_ru_hint), style = MaterialTheme.typography.bodySmall)
                     var dnsDialog by remember { mutableStateOf(false) }
@@ -175,7 +183,14 @@ import org.mothvpn.core.SubscriptionSchedule
                         trailingIcon = { IconButton(onClick = { showHwid = !showHwid }) { MothIcon(if (showHwid) "eye_off" else "eye") } },
                         modifier = Modifier.fillMaxWidth())
                     TextButton(onClick = { clipboard.setText(AnnotatedString(draft.hwid)) }) { Text(tr(R.string.msg_copy_hwid_107)) }
-                    SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it)) }
+                    SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it, deviceInfoSet = true)) }
+                    // The device info that is sent (system values or the user's own), edited in a scrollable dialog. Never logged.
+                    if (draft.deviceInfo) {
+                        var deviceDialog by remember { mutableStateOf(false) }
+                        val sent = DeviceDefaults.sent(draft)
+                        DialogRow(tr(R.string.device_title), sent.joinToString(" · "), enabled = !locked) { deviceDialog = true }
+                        if (deviceDialog) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
+                    }
                     OutlinedTextField(draft.userAgent, { applySettings(draft.copy(userAgent = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_user_agent_109)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Text(tr(R.string.msg_providers_may_select_the_subscription_format_110), style = MaterialTheme.typography.bodySmall)
                 }
@@ -184,7 +199,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     val languages = listOf("system" to tr(R.string.msg_system_default_80), "en" to "English", "ru" to "Русский")
                     var languageDialog by remember { mutableStateOf(false) }
                     val currentLanguage = languages.firstOrNull { it.first == language }?.second ?: languages[0].second
-                    Card(Modifier.fillMaxWidth().animateContentSize().clickable { languageDialog = true }) {
+                    Card(Modifier.fillMaxWidth().animateContentSize().clickable { languageDialog = true }, colors = ndCardColors()) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(tr(R.string.language), style = MaterialTheme.typography.titleMedium)
@@ -205,7 +220,7 @@ import org.mothvpn.core.SubscriptionSchedule
                         confirmButton = { TextButton(onClick = { languageDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
                     val sortModes = listOf(ServerOrder.SUBSCRIPTION to tr(R.string.set_sort_subscription), ServerOrder.LATENCY to tr(R.string.set_sort_latency), ServerOrder.NAME to tr(R.string.set_sort_name))
                     var sortDialog by remember { mutableStateOf(false) }
-                    Card(Modifier.fillMaxWidth().animateContentSize().clickable { sortDialog = true }) {
+                    Card(Modifier.fillMaxWidth().animateContentSize().clickable { sortDialog = true }, colors = ndCardColors()) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(tr(R.string.set_sort_servers), style = MaterialTheme.typography.titleMedium)
@@ -239,12 +254,17 @@ import org.mothvpn.core.SubscriptionSchedule
                             Text(label, modifier = Modifier.padding(top = 13.dp))
                         }
                     }
+                    // Pure black for the dark theme (unavailable while the light theme is chosen).
+                    SettingsToggle(tr(R.string.set_amoled), draft.amoled, enabled = draft.theme != "light") { applySettings(draft.copy(amoled = it)) }
                     SettingsToggle(tr(R.string.msg_compact_server_rows_83), draft.compactServers) { applySettings(draft.copy(compactServers = it)) }
                     SettingsToggle(tr(R.string.dev_detailed_icons), draft.detailedIcons) { applySettings(draft.copy(detailedIcons = it)) }
                     Text(tr(R.string.dev_detailed_icons_hint), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.dev_for_developers) -> {
                     DeveloperSection({ logPage = 1 }, { logPage = 2 })
+                    var headersDialog by remember { mutableStateOf(false) }
+                    DialogRow(tr(R.string.dev_sub_headers), tr(R.string.dev_sub_headers_sum)) { headersDialog = true }
+                    if (headersDialog) SubscriptionHeadersDialog { headersDialog = false }
                     SettingsToggle(tr(R.string.dev_edit_servers), draft.editServers) { applySettings(draft.copy(editServers = it)) }
                     Text(tr(R.string.dev_edit_servers_hint), style = MaterialTheme.typography.bodySmall)
                 }
@@ -264,13 +284,10 @@ import org.mothvpn.core.SubscriptionSchedule
 }
 
 @Composable private fun SettingsCategory(title: String, subtitle: String, icon: String, open: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = open)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Surface(shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(40.dp)) {
-                Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
-                    Icon(categoryIcon(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(22.dp))
-                }
-            }
+    Card(Modifier.fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            // A monochrome icon in a grey rounded-square tile (no colours, no circle).
+            IconTile(categoryIcon(icon))
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 if (subtitle.isNotEmpty()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -291,8 +308,76 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
     Text(text, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
 }
 @Composable private fun SettingsToggle(label: String, checked: Boolean, enabled: Boolean = true, change: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, modifier = Modifier.weight(1f).padding(top = 12.dp, end = 12.dp))
+    // The whole row (at least 56 dp high) toggles the switch.
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = enabled) { change(!checked) },
+        horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp))
         Switch(checked = checked, onCheckedChange = change, enabled = enabled)
     }
+}
+
+/** Developer: per subscription, the NAMES of the response headers and body fields from its last update (never values or links). */
+@Composable fun SubscriptionHeadersDialog(close: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val rows by produceState<List<Pair<String, ResponseHeaderNames.Names?>>?>(null) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { SubscriptionStore(context).loadBook()?.sources.orEmpty().filter { !it.local }.map { s -> s.title() to ResponseHeaderNames.load(context, s.id) } }.getOrDefault(emptyList())
+        }
+    }
+    AlertDialog(onDismissRequest = close, title = { Text(tr(R.string.dev_sub_headers)) }, text = {
+        androidx.compose.foundation.text.selection.SelectionContainer {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(tr(R.string.dev_sub_headers_hint), style = MaterialTheme.typography.bodySmall)
+                val list = rows
+                if (list != null && list.isEmpty()) Text(tr(R.string.dev_sub_headers_none))
+                list?.forEach { (title, names) ->
+                    Text(title, style = MaterialTheme.typography.titleSmall)
+                    if (names == null) Text(tr(R.string.dev_sub_headers_update), style = MaterialTheme.typography.bodySmall)
+                    else {
+                        Text(tr(R.string.dev_sub_headers_http, names.headers.joinToString(", ").ifEmpty { "—" }), style = MaterialTheme.typography.bodySmall)
+                        Text(tr(R.string.dev_sub_headers_body, names.body.joinToString(", ").ifEmpty { "—" }), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        }
+    }, confirmButton = { TextButton(onClick = close) { Text(tr(R.string.sub_link_close)) } })
+}
+
+/** While the VPN is starting or stopping, settings wait. While it is on they can be changed (applied silently, no hint). */
+@Composable private fun LiveApplyHint() {
+    val tunnel by TunnelStatus.state.collectAsState()
+    if (tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)) Text(tr(R.string.settings_wait_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** The device info Moth sends by default (same values as the subscription headers) and what it sends with [settings]. */
+object DeviceDefaults {
+    val values get() = listOf("Android", org.mothvpn.core.DeviceInfo.clean(android.os.Build.VERSION.RELEASE.orEmpty(), 64),
+        org.mothvpn.core.DeviceInfo.clean("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}", 120))
+    val limits = listOf(64, 64, 120)
+    fun sent(settings: ClientSettings) = listOf(settings.deviceOs, settings.deviceOsVersion, settings.deviceModel).mapIndexed { i, v -> v.trim().ifEmpty { values[i] } }
+}
+
+/**
+ * Device info dialog: each field holds the value that is sent now (default or the user's own) as editable text; Reset puts the
+ * defaults back. A value equal to the default is stored as "default" (empty), so it follows system updates. Scrolls on short
+ * screens, with a large font and with the keyboard open. Values are never logged.
+ */
+@Composable private fun DeviceInfoDialog(settings: ClientSettings, close: () -> Unit, save: (ClientSettings) -> Unit) {
+    val defaults = remember { DeviceDefaults.values }
+    val fields = remember { DeviceDefaults.sent(settings).map { mutableStateOf(it) } }
+    val labels = listOf(tr(R.string.device_os), tr(R.string.device_os_version), tr(R.string.device_model))
+    val valid = fields.indices.all { i -> fields[i].value.trim().isNotEmpty() && org.mothvpn.core.DeviceInfo.valid(fields[i].value.trim(), DeviceDefaults.limits[i]) }
+    AlertDialog(onDismissRequest = close, title = { Text(tr(R.string.device_title)) }, text = {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            fields.forEachIndexed { i, field ->
+                OutlinedTextField(field.value, { field.value = it.take(DeviceDefaults.limits[i]) }, label = { Text(labels[i]) }, singleLine = true,
+                    isError = !org.mothvpn.core.DeviceInfo.valid(field.value.trim(), DeviceDefaults.limits[i]) || field.value.isBlank(), modifier = Modifier.fillMaxWidth())
+            }
+            TextButton(enabled = fields.indices.any { fields[it].value != defaults[it] }, onClick = { fields.forEachIndexed { i, f -> f.value = defaults[i] } }) { Text(tr(R.string.device_reset)) }
+            Text(tr(R.string.device_hint), style = MaterialTheme.typography.bodySmall)
+        }
+    }, confirmButton = { TextButton(enabled = valid, onClick = {
+        val v = fields.mapIndexed { i, f -> f.value.trim().takeIf { it != defaults[i] }.orEmpty() }
+        save(settings.copy(deviceOs = v[0], deviceOsVersion = v[1], deviceModel = v[2]))
+    }) { Text(tr(R.string.sub_save)) } }, dismissButton = { TextButton(onClick = close) { Text(tr(R.string.msg_cancel_32)) } })
 }

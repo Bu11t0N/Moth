@@ -84,9 +84,15 @@ object SubscriptionRefresh {
                 Logger.i("Import", "refresh result: servers ${o.profiles.size} -> ${parsed.profiles.size} (added $added, removed $gone)")
             }
             book.upsert(SubscriptionSource(id, name?.trim() ?: old?.name.orEmpty(), link, parsed.profiles, response.name,
-                response.expires, response.used, response.total, System.currentTimeMillis()))
+                response.expires, response.used, response.total, System.currentTimeMillis(), response.links))
         }
         Logger.i("Import", "subscriptions saved: ${book.sources.size} subscription(s), ${book.profiles.size} server(s)")
+        ResponseHeaderNames.save(context, id, response.names)
+        // No logo header: the provider's web page icon (apple-touch-icon), if it has an https web page.
+        // No logo field: the profile picture of the provider's public Telegram bot/channel, else the web page icon.
+        val telegram = if (response.links.logo.isEmpty()) org.mothvpn.core.ProviderLinks.telegramPage(response.links) else null
+        val logo = response.links.logo.ifEmpty { telegram ?: org.mothvpn.core.ProviderLinks.webIcon(response.links.web).orEmpty() }
+        ProviderLogos.refresh(context, id, logo, settings.withAppVersion(BuildConfig.VERSION_NAME).userAgent, fallback = response.links.logo.isEmpty(), telegram = telegram != null)
         runCatching { ExpiryReminder.checkTraffic(context) }.onFailure { Logger.w("Traffic", "check after refresh failed", it) }
         return Result(book, id, parsed.rejected)
     }

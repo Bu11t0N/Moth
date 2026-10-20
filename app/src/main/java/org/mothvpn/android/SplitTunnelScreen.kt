@@ -24,8 +24,12 @@ import org.mothvpn.core.ClientSettings
 private class AppEntry(val packageName: String, val label: String, val system: Boolean)
 
 /** Per-app split tunneling: mode dialog row, search and the list of installed apps that use the internet. */
-@Composable fun SplitTunnelPage(settings: ClientSettings, enabled: Boolean, apply: (ClientSettings) -> Unit, modifier: Modifier = Modifier) {
+@Composable fun SplitTunnelPage(saved: ClientSettings, enabledOff: Boolean, applyNow: (ClientSettings) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    // Editable while connected (both designs): every tap is saved at once; MainActivity reconnects once, 5 s after the last change.
+    val enabled = enabledOff
+    val settings = saved
+    val apply: (ClientSettings) -> Unit = applyNow
     val pm = context.packageManager
     var apps by remember { mutableStateOf<List<AppEntry>?>(null) }
     var search by remember { mutableStateOf("") }
@@ -34,33 +38,32 @@ private class AppEntry(val packageName: String, val label: String, val system: B
     LaunchedEffect(Unit) {
         apps = withContext(Dispatchers.IO) {
             runCatching {
-                // Only apps with a launcher icon are visible to Moth (<queries> MAIN/LAUNCHER in the manifest, no QUERY_ALL_PACKAGES).
+                // Every installed package of this user (QUERY_ALL_PACKAGES), not only apps with a launcher icon. Apps that cannot use the
+                // network (no INTERNET permission) are left out: routing them changes nothing. System apps stay behind the "Show system apps" box.
                 @Suppress("DEPRECATION")
-                val launchable = pm.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER), 0)
-                    .map { it.activityInfo.packageName }.toSet()
-                val found = launchable.filter { it != context.packageName }.mapNotNull { name ->
-                    @Suppress("DEPRECATION")
-                    val p = runCatching { pm.getPackageInfo(name, PackageManager.GET_PERMISSIONS) }.getOrNull() ?: return@mapNotNull null
+                val found = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS).filter { it.packageName != context.packageName }.mapNotNull { p ->
                     val info = p.applicationInfo ?: return@mapNotNull null
                     if (p.requestedPermissions?.contains(android.Manifest.permission.INTERNET) != true) return@mapNotNull null
                     AppEntry(p.packageName, info.loadLabel(pm).toString(), info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0)
                 }
-                // Apps chosen earlier that are no longer visible (no launcher icon) stay in the list so they can be unchecked.
+                // Apps chosen earlier that are no longer installed stay in the list so they can be unchecked.
                 (found + settings.splitApps.filter { id -> found.none { it.packageName == id } }.map { AppEntry(it, it, false) })
-                    .sortedWith(compareBy({ it.packageName !in settings.splitApps }, { it.label.lowercase() }))
+                    .sortedBy { it.label.lowercase() }
             }.onFailure { Logger.w("Split", "listing apps failed", it) }.getOrDefault(emptyList())
         }
     }
     val modes = listOf("off" to tr(R.string.split_mode_off), "only" to tr(R.string.split_mode_only), "bypass" to tr(R.string.split_mode_bypass))
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (!enabled) Text(tr(R.string.msg_network_settings_are_available_after_disconne_88))
         DialogRow(tr(R.string.split_mode), modes.first { it.first == settings.splitMode }.second, enabled) { modeDialog = true }
-        Text(tr(R.string.split_hint), style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(search, { search = it }, label = { Text(tr(R.string.split_search)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { showSystem = !showSystem }) {
             Checkbox(showSystem, { showSystem = it }); Text(tr(R.string.split_show_system))
         }
-        val list = apps
+        // Selected apps on top. The order is a snapshot so rows don't jump under the finger: it is refreshed when the page opens, when the
+        // search or the system-apps box changes.
+        var onTop by remember { mutableStateOf(settings.splitApps.toSet()) }
+        LaunchedEffect(search, showSystem) { onTop = settings.splitApps.toSet() }
+        val list = apps?.let { all -> remember(all, onTop) { all.sortedBy { it.packageName !in onTop } } }
         if (list == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         else {
             val shown = list.filter { (showSystem || !it.system || it.packageName in settings.splitApps) && (search.isBlank() || it.label.contains(search, true) || it.packageName.contains(search, true)) }
@@ -88,7 +91,7 @@ private class AppEntry(val packageName: String, val label: String, val system: B
 
 /** Settings row that opens a dialog (same look as the language and sort rows). */
 @Composable fun DialogRow(title: String, value: String, enabled: Boolean = true, open: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = open)) {
+    Card(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = open), colors = ndCardColors()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)

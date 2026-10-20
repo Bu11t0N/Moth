@@ -2,6 +2,41 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.7.0
+
+Released 2026-10-20.
+
+### Design
+
+- A new monochrome design, now the only one. The connect button is a moth: it flaps its wings while connecting, moves them slowly while connected and rests when the VPN is off.
+- A pure black (AMOLED) option for the dark theme. The themed app icon, the home-screen widget and the VPN notification icon follow the new look and your system colours.
+- The home screen shows speed, session traffic and connection time, a highlighted server card and the subscription card, and fits short screens and large fonts.
+- Menus open from the bottom of the screen; short notices appear at the top.
+
+### Servers and subscriptions
+
+- The server list opens from the bottom of the home screen. The Servers tab has a Wi-Fi / mobile data switch, a group per subscription with its own update and check buttons, and search that opens groups with matches.
+- The ⋮ menu updates all subscriptions and checks all servers; the add button is in the top bar.
+- A keyword filter hides matching servers or shows only them, separately for Wi-Fi and mobile data. Auto-select and failover never pick hidden servers.
+- Subscriptions can be added, updated, renamed and deleted while the VPN is on. The connection stays on its server even if an update removed it; only the subscription with the server in use can’t be deleted until you disconnect.
+- The subscription card shows traffic as a ring, the provider’s logo (or its website icon or Telegram avatar), support, news and website buttons, and announcements.
+- Ping measures latency on an open connection, like most clients; “Full latency” and “TCP” are in Settings. The speed test has been removed.
+
+### Connection and settings
+
+- Connection settings and split tunneling can be changed while the VPN is on.
+- Split tunneling lists every app that uses the internet, including apps without a launcher icon, with selected apps first.
+- Quick Settings tile: a tap toggles the VPN without closing the shade; a long press opens Moth. The VPN notification stays near the top of the shade.
+- The system name, version and device model sent to your provider can be changed in a dialog or reset to the defaults. The Android version is sent by default.
+- Statistics show the totals for the day, week and month at the top.
+- For developers: a list of the header names a subscription sends.
+
+### Fixes and updates
+
+- The keyboard no longer covers the server JSON editor, and swiping between Wi-Fi and mobile data works again.
+- Shorter settings hints and fewer unneeded messages and log lines.
+- Updated Xray to 26.10.17.
+
 ## 0.6.5
 
 Released 2026-10-17.

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_surface">#FF1C1C1C</color>
+    <color name="widget_tile">#FF313131</color>
+    <color name="widget_text">#FFF2F2F2</color>
+    <color name="widget_text_secondary">#FFA6A6A6</color>
+    <color name="widget_button">#FFF2F2F2</color>
+    <color name="widget_on_button">#FF000000</color>
+    <color name="widget_moth_on">#FFF2F2F2</color>
+    <color name="widget_moth_off">#FF8A8A8A</color>
+</resources>

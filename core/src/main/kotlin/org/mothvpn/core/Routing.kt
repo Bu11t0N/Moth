@@ -144,9 +144,3 @@ object ImportInput {
     /** Local servers: new ones are added after the existing ones, duplicates (same id) are skipped. */
     fun merge(old: List<Profile>, added: List<Profile>): List<Profile> = (old + added).distinctBy { it.id }
 }
-
-object SpeedTest {
-    const val bytes = 10_000_000
-    const val url = "https://speed.cloudflare.com/__down?bytes=$bytes"
-    fun mbps(bytes: Long, millis: Long): Double = if (millis <= 0) 0.0 else bytes * 8.0 / 1000.0 / millis
-}

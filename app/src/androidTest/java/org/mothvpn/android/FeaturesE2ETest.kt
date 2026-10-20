@@ -90,6 +90,74 @@ class FeaturesE2ETest {
     }
     private fun waitRules(expected: List<RoutingRule>) = eventually(15_000, "rules saved") { SettingsStore(context).load().routingRules == expected }
 
+    @Test fun subscriptionUpdateWhileConnectedKeepsTheSession() {
+        val first = add(sub1, "First E2E")
+        launch(); connect()
+        val active = TunnelStatus.activeProfile.value
+        assertTrue("active server", active.isNotEmpty())
+        val before = SubscriptionStore(context).loadBook()!!.source(first.sourceId)!!.updatedAt
+        // The group's update button works while connected and does not reconnect.
+        tab("Servers")
+        wait(By.desc("Update subscription").enabled(true)).click()
+        eventually(30_000, "updated while connected") { SubscriptionStore(context).loadBook()!!.source(first.sourceId)!!.updatedAt > before }
+        assertEquals(TunnelState.RUNNING, TunnelStatus.state.value); assertEquals(active, TunnelStatus.activeProfile.value)
+        // An update that removed the server in use: the session stays on it, also across a restart (as a settings change does).
+        SubscriptionStore(context).update { b -> b.copy(sources = b.sources.map { it.copy(profiles = it.profiles.filter { p -> p.id != active }) }).normalized() }
+        VpnLauncher.changed.value++
+        context.startService(Intent(context, TunnelService::class.java).setAction("SWITCH").putExtra("profile", active).putExtra("force", true).putExtra("settings", true))
+        eventually(10_000, "restart begun") { TunnelStatus.state.value == TunnelState.STARTING || TunnelStatus.state.value == TunnelState.RUNNING }
+        Thread.sleep(5000)
+        eventually(60_000, "running again on the removed server") { TunnelStatus.state.value == TunnelState.RUNNING && TunnelStatus.activeProfile.value == active }
+        assertNull(SubscriptionStore(context).loadBook()!!.profiles.firstOrNull { it.id == active })
+        tab("Home"); wait(By.text("VPN is on"))
+        disconnect()
+        log("subscription updated while connected; removed server kept until disconnect")
+    }
+
+    private fun groupActions(title: String) {
+        val y = wait(By.desc("Collapse: $title")).visibleBounds.centerY()
+        device.findObjects(By.desc("Subscription actions")).minByOrNull { kotlin.math.abs(it.visibleBounds.centerY() - y) }!!.click()
+    }
+
+    @Test fun addAndDeleteSubscriptionsWhileConnected() {
+        val first = add(sub1, "First E2E")
+        launch(); connect()
+        val active = TunnelStatus.activeProfile.value
+        assertTrue("active server in the first subscription", SubscriptionStore(context).loadBook()!!.inUse(first.sourceId, active))
+        tab("Servers")
+        // Adding works while connected (the + is not dimmed and opens the add dialog).
+        wait(By.desc("Add subscription")).click()
+        wait(By.text("Add subscription")); Thread.sleep(800)
+        // The dialog may still recompose right after opening: retry a stale field.
+        eventually(10_000, "link typed") {
+            runCatching { wait(By.clazz("android.widget.EditText"), 3_000).text = sub2 }
+            device.findObject(By.text(sub2)) != null
+        }
+        wait(By.text("Add").enabled(true)).click()
+        wait(By.desc("Collapse: Second E2E"), 60_000)
+        eventually(15_000, "two subscriptions") { SubscriptionStore(context).loadBook()!!.sources.size == 2 }
+        assertEquals(TunnelState.RUNNING, TunnelStatus.state.value); assertEquals(active, TunnelStatus.activeProfile.value)
+        // The subscription with the server in use: Delete only shows the top notice, nothing is deleted.
+        groupActions("First E2E")
+        wait(By.text("Delete")).click()
+        wait(By.descStartsWith("This subscription’s server is in use"), 5_000)
+        assertNull("no delete dialog", device.findObject(By.text("Remove")))
+        eventually(4_000, "notice hides after 2 s") { device.findObject(By.descStartsWith("This subscription’s server is in use")) == null }
+        assertEquals(2, SubscriptionStore(context).loadBook()!!.sources.size)
+        // Any other subscription can be deleted; the session stays on its server.
+        groupActions("Second E2E")
+        wait(By.text("Delete")).click()
+        wait(By.text("Remove")).click()
+        eventually(15_000, "second deleted") { SubscriptionStore(context).loadBook()!!.sources.map { it.id } == listOf(first.sourceId) }
+        val book = SubscriptionStore(context).loadBook()!!
+        assertTrue("selection still valid", book.profiles.any { it.id == book.selected })
+        Thread.sleep(3000)
+        assertEquals(TunnelState.RUNNING, TunnelStatus.state.value); assertEquals(active, TunnelStatus.activeProfile.value)
+        tab("Home"); wait(By.text("VPN is on"))
+        disconnect()
+        log("added and deleted subscriptions while connected; in-use subscription stayed")
+    }
+
     @Test fun multipleSubscriptionsGroupRefreshAndDelete() {
         val first = add(sub1, "First E2E")
         val second = add(sub2, null)
@@ -116,15 +184,17 @@ class FeaturesE2ETest {
         log("two subscriptions refreshed, traffic warning shown")
 
         launch(); tab("Servers")
-        val header = wait(By.text("Second E2E · 2"))
-        wait(By.text("First E2E · 3")); wait(By.text("Second Trojan")); wait(By.text("E2E VLESS"))
+        // Group headers and server rows are single merged nodes: found by their descriptions.
+        val header = wait(By.desc("Collapse: Second E2E"))
+        wait(By.desc("Collapse: First E2E")); wait(By.descStartsWith("Second Trojan")); wait(By.descStartsWith("E2E VLESS"))
+        assertEquals(listOf(3, 2), SubscriptionStore(context).loadBook()!!.sources.map { it.profiles.size }.sortedDescending())
         val y = header.visibleBounds.centerY()
         device.findObjects(By.desc("Subscription actions")).minByOrNull { kotlin.math.abs(it.visibleBounds.centerY() - y) }!!.click()
         wait(By.text("Delete")).click()
         wait(By.text("Remove")).click()
-        assertTrue("second group still shown", device.wait(Until.gone(By.text("Second E2E · 2")), 15_000))
+        assertTrue("second group still shown", device.wait(Until.gone(By.desc("Collapse: Second E2E")), 15_000))
         eventually(10_000, "store has one subscription") { SubscriptionStore(context).loadBook()!!.sources.map { it.id } == listOf(first.sourceId) }
-        wait(By.text("First E2E · 3"))
+        wait(By.desc("Collapse: First E2E"))
         log("grouped list shown, second subscription deleted")
     }
 
@@ -218,7 +288,7 @@ class FeaturesE2ETest {
         }
         // The restored data is what the app shows.
         launch(); tab("Servers")
-        wait(By.text("First E2E · 2")); wait(By.text("My servers · 1")); wait(By.text("Favorites · 1"))
+        wait(By.desc("Collapse: First E2E")); wait(By.desc("Collapse: My servers")); wait(By.desc("Collapse: Favorites"))
         tab("Settings"); wait(By.text("Connection")).click()
         scrollTo("Rules: 2")
         device.pressBack()

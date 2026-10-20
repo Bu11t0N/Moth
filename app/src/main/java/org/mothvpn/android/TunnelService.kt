@@ -35,7 +35,6 @@ import org.mothvpn.core.ProbeOrder
 import kotlin.concurrent.withLock
 import org.mothvpn.core.ProtectPolicy
 import org.mothvpn.core.ServerPicker
-import org.mothvpn.core.SpeedTest
 import org.mothvpn.core.SplitTunnel
 import java.net.ServerSocket
 import java.util.UUID
@@ -47,12 +46,21 @@ object TunnelStatus {
     val state = mutable.asStateFlow()
     internal val activeMutable = MutableStateFlow("")
     val activeProfile = activeMutable.asStateFlow()
+    /** The server of the running session as it was started; it stays usable after a subscription update removed it. */
+    internal val activeServerMutable = MutableStateFlow<org.mothvpn.core.Profile?>(null)
+    val activeServer = activeServerMutable.asStateFlow()
     /** True while the kill switch's blocking interface is up (BLOCKED, and the reconnect attempts made from it). */
     internal val blockingMutable = MutableStateFlow(false)
     val blocking = blockingMutable.asStateFlow()
     /** Connected, but the phone has no network at all (set by the service from its default-network callback). */
     internal val offlineMutable = MutableStateFlow(org.mothvpn.core.OfflineStatus.Kind.ONLINE)
     val offline = offlineMutable.asStateFlow()
+    /** Live session numbers while connected (same sample as the notification: speed, session traffic, time); null when not connected. */
+    internal val statsMutable = MutableStateFlow<org.mothvpn.core.TrafficFormat.Stats?>(null)
+    val stats = statsMutable.asStateFlow()
+    /** Auto-select found no candidate because the keyword server filter hides every server (it then keeps the selected server). */
+    internal val filterHidesAllMutable = MutableStateFlow(false)
+    val filterHidesAll = filterHidesAllMutable.asStateFlow()
     /** Traffic is held by the kill switch: the user sees "Disconnect" and "Traffic blocked", not "Connect". Also when the network is gone with the kill switch on. */
     fun trafficBlocked(state: TunnelState, blocking: Boolean, offline: org.mothvpn.core.OfflineStatus.Kind = this.offline.value) = state == TunnelState.BLOCKED || (blocking && state == TunnelState.STARTING) ||
         (offline == org.mothvpn.core.OfflineStatus.Kind.BLOCKED && state in setOf(TunnelState.RUNNING, TunnelState.STARTING))
@@ -126,7 +134,9 @@ class TunnelService : VpnService(), PlatformInterface {
             if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR, TunnelState.BLOCKED) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING && !intent.getBooleanExtra("force", false)) return START_NOT_STICKY
             Logger.i("Tunnel", "server switch requested (state=${TunnelStatus.state.value})")
             cancelProbes()
-            manualPick = true; ranking = emptyList(); tried.clear(); cancelRetry()
+            // A reconnect that only applies changed settings keeps the same server and does not pause auto-select.
+            if (!intent.getBooleanExtra("settings", false)) manualPick = true
+            ranking = emptyList(); tried.clear(); cancelRetry()
             serverName = ""; stopped = false
             TunnelStatus.mutable.value = TunnelState.STARTING
             try { foreground() } catch (e: Exception) { Logger.e("Tunnel", "could not enter the foreground", e) }
@@ -135,25 +145,25 @@ class TunnelService : VpnService(), PlatformInterface {
             if (TunnelStatus.state.value == TunnelState.RUNNING) healthExecutor.execute { checkHealth(SettingsStore(this).load()) }
         } else if (intent?.action == "CANCEL_PROBES") {
             cancelProbes()
-        } else if (intent?.action in setOf("PROBE", "SPEED")) {
+        } else if (intent?.action == "PROBE") {
             if (Diagnostics.running.value) { Logger.w("Probe", "request ignored: a check is already running"); return START_NOT_STICKY }
             foreground() // while connected the notification keeps showing the server name
             probeCancel = AtomicBoolean(false)
             val cancel = probeCancel
             val id = intent?.getStringExtra("profile")
-            val speed = intent?.action == "SPEED"
             val order = intent?.getStringArrayListExtra("order").orEmpty()
             Diagnostics.runningMutable.value = true
-            Logger.i("Probe", "${if (speed) "speed test" else "probe"} requested for ${if (id != null) "one profile" else if (intent?.getStringArrayListExtra("only").isNullOrEmpty()) "all profiles" else "one subscription"} requestedNetwork=${intent?.getStringExtra("network")}")
-            if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_download_test_up_to_1_mib_123)
+            Logger.i("Probe", "probe requested for ${if (id != null) "one profile" else if (intent?.getStringArrayListExtra("only").isNullOrEmpty()) "all profiles" else "one subscription"} requestedNetwork=${intent?.getStringExtra("network")}")
             executor.execute {
-                try { if (speed || SettingsStore(this).load().probeMode != "tcp") initCore(); probes.execute { probeProfiles(id, speed, cancel, intent?.getStringExtra("network"), order, intent?.getStringArrayListExtra("only").orEmpty().toSet()) } }
+                try { if (SettingsStore(this).load().probeMode != "tcp") initCore(); probes.execute { probeProfiles(id, cancel, intent?.getStringExtra("network"), order, intent?.getStringArrayListExtra("only").orEmpty().toSet()) } }
                 catch (t: Throwable) { Logger.e("Probe", "probe setup failed (initCore or scheduling)", t); Diagnostics.runningMutable.value = false; finish() }
             }
         }
         return START_NOT_STICKY
     }
     @Volatile private var ranking = emptyList<String>()
+    /** The server last started, kept for restarts after a subscription update removed it (see startTunnel). */
+    @Volatile private var lastStarted: org.mothvpn.core.Profile? = null
     @Volatile private var manualPick = false // set by a manual server switch while connected: auto-select is paused for this session
     private val tried = java.util.Collections.synchronizedSet(HashSet<String>())
     @Volatile private var activeSettings = ClientSettings()
@@ -172,7 +182,10 @@ class TunnelService : VpnService(), PlatformInterface {
             val subscription = SubscriptionStore(this).load() ?: error("Missing subscription")
             if (settings.autoSelect && pickBest && subscription.profiles.size > 1 && !stopped) { stage = "auto select"; id = pickFastest(subscription, settings) ?: id }
             if (stopped || TunnelStatus.state.value != TunnelState.STARTING) { Logger.i("Tunnel", "start abandoned (state=${TunnelStatus.state.value})"); return }
-            var profile = subscription.profiles.firstOrNull { it.id == id } ?: error("Missing profile")
+            // A subscription update while connected may have removed the server in use: a restart on it (same server, settings
+            // change, kill switch retry) keeps using the copy it was started with instead of dropping the tunnel.
+            var profile = subscription.profiles.firstOrNull { it.id == id } ?: lastStarted?.takeIf { it.id == id }?.also { Logger.i("Tunnel", "server no longer in the subscription; keeping the running one") } ?: error("Missing profile")
+            val started = profile
             activeEngine = profile.engine; activeKind = trackedKind()
             serverName = profile.name; foreground() // the name is shown in the notification only, never logged
             Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled} split=${settings.splitMode} directRu=${settings.directRu} auto=${settings.autoSelect}")
@@ -206,7 +219,7 @@ class TunnelService : VpnService(), PlatformInterface {
                 TunnelStatus.mutable.value = TunnelState.RUNNING
                 updateOffline(networkState.current != null || NetworkTracker.read(connectivity).available)
                 startStats(); foreground() // startStats first: it sets the connect time the notification chronometer counts from
-                TunnelStatus.activeMutable.value = id
+                TunnelStatus.activeMutable.value = id; lastStarted = started; TunnelStatus.activeServerMutable.value = started
                 Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) tr(R.string.msg_checking_internet_access_through_vpn_120) else tr(R.string.msg_checks_are_disabled_in_settings_121))
                 if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
             }
@@ -228,7 +241,13 @@ class TunnelService : VpnService(), PlatformInterface {
     /** Measures every server with the regular probe (same method as the Servers screen) and returns the fastest one; also saves it as the selection. */
     private fun pickFastest(subscription: SavedSubscription, settings: ClientSettings): String? {
         val access = NetworkTracker.read(connectivity)
-        val order = subscription.profiles.map { it.id }
+        // Only servers the keyword filter shows are candidates (failover walks this ranking too), so a hidden server is never picked.
+        val pool = org.mothvpn.core.ServerFilter.pool(subscription.profiles, settings, access.kind) // the filter of the network in use
+        TunnelStatus.filterHidesAllMutable.value = pool.isEmpty()
+        if (pool.isEmpty()) { ranking = emptyList(); Logger.w("Tunnel", "auto select skipped: the server filter hides all ${subscription.profiles.size} server(s); keeping the selected server"); return null }
+        if (pool.size < subscription.profiles.size) Logger.i("Tunnel", "auto select: ${pool.size} of ${subscription.profiles.size} server(s) pass the server filter")
+        if (pool.size == 1) { ranking = listOf(pool[0].id); saveSelection(pool[0].id, access.kind); return pool[0].id }
+        val order = pool.map { it.id }
         val now = System.currentTimeMillis()
         val recent = ServerPicker.recentRanking(order, Diagnostics.results.value.let { results -> order.mapNotNull { id ->
             results["${access.kind}:$id"]?.takeIf { r -> !r.checking && !r.cancelled && r.networkHandle == access.handle }?.let { r -> id to (r.latencyMs to r.checkedAt) } }.toMap() }, now)
@@ -241,7 +260,7 @@ class TunnelService : VpnService(), PlatformInterface {
         if (Diagnostics.running.value) { Logger.w("Tunnel", "auto select skipped: a check is already running"); return null }
         probeCancel = AtomicBoolean(false)
         Diagnostics.runningMutable.value = true
-        probeProfiles(null, false, probeCancel, access.kind, order)
+        probeProfiles(null, probeCancel, access.kind, order)
         val results = Diagnostics.results.value
         ranking = ServerPicker.ranking(order, order.associateWith { results["${access.kind}:$it"]?.takeIf { r -> !r.checking && r.networkHandle == access.handle }?.latencyMs })
         val best = ranking.firstOrNull()
@@ -303,7 +322,9 @@ class TunnelService : VpnService(), PlatformInterface {
     private fun failover(current: Long) {
         val active = TunnelStatus.activeProfile.value
         tried += active
-        val next = ServerPicker.next(ranking, active, tried)
+        // Servers removed by a subscription update are skipped.
+        val present = runCatching { SubscriptionStore(this).load()?.profiles?.map { it.id }?.toHashSet() }.getOrNull()
+        val next = ServerPicker.next(if (present == null) ranking else ranking.filter { it in present }, active, tried)
         Logger.w("Health", "failover: ${if (next == null) "all ranked servers tried, measuring again" else "switching to the next fastest server"}")
         if (next == null) tried.clear()
         executor.execute {
@@ -320,15 +341,29 @@ class TunnelService : VpnService(), PlatformInterface {
     @Volatile private var serverName = ""
     /** Posts (or re-posts) the foreground notification for the current state. The app name comes only from the system app-name line. */
     private fun foreground() = startForeground(1, buildNotification())
+    private val CHANNEL = "vpn_status"
     private fun buildNotification(): Notification {
         val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel("vpn", tr(R.string.msg_vpn_connection_125), NotificationManager.IMPORTANCE_LOW))
+        // Kept as high in the shade as Android allows: the old "vpn" channel was LOW, which puts the notification in the bottom "Silent"
+        // section. The "vpn_status" channel is DEFAULT importance with no sound or vibration (the 1 Hz updates stay quiet: only-alert-once),
+        // and an ongoing foreground-service notification is ranked high within its section by the system comparator.
+        // Channel importance can't be raised in place, so the old channel is deleted once.
+        if (manager.getNotificationChannel(CHANNEL) == null) {
+            manager.createNotificationChannel(NotificationChannel(CHANNEL, tr(R.string.msg_vpn_connection_125), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                setSound(null, null); enableVibration(false); enableLights(false); setShowBadge(false)
+            })
+            runCatching { manager.deleteNotificationChannel("vpn") }
+        }
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val stop = PendingIntent.getService(this, 1, Intent(this, TunnelService::class.java).setAction("STOP"), PendingIntent.FLAG_IMMUTABLE)
         val name = serverName
-        val builder = Notification.Builder(this, "vpn").setSmallIcon(R.drawable.ic_moth_notification)
-            .setContentIntent(open).setOngoing(true).setShowWhen(false)
+        val builder = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_moth_notification)
+            .setContentIntent(open).setOngoing(true).setShowWhen(false).setOnlyAlertOnce(true)
+            // No setColor / setColorized: a hard-set grey made the moth icon grey even where the system tints notifications
+            // (Material You, API 31+). Without them the system applies its own (dynamic) colour to the white-on-transparent moth.
+            .setCategory(Notification.CATEGORY_SERVICE).setLocalOnly(true)
+            .apply { if (android.os.Build.VERSION.SDK_INT >= 31) setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE) }
             .addAction(Notification.Action.Builder(null, tr(R.string.msg_disconnect_126), stop).build())
         val offline = TunnelStatus.offline.value
         if (TunnelStatus.state.value == TunnelState.RUNNING && offline != org.mothvpn.core.OfflineStatus.Kind.ONLINE) {
@@ -368,11 +403,11 @@ class TunnelService : VpnService(), PlatformInterface {
         if (tx == 0L && rx == 0L) Logger.w("Tunnel", "traffic statistics are unavailable on this device")
         baseTx = tx; baseRx = rx; lastTx = tx; lastRx = rx; lastAt = SystemClock.elapsedRealtime(); startedAt = lastAt
         // The first RUNNING notification already has the full layout (speed 0, totals 0, time 00:00); the ticker updates it every second.
-        statsActive = true; lastDetails = details(TrafficFormat.Stats.CONNECTED)
+        statsActive = true; lastDetails = details(TrafficFormat.Stats.CONNECTED); TunnelStatus.statsMutable.value = TrafficFormat.Stats.CONNECTED
         statsTask?.cancel(false)
         statsTask = statsExecutor.scheduleWithFixedDelay({ runCatching { tickStats() }.onFailure { Logger.w("Tunnel", "notification update failed", it) } }, 0, 1, TimeUnit.SECONDS)
     }
-    private fun stopStats() = synchronized(statsLock) { if (statsActive) runCatching { TrafficRecorder.flush(this) }; statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0 }
+    private fun stopStats() = synchronized(statsLock) { if (statsActive) runCatching { TrafficRecorder.flush(this) }; statsActive = false; statsTask?.cancel(false); statsTask = null; lastDetails = null; connectStartMillis = 0; TunnelStatus.statsMutable.value = null }
     /** Speed line (collapsed text) and speed/total/time lines (expanded text). */
     private fun details(st: TrafficFormat.Stats): Details {
         val units = tr(R.string.notif_units).split("|"); val locale = AppLanguage.context().resources.configuration.locales[0]
@@ -385,7 +420,9 @@ class TunnelService : VpnService(), PlatformInterface {
         if (!statsActive || TunnelStatus.state.value != TunnelState.RUNNING) return
         val now = SystemClock.elapsedRealtime()
         val tx = TrafficStats.getUidTxBytes(Process.myUid()).coerceAtLeast(0); val rx = TrafficStats.getUidRxBytes(Process.myUid()).coerceAtLeast(0)
-        val details = details(TrafficFormat.Stats.sample(baseTx, baseRx, lastTx, lastRx, tx, rx, startedAt, lastAt, now))
+        val sample = TrafficFormat.Stats.sample(baseTx, baseRx, lastTx, lastRx, tx, rx, startedAt, lastAt, now)
+        TunnelStatus.statsMutable.value = sample
+        val details = details(sample)
         TrafficRecorder.add(this, TrafficHistory.delta(lastTx, tx), TrafficHistory.delta(lastRx, rx))
         lastTx = tx; lastRx = rx; lastAt = now
         if (lastDetails?.expanded == details.expanded) return // nothing changed (uptime changes every second, so this only skips duplicate ticks)
@@ -409,7 +446,7 @@ class TunnelService : VpnService(), PlatformInterface {
         Logger.d("Tunnel", "closeTunnel (box=${box != null}, xray=${xray != null})")
         stopStats()
         generation.incrementAndGet(); healthTask?.cancel(true); healthTask = null
-        TunnelStatus.activeMutable.value = ""
+        TunnelStatus.activeMutable.value = ""; TunnelStatus.activeServerMutable.value = null
         Diagnostics.healthMutable.value = HealthResult()
         runCatching { box?.close() }.onFailure { Logger.w("Core", "closing the core failed", it) }; box = null
         runCatching { tun?.close() }.onFailure { Logger.w("Tunnel", "closing the tun device failed", it) }; tun = null
@@ -464,22 +501,22 @@ class TunnelService : VpnService(), PlatformInterface {
         }
     }
     /** [only]: check just these servers (one subscription from its header menu); empty = all. */
-    private fun probeProfiles(id: String?, speed: Boolean, cancelled: AtomicBoolean, wantedNetwork: String?, shownOrder: List<String>, only: Set<String> = emptySet()) {
+    private fun probeProfiles(id: String?, cancelled: AtomicBoolean, wantedNetwork: String?, shownOrder: List<String>, only: Set<String> = emptySet()) {
         try {
             val settings = SettingsStore(this).load()
             val access = NetworkTracker.read(connectivity)
-            Logger.i("Probe", "probeProfiles: speed=$speed mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
+            Logger.i("Probe", "probeProfiles: mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
             if (!access.available || (wantedNetwork != null && wantedNetwork != access.kind)) { Logger.w("Probe", "skipped: network unavailable or changed"); return }
             val profiles = SubscriptionStore(this).load()?.profiles.orEmpty().filter { (id == null || it.id == id) && (only.isEmpty() || it.id in only) }.let { all -> ProbeOrder.arrange(all, shownOrder) { it.id } } // list order: the pool queue is FIFO
-            val pool = Executors.newFixedThreadPool(if (speed) 1 else settings.probeParallel.coerceAtMost(profiles.size).coerceAtLeast(1))
+            val pool = Executors.newFixedThreadPool(settings.probeParallel.coerceAtMost(profiles.size).coerceAtLeast(1))
             fun probeOne(profile: Profile) {
                 if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) return
                 val key = "${access.kind}:${profile.id}"
-                val method = if (!speed && settings.probeMode == "tcp") "TCP" else "HTTPS"
+                val method = if (settings.probeMode == "tcp") "TCP" else "HTTPS"
                 fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false, kind: ProbeErrorKind? = null) = Diagnostics.result(key,
                     ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled, kind = kind))
                 val before = Diagnostics.results.value[key]?.takeIf { !it.checking && !it.cancelled && it.networkHandle == access.handle }
-                if (!speed) result(checking = true)
+                result(checking = true)
                 val label = describe(profile)
                 var stage = "start"
                 Logger.i("Probe", "profile ${profiles.indexOf(profile)} method=$method $label network=${access.kind}")
@@ -513,14 +550,17 @@ class TunnelService : VpnService(), PlatformInterface {
                     }
                     stage = "local proxy ready"
                     Logger.d("Probe", "local proxy started ($label)")
-                    var measured: Pair<Long, Long>? = null
+                    var measured: Long? = null
                     var last: Throwable? = null
-                    for (url in if (speed) listOf(SpeedTest.url) else ProbePolicy.urls(settings)) {
+                    for (url in ProbePolicy.urls(settings)) {
                         if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) break
-                        val test = ProxyRequest(this, port, user, password, if (speed) 60_000L else settings.probeTimeoutMs.toLong(), cancelled)
+                        val test = ProxyRequest(this, port, user, password, settings.probeTimeoutMs.toLong(), cancelled)
                         requests.add(test)
                         stage = "request ${Diagnostics.describeUrl(url)}"
-                        try { measured = test.run(url, if (speed) SpeedTest.bytes else 0); Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} ${measured?.first}${if (speed) " bytes" else " ms"} ($label)"); break }
+                        try {
+                            measured = test.run(url, warm = settings.probeMode == org.mothvpn.core.ProbePolicy.LATENCY)
+                            Logger.i("Probe", "request ok ${Diagnostics.describeUrl(url)} $measured ms (first ${test.firstMs} ms, warm ${test.warmMs ?: "-"} ms, mode=${settings.probeMode}) ($label)"); break
+                        }
                         catch (e: Throwable) {
                             last = e
                             Logger.w("Probe", "request failed url=${Diagnostics.describeUrl(url)} handshakeStage=${test.stage} method=$method network=${access.kind} ($label)", e)
@@ -529,15 +569,12 @@ class TunnelService : VpnService(), PlatformInterface {
                         }
                     }
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
-                        val measurement = measured ?: throw (last ?: java.net.SocketTimeoutException())
-                        if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_profile_name_1f_mbit_s_2f_mib_130, profile.name, measurement.first * 8000.0 / measurement.second, measurement.first / 1048576.0)
-                        else result(ms = measurement.first)
+                        result(ms = measured ?: throw (last ?: java.net.SocketTimeoutException()))
                     }
                 } catch (e: Throwable) {
                     Logger.e("Probe", "probe failed at stage '$stage' method=$method network=${access.kind} cancelled=${cancelled.get()} ($label)", e)
                     if (!cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle) {
-                        if (speed) Diagnostics.speedMutable.value = tr(R.string.msg_speed_test_failed_131)
-                        else if (ProbeErrorKind.of(e) == ProbeErrorKind.CANCELLED) Diagnostics.restore(key, before)
+                        if (ProbeErrorKind.of(e) == ProbeErrorKind.CANCELLED) Diagnostics.restore(key, before)
                         else result(error = Diagnostics.friendly(e), kind = ProbeErrorKind.of(e))
                     }
                 } finally {
@@ -546,12 +583,11 @@ class TunnelService : VpnService(), PlatformInterface {
                     runCatching { helper?.close() }.onFailure { Logger.w("Probe", "closing the dpi helper failed", it) }
                     runCatching { local?.close() }.onFailure { Logger.w("Probe", "closing the local core failed", it) }; runCatching { xr?.close() }.onFailure { Logger.w("Probe", "closing the local xray failed", it) }
                     // An interrupted check is not a failure: restore the last completed result from this network, or show nothing.
-                    if (!speed && Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, before)
+                    if (Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, before)
                 }
             }
             val futures = profiles.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }
             try { futures.forEach { runCatching { it.get() } } } finally { pool.shutdownNow() }
-            if (speed && (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle)) Diagnostics.speedMutable.value = tr(R.string.msg_test_cancelled_132)
         } catch (t: Throwable) {
             Logger.e("Probe", "probeProfiles aborted", t)
         } finally {

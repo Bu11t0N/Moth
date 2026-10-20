@@ -12,11 +12,11 @@ cd "$source_path"
 test "$(git describe --tags --exact-match)" = v1.12.25
 test "$(git rev-parse HEAD)" = 73bfb99ebce7923c485435e4faf8571b412065a9
 
-# XHTTP uses Xray v26.7.28 (5ca6f4b7d4dc20a881d4330e498892697627ec0c).
+# XHTTP uses Xray v26.10.17 (92ccc939aaf4f8965f369cf0b142e005aeaa11d5).
 cp "$project_root/scripts/native/moth_xray.go" experimental/libbox/moth_xray.go
 # Module downloads are checked against sum.golang.org; retry transient network errors (checksums are never skipped).
 retry() { for i in 1 2 3 4 5; do "$@" && return 0; echo "retry $i: $*" >&2; sleep $((i * 15)); done; return 1; }
-retry go get github.com/xtls/xray-core@5ca6f4b7d4dc20a881d4330e498892697627ec0c
+retry go get github.com/xtls/xray-core@92ccc939aaf4f8965f369cf0b142e005aeaa11d5
 xray_path="$(go list -m -f '{{.Dir}}' github.com/xtls/xray-core)"
 mkdir -p .moth-xray
 cp -R "$xray_path/." .moth-xray/
@@ -27,8 +27,9 @@ from pathlib import Path
 p = Path('.moth-xray/transport/internet/system_dialer.go')
 s = p.read_text()
 needle = 'errors.LogInfoInner(ctx, err, "failed to apply external controller")'
-assert needle in s
-p.write_text(s.replace(needle, 'return err'))
+# Since Xray v26.9 the dialer already fails closed upstream; only older sources need the patch.
+if needle in s: p.write_text(s.replace(needle, 'return err'))
+else: assert 'return errors.New("failed to apply external controller").Base(err)' in s and needle not in s
 p = Path('.moth-xray/transport/internet/system_listener.go')
 s = p.read_text()
 old = '''\t\treturn c.Control(func(fd uintptr) {
@@ -84,7 +85,8 @@ assert old in s
 p.write_text(s.replace(old, old + '\tif dispatcher == nil {\n\t\tw.LinkEndpoint.Attach(nil)\n\t\treturn\n\t}\n', 1))
 PYT
 go mod edit -replace github.com/sagernet/sing-tun=./.moth-sing-tun
-# Moth build tags: drop Tailscale (unused). Keep gVisor, QUIC, WireGuard, uTLS, conntrack and the Clash API
+# Moth build tags: drop Tailscale (unused). http2legacy: with Go 1.27, golang.org/x/net/http2 otherwise wraps net/http's own
+# HTTP/2 and drops the internals sing-box's v2rayhttp reset reaches with go:linkname (x86 links failed; arm would crash at runtime). Keep gVisor, QUIC, WireGuard, uTLS, conntrack and the Clash API
 # (libbox always starts the Clash server for its platform log writer, so the VPN cannot start without it).
 python3 - <<'PY2'
 from pathlib import Path
@@ -92,7 +94,7 @@ p = Path('cmd/internal/build_libbox/main.go')
 s = p.read_text()
 old = 'memcTags = append(memcTags, "with_tailscale")'
 assert old in s
-s = s.replace(old, 'memcTags = append(memcTags)')
+s = s.replace(old, 'memcTags = append(memcTags, "http2legacy")')
 assert 'with_tailscale' not in s.split('func init()')[1].split('\n}\n')[0]
 p.write_text(s)
 PY2

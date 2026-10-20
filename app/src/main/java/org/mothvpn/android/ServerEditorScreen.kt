@@ -16,7 +16,8 @@ import org.mothvpn.core.ServerEditor
 @Composable fun ServerJsonEditor(profile: Profile, cancel: () -> Unit, save: (String) -> Unit) {
     var text by remember(profile.id) { mutableStateOf(ServerEditor.pretty(profile)) }
     var error by remember(profile.id) { mutableStateOf<String?>(null) }
-    Dialog(onDismissRequest = cancel, properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false)) {
+    Dialog(onDismissRequest = cancel, properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false, decorFitsSystemWindows = false)) {
+        // decorFitsSystemWindows = false: the dialog window receives the keyboard insets, so imePadding() shrinks the editor and Save stays above the keyboard.
         Surface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().systemBarsPadding().imePadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(tr(R.string.edit_json_title), style = MaterialTheme.typography.titleLarge)

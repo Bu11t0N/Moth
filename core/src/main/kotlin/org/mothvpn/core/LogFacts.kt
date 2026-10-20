@@ -16,8 +16,10 @@ object LogFacts {
         plain("healthIntervalSeconds", old.healthIntervalSeconds, new.healthIntervalSeconds)
         plain("hwidEnabled", old.hwidEnabled, new.hwidEnabled); hidden("hwid", old.hwid, new.hwid)
         plain("deviceInfo", old.deviceInfo, new.deviceInfo); hidden("userAgent", old.userAgent, new.userAgent)
+        // Custom device info: only that it changed, never the values.
+        hidden("deviceOs", old.deviceOs, new.deviceOs); hidden("deviceOsVersion", old.deviceOsVersion, new.deviceOsVersion); hidden("deviceModel", old.deviceModel, new.deviceModel)
         plain("serverSort", old.serverSort, new.serverSort); plain("compactServers", old.compactServers, new.compactServers)
-        plain("hideUnavailable", old.hideUnavailable, new.hideUnavailable); plain("probeMode", old.probeMode, new.probeMode)
+        plain("hideUnavailable", old.hideUnavailable, new.hideUnavailable); plain("probeMode", old.probeMode, new.probeMode); plain("probeUrlOnly", old.probeUrlOnly, new.probeUrlOnly)
         plain("probeParallel", old.probeParallel, new.probeParallel); plain("probeTimeoutMs", old.probeTimeoutMs, new.probeTimeoutMs)
         plain("updateChannel", old.updateChannel.ifEmpty { "auto" }, new.updateChannel.ifEmpty { "auto" })
         plain("splitMode", old.splitMode, new.splitMode); plain("splitApps", old.splitApps.size, new.splitApps.size)
@@ -29,6 +31,10 @@ object LogFacts {
         plain("routingRules", old.routingRules.size, new.routingRules.size)
         plain("trafficWarning", old.trafficWarning, new.trafficWarning)
         plain("fragment", old.fragment, new.fragment); plain("noise", old.noise, new.noise); plain("mux", old.mux, new.mux)
+        plain("editServers", old.editServers, new.editServers); plain("amoled", old.amoled, new.amoled)
+        // Keywords can be provider or location names: only the count is logged.
+        plain("wifiFilter", old.wifiFilter.keywords.size, new.wifiFilter.keywords.size); plain("wifiFilterMode", old.wifiFilter.mode, new.wifiFilter.mode)
+        plain("mobileFilter", old.mobileFilter.keywords.size, new.mobileFilter.keywords.size); plain("mobileFilterMode", old.mobileFilter.mode, new.mobileFilter.mode)
         return out
     }
 

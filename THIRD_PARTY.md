@@ -9,20 +9,19 @@ Moth itself is licensed under [GPL-3.0-or-later](LICENSE). The files in [license
 | Component | Version | Commit | License |
 |---|---|---|---|
 | [sing-box](https://github.com/SagerNet/sing-box) (libbox) | v1.12.25 | `73bfb99ebce7923c485435e4faf8571b412065a9` | GPL-3.0-or-later with an additional naming condition: [`licenses/sing-box.txt`](licenses/sing-box.txt) |
-| [Xray-core](https://github.com/XTLS/Xray-core) | v26.7.28 | `5ca6f4b7d4dc20a881d4330e498892697627ec0c` | MPL-2.0: [`licenses/Xray-MPL-2.0.txt`](licenses/Xray-MPL-2.0.txt) |
+| [Xray-core](https://github.com/XTLS/Xray-core) | v26.10.17 | `92ccc939aaf4f8965f369cf0b142e005aeaa11d5` | MPL-2.0: [`licenses/Xray-MPL-2.0.txt`](licenses/Xray-MPL-2.0.txt) |
 
-**Go module notices.** libbox also links the Go standard library and every Go module that sing-box and Xray-core depend on. [`licenses/go-modules.txt`](licenses/go-modules.txt) lists each of them with its version, license and full license text. It is packaged into the APK with the other files in `licenses/` and shown in the app under About → Licenses → Core Go modules. [`scripts/go-licenses.sh`](scripts/go-licenses.sh) generates it from the prepared core sources (`go list -deps` for all four Android ABIs with the libbox build tags, licenses identified with the pinned [google/licensecheck](https://github.com/google/licensecheck)). The file is committed so local builds work without the core sources; CI regenerates it and fails if it differs from the committed copy. Modules whose license cannot be identified automatically are kept in the file with a note and reported as CI warnings. Currently that is `github.com/sagernet/cloudflare-tls`, a fork of Go's `crypto/tls` that ships no license file; its source headers refer to Go's BSD-style license. Xray-core is listed as `github.com/xtls/xray-core v1.260327.1-0.20260728075948-5ca6f4b7d4dc` (v26.7.28), built from the patched copy described below. `github.com/mothvpn/qpack-v051` is an unmodified copy of `github.com/quic-go/qpack` v0.5.1 (MIT) under a private module path, see below.
+**Go module notices.** libbox also links the Go standard library and every Go module that sing-box and Xray-core depend on. [`licenses/go-modules.txt`](licenses/go-modules.txt) lists each of them with its version, license and full license text. It is packaged into the APK with the other files in `licenses/` and shown in the app under About → Licenses → Core Go modules. [`scripts/go-licenses.sh`](scripts/go-licenses.sh) generates it from the prepared core sources (`go list -deps` for all four Android ABIs with the libbox build tags, licenses identified with the pinned [google/licensecheck](https://github.com/google/licensecheck)). The file is committed so local builds work without the core sources; CI regenerates it and fails if it differs from the committed copy. Modules whose license cannot be identified automatically are kept in the file with a note and reported as CI warnings. Currently there are none. Xray-core is listed as `github.com/xtls/xray-core v1.260327.1-0.20261017152356-92ccc939aaf4` (v26.10.17), built from the patched copy described below. `github.com/mothvpn/qpack-v051` is an unmodified copy of `github.com/quic-go/qpack` v0.5.1 (MIT) under a private module path, see below.
 
 The Moth adapter linked into libbox ([`scripts/native/moth_xray.go`](scripts/native/moth_xray.go)) is GPL-3.0-or-later.
 
-The build toolchain used by CI is Go 1.26.9, JDK 17 for the core build, Android NDK 28.0.13004108 and SagerNet gomobile, with the official `cmd/internal/build_libbox` target `android`. The app itself is built with JDK 21, Android Gradle Plugin 8.2.2 and Kotlin 1.9.22.
+The build toolchain used by CI is Go 1.27.2, JDK 17 for the core build, Android NDK 28.0.13004108 and SagerNet gomobile, with the official `cmd/internal/build_libbox` target `android` and the extra build tag `http2legacy` (keeps `golang.org/x/net/http2`'s own implementation under Go 1.27, which sing-box's HTTP transport relies on). The app itself is built with JDK 21, Android Gradle Plugin 8.13.2 and Kotlin 2.4.21.
 
-**Xray modifications.** The build script copies Xray-core into `.core-build/sing-box/.moth-xray` and patches two MPL-covered files:
+**Xray modifications.** The build script copies Xray-core into `.core-build/sing-box/.moth-xray` and patches one MPL-covered file:
 
-- `transport/internet/system_dialer.go`
 - `transport/internet/system_listener.go`
 
-Upstream logs and ignores a failure to protect an Android TCP/UDP socket from the VPN. The patch returns that error instead, so a socket that cannot be protected fails rather than leaking. The exact change is in the build script.
+Upstream logs and ignores a failure to protect an Android socket from the VPN there. The patch returns that error instead, so a socket that cannot be protected fails rather than leaking. (`system_dialer.go` needed the same change up to v26.7.28; since v26.9 upstream already fails closed, and the build script checks that.) The exact change is in the build script.
 
 **sing-tun modification.** The build script copies sing-tun v0.7.13 (`github.com/sagernet/sing-tun`) into `.core-build/sing-box/.moth-sing-tun`, points sing-box at that copy with a `go mod edit -replace`, and patches one file:
 
@@ -38,18 +37,18 @@ Moth is not affiliated with SagerNet or XTLS. The sing-box license forbids using
 
 | Library | Version | License |
 |---|---|---|
-| AndroidX Activity Compose | 1.8.2 | Apache-2.0 |
-| AndroidX AppCompat | 1.6.1 | Apache-2.0 |
-| Compose Material 3 | 1.2.0 | Apache-2.0 |
-| Compose Material Icons Extended | 1.6.0 | Apache-2.0 |
-| AndroidX Lifecycle Runtime KTX | 2.7.0 | Apache-2.0 |
-| AndroidX WorkManager (work-runtime-ktx) | 2.9.1 | Apache-2.0 |
-| Kotlin standard library | 1.9.22 | Apache-2.0 |
-| kotlinx.coroutines (Android) | 1.7.3 | Apache-2.0 |
-| SnakeYAML | 2.2 | Apache-2.0 |
+| AndroidX Activity Compose | 1.13.0 | Apache-2.0 |
+| AndroidX AppCompat | 1.8.0 | Apache-2.0 |
+| Compose Material 3 (Compose BOM 2026.06.01) | 1.4.0 | Apache-2.0 |
+| Compose Material Icons Extended | 1.7.8 | Apache-2.0 |
+| AndroidX Lifecycle Runtime KTX | 2.10.0 | Apache-2.0 |
+| AndroidX WorkManager (work-runtime-ktx) | 2.12.0 | Apache-2.0 |
+| Kotlin standard library | 2.4.21 | Apache-2.0 |
+| kotlinx.coroutines (Android) | 1.11.0 | Apache-2.0 |
+| SnakeYAML | 2.7 | Apache-2.0 |
 | ZXing Android Embedded (`com.journeyapps`) | 4.3.0 | Apache-2.0 |
-| ZXing core (`com.google.zxing`) | 3.5.3 | Apache-2.0 |
-| org.json | 20240303 | Public domain; JVM module and tests only, excluded from the APK (Android's built-in `org.json` is used) |
+| ZXing core (`com.google.zxing`) | 3.5.4 | Apache-2.0 |
+| org.json | 20260814 | Public domain; JVM module and tests only, excluded from the APK (Android's built-in `org.json` is used) |
 
 The Apache-2.0 text is in [`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt). Transitive AndroidX and Compose dependencies are also Apache-2.0. Test-only dependencies (JUnit, AndroidX Test, UiAutomator) are not shipped in the APK.
 
@@ -60,7 +59,7 @@ When "Russian sites and IPs directly" is enabled, the app downloads these rule s
 - `geoip-ru.srs` from [SagerNet/sing-geoip](https://github.com/SagerNet/sing-geoip) (`rule-set` branch). The generator is GPL-3.0-or-later. The data comes from MaxMind GeoLite2 via [Dreamacro/maxmind-geoip](https://github.com/Dreamacro/maxmind-geoip) and is subject to MaxMind's GeoLite2 terms.
 - `geosite-category-ru.srs` from [SagerNet/sing-geosite](https://github.com/SagerNet/sing-geosite) (`rule-set` branch). The generator is GPL-3.0-or-later. The data comes from [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community), which is MIT-licensed.
 
-Network endpoints the app contacts are services, not bundled dependencies. These include the HTTPS check URLs and the speed test endpoint.
+Network endpoints the app contacts are services, not bundled dependencies. These include the HTTPS check URLs.
 
 ## Source code and building
 
