@@ -34,11 +34,16 @@ class StatsScreenshotTest {
         assertNotNull("chart not shown", chart)
         device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.25f)
         Thread.sleep(1200)
-        val b = chart.visibleBounds
-        val left = b.left + (48 * context.resources.displayMetrics.density).toInt()
-        device.click(b.right - (b.right - left) / 14, b.bottom - b.height() / 4)
-        Thread.sleep(800)
-        assertNotNull("tap detail not shown", device.findObject(By.textContains("↑")))
+        // Re-find the chart after the scroll and retry the tap: a tap during the scroll settle was lost on CI.
+        var detail: androidx.test.uiautomator.UiObject2? = null
+        repeat(3) {
+            if (detail != null) return@repeat
+            val b = (device.findObject(By.desc("Daily traffic")) ?: chart).visibleBounds
+            val left = b.left + (48 * context.resources.displayMetrics.density).toInt()
+            device.click(b.right - (b.right - left) / 14, b.bottom - b.height() / 4)
+            detail = device.wait(Until.findObject(By.textContains("↑")), 3_000)
+        }
+        assertNotNull("tap detail not shown", detail)
         device.takeScreenshot(File(context.externalCacheDir, "stats.png"))
         device.pressBack(); Thread.sleep(500)
     }

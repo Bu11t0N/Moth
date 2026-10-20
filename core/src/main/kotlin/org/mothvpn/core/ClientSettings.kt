@@ -232,11 +232,27 @@ object LocalProxyConfig {
      * Xray engine config. [bridge] = true: the tunnel bridge (VLESS inbound, [username] is the session UUID, UDP via XUDP);
      * false: a probe proxy (SOCKS5 with [username]/[password], TCP only).
      */
+    /**
+     * Xray 26.9+ verifies TLS against its built-in Mozilla bundle unless "useSystemCA" is set. Moth trusts the system and the
+     * user-installed CAs (see TrustedCertificates), so every tlsSettings (also nested ones such as XHTTP downloadSettings) gets it.
+     */
+    fun useSystemCa(value: Any?, depth: Int = 0) {
+        if (depth > 12) return
+        when (value) {
+            is JSONObject -> value.keys().asSequence().toList().forEach { k ->
+                val v = value.opt(k)
+                if (k == "tlsSettings" && v is JSONObject && !v.has("useSystemCA")) v.put("useSystemCA", true)
+                useSystemCa(v, depth + 1)
+            }
+            is org.json.JSONArray -> (0 until value.length()).forEach { useSystemCa(value.opt(it), depth + 1) }
+        }
+    }
     fun xray(profile: Profile, port: Int, username: String, password: String, settings: ClientSettings = ClientSettings(), bridge: Boolean = false): String {
         val source = JSONObject(profile.outbound)
         val group = source.optBoolean("group")
         val dpi = DpiTricks.active(settings)
         fun protectedOutbound(o: JSONObject) = o.apply {
+            useSystemCa(this)
             val stream = optJSONObject("streamSettings") ?: JSONObject().also { put("streamSettings", it) }
             stream.put("sockopt", JSONObject().put("domainStrategy", "ForceIPv4"))
         }
