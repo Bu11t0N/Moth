@@ -123,13 +123,15 @@ import org.mothvpn.core.SubscriptionSource
             if (saved == null) TextButton(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
             else TextButton(onClick = { search = ""; preferences(settings.copy(hideUnavailable = false)) }) { Text(tr(R.string.msg_show_all_60)) }
         } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
+            // Rows fade in/out and the others slide to their new places (expand/collapse, re-sorting after a check, add, delete, filter,
+            // favorites moving to the top); see listItemMotion. Nothing with "Remove animations".
             // Favorites first (from every subscription), then one section per subscription.
             val groups = ServerGroups.of(book ?: SubscriptionBook(emptyList()), visibleK, settings.favorites)
             groups.forEach { group ->
             val groupKey = group.sourceId ?: "favorites"
             // While searching, groups with matches open by themselves (the saved collapsed state returns when the query is cleared).
             val folded = book != null && groupKey in collapsed && search.isBlank()
-            if (book != null) item(key = "header:$groupKey") {
+            if (book != null) item(key = "header:$groupKey") { Box(Modifier.listItemMotion(this)) {
                 val source = group.sourceId?.let(book::source)
                 val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true }
                 // This group's servers in the order shown (favorites: the favorite servers).
@@ -137,13 +139,13 @@ import org.mothvpn.core.SubscriptionSource
                 NewGroupHeader(source, group.profiles.size, folded, checking, probing, canRefresh = source != null && !source.local && !refreshLocked, canCheck = canCheck && ids.isNotEmpty(),
                     toggle = { toggleGroup(groupKey) }, refresh = { source?.let { refreshOne(it.id) } }, check = { checkOn(k) { probeGroup(k, ids) } }, cancel = cancel,
                     actions = { if (source != null) actionsFor = source.id })
-            }
+            } }
             if (!folded) items(group.profiles, key = { it.id }) { p ->
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED } // cancelled checks show no indicator
                 Surface(color = if (chosen) NewDesignRow.selectedColor() else NdTone.raised(),
                     border = NewDesignRow.selectedBorder(chosen),
-                    shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth().heightIn(min = if (settings.compactServers) 64.dp else 72.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
+                    shape = MaterialTheme.shapes.medium, modifier = Modifier.listItemMotion(this).pressScale(0.98f).fillMaxWidth().heightIn(min = if (settings.compactServers) 64.dp else 72.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
                         .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
                     Row(Modifier.padding(horizontal = 18.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {

@@ -2,6 +2,16 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.7.1
+
+Not released yet.
+
+### Changes
+
+- Smoother motion: subscription groups open and close softly, the server list moves into place after checks and changes, settings pages grow out of the item you tap, and cards and buttons react to a press.
+- Home: the status text and the server card change with a short fade; the traffic ring fills smoothly.
+- While servers are being checked and the VPN is off, the moth flaps in its off colours with “Checking servers…”; tap it to stop the check.
+
 ## 0.7.0
 
 Released 2026-10-20.

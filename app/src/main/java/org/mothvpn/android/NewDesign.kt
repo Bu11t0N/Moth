@@ -1,6 +1,8 @@
 package org.mothvpn.android
 
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -162,7 +164,7 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
         lit && dark -> Color(0xFFF2F2F2); lit -> Color(0xFF111111); dark -> Color(0xFF8A8A8A); else -> Color(0xFF9E9E9E)
     }, tween(400), label = "moth colour")
     val vein = MaterialTheme.colorScheme.background
-    Box(modifier.size(size).clip(CircleShape)
+    Box(modifier.size(size).then(if (enabled) Modifier.pressScale() else Modifier).clip(CircleShape)
         .clickable(enabled = enabled, onClick = onClick, role = androidx.compose.ui.semantics.Role.Button)
         .semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(size * (210f / 260f)).graphicsLayer { alpha = if (enabled || beat) 1f else 0.55f }) { drawMoth(open.value, color, vein) }
@@ -284,14 +286,21 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
             description = if (running) tr(R.string.msg_disconnect_vpn_8) else if (pinging) tr(R.string.home_stop_checks) else tr(R.string.msg_connect_vpn_9), size = mothSize)
         // Reserved space for the status lines (title + one detail line): nothing above or below moves when they change.
         Column(Modifier.fillMaxWidth().height(statusHeight), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (blocked) {
-                Text(tr(R.string.home_disconnect), style = MaterialTheme.typography.headlineSmall, maxLines = 1)
-                Text(tr(R.string.msg_blocked), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            } else Text(when (tunnel) { TunnelState.OFF -> if (pinging) tr(R.string.home_checking_servers) else tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.tile_reconnecting) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
-            if (tunnel == TunnelState.RUNNING && !blocked) Text(if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message), style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            // The status title and the detail line crossfade when they change (instantly with "Remove animations").
+            val title = if (blocked) tr(R.string.home_disconnect) else when (tunnel) { TunnelState.OFF -> if (pinging) tr(R.string.home_checking_servers) else tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.tile_reconnecting) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }
+            val detail: Pair<String, Boolean>? = when {
+                blocked -> tr(R.string.msg_blocked) to true
+                tunnel == TunnelState.RUNNING -> (if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message)) to false
+                else -> null
+            }
+            val fade = Motion.tweenOr<Float>(animationsOn())
+            androidx.compose.animation.Crossfade(title, animationSpec = fade, label = "status") { t -> Text(t, style = MaterialTheme.typography.headlineSmall, maxLines = 1) }
+            androidx.compose.animation.Crossfade(detail, animationSpec = fade, label = "detail") { d ->
+                if (d != null) Text(d.first, style = MaterialTheme.typography.bodyMedium, color = if (d.second) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
         }
-        if (saved == null) Button(enabled = !busy, onClick = add, modifier = Modifier.heightIn(min = 56.dp)) { Text(tr(R.string.msg_add_subscription_16)) }
+        if (saved == null) Button(enabled = !busy, onClick = add, modifier = Modifier.pressScale().heightIn(min = 56.dp)) { Text(tr(R.string.msg_add_subscription_16)) }
         }
         } },
         { Column(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -308,11 +317,20 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         // Hero card: the inverse tone (light fill in the dark theme, dark fill in the light theme) with its own readable colours.
         if (selected != null) MaterialTheme(colorScheme = MonoTheme.hero(dark)) {
             Surface(onClick = { sheet = true }, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.background,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).semantics { contentDescription = tr(R.string.nd_choose_server) + ": " + selected.name }) {
+                modifier = Modifier.pressScale().fillMaxWidth().heightIn(min = 72.dp).semantics { contentDescription = tr(R.string.nd_choose_server) + ": " + selected.name }) {
                 Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(selected.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(serverSubtitle(selected), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // Another server: the name and protocol line flip through (the new one slides up and fades in). The ping dot is outside,
+                    // so ping updates for the same server never animate.
+                    val motion = animationsOn()
+                    androidx.compose.animation.AnimatedContent(selected, Modifier.weight(1f), contentKey = { it.id }, transitionSpec = {
+                        if (!motion) androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                        else (androidx.compose.animation.slideInVertically(tween(Motion.MEDIUM)) { it / 2 } + androidx.compose.animation.fadeIn(tween(Motion.SHORT, delayMillis = 40))) togetherWith
+                            (androidx.compose.animation.slideOutVertically(tween(Motion.MEDIUM)) { -it / 2 } + androidx.compose.animation.fadeOut(tween(160)))
+                    }, contentAlignment = Alignment.CenterStart, label = "hero server") { p ->
+                        Column(Modifier.fillMaxWidth()) {
+                            Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(serverSubtitle(p), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                     val (ms, failed) = ping(results, network.kind, selected, network)
                     PingDot(ms, failed, Modifier.padding(start = 12.dp))
@@ -349,7 +367,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                     val chosen = p.id == selected?.id
                     Surface(onClick = { if (canSelect) { select(p.id, kind); sheet = false } }, enabled = canSelect, shape = MaterialTheme.shapes.medium,
                         color = if (chosen) NewDesignRow.selectedColor() else NdTone.raised(), border = NewDesignRow.selectedBorder(chosen),
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
+                        modifier = Modifier.listItemMotion(this).pressScale(0.98f).fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
                         Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(p.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -379,7 +397,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val title = source.name.ifBlank { source.providerName }.ifBlank { if (source.local) tr(R.string.import_local_name) else host }
     // One subscription with provider links opens the sheet too, so its link buttons are reachable (the sheet also copies the link).
     Surface(onClick = { if (all.size > 1 || !source.links.isEmpty) showAll = true else showLink = true }, enabled = clickable, shape = MaterialTheme.shapes.large, color = NdTone.card(),
-        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = title + ": " + tr(if (all.size > 1 || !source.links.isEmpty) R.string.sub_all_show else R.string.sub_link_show) }) {
+        modifier = Modifier.then(if (clickable) Modifier.pressScale() else Modifier).fillMaxWidth().heightIn(min = 64.dp).semantics { contentDescription = title + ": " + tr(if (all.size > 1 || !source.links.isEmpty) R.string.sub_all_show else R.string.sub_link_show) }) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -410,7 +428,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.7f).dp),
             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(sources, key = { it.id }) { s ->
-                Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
+                Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.listItemMotion(this).fillMaxWidth().heightIn(min = 64.dp)) {
                     Column {
                     Row(Modifier.padding(start = 12.dp, end = 4.dp, top = 12.dp, bottom = if (s.links.isEmpty) 12.dp else 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         ProviderAvatar(s, Modifier.padding(end = 12.dp))
@@ -520,7 +538,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
             if (keywords.isEmpty()) Text(tr(R.string.nd_filter_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
             else LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(keywords, key = { it }) { k ->
-                    Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                    Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.listItemMotion(this).fillMaxWidth().heightIn(min = 56.dp)) {
                         Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(k, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             IconButton(onClick = { saveRule(rule.copy(keywords = keywords - k)) }, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.nd_filter_remove, k) }) {
@@ -616,13 +634,18 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
  * a tonal track and a gently wavy arc for the used share, monochrome; above 90 % the arc turns to the error colour.
  */
 @Composable fun UsageRing(fraction: Double, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 52.dp) {
-    val f = fraction.coerceIn(0.0, 1.0).toFloat()
+    val target = fraction.coerceIn(0.0, 1.0).toFloat()
+    // The arc grows once from 0 when the card appears and follows changes smoothly (the percent text switches at once).
+    val motion = animationsOn()
+    val grow = remember { androidx.compose.animation.core.Animatable(if (motion) 0f else target) }
+    LaunchedEffect(target, motion) { if (motion) grow.animateTo(target, tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)) else grow.snapTo(target) }
     val percent = kotlin.math.round(fraction.coerceAtLeast(0.0) * 100).toInt()
     val track = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-    val arc = if (f >= 0.9f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    val arc = if (target >= 0.9f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     val label = tr(R.string.nd_usage_ring, percent)
     Box(modifier.size(size).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
+            val f = grow.value
             val stroke = 4.dp.toPx(); val wave = 1.2.dp.toPx()
             val r = this.size.minDimension / 2 - stroke / 2 - wave
             val c = center
@@ -672,7 +695,9 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
     val drag = remember(seq) { androidx.compose.animation.core.Animatable(0f) }
     val scope = rememberCoroutineScope()
     androidx.compose.animation.AnimatedVisibility(visible = text != null, modifier = modifier,
-        enter = if (animations) androidx.compose.animation.slideInVertically(tween(220)) { -it } + androidx.compose.animation.fadeIn(tween(220)) else androidx.compose.animation.EnterTransition.None,
+        // A soft spring in (no bounce past the top edge), a short slide out.
+        enter = if (animations) androidx.compose.animation.slideInVertically(androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+            visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold)) { -it } + androidx.compose.animation.fadeIn(tween(220)) else androidx.compose.animation.EnterTransition.None,
         exit = if (animations) androidx.compose.animation.slideOutVertically(tween(180)) { -it } + androidx.compose.animation.fadeOut(tween(180)) else androidx.compose.animation.ExitTransition.None) {
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface, shadowElevation = 6.dp,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)

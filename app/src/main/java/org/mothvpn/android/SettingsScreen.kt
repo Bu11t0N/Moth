@@ -24,6 +24,7 @@ import org.mothvpn.core.VersionLabel
 import org.mothvpn.core.DnsServers
 import org.mothvpn.core.SubscriptionSchedule
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}, restore: (org.mothvpn.core.Backup.Content) -> Unit = {}) {
     var draft by remember(initial) { mutableStateOf(initial) }
     var section by remember { mutableStateOf<String?>(if (startUpdates) tr(R.string.update_title) else null) }
@@ -56,14 +57,36 @@ import org.mothvpn.core.SubscriptionSchedule
                 Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 12.dp))
             }
         }
-        AnimatedContent(targetState = section to logPage, modifier = Modifier.weight(1f).fillMaxWidth(), transitionSpec = {
+        // Settings pages: a page opened from a card (or the About entries) grows out of that card and shrinks back into it on Back
+        // (container transform, shared bounds); the rest fades. Pages without a card (logs, a licence text) keep the short slide.
+        fun containerKey(page: Pair<String?, Int>): String? = when {
+            page.second == 3 -> "changelog"; page.second == 4 -> "licenses"; page.second != 0 -> null
+            else -> mapOf(tr(R.string.msg_connection_75) to "connection", tr(R.string.split_title) to "split", tr(R.string.set_cat_routing) to "routing",
+                tr(R.string.set_cat_subscription) to "subscription", tr(R.string.stats_title) to "stats", tr(R.string.msg_appearance_74) to "interface",
+                tr(R.string.update_title) to "updates", tr(R.string.backup_title) to "backup", tr(R.string.msg_about_78) to "about",
+                tr(R.string.dev_for_developers) to "dev", tr(R.string.rules_title) to "rules")[page.first]
+        }
+        // The page that shows the card a page opens from: the main list, Connection (routing rules) or About (changelog, licences).
+        fun parentPage(key: String): Pair<String?, Int> = when (key) {
+            "rules" -> tr(R.string.msg_connection_75) to 0; "changelog", "licenses" -> tr(R.string.msg_about_78) to 0; else -> null to 0
+        }
+        val motion = animationsOn()
+        val rootScroll = rememberScrollState()
+        SharedTransitionLayout(Modifier.weight(1f).fillMaxWidth()) { CompositionLocalProvider(LocalSharedScope provides this) {
+        AnimatedContent(targetState = section to logPage, modifier = Modifier.fillMaxSize(), transitionSpec = {
+            if (!motion) return@AnimatedContent EnterTransition.None togetherWith ExitTransition.None
+            // A card ↔ page change (the page opened from a card on the other page): the shared bounds do the motion, the pages only fade.
+            if (containerKey(targetState)?.let { parentPage(it) == initialState } == true || containerKey(initialState)?.let { parentPage(it) == targetState } == true)
+                return@AnimatedContent fadeIn(tween(Motion.SHORT, delayMillis = 40)) togetherWith fadeOut(tween(160))
             val deeper = targetState.first != null && initialState.first == null || (targetState.second != 0 && initialState.second == 0)
             val shallower = targetState.first == null || (targetState.second == 0 && initialState.second != 0)
             val dir = if (deeper && !shallower) 1 else if (shallower && !deeper) -1 else 0
             (fadeIn(tween(220, delayMillis = 60)) + slideInHorizontally(tween(260)) { it / 8 * dir }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(260)) { -it / 8 * dir })
         }, label = "settingsPage") { page ->
             val sec = page.first; val lp = page.second
-        if (sec == tr(R.string.backup_title)) BackupPage(draft, locked, restore, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, !locked, { applySettings(draft.copy(routingRules = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.weight(1f)) else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            CompositionLocalProvider(LocalPageScope provides this) {
+            Box(Modifier.fillMaxSize().containerTransform(containerKey(page))) {
+        if (sec == tr(R.string.backup_title)) BackupPage(draft, locked, restore, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, !locked, { applySettings(draft.copy(routingRules = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.fillMaxSize()) else Column(Modifier.fillMaxSize().verticalScroll(if (sec == null) rootScroll else rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (sec) {
                 null -> {
                     val ctxMenu = LocalContext.current
@@ -278,13 +301,16 @@ import org.mothvpn.core.SubscriptionSchedule
             AnimatedVisibility(error.isNotEmpty()) { Text(error, color = MaterialTheme.colorScheme.error) }
             Spacer(Modifier.height(8.dp))
         }
+            } }
         }
+        } }
         Spacer(Modifier.height(4.dp))
     }
 }
 
 @Composable private fun SettingsCategory(title: String, subtitle: String, icon: String, open: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
+    // The card is the start/end of its page's container transform (key = icon name) and shrinks slightly while pressed.
+    Card(Modifier.containerTransform(icon).pressScale().fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
         Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             // A monochrome icon in a grey rounded-square tile (no colours, no circle).
             IconTile(categoryIcon(icon))
