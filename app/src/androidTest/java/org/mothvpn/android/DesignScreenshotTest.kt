@@ -34,8 +34,10 @@ class DesignScreenshotTest {
     private fun log(msg: String) = android.util.Log.i("MothE2E", msg)
     /** Click that survives a recomposition between finding the node and clicking it. */
     private fun tap(selector: BySelector) {
-        repeat(3) { attempt ->
-            try { wait(selector).click(); return } catch (e: androidx.test.uiautomator.StaleObjectException) { if (attempt == 2) throw e; Thread.sleep(400) }
+        // Tap by coordinates: the node can be replaced between finding it and clicking it (the header recomposes while results arrive).
+        repeat(5) { attempt ->
+            try { val b = wait(selector).visibleBounds; device.click(b.centerX(), b.centerY()); return }
+            catch (e: androidx.test.uiautomator.StaleObjectException) { if (attempt == 4) throw e; Thread.sleep(300) }
         }
     }
     private fun wait(selector: BySelector, ms: Long = 30_000): UiObject2 =
