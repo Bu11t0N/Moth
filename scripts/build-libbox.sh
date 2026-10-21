@@ -2,6 +2,8 @@
 # Official source build for Linux/CI. Requires Go, Android SDK+NDK, JDK 17.
 # For a newer release, update the adapter and configuration before changing the tag.
 set -euo pipefail
+# Go 1.27.3: distrusts the compromised eMudhra intermediates (CVE-2026-111943); CI installs the same release.
+export GOTOOLCHAIN=go1.27.3
 project_root="$(cd "$(dirname "$0")/.." && pwd)"
 source_path="$project_root/.core-build/sing-box"
 mkdir -p "$project_root/.core-build"
@@ -12,11 +14,11 @@ cd "$source_path"
 test "$(git describe --tags --exact-match)" = v1.12.25
 test "$(git rev-parse HEAD)" = 73bfb99ebce7923c485435e4faf8571b412065a9
 
-# XHTTP uses Xray v26.10.17 (92ccc939aaf4f8965f369cf0b142e005aeaa11d5).
+# XHTTP uses Xray v26.10.21 (1b1647cd9ddf0abc34b981d4611fc03bcac1ca74).
 cp "$project_root/scripts/native/moth_xray.go" experimental/libbox/moth_xray.go
 # Module downloads are checked against sum.golang.org; retry transient network errors (checksums are never skipped).
 retry() { for i in 1 2 3 4 5; do "$@" && return 0; echo "retry $i: $*" >&2; sleep $((i * 15)); done; return 1; }
-retry go get github.com/xtls/xray-core@92ccc939aaf4f8965f369cf0b142e005aeaa11d5
+retry go get github.com/xtls/xray-core@1b1647cd9ddf0abc34b981d4611fc03bcac1ca74
 xray_path="$(go list -m -f '{{.Dir}}' github.com/xtls/xray-core)"
 mkdir -p .moth-xray
 cp -R "$xray_path/." .moth-xray/

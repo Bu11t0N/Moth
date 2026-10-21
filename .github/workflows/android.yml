@@ -72,7 +72,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           cache: false
       - uses: actions/setup-java@v4
         with:
@@ -92,7 +92,7 @@ jobs:
             libbox.aar
             .core-build/sing-box
             ~/go/pkg/mod
-          key: moth-native-${{ runner.os }}-go1.27.2-ndk28-${{ hashFiles('scripts/build-libbox.sh', 'scripts/native/**') }}
+          key: moth-native-${{ runner.os }}-go1.27.3-ndk28-${{ hashFiles('scripts/build-libbox.sh', 'scripts/native/**') }}
       - name: Build official mobile core
         if: steps.native-cache.outputs.cache-hit != 'true'
         run: bash scripts/build-libbox.sh
@@ -184,7 +184,7 @@ jobs:
           ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :e2e-helper:assembleDebug --no-daemon
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           cache: false
       - name: Start test servers on the host
         run: |

@@ -20,6 +20,7 @@ Not released yet.
 - You can select and switch servers while a check is running; the check keeps going.
 - The last ping of each server stays until you check it again, also after a network change, turning the VPN off and on or restarting the app.
 - Switches show a check mark when on and a minus when off.
+- Xray updated to v26.10.21; both cores are rebuilt with Go 1.27.3, which distrusts the compromised eMudhra certificates.
 
 ## 0.7.0
 

@@ -2,10 +2,10 @@
 # Prints the path of a Linux Xray binary of the release build-libbox.sh compiles into libbox (for config tests and the e2e server).
 # Downloads the release binary (checked by sha256); if upstream removed that release, builds the same pinned commit with Go.
 set -euo pipefail
-version=v26.10.17
-sha256=ecdd54eccd24c4c21a8f00968e7dbf7f5996da92383d2321170b560dc4a95158
+version=v26.10.21
+sha256=0eec3ed4163c273d8c8bf821f7d219e257921cf584aa3fb970715e458e631978
 # The commit of that release (same as in build-libbox.sh), for the source fallback.
-commit=92ccc939aaf4f8965f369cf0b142e005aeaa11d5
+commit=1b1647cd9ddf0abc34b981d4611fc03bcac1ca74
 project_root="$(cd "$(dirname "$0")/.." && pwd)"
 work="$project_root/.core-build/xray-$version"
 if [ ! -x "$work/xray" ]; then
@@ -15,7 +15,7 @@ if [ ! -x "$work/xray" ]; then
         unzip -oq "$work/xray.zip" xray -d "$work"
     else
         echo "Xray $version release download failed; building commit $commit from source" >&2
-        GOBIN="$work" CGO_ENABLED=0 go install -trimpath "github.com/xtls/xray-core/main@$commit" >&2
+        GOTOOLCHAIN=go1.27.3 GOBIN="$work" CGO_ENABLED=0 go install -trimpath "github.com/xtls/xray-core/main@$commit" >&2
         mv "$work/main" "$work/xray"
     fi
 fi
