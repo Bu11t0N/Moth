@@ -4,23 +4,19 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ## 0.7.1
 
-Not released yet.
+Released 2026-10-21.
 
 ### Changes
 
-- Smoother motion: subscription groups unfold row by row and fold back, the server list moves into place after checks and changes, settings pages grow out of the item you tap, every button, row and card reacts to a press, the bottom bar icons bounce and fill in when you switch tabs, and the session stats panel slides out of the subscription card when you connect.
-- Home: the status text and the server card change with a short fade; the traffic ring fills smoothly.
-- Home: a soft light glows behind the moth: dim when off, warm and pulsing while connecting or checking, bright when connected.
-- Home: speed, session traffic and connection time are shown together in one panel.
-- While servers are being checked and the VPN is off, the moth flaps in its off colours with “Checking servers…”; tap it to stop the check. While the VPN is on, a check makes the moth flap in its on colours.
-- Servers: “Update all” and “Check all” are now buttons in the top bar instead of the ⋮ menu.
-- Notices at the top of the screen stay visible when you switch tabs.
+- Security: Xray updated to v26.10.21, and both cores are rebuilt with Go 1.27.3, which no longer trusts the compromised eMudhra certificates.
 - Auto-select and failover no longer drop the VPN while checking servers: the connection stays up on the current server and switches only to a server that answers.
-- The TCP server check now works while the VPN is on (before, every server showed as failed).
-- You can select and switch servers while a check is running; the check keeps going.
-- The last ping of each server stays until you check it again, also after a network change, turning the VPN off and on or restarting the app.
+- The TCP server check works while the VPN is on (before, every server showed as failed).
+- You can select and switch servers while a check is running, and the last ping of each server stays until you check it again, also after a network change, a VPN restart or an app restart.
+- Home: a soft light glows behind the moth (dim when off, warm and pulsing while connecting or checking, bright when on), and speed, session traffic and time share one panel that slides out of the subscription card when you connect.
+- While servers are being checked, the moth flaps in the colours of the current state; with the VPN off, “Checking servers…” is shown and a tap stops the check.
+- Smoother motion everywhere: groups unfold row by row, lists move into place, settings pages grow out of the item you tap, buttons and cards react to a press, and the bottom bar icons bounce.
+- Servers: “Update all” and “Check all” are buttons in the top bar instead of the ⋮ menu; notices at the top stay visible when you switch tabs.
 - Switches show a check mark when on and a minus when off.
-- Xray updated to v26.10.21; both cores are rebuilt with Go 1.27.3, which distrusts the compromised eMudhra certificates.
 
 ## 0.7.0
 
