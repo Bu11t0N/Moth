@@ -72,6 +72,12 @@ data class ClientSettings(
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
         if (autoUserAgent.matches(userAgent)) copy(userAgent = "Moth/$version") else this
+    /** The automatic subscription User-Agent for this app version ("Moth/<version>"). */
+    fun defaultUserAgent(version: String) = "Moth/$version"
+    /** Whether the User-Agent is a custom value (the reset button is shown only then). */
+    fun customUserAgent(version: String) = userAgent != defaultUserAgent(version)
+    /** Back to the automatic User-Agent (it then follows app updates again). */
+    fun resetUserAgent(version: String) = copy(userAgent = defaultUserAgent(version))
     /**
      * True when going from this to [next] changes something fixed when the tunnel is built (core config, TUN interface, split tunneling,
      * DPI helper, the health check scheduled at connect), so a running VPN must reconnect once to apply it. Everything else applies live:

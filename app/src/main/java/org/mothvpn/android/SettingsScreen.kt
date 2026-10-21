@@ -214,7 +214,14 @@ import org.mothvpn.core.SubscriptionSchedule
                         DialogRow(tr(R.string.device_title), sent.joinToString(" · "), enabled = !locked) { deviceDialog = true }
                         if (deviceDialog) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
                     }
-                    OutlinedTextField(draft.userAgent, { applySettings(draft.copy(userAgent = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_user_agent_109)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    // A reset button (only for a custom value) restores the automatic "Moth/<version>". The value is never logged.
+                    OutlinedTextField(draft.userAgent, { applySettings(draft.copy(userAgent = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_user_agent_109)) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = if (draft.customUserAgent(BuildConfig.VERSION_NAME)) { {
+                            IconButton(onClick = { applySettings(draft.resetUserAgent(BuildConfig.VERSION_NAME)) }, enabled = !locked,
+                                modifier = Modifier.pressScale(enabled = !locked)) {
+                                Icon(androidx.compose.material.icons.Icons.Outlined.Restore, contentDescription = tr(R.string.ua_reset))
+                            }
+                        } } else null)
                     Text(tr(R.string.msg_providers_may_select_the_subscription_format_110), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.msg_appearance_74) -> {

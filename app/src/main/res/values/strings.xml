@@ -523,4 +523,5 @@
     <string name="device_title">Device info</string>
     <string name="check_needs_mobile">To check these servers, turn on mobile data and turn off Wi-Fi</string>
     <string name="check_needs_wifi">To check these servers, connect to Wi-Fi</string>
+    <string name="ua_reset">Reset User-Agent to default</string>
 </resources>
