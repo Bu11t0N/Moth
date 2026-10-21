@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -165,7 +166,25 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
         lit && dark -> Color(0xFFF2F2F2); lit -> Color(0xFF111111); dark -> Color(0xFF8A8A8A); else -> Color(0xFF9E9E9E)
     }, tween(400), label = "moth colour")
     val vein = MaterialTheme.colorScheme.background
-    Box(modifier.size(size).then(if (enabled) Modifier.pressScale() else Modifier).clip(CircleShape)
+    // The light behind the moth (HomeGlow): cool and dim off, warm and pulsing with the wing beat while connecting or checking,
+    // bright and steady on. Drawn with one radial brush behind the button (unclipped, no touch handling), ~400 ms state changes.
+    val level = org.mothvpn.core.HomeGlow.level(on, beat)
+    val amoled = MaterialTheme.colorScheme.background == Color.Black
+    val glowTarget = when (level) {
+        org.mothvpn.core.HomeGlow.Level.OFF -> if (dark) Color(0xFF9FB4C8) else Color(0xFF6F87A0)   // cool steel
+        org.mothvpn.core.HomeGlow.Level.BEAT -> if (dark) Color(0xFFFFB45E) else Color(0xFFF2994A)  // warm amber
+        org.mothvpn.core.HomeGlow.Level.ON -> if (dark) Color(0xFFFFE6B8) else Color(0xFFF5B54A)    // warm white / golden
+    }
+    val glowColor by androidx.compose.animation.animateColorAsState(glowTarget, if (animations) tween(400) else androidx.compose.animation.core.snap(), label = "glow colour")
+    val intensity = org.mothvpn.core.HomeGlow.intensity(level, dark, animations)
+    val glowBase by androidx.compose.animation.core.animateFloatAsState(intensity.base, if (animations) tween(400) else androidx.compose.animation.core.snap(), label = "glow base")
+    val glowPulse by androidx.compose.animation.core.animateFloatAsState(intensity.pulse, if (animations) tween(400) else androidx.compose.animation.core.snap(), label = "glow pulse")
+    Box(modifier.size(size).drawBehind {
+            val a = org.mothvpn.core.HomeGlow.alpha(org.mothvpn.core.HomeGlow.Intensity(glowBase, glowPulse), open.value) * (if (amoled) 0.85f else 1f)
+            val radius = this.size.minDimension * org.mothvpn.core.HomeGlow.RADIUS
+            drawCircle(androidx.compose.ui.graphics.Brush.radialGradient(0f to glowColor.copy(alpha = a), 0.45f to glowColor.copy(alpha = a * 0.55f),
+                0.75f to glowColor.copy(alpha = a * 0.18f), 1f to glowColor.copy(alpha = 0f), center = center, radius = radius), radius = radius, center = center)
+        }.then(if (enabled) Modifier.pressScale() else Modifier).clip(CircleShape)
         .clickable(enabled = enabled, onClick = onClick, role = androidx.compose.ui.semantics.Role.Button)
         .semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(size * (210f / 260f)).graphicsLayer { alpha = if (enabled || beat) 1f else 0.55f }) { drawMoth(open.value, color, vein) }
