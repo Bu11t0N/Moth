@@ -4,13 +4,21 @@
 set -euo pipefail
 version=v26.10.17
 sha256=ecdd54eccd24c4c21a8f00968e7dbf7f5996da92383d2321170b560dc4a95158
+# The commit of that release (same as in build-libbox.sh), for the source fallback.
+commit=92ccc939aaf4f8965f369cf0b142e005aeaa11d5
 project_root="$(cd "$(dirname "$0")/.." && pwd)"
 work="$project_root/.core-build/xray-$version"
 if [ ! -x "$work/xray" ]; then
     mkdir -p "$work"
-    curl -fsSL -o "$work/xray.zip" "https://github.com/XTLS/Xray-core/releases/download/$version/Xray-linux-64.zip"
-    echo "$sha256  $work/xray.zip" | sha256sum -c -
-    unzip -oq "$work/xray.zip" xray -d "$work"
+    if curl -fsSL -o "$work/xray.zip" "https://github.com/XTLS/Xray-core/releases/download/$version/Xray-linux-64.zip"; then
+        echo "$sha256  $work/xray.zip" | sha256sum -c -
+        unzip -oq "$work/xray.zip" xray -d "$work"
+    else
+        # The release binary is gone (upstream removed the release): build the same pinned commit build-libbox.sh uses.
+        echo "Xray $version release download failed; building commit $commit from source" >&2
+        GOBIN="$work" CGO_ENABLED=0 go install -trimpath "github.com/xtls/xray-core/main@$commit"
+        mv "$work/main" "$work/xray"
+    fi
 fi
 shopt -s nullglob
 files=("$project_root"/core/build/config-fixtures/xray-*.json)
