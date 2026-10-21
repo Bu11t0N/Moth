@@ -2,6 +2,17 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.7.2
+
+Not released yet.
+
+### Changes
+
+- “Check all” and the subscription check measure only the servers your filter shows, and the list is fixed when the check starts: changing the filter during a check no longer adds servers to it.
+- The subscription User-Agent is now a single setting: choose Moth (default), v2rayNG, Hiddify, sing-box or INCY, or enter your own value.
+- The line under each server is coloured by protocol and security (Reality green, TLS blue, unencrypted red); VLESS and Trojan without TLS are now marked as unencrypted.
+- Balancers show the best ping among their servers instead of probing only one of them; auto-select and failover pick only regular servers, and a balancer you choose by hand is replaced by a working server when it stops answering.
+
 ## 0.7.1
 
 Released 2026-10-21.
