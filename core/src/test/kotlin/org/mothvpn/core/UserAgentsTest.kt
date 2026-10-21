@@ -14,6 +14,9 @@ class UserAgentsTest {
             assertTrue(ClientSettings(userAgent = p.value).validate().userAgent == p.value)
         }
         assertEquals(listOf("Moth", "v2rayNG", "Hiddify", "sing-box", "INCY"), UserAgents.presets(v).map { it.label })
+        // The exact strings of the latest client releases (Oct 2026).
+        assertEquals(listOf("Moth/0.7.2", "v2rayNG/2.3.11", "HiddifyNext/4.1.1 (android) like ClashMeta v2ray sing-box",
+            "SFA (sing-box 1.14.3; language en_US)", "INCY/3.7.9/android"), UserAgents.presets(v).map { it.value })
     }
 
     @Test fun savedValuesMapToPresetsAcrossVersions() {
@@ -22,7 +25,8 @@ class UserAgentsTest {
         assertEquals("hiddify", id("HiddifyNext/2.5.7 (android) like ClashMeta v2ray sing-box"))
         assertEquals("hiddify", id("HiddifyNextX/4.0.0 (windows) like ClashMeta v2ray sing-box"))
         assertEquals("singbox", id("SFA (sing-box 1.11.0; language ru_RU)"))
-        assertEquals("incy", id("INCY/1.0.0/ios"))
+        assertEquals("incy", id("INCY/1.0.0/ios")); assertEquals("incy", id("INCY/2.5.6/Android")) // the earlier preset
+        assertEquals("singbox", id("SFA (sing-box 1.15.0-alpha.12; language en_US)"))
     }
 
     @Test fun anythingElseIsCustomPrefilled() {
