@@ -67,7 +67,7 @@ object ChangelogRepository {
             loading && sections == null -> Row(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator() }
             sections == null -> Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(tr(R.string.changelog_error))
-                Button(onClick = { version++ }) { Text(tr(R.string.changelog_retry)) }
+                Button(onClick = { version++ }, modifier = Modifier.pressScale()) { Text(tr(R.string.changelog_retry)) }
             }
             else -> {
                 if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -83,7 +83,7 @@ object ChangelogRepository {
                     }
                     item { Spacer(Modifier.height(8.dp)) }
                 }
-                if (result?.fromCache == true) TextButton(onClick = { version++ }) { Text(tr(R.string.changelog_retry)) }
+                if (result?.fromCache == true) TextButton(onClick = { version++ }, modifier = Modifier.pressScale()) { Text(tr(R.string.changelog_retry)) }
             }
         }
     }

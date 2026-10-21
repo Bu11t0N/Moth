@@ -110,6 +110,23 @@ def stop():
     with lock:
         if proc and proc.poll() is None: proc.terminate(); proc.wait(10); print("sing-box stopped", flush=True)
 
+# 0.7.1: two Shadowsocks servers in their own sing-box processes, so the failover test can stop just one of them.
+FAILOVER = {"a": (20021, "127.0.0.22"), "b": (20022, "127.0.0.23")}
+fo_procs = {}
+def fo_start(name):
+    port, src = FAILOVER[name]
+    with lock:
+        if name in fo_procs and fo_procs[name].poll() is None: return
+        path = os.path.join(HERE, f"sing-box-fo-{name}.json")
+        json.dump({"log": {"level": "warn"}, "inbounds": [{"type": "shadowsocks", "tag": "in", "listen": "0.0.0.0", "listen_port": port, "method": "aes-128-gcm", "password": PASSWORD}],
+            "outbounds": [{"type": "direct", "tag": "direct"}, {"type": "direct", "tag": "src", "inet4_bind_address": src}],
+            "route": {"rules": [{"ip_cidr": [f"{HOST}/32"], "outbound": "src"}], "final": "direct"}}, open(path, "w"))
+        fo_procs[name] = subprocess.Popen([SING_BOX, "run", "-c", path]); print(f"failover server {name} started", flush=True)
+def fo_stop(name):
+    with lock:
+        p = fo_procs.get(name)
+        if p and p.poll() is None: p.terminate(); p.wait(10); print(f"failover server {name} stopped", flush=True)
+
 class Echo(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def reply(self, body, code=200, headers=None):
@@ -122,6 +139,13 @@ class Echo(http.server.BaseHTTPRequestHandler):
             seconds = int(self.path.split("=")[-1]) if "=" in self.path else 20
             def run(): time.sleep(1); stop(); time.sleep(seconds); start()
             threading.Thread(target=run, daemon=True).start(); self.reply("paused")
+        elif self.path.startswith("/fo/stop=") or self.path.startswith("/fo/start="):
+            name = self.path.split("=")[-1]
+            if name not in FAILOVER: self.reply("unknown", 404); return
+            if "/stop=" in self.path:  # the reply may travel through the server being stopped: stop it a moment later
+                threading.Thread(target=lambda: (time.sleep(1), fo_stop(name)), daemon=True).start()
+            else: fo_start(name)
+            self.reply("ok")
         elif self.path.startswith("/health"): self.reply("ok" if proc and proc.poll() is None else "down")
         else: self.reply("not found", 404)
 
@@ -148,6 +172,7 @@ def serve(port, handler, tls=False, cert="server"):
 
 if __name__ == "__main__":
     start()
+    for n in FAILOVER: fo_start(n)
     start_xray()
     for a in ("127.0.0.1", HOST): threading.Thread(target=udp_echo, args=(a,), daemon=True).start()
     serve(8081, Echo); serve(8443, Sub, tls=True); serve(8444, UserCaSub, tls=True, cert="user-server")

@@ -89,9 +89,9 @@ fun writeDocument(context: android.content.Context, uri: android.net.Uri, text: 
     }
     Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(tr(R.string.backup_hint), style = MaterialTheme.typography.bodyMedium)
-        Button(enabled = !working, onClick = { exportPassword = ""; exportDialog = true }, modifier = Modifier.fillMaxWidth()) { Text(tr(R.string.backup_export)) }
+        Button(enabled = !working, onClick = { exportPassword = ""; exportDialog = true }, modifier = Modifier.pressScale(enabled = !working).then(Modifier.fillMaxWidth())) { Text(tr(R.string.backup_export)) }
         if (locked) Text(tr(R.string.backup_locked), style = MaterialTheme.typography.bodySmall)
-        OutlinedButton(enabled = !working && !locked, onClick = { status = ""; pick.launch(arrayOf("application/json", "application/octet-stream", "text/plain")) }, modifier = Modifier.fillMaxWidth()) { Text(tr(R.string.backup_import)) }
+        OutlinedButton(enabled = !working && !locked, onClick = { status = ""; pick.launch(arrayOf("application/json", "application/octet-stream", "text/plain")) }, modifier = Modifier.pressScale(enabled = !working && !locked).then(Modifier.fillMaxWidth())) { Text(tr(R.string.backup_import)) }
         Text(tr(R.string.backup_import_hint), style = MaterialTheme.typography.bodySmall)
         if (working) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodyMedium)
@@ -112,14 +112,14 @@ fun writeDocument(context: android.content.Context, uri: android.net.Uri, text: 
         }, confirmButton = { TextButton(enabled = ok, onClick = {
             exportDialog = false; exportPassword = password
             create.launch("moth-backup-${java.time.LocalDate.now()}.json")
-        }) { Text(tr(R.string.backup_save_file)) } }, dismissButton = { TextButton(onClick = { exportDialog = false }) { Text(tr(R.string.msg_cancel_32)) } })
+        }, modifier = Modifier.pressScale(enabled = ok)) { Text(tr(R.string.backup_save_file)) } }, dismissButton = { TextButton(onClick = { exportDialog = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
     }
     pendingText?.let { text ->
         var password by remember { mutableStateOf("") }
         AlertDialog(onDismissRequest = { pendingText = null }, title = { Text(tr(R.string.backup_password_title)) }, text = {
             OutlinedTextField(password, { password = it }, label = { Text(tr(R.string.backup_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
-        }, confirmButton = { TextButton(enabled = password.isNotEmpty() && !working, onClick = { open(text, password) }) { Text(tr(R.string.ok)) } },
-            dismissButton = { TextButton(onClick = { pendingText = null }) { Text(tr(R.string.msg_cancel_32)) } })
+        }, confirmButton = { TextButton(enabled = password.isNotEmpty() && !working, onClick = { open(text, password) }, modifier = Modifier.pressScale(enabled = password.isNotEmpty() && !working)) { Text(tr(R.string.ok)) } },
+            dismissButton = { TextButton(onClick = { pendingText = null }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
     }
     pending?.let { c ->
         val s = Backup.summary(c)
@@ -129,7 +129,7 @@ fun writeDocument(context: android.content.Context, uri: android.net.Uri, text: 
                 if (c.appVersion.isNotBlank()) Text(tr(R.string.backup_from_version, c.appVersion), style = MaterialTheme.typography.bodySmall)
                 Text(tr(R.string.backup_replace_warning), color = MaterialTheme.colorScheme.error)
             }
-        }, confirmButton = { TextButton(enabled = !locked, onClick = { pending = null; restore(c); status = tr(R.string.backup_restored) }) { Text(tr(R.string.backup_replace)) } },
-            dismissButton = { TextButton(onClick = { pending = null }) { Text(tr(R.string.msg_cancel_32)) } })
+        }, confirmButton = { TextButton(enabled = !locked, onClick = { pending = null; restore(c); status = tr(R.string.backup_restored) }, modifier = Modifier.pressScale(enabled = !locked)) { Text(tr(R.string.backup_replace)) } },
+            dismissButton = { TextButton(onClick = { pending = null }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
     }
 }

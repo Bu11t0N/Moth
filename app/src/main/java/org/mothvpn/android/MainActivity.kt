@@ -1,6 +1,9 @@
 package org.mothvpn.android
 
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import android.Manifest
@@ -137,7 +140,9 @@ class MainActivity : AppCompatActivity() {
             var subName by remember { mutableStateOf("") }
             val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
             val scheme = if (dark) (if (settings.amoled) MonoTheme.amoled else MonoTheme.dark) else MonoTheme.light
+            val notices = remember { NoticeState() }
             MaterialTheme(colorScheme = scheme, shapes = MonoTheme.shapes) {
+                androidx.compose.runtime.CompositionLocalProvider(LocalNotice provides notices) {
                 Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().statusBarsPadding()) {
                         Box(Modifier.weight(1f)) {
@@ -148,13 +153,13 @@ class MainActivity : AppCompatActivity() {
                             when (shown) {
                                 0 -> NewHomeScreen(saved, book, settings, network, busy, message,
                                     add = { url = ""; subName = ""; dialog = true },
-                                    connect = { if (TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || TunnelStatus.trafficBlocked(TunnelStatus.state.value, TunnelStatus.blocking.value)) stop() else connect() },
+                                    connect = { homeTap() },
                                     select = { id, kind -> select(id, kind) }, updateAvailable = updateAvailable, openUpdates = { openUpdates = true; tab = 2 })
                                 1 -> ServersScreen(saved, book, settings, network, busy, message,
                                     add = { url = ""; subName = ""; dialog = true }, refresh = { refreshAll() }, refreshOne = { id -> book?.source(id)?.takeIf { !it.local }?.let { import(it.url, "refresh", id) } },
                                     edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
                                     select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
-                                    cancel = { startService(Intent(this@MainActivity, TunnelService::class.java).setAction("CANCEL_PROBES")) },
+                                    cancel = { cancelChecks() },
                                     preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) }, selecting = selecting)
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
@@ -163,15 +168,21 @@ class MainActivity : AppCompatActivity() {
                                 }
                             }
                             }
+                            // One notice host above the tabs: a tab switch keeps the notice (timer and dismissal unchanged).
+                            TopNotice(notices.text, notices.seq, { notices.dismiss() }, Modifier.align(androidx.compose.ui.Alignment.TopCenter))
                         }
                         // Same colour as the content surface and no tonal overlay: no lighter band at the bottom.
                         NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                             listOf(tr(R.string.msg_home_26) to "home", tr(R.string.msg_servers_27) to "list", tr(R.string.msg_settings_28) to "settings").forEachIndexed { i, item ->
-                                NavigationBarItem(selected = tab == i, onClick = { tab = i }, label = { Text(item.first) }, icon = {
-                                    // Material icons that are clearly different (house, bulleted list, gear).
-                                    Icon(when (item.second) { "home" -> androidx.compose.material.icons.Icons.Outlined.Home
+                                NavigationBarItem(selected = tab == i, onClick = { tab = i }, label = { Text(item.first) }, modifier = Modifier.pressScale(), icon = {
+                                    // Material icons that are clearly different (house, bulleted list, gear): outlined, filled when selected.
+                                    NavIcon(tab == i, when (item.second) { "home" -> androidx.compose.material.icons.Icons.Outlined.Home
                                         "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.FormatListBulleted
-                                        else -> androidx.compose.material.icons.Icons.Outlined.Settings }, contentDescription = null) })
+                                        else -> androidx.compose.material.icons.Icons.Outlined.Settings },
+                                        when (item.second) { "home" -> androidx.compose.material.icons.Icons.Filled.Home
+                                        "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Filled.FormatListBulleted
+                                        else -> androidx.compose.material.icons.Icons.Filled.Settings })
+                                })
                             }
                         }
                     }
@@ -196,8 +207,8 @@ class MainActivity : AppCompatActivity() {
                                     is org.mothvpn.core.DeepLinks.Action.Subscription -> { tab = 1; import(action.url, "deeplink", name = action.name) }
                                     is org.mothvpn.core.DeepLinks.Action.Links -> { tab = 1; import(action.text, "deeplink") }
                                 }
-                            }) { Text(tr(R.string.msg_add_31)) } },
-                            dismissButton = { TextButton(onClick = { deepLink = null; Logger.i("DeepLink", "import cancelled") }) { Text(tr(R.string.msg_cancel_32)) } })
+                            }, modifier = Modifier.pressScale(enabled = !busy)) { Text(tr(R.string.msg_add_31)) } },
+                            dismissButton = { TextButton(onClick = { deepLink = null; Logger.i("DeepLink", "import cancelled") }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
                     }
                     if (dialog) AlertDialog(onDismissRequest = { if (!busy) dialog = false }, title = { Text(tr(R.string.msg_add_subscription_16)) }, text = {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -206,12 +217,13 @@ class MainActivity : AppCompatActivity() {
                             OutlinedTextField(value = subName, onValueChange = { if (it.length <= org.mothvpn.core.SubscriptionSource.MAX_NAME) subName = it.replace("\n", " ") }, label = { Text(tr(R.string.sub_name_optional)) }, singleLine = true)
                             val clip = androidx.compose.ui.platform.LocalClipboardManager.current
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = { url = clip.getText()?.text?.trim().orEmpty(); if (url.isEmpty()) message = tr(R.string.import_clipboard_empty) }) { Text(tr(R.string.import_paste)) }
-                                OutlinedButton(onClick = { dialog = false; scanQr() }) { Text(tr(R.string.import_scan)) }
+                                OutlinedButton(onClick = { url = clip.getText()?.text?.trim().orEmpty(); if (url.isEmpty()) message = tr(R.string.import_clipboard_empty) }, modifier = Modifier.pressScale()) { Text(tr(R.string.import_paste)) }
+                                OutlinedButton(onClick = { dialog = false; scanQr() }, modifier = Modifier.pressScale()) { Text(tr(R.string.import_scan)) }
                             }
                             Text(tr(R.string.import_hint), style = MaterialTheme.typography.bodySmall)
                         }
-                    }, confirmButton = { TextButton(enabled = url.isNotBlank(), onClick = { dialog = false; import(url, name = subName.trim().ifEmpty { null }); url = ""; subName = "" }) { Text(tr(R.string.msg_add_31)) } }, dismissButton = { TextButton(onClick = { dialog = false; url = ""; subName = "" }) { Text(tr(R.string.msg_cancel_32)) } })
+                    }, confirmButton = { TextButton(enabled = url.isNotBlank(), onClick = { dialog = false; import(url, name = subName.trim().ifEmpty { null }); url = ""; subName = "" }, modifier = Modifier.pressScale(enabled = url.isNotBlank())) { Text(tr(R.string.msg_add_31)) } }, dismissButton = { TextButton(onClick = { dialog = false; url = ""; subName = "" }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
+                }
                 }
             }
         }
@@ -357,7 +369,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun select(id: String, kind: String) {
-        if (busy || Diagnostics.running.value || TunnelStatus.state.value == TunnelState.STOPPING) return
+        // Selecting (and switching while connected) also works during a server check; the check keeps running.
+        if (busy || TunnelStatus.state.value == TunnelState.STOPPING) return
         val switching = TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED) && kind == networks.state.value.kind && id != TunnelStatus.activeProfile.value
         val next = saved?.let { if (kind == "mobile") it.copy(selected = id, mobileSelected = id) else it.copy(selected = id, wifiSelected = id) } ?: return
         val nextBook = book?.withSelection(next)
@@ -412,6 +425,19 @@ class MainActivity : AppCompatActivity() {
             finally { busy = false }
         }
     }
+    /** The home moth button: disconnect, connect, or (VPN off, servers being checked) stop the check without connecting. */
+    private fun homeTap() {
+        val state = TunnelStatus.state.value
+        val blocked = TunnelStatus.trafficBlocked(state, TunnelStatus.blocking.value)
+        val running = state in setOf(TunnelState.RUNNING, TunnelState.BLOCKED) || blocked
+        val transition = state in setOf(TunnelState.STARTING, TunnelState.STOPPING) && !blocked
+        when (org.mothvpn.core.HomeButton.tap(Diagnostics.running.value, running, transition)) {
+            org.mothvpn.core.HomeButton.Tap.DISCONNECT -> stop()
+            org.mothvpn.core.HomeButton.Tap.STOP_CHECKS -> { Logger.i("Probe", "checks stopped from the home button"); cancelChecks() }
+            org.mothvpn.core.HomeButton.Tap.CONNECT -> connect()
+        }
+    }
+    private fun cancelChecks() { startService(Intent(this, TunnelService::class.java).setAction("CANCEL_PROBES")) }
     private fun connect() {
         Logger.i("Tunnel", "connect tapped (network=${networks.state.value.kind}, available=${networks.state.value.available})")
         if (!networks.state.value.available) { message = tr(R.string.msg_no_network_20); return }

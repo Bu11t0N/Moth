@@ -56,7 +56,7 @@ object TrafficRecorder {
         mutable.value = history!!
         if (System.currentTimeMillis() - lastFlush >= 60_000) flushLocked(context)
     }
-    /** Test hook: replaces the stored history (used by the instrumented screenshot test). */
+    /** Test hook: replaces the stored history (used by the instrumented UI test). */
     internal fun replaceForTest(context: Context, value: TrafficHistory) = synchronized(lock) {
         history = value; dirty = true; flushLocked(context)
     }
@@ -94,7 +94,7 @@ object TrafficRecorder {
                     Text(tr(R.string.stats_chart), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     listOf(7 to R.string.stats_range_7, 30 to R.string.stats_range_30).forEach { (days, label) ->
                         FilterChip(selected = range == days, onClick = { range = days }, label = { Text(tr(label)) },
-                            modifier = Modifier.padding(start = 6.dp))
+                            modifier = Modifier.pressScale().then(Modifier.padding(start = 6.dp)))
                     }
                 }
                 val sel = selected?.let { d -> series.firstOrNull { it.first == d } }

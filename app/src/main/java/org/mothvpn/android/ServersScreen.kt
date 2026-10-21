@@ -46,6 +46,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.rememberCoroutineScope
 import org.mothvpn.core.ClientSettings
 import org.mothvpn.core.ServerOrder
 import org.mothvpn.core.Favorites
@@ -78,7 +81,26 @@ import org.mothvpn.core.SubscriptionSource
     val context = androidx.compose.ui.platform.LocalContext.current
     // Collapsed subscription groups (and favorites), saved across restarts.
     var collapsed by remember { mutableStateOf(CollapsedGroups.load(context)) }
-    fun toggleGroup(key: String) { collapsed = if (key in collapsed) collapsed - key else collapsed + key; CollapsedGroups.save(context, collapsed) }
+    // Opening / closing groups: rows unfold staggered from under the header (Modifier.unfold); a closing group keeps its rows until
+    // they have folded back, then collapses (the content below then slides up).
+    var unfolds by remember { mutableStateOf<Map<String, Unfold>>(emptyMap()) }
+    val unfoldJobs = remember { HashMap<String, kotlinx.coroutines.Job>() }
+    val unfoldScope = rememberCoroutineScope()
+    val motion = animationsOn()
+    fun saveCollapsed(next: Set<String>) { collapsed = next; CollapsedGroups.save(context, next) }
+    fun toggleGroup(key: String, count: Int) {
+        unfoldJobs.remove(key)?.cancel()
+        val closing = unfolds[key]?.opening == false
+        if (!motion) { unfolds = unfolds - key; saveCollapsed(if (key in collapsed) collapsed - key else collapsed + key); return }
+        if (key in collapsed || closing) {
+            // Open (also a tap while it was still folding back).
+            val event = Unfold(opening = true); unfolds = unfolds + (key to event); if (key in collapsed) saveCollapsed(collapsed - key)
+            unfoldJobs[key] = unfoldScope.launch { delay(org.mothvpn.core.GroupUnfold.total(count, true) + 50L); if (unfolds[key] == event) unfolds = unfolds - key }
+        } else {
+            val event = Unfold(opening = false); unfolds = unfolds + (key to event)
+            unfoldJobs[key] = unfoldScope.launch { delay(org.mothvpn.core.GroupUnfold.total(count, false).toLong()); if (unfolds[key] == event) { saveCollapsed(collapsed + key); unfolds = unfolds - key } }
+        }
+    }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(results) { now = System.currentTimeMillis(); while (true) { delay(60_000); now = System.currentTimeMillis() } }
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
@@ -90,9 +112,9 @@ import org.mothvpn.core.SubscriptionSource
     fun deleteLocked(sourceId: String) = refreshLocked || inUse(sourceId)
     // Check buttons stay tappable on the other network's page; a tap there shows a short notice at the top instead of checking.
     val canCheck = saved != null && !busy && !probing && tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING)
-    var notice by remember { mutableStateOf<String?>(null) }
-    var noticeSeq by remember { mutableStateOf(0) }
-    fun show(text: String) { notice = text; noticeSeq++ }
+    // Notices are shown by the app-wide host above the tabs (they survive a tab switch).
+    val notices = LocalNotice.current
+    fun show(text: String) = notices.show(text)
     fun checkOn(k: String, action: () -> Unit) {
         when {
             !network.available -> show(tr(R.string.nd_checks_no_network))
@@ -120,30 +142,33 @@ import org.mothvpn.core.SubscriptionSource
         }
         if (visibleK.isEmpty()) Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             if (saved != null) Text(tr(R.string.msg_no_servers_found_59))
-            if (saved == null) TextButton(enabled = !busy, onClick = add) { Text(tr(R.string.msg_add_subscription_16)) }
-            else TextButton(onClick = { search = ""; preferences(settings.copy(hideUnavailable = false)) }) { Text(tr(R.string.msg_show_all_60)) }
+            if (saved == null) TextButton(enabled = !busy, onClick = add, modifier = Modifier.pressScale(enabled = !busy)) { Text(tr(R.string.msg_add_subscription_16)) }
+            else TextButton(onClick = { search = ""; preferences(settings.copy(hideUnavailable = false)) }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_show_all_60)) }
         } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
+            // Rows fade in/out and the others slide to their new places (expand/collapse, re-sorting after a check, add, delete, filter,
+            // favorites moving to the top); see listItemMotion. Nothing with "Remove animations".
             // Favorites first (from every subscription), then one section per subscription.
             val groups = ServerGroups.of(book ?: SubscriptionBook(emptyList()), visibleK, settings.favorites)
             groups.forEach { group ->
             val groupKey = group.sourceId ?: "favorites"
             // While searching, groups with matches open by themselves (the saved collapsed state returns when the query is cleared).
             val folded = book != null && groupKey in collapsed && search.isBlank()
-            if (book != null) item(key = "header:$groupKey") {
+            if (book != null) item(key = "header:$groupKey") { Box(Modifier.listItemMotion(this)) {
                 val source = group.sourceId?.let(book::source)
                 val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true }
                 // This group's servers in the order shown (favorites: the favorite servers).
                 val ids = group.profiles.map { it.id }
-                NewGroupHeader(source, group.profiles.size, folded, checking, probing, canRefresh = source != null && !source.local && !refreshLocked, canCheck = canCheck && ids.isNotEmpty(),
-                    toggle = { toggleGroup(groupKey) }, refresh = { source?.let { refreshOne(it.id) } }, check = { checkOn(k) { probeGroup(k, ids) } }, cancel = cancel,
+                NewGroupHeader(source, group.profiles.size, folded || unfolds[groupKey]?.opening == false, checking, probing, canRefresh = source != null && !source.local && !refreshLocked, canCheck = canCheck && ids.isNotEmpty(),
+                    toggle = { toggleGroup(groupKey, group.profiles.size) }, refresh = { source?.let { refreshOne(it.id) } }, check = { checkOn(k) { probeGroup(k, ids) } }, cancel = cancel,
                     actions = { if (source != null) actionsFor = source.id })
-            }
-            if (!folded) items(group.profiles, key = { it.id }) { p ->
+            } }
+            val unfoldEvent = unfolds[groupKey]
+            if (!folded) itemsIndexed(group.profiles, key = { _, p -> p.id }) { index, p ->
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED } // cancelled checks show no indicator
                 Surface(color = if (chosen) NewDesignRow.selectedColor() else NdTone.raised(),
                     border = NewDesignRow.selectedBorder(chosen),
-                    shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth().heightIn(min = if (settings.compactServers) 64.dp else 72.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
+                    shape = MaterialTheme.shapes.medium, modifier = Modifier.listItemMotion(this, fadeIn = unfoldEvent == null).unfold(unfoldEvent, index, group.profiles.size).pressScale().fillMaxWidth().heightIn(min = if (settings.compactServers) 64.dp else 72.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && tunnel != TunnelState.STOPPING) select(p.id, k) }
                         .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
                     Row(Modifier.padding(horizontal = 18.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -177,19 +202,30 @@ import org.mothvpn.core.SubscriptionSource
             }
         }
     }
-    var allActions by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Refresh and check live in each group header; Add (+) and the ⋮ menu ("update all", "check all") are in the top bar.
+        // Refresh and check live in each group header; the top bar has Add (+), update all subscriptions and check all servers on this page
+        // (cancel while checks run) as direct buttons, no ⋮ menu.
         Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             // Adding works while connected; only during checks, a connect/disconnect or another operation the + dims and a tap explains why (top notice).
             IconButton(onClick = { if (refreshLocked) show(tr(R.string.sub_wait_notice)) else add() },
-                modifier = Modifier.size(40.dp).graphicsLayer { alpha = if (refreshLocked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) }) {
+                modifier = Modifier.pressScale().then(Modifier.size(40.dp).graphicsLayer { alpha = if (refreshLocked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) })) {
                 Icon(androidx.compose.material.icons.Icons.Rounded.Add, contentDescription = null)
             }
-            if (saved != null) IconButton(onClick = { allActions = true }, modifier = Modifier.size(40.dp).semantics { contentDescription = tr(R.string.servers_more) }) {
-                Icon(androidx.compose.material.icons.Icons.Rounded.MoreVert, contentDescription = null)
+            val remote = book?.sources?.count { !it.local } ?: 0
+            if (saved != null && remote > 0) IconButton(onClick = { if (refreshLocked) show(tr(R.string.sub_wait_notice)) else refresh() },
+                modifier = Modifier.pressScale().then(Modifier.size(40.dp).graphicsLayer { alpha = if (refreshLocked) 0.45f else 1f }
+                    .semantics { contentDescription = if (remote > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48) })) {
+                Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = null)
+            }
+            if (saved != null) {
+                if (probing) IconButton(onClick = { cancel() }, modifier = Modifier.pressScale().then(Modifier.size(40.dp).semantics { contentDescription = tr(R.string.msg_cancel_checks_49) })) {
+                    Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null)
+                } else IconButton(onClick = { checkOn(kind) { probe(kind, visible.map { it.id }) } }, enabled = canCheck && visible.isNotEmpty(),
+                    modifier = Modifier.pressScale(enabled = canCheck && visible.isNotEmpty()).then(Modifier.size(40.dp).semantics { contentDescription = tr(R.string.servers_check_all) })) {
+                    Icon(androidx.compose.material.icons.Icons.Rounded.NetworkCheck, contentDescription = null)
+                }
             }
         }
         val pager = rememberPagerState(initialPage = if (kind == "wifi") 0 else 1) { 2 }
@@ -201,8 +237,8 @@ import org.mothvpn.core.SubscriptionSource
             FilterChip(selected = pageFilter.isNotEmpty(), onClick = { filterSheet = true },
                 label = { Text(if (pageFilter.isEmpty()) tr(R.string.nd_filter) else tr(R.string.nd_filter_active, pageFilter.size)) },
                 leadingIcon = { Icon(androidx.compose.material.icons.Icons.Rounded.FilterList, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                modifier = Modifier.padding(end = 8.dp))
-            FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text(tr(R.string.msg_hide_unavailable_56)) })
+                modifier = Modifier.pressScale().then(Modifier.padding(end = 8.dp)))
+            FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text(tr(R.string.msg_hide_unavailable_56)) }, modifier = Modifier.pressScale())
         }
         OutlinedTextField(search, { search = it }, singleLine = true, placeholder = { Text(tr(R.string.msg_search_servers_57)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
         // Switching servers shows no progress bar (the selection highlight is enough).
@@ -218,16 +254,8 @@ import org.mothvpn.core.SubscriptionSource
         }
     }
     if (filterSheet) ServerFilterSheet(settings, kind, preferences) { filterSheet = false }
-    TopNotice(notice, noticeSeq, { notice = null }, Modifier.align(Alignment.TopCenter))
     }
     jsonFor?.let { p -> ServerJsonEditor(p, cancel = { jsonFor = null }) { outbound -> jsonFor = null; editServer(p.id, outbound) } }
-    // Every subscription at once: update all links, check (or cancel checking) all servers shown on this page in their order.
-    if (allActions) NdActionSheet(tr(R.string.msg_servers_27), { allActions = false }) {
-        val remote = book?.sources?.count { !it.local } ?: 0
-        if (remote > 0) NdSheetItem(if (remote > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !refreshLocked) { allActions = false; refresh() }
-        if (probing) NdSheetItem(tr(R.string.msg_cancel_checks_49), androidx.compose.material.icons.Icons.Rounded.Close) { allActions = false; cancel() }
-        else NdSheetItem(tr(R.string.servers_check_all), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck && visible.isNotEmpty()) { allActions = false; checkOn(kind) { probe(kind, visible.map { it.id }) } }
-    }
     menuFor?.let { p ->
         NdActionSheet(p.name, { menuFor = null }) {
             NdSheetItem(tr(R.string.server_share), androidx.compose.material.icons.Icons.Rounded.Share) { menuFor = null; shareFor = p }
@@ -266,14 +294,14 @@ import org.mothvpn.core.SubscriptionSource
                 if (!source.local) OutlinedTextField(link, { link = it }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_link_30)) }, singleLine = true, isError = !linkOk,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri, autoCorrect = false), modifier = Modifier.fillMaxWidth())
             }
-        }, confirmButton = { TextButton(enabled = nameOk && linkOk && !busy && (!locked || source.local || link.trim() == source.url), onClick = { editFor = null; edit(source.id, name, if (source.local || locked) source.url else link) }) { Text(tr(R.string.sub_save)) } },
-            dismissButton = { TextButton(onClick = { editFor = null }) { Text(tr(R.string.msg_cancel_32)) } })
+        }, confirmButton = { TextButton(enabled = nameOk && linkOk && !busy && (!locked || source.local || link.trim() == source.url), onClick = { editFor = null; edit(source.id, name, if (source.local || locked) source.url else link) }, modifier = Modifier.pressScale(enabled = nameOk && linkOk && !busy && (!locked || source.local || link.trim() == source.url))) { Text(tr(R.string.sub_save)) } },
+            dismissButton = { TextButton(onClick = { editFor = null }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
     }
     delete?.let { id -> book?.source(id) }?.let { source ->
         AlertDialog(onDismissRequest = { delete = null }, title = { Text(tr(R.string.sub_delete_title, source.title())) },
             text = { Text(if ((book?.sources?.size ?: 0) > 1) tr(R.string.sub_delete_text) else tr(R.string.msg_the_subscription_link_will_need_to_be_added_a_68)) },
-            confirmButton = { TextButton(enabled = !deleteLocked(source.id), onClick = { delete = null; remove(source.id) }) { Text(tr(R.string.msg_remove_69)) } },
-            dismissButton = { TextButton(onClick = { delete = null }) { Text(tr(R.string.msg_cancel_32)) } })
+            confirmButton = { TextButton(enabled = !deleteLocked(source.id), onClick = { delete = null; remove(source.id) }, modifier = Modifier.pressScale(enabled = !deleteLocked(source.id))) { Text(tr(R.string.msg_remove_69)) } },
+            dismissButton = { TextButton(onClick = { delete = null }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
     }
 }
 
@@ -296,7 +324,7 @@ private enum class DetailIcon {
 @Composable private fun DetailBadge(icon: DetailIcon, text: String, label: String?) {
     var open by remember { mutableStateOf(false) }
     val gray = Color.Gray.copy(alpha = if (icon == DetailIcon.CANCELLED) 0.55f else 1f)
-    Row(Modifier.padding(start = 12.dp).clickable { open = true }.semantics { contentDescription = text }, verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.pressScale().padding(start = 12.dp).clickable { open = true }.semantics { contentDescription = text }, verticalAlignment = Alignment.CenterVertically) {
         Canvas(Modifier.size(22.dp)) {
             val w = size.width; val h = size.height; val sw = 1.8.dp.toPx(); val st = Stroke(sw, cap = StrokeCap.Round)
             fun line(x: Float, y: Float, x2: Float, y2: Float) = drawLine(gray, Offset(w * x, h * y), Offset(w * x2, h * y2), sw, StrokeCap.Round)
@@ -315,7 +343,7 @@ private enum class DetailIcon {
         if (label != null) Text(label, style = MaterialTheme.typography.labelSmall, color = gray, modifier = Modifier.padding(start = 2.dp))
     }
     if (open) androidx.compose.ui.window.Popup(alignment = Alignment.BottomEnd, onDismissRequest = { open = false }) {
-        Surface(shape = RoundedCornerShape(8.dp), tonalElevation = 6.dp, shadowElevation = 4.dp, modifier = Modifier.clickable { open = false }) {
+        Surface(shape = RoundedCornerShape(8.dp), tonalElevation = 6.dp, shadowElevation = 4.dp, modifier = Modifier.pressScale().clickable { open = false }) {
             Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp).widthIn(max = 240.dp))
         }
     }
@@ -327,7 +355,7 @@ private enum class DetailIcon {
     val title = source?.title() ?: tr(R.string.fav_group)
     val turn by androidx.compose.animation.core.animateFloatAsState(if (collapsed) -90f else 0f, label = "chevron")
     Surface(onClick = toggle, shape = MaterialTheme.shapes.large, color = NdTone.card(),
-        modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 64.dp).semantics { contentDescription = tr(if (collapsed) R.string.group_expand else R.string.group_collapse) + ": " + title }) {
+        modifier = Modifier.pressScale().then(Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 64.dp).semantics { contentDescription = tr(if (collapsed) R.string.group_expand else R.string.group_collapse) + ": " + title })) {
         Row(Modifier.padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
                 Icon(androidx.compose.material.icons.Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -340,18 +368,18 @@ private enum class DetailIcon {
                     SubscriptionQuotaLine(SubscriptionRecord(source.url, source.profiles, "", usedBytes = source.usedBytes, totalBytes = source.totalBytes, expires = source.expires))
                 }
             }
-            if (source != null && !source.local) IconButton(onClick = refresh, enabled = canRefresh, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_update_subscription_48) }) {
+            if (source != null && !source.local) IconButton(onClick = refresh, enabled = canRefresh, modifier = Modifier.pressScale(enabled = canRefresh).then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_update_subscription_48) })) {
                 Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(24.dp))
             }
-            if (checking) IconButton(onClick = cancel, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_cancel_checks_49) }) {
+            if (checking) IconButton(onClick = cancel, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_cancel_checks_49) })) {
                 Box(contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onSurface)
                     Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(14.dp))
                 }
-            } else IconButton(onClick = check, enabled = canCheck && !probing, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_check_servers_50) }) {
+            } else IconButton(onClick = check, enabled = canCheck && !probing, modifier = Modifier.pressScale(enabled = canCheck && !probing).then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_check_servers_50) })) {
                 Icon(androidx.compose.material.icons.Icons.Rounded.NetworkCheck, contentDescription = null, modifier = Modifier.size(24.dp))
             }
-            if (source != null) IconButton(onClick = actions, modifier = Modifier.size(48.dp).semantics { contentDescription = tr(R.string.sub_actions) }) {
+            if (source != null) IconButton(onClick = actions, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.sub_actions) })) {
                 Icon(androidx.compose.material.icons.Icons.Rounded.MoreVert, contentDescription = null, modifier = Modifier.size(24.dp))
             }
         }

@@ -1,4 +1,11 @@
 name: Android
+# CI policy (0.7.1+):
+# - build: native core, unit tests, release APKs and Android Lint on every push and pull request.
+# - e2e (emulator, real VPN): NOT on every push. It runs
+#   (a) manually: Actions → Android → "Run workflow" (do this on the release branch before tagging a final release);
+#   (b) automatically on push/PR when core-sensitive files change (the "changes" job below): the native core build and its
+#       patches/versions, the e2e servers and tests, the tunnel/VPN service, connection checks, subscription parsing and store,
+#       routing, split tunneling and config generation.
 on:
   push:
     branches: [main, 'release/**']
@@ -6,7 +13,58 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  pull-requests: read
 jobs:
+  changes:
+    # Decides whether a push/PR touches core-sensitive code (skipped for manual runs, which always run e2e).
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.filter.outputs.core }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # Pushes: compare with the previous push of the same branch (without this, a push to a release branch is compared with
+          # main and every change since the last release would count). Pull requests always compare with their base.
+          base: ${{ github.event_name == 'push' && github.ref_name || '' }}
+          filters: |
+            core:
+              - '.github/workflows/android.yml'
+              - 'scripts/build-libbox.sh'
+              - 'scripts/native/**'
+              - 'scripts/check-xray-configs.sh'
+              - 'scripts/e2e/**'
+              - 'e2e-helper/**'
+              - 'app/src/androidTest/**'
+              - 'app/src/main/AndroidManifest.xml'
+              - 'app/src/main/java/org/mothvpn/android/TunnelService.kt'
+              - 'app/src/main/java/org/mothvpn/android/VpnTileService.kt'
+              - 'app/src/main/java/org/mothvpn/android/Diagnostics.kt'
+              - 'app/src/main/java/org/mothvpn/android/NetworkTracker.kt'
+              - 'app/src/main/java/org/mothvpn/android/TrustedCertificates.kt'
+              - 'app/src/main/java/org/mothvpn/android/SubscriptionStore.kt'
+              - 'app/src/main/java/org/mothvpn/android/Background.kt'
+              - 'app/src/main/java/org/mothvpn/android/SplitTunnelScreen.kt'
+              - 'app/src/main/java/org/mothvpn/android/RoutingRulesScreen.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/ClashSubscriptions.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/ClientSettings.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/CustomRouting.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/ExtraProtocols.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/NetworkSwitch.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/Outbounds.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/Probe*.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/ProtectPolicy.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/ProxyProtocols.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/Routing.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/RuleText.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/ServerFilter.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/ShareLinks.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/SingBoxSubscriptions.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/Subscription*.kt'
+              - 'core/src/main/kotlin/org/mothvpn/core/XrayJsonSubscriptions.kt'
+
   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
@@ -14,7 +72,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           cache: false
       - uses: actions/setup-java@v4
         with:
@@ -34,7 +92,7 @@ jobs:
             libbox.aar
             .core-build/sing-box
             ~/go/pkg/mod
-          key: moth-native-${{ runner.os }}-go1.27.2-ndk28-${{ hashFiles('scripts/build-libbox.sh', 'scripts/native/**') }}
+          key: moth-native-${{ runner.os }}-go1.27.3-ndk28-${{ hashFiles('scripts/build-libbox.sh', 'scripts/native/**') }}
       - name: Build official mobile core
         if: steps.native-cache.outputs.cache-hit != 'true'
         run: bash scripts/build-libbox.sh
@@ -99,8 +157,10 @@ jobs:
             app/build/reports/lint-results-release.*
 
   e2e:
-    # Emulator end-to-end test: real VPN against local sing-box servers on the runner (see scripts/e2e/).
-    needs: build
+    # Emulator end-to-end test: real VPN against local sing-box/Xray servers on the runner (see scripts/e2e/).
+    # Only on manual runs or core-sensitive changes (see the policy at the top).
+    needs: [build, changes]
+    if: ${{ !cancelled() && needs.build.result == 'success' && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.core == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -122,15 +182,17 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :e2e-helper:assembleDebug --no-daemon
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache: false
       - name: Start test servers on the host
         run: |
           sudo ip addr add 10.0.2.2/32 dev lo
           curl -fsSL -o sb.tgz https://github.com/SagerNet/sing-box/releases/download/v1.12.25/sing-box-1.12.25-linux-amd64.tar.gz
           tar xzf sb.tgz
-          # Xray server for XHTTP (same release as the core in libbox).
-          curl -fsSL -o xray.zip https://github.com/XTLS/Xray-core/releases/download/v26.10.17/Xray-linux-64.zip
-          echo "ecdd54eccd24c4c21a8f00968e7dbf7f5996da92383d2321170b560dc4a95158  xray.zip" | sha256sum -c -
-          unzip -oq xray.zip xray -d xray-bin
+          # Xray server for XHTTP (same release as the core in libbox; built from its commit if the release is gone).
+          mkdir -p xray-bin && cp "$(bash scripts/xray-bin.sh)" xray-bin/xray
           nohup python3 scripts/e2e/server.py "$PWD/sing-box-1.12.25-linux-amd64/sing-box" "$PWD/xray-bin/xray" > e2e-server.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8081/health && break; sleep 1; done
           curl -fs --cacert scripts/e2e/ca.pem https://10.0.2.2:8443/sub > /dev/null
@@ -158,9 +220,6 @@ jobs:
             adb logcat -d > e2e-logcat.txt 2>&1 || true
             ./scripts/e2e/app-log.sh pull
             adb pull /sdcard/Android/data/org.mothvpn.android/cache/e2e-window.xml . > /dev/null 2>&1 || true
-            adb pull /sdcard/Android/data/org.mothvpn.android/cache/stats.png . > /dev/null 2>&1 || true
-            adb pull /sdcard/Android/data/org.mothvpn.android/cache/settings.png . > /dev/null 2>&1 || true
-            adb pull /sdcard/Android/data/org.mothvpn.android/cache/dev.png . > /dev/null 2>&1 || true
             adb pull /sdcard/Android/data/org.mothvpn.android/cache/ e2e-cache > /dev/null 2>&1 || true
             cat e2e-result.txt
             grep -qE "^OK \([0-9]+ tests\)" e2e-result.txt && ! grep -q "FAILURES" e2e-result.txt
@@ -175,6 +234,3 @@ jobs:
             e2e-window.xml
             e2e-server.log
             e2e-cache/
-            stats.png
-            settings.png
-            dev.png

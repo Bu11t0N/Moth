@@ -30,7 +30,7 @@ object Licenses {
 @Composable fun LicensesList(open: (String) -> Unit, modifier: Modifier = Modifier) {
     LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         items(Licenses.entries) { e ->
-            Card(Modifier.fillMaxWidth().clickable { open(e.asset) }, colors = ndCardColors()) {
+            Card(Modifier.pressScale().fillMaxWidth().clickable { open(e.asset) }, colors = ndCardColors()) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Text(tr(e.title), style = MaterialTheme.typography.titleMedium)
                     Text(tr(e.summary), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

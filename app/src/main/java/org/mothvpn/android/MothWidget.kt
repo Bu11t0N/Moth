@@ -39,7 +39,7 @@ class MothWidget : AppWidgetProvider() {
             manager.updateAppWidget(ids, views(context))
         }
 
-        /** The widget's views for the current state (also used by the design screenshot test). */
+        /** The widget's views for the current state (also used by the instrumented UI test). */
         fun views(context: Context): RemoteViews {
             val state = TunnelStatus.state.value
             val blocked = TunnelStatus.trafficBlocked(state, TunnelStatus.blocking.value)

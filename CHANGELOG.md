@@ -2,6 +2,22 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.7.1
+
+Released 2026-10-21.
+
+### Changes
+
+- Security: Xray updated to v26.10.21, and both cores are rebuilt with Go 1.27.3, which no longer trusts the compromised eMudhra certificates.
+- Auto-select and failover no longer drop the VPN while checking servers: the connection stays up on the current server and switches only to a server that answers.
+- The TCP server check works while the VPN is on (before, every server showed as failed).
+- You can select and switch servers while a check is running, and the last ping of each server stays until you check it again, also after a network change, a VPN restart or an app restart.
+- Home: a soft light glows behind the moth (dim when off, warm and pulsing while connecting or checking, bright when on), and speed, session traffic and time share one panel that slides out of the subscription card when you connect.
+- While servers are being checked, the moth flaps in the colours of the current state; with the VPN off, “Checking servers…” is shown and a tap stops the check.
+- Smoother motion everywhere: groups unfold row by row, lists move into place, settings pages grow out of the item you tap, buttons and cards react to a press, and the bottom bar icons bounce.
+- Servers: “Update all” and “Check all” are buttons in the top bar instead of the ⋮ menu; notices at the top stay visible when you switch tabs.
+- Switches show a check mark when on and a minus when off.
+
 ## 0.7.0
 
 Released 2026-10-20.

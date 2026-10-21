@@ -7,7 +7,7 @@
 # scripts/go-licenses/go.mod). Unidentified licenses are kept with a note and reported as CI warnings.
 set -euo pipefail
 # Same Go release as CI, so the generated file (including the standard library entry) matches.
-export GOTOOLCHAIN=go1.27.2
+export GOTOOLCHAIN=go1.27.3
 src="$(cd "$1" && pwd)"
 out="$(cd "$(dirname "$2")" && pwd)/$(basename "$2")"
 tool_dir="$(cd "$(dirname "$0")/go-licenses" && pwd)"

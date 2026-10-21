@@ -53,24 +53,24 @@ private fun actionLabel(action: String) = when (action) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (!enabled) Text(tr(R.string.settings_wait_hint))
         Text(tr(R.string.rules_hint), style = MaterialTheme.typography.bodySmall)
-        Button(enabled = enabled && rules.size < CustomRouting.MAX_RULES, onClick = { editing = -1 }) { Text(tr(R.string.rules_add)) }
+        Button(enabled = enabled && rules.size < CustomRouting.MAX_RULES, onClick = { editing = -1 }, modifier = Modifier.pressScale(enabled = enabled && rules.size < CustomRouting.MAX_RULES)) { Text(tr(R.string.rules_add)) }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            OutlinedButton(enabled = enabled, onClick = { status = ""; picker.launch(arrayOf("text/*")) }) { Text(tr(R.string.rules_import_file)) }
-            OutlinedButton(enabled = enabled, onClick = { status = ""; clipboard.getText()?.text?.takeIf { it.isNotBlank() }?.let { importText = it.take(RuleText.MAX_CHARS) } ?: run { status = tr(R.string.import_clipboard_empty) } }) { Text(tr(R.string.rules_paste)) }
-            OutlinedButton(enabled = rules.isNotEmpty(), onClick = { status = ""; exporter.launch("moth-rules.txt") }) { Text(tr(R.string.rules_export)) }
+            OutlinedButton(enabled = enabled, onClick = { status = ""; picker.launch(arrayOf("text/*")) }, modifier = Modifier.pressScale(enabled = enabled)) { Text(tr(R.string.rules_import_file)) }
+            OutlinedButton(enabled = enabled, onClick = { status = ""; clipboard.getText()?.text?.takeIf { it.isNotBlank() }?.let { importText = it.take(RuleText.MAX_CHARS) } ?: run { status = tr(R.string.import_clipboard_empty) } }, modifier = Modifier.pressScale(enabled = enabled)) { Text(tr(R.string.rules_paste)) }
+            OutlinedButton(enabled = rules.isNotEmpty(), onClick = { status = ""; exporter.launch("moth-rules.txt") }, modifier = Modifier.pressScale(enabled = rules.isNotEmpty())) { Text(tr(R.string.rules_export)) }
         }
         if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall)
         if (rules.isEmpty()) Text(tr(R.string.rules_empty), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             itemsIndexed(rules) { i, rule ->
-                Card(Modifier.fillMaxWidth().clickable(enabled = enabled) { editing = i }, colors = ndCardColors()) {
+                Card(Modifier.pressScale(enabled = enabled).fillMaxWidth().clickable(enabled = enabled) { editing = i }, colors = ndCardColors()) {
                     Row(Modifier.fillMaxWidth().padding(start = 14.dp, top = 6.dp, bottom = 6.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(rule.value, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text("${i + 1}. ${typeLabel(rule.type)} → ${actionLabel(rule.action)}", style = MaterialTheme.typography.bodySmall)
                         }
-                        TextButton(enabled = enabled && i > 0, onClick = { save(CustomRouting.move(rules, i, i - 1)) }, modifier = Modifier.semantics { contentDescription = tr(R.string.rules_up) }) { Text("↑") }
-                        TextButton(enabled = enabled && i < rules.lastIndex, onClick = { save(CustomRouting.move(rules, i, i + 1)) }, modifier = Modifier.semantics { contentDescription = tr(R.string.rules_down) }) { Text("↓") }
+                        TextButton(enabled = enabled && i > 0, onClick = { save(CustomRouting.move(rules, i, i - 1)) }, modifier = Modifier.pressScale(enabled = enabled && i > 0).then(Modifier.semantics { contentDescription = tr(R.string.rules_up) })) { Text("↑") }
+                        TextButton(enabled = enabled && i < rules.lastIndex, onClick = { save(CustomRouting.move(rules, i, i + 1)) }, modifier = Modifier.pressScale(enabled = enabled && i < rules.lastIndex).then(Modifier.semantics { contentDescription = tr(R.string.rules_down) })) { Text("↓") }
                     }
                 }
             }
@@ -107,7 +107,7 @@ private fun actionLabel(action: String) = when (action) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(tr(R.string.rules_type), style = MaterialTheme.typography.titleSmall)
             CustomRouting.types.forEach { t ->
-                Row(Modifier.fillMaxWidth().clickable { type = t; error = null }, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.pressScale().fillMaxWidth().clickable { type = t; error = null }, verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(type == t, { type = t; error = null }); Text(typeLabel(t))
                 }
             }
@@ -117,15 +117,15 @@ private fun actionLabel(action: String) = when (action) {
             Text(tr(R.string.rules_action), style = MaterialTheme.typography.titleSmall)
             // Same radio list as "Type" above: long labels ("Блокировать") stay on one line.
             CustomRouting.actions.forEach { a ->
-                Row(Modifier.fillMaxWidth().clickable { action = a }, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.pressScale().fillMaxWidth().clickable { action = a }, verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(action == a, { action = a }); Text(actionLabel(a))
                 }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            if (onDelete != null) TextButton(onClick = onDelete) { Text(tr(R.string.rules_delete), color = MaterialTheme.colorScheme.error) }
+            if (onDelete != null) TextButton(onClick = onDelete, modifier = Modifier.pressScale()) { Text(tr(R.string.rules_delete), color = MaterialTheme.colorScheme.error) }
         }
-    }, confirmButton = { TextButton(enabled = normalized != null, onClick = { normalized?.let { error = submit(RoutingRule(type, it, action)) } }) { Text(tr(R.string.sub_save)) } },
-        dismissButton = { TextButton(onClick = close) { Text(tr(R.string.msg_cancel_32)) } })
+    }, confirmButton = { TextButton(enabled = normalized != null, onClick = { normalized?.let { error = submit(RoutingRule(type, it, action)) } }, modifier = Modifier.pressScale(enabled = normalized != null)) { Text(tr(R.string.sub_save)) } },
+        dismissButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
 }
 
 private fun importSummary(r: RuleText.Result): String = listOfNotNull(
@@ -144,14 +144,14 @@ private fun importSummary(r: RuleText.Result): String = listOfNotNull(
             Text(tr(R.string.rules_import_hint), style = MaterialTheme.typography.bodySmall)
             Text(tr(R.string.rules_import_default_type), style = MaterialTheme.typography.titleSmall)
             CustomRouting.types.forEach { t ->
-                Row(Modifier.fillMaxWidth().clickable { type = t }, verticalAlignment = Alignment.CenterVertically) { RadioButton(type == t, { type = t }); Text(typeLabel(t)) }
+                Row(Modifier.pressScale().fillMaxWidth().clickable { type = t }, verticalAlignment = Alignment.CenterVertically) { RadioButton(type == t, { type = t }); Text(typeLabel(t)) }
             }
             Text(tr(R.string.rules_import_default_action), style = MaterialTheme.typography.titleSmall)
             CustomRouting.actions.forEach { a ->
-                Row(Modifier.fillMaxWidth().clickable { action = a }, verticalAlignment = Alignment.CenterVertically) { RadioButton(action == a, { action = a }); Text(actionLabel(a)) }
+                Row(Modifier.pressScale().fillMaxWidth().clickable { action = a }, verticalAlignment = Alignment.CenterVertically) { RadioButton(action == a, { action = a }); Text(actionLabel(a)) }
             }
             Text(importSummary(result), style = MaterialTheme.typography.bodyMedium)
         }
-    }, confirmButton = { TextButton(enabled = result.added > 0, onClick = { apply(result) }) { Text(tr(R.string.rules_import_apply, result.added)) } },
-        dismissButton = { TextButton(onClick = close) { Text(tr(R.string.msg_cancel_32)) } })
+    }, confirmButton = { TextButton(enabled = result.added > 0, onClick = { apply(result) }, modifier = Modifier.pressScale(enabled = result.added > 0)) { Text(tr(R.string.rules_import_apply, result.added)) } },
+        dismissButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
 }
