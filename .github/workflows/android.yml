@@ -182,15 +182,17 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :e2e-helper:assembleDebug --no-daemon
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.2'
+          cache: false
       - name: Start test servers on the host
         run: |
           sudo ip addr add 10.0.2.2/32 dev lo
           curl -fsSL -o sb.tgz https://github.com/SagerNet/sing-box/releases/download/v1.12.25/sing-box-1.12.25-linux-amd64.tar.gz
           tar xzf sb.tgz
-          # Xray server for XHTTP (same release as the core in libbox).
-          curl -fsSL -o xray.zip https://github.com/XTLS/Xray-core/releases/download/v26.10.17/Xray-linux-64.zip
-          echo "ecdd54eccd24c4c21a8f00968e7dbf7f5996da92383d2321170b560dc4a95158  xray.zip" | sha256sum -c -
-          unzip -oq xray.zip xray -d xray-bin
+          # Xray server for XHTTP (same release as the core in libbox; built from its commit if the release is gone).
+          mkdir -p xray-bin && cp "$(bash scripts/xray-bin.sh)" xray-bin/xray
           nohup python3 scripts/e2e/server.py "$PWD/sing-box-1.12.25-linux-amd64/sing-box" "$PWD/xray-bin/xray" > e2e-server.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8081/health && break; sleep 1; done
           curl -fs --cacert scripts/e2e/ca.pem https://10.0.2.2:8443/sub > /dev/null
