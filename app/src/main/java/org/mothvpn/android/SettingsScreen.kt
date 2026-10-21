@@ -1,5 +1,8 @@
 package org.mothvpn.android
 
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -214,14 +217,10 @@ import org.mothvpn.core.SubscriptionSchedule
                         DialogRow(tr(R.string.device_title), sent.joinToString(" · "), enabled = !locked) { deviceDialog = true }
                         if (deviceDialog) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
                     }
-                    // A reset button (only for a custom value) restores the automatic "Moth/<version>". The value is never logged.
-                    OutlinedTextField(draft.userAgent, { applySettings(draft.copy(userAgent = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_user_agent_109)) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = if (draft.customUserAgent(BuildConfig.VERSION_NAME)) { {
-                            IconButton(onClick = { applySettings(draft.resetUserAgent(BuildConfig.VERSION_NAME)) }, enabled = !locked,
-                                modifier = Modifier.pressScale(enabled = !locked)) {
-                                Icon(androidx.compose.material.icons.Icons.Outlined.Restore, contentDescription = tr(R.string.ua_reset))
-                            }
-                        } } else null)
+                    // Subscription User-Agent: one row with the current choice; a sheet picks Moth, a client preset or the user's own value. Never logged.
+                    var uaSheet by remember { mutableStateOf(false) }
+                    DialogRow(tr(R.string.msg_subscription_user_agent_109), org.mothvpn.core.UserAgents.title(draft.userAgent, BuildConfig.VERSION_NAME), enabled = !locked) { uaSheet = true }
+                    if (uaSheet) UserAgentSheet(draft.userAgent, close = { uaSheet = false }) { applySettings(draft.copy(userAgent = it)); uaSheet = false }
                     Text(tr(R.string.msg_providers_may_select_the_subscription_format_110), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.msg_appearance_74) -> {
@@ -413,4 +412,42 @@ object DeviceDefaults {
         val v = fields.mapIndexed { i, f -> f.value.trim().takeIf { it != defaults[i] }.orEmpty() }
         save(settings.copy(deviceOs = v[0], deviceOsVersion = v[1], deviceModel = v[2]))
     }, modifier = Modifier.pressScale(enabled = valid)) { Text(tr(R.string.sub_save)) } }, dismissButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
+}
+
+/** Radio list of User-Agent choices in the Nd sheet style; "Custom" opens an empty field (prefilled only when the saved value is already custom). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable fun UserAgentSheet(current: String, close: () -> Unit, choose: (String) -> Unit) {
+    val version = BuildConfig.VERSION_NAME
+    val start = remember(current) { org.mothvpn.core.UserAgents.choice(current, version) }
+    var selected by remember { mutableStateOf(start.id) }
+    var custom by remember { mutableStateOf(start.custom) }
+    ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
+        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(tr(R.string.msg_subscription_user_agent_109), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+            org.mothvpn.core.UserAgents.presets(version).forEach { p ->
+                Row(Modifier.pressScale().fillMaxWidth().heightIn(min = 56.dp).clickable(role = androidx.compose.ui.semantics.Role.RadioButton) { selected = p.id; choose(p.value) },
+                    verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected == p.id, { selected = p.id; choose(p.value) })
+                    Column(Modifier.weight(1f)) {
+                        Text(p.label, style = MaterialTheme.typography.bodyLarge)
+                        Text(p.value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+            Row(Modifier.pressScale().fillMaxWidth().heightIn(min = 56.dp).clickable(role = androidx.compose.ui.semantics.Role.RadioButton) { selected = org.mothvpn.core.UserAgents.CUSTOM },
+                verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected == org.mothvpn.core.UserAgents.CUSTOM, { selected = org.mothvpn.core.UserAgents.CUSTOM })
+                Text(tr(R.string.ua_custom), style = MaterialTheme.typography.bodyLarge)
+            }
+            if (selected == org.mothvpn.core.UserAgents.CUSTOM) {
+                val ok = org.mothvpn.core.UserAgents.valid(custom)
+                OutlinedTextField(custom, { custom = it }, singleLine = true, label = { Text("User-Agent") }, isError = custom.isNotEmpty() && !ok,
+                    supportingText = if (custom.isNotEmpty() && !ok) { { Text(tr(R.string.ua_custom_invalid)) } } else null,
+                    shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { if (ok) choose(custom) }))
+                Button(onClick = { choose(custom) }, enabled = ok, modifier = Modifier.pressScale(enabled = ok).align(Alignment.End)) { Text(tr(R.string.sub_save)) }
+            }
+        }
+    }
 }
