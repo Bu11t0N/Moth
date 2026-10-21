@@ -98,7 +98,7 @@
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Передавать модель и версию Android"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"User-Agent подписки"</string>
     <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Провайдер может выбирать формат подписки по User-Agent. HWID отправляется только исходному сайту подписки."</string>
-    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.21\nОткрытый исходный код · GPL-3.0-or-later\nhttps://github.com/Bu11t0N/Moth"</string>
+    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.21\nОткрытый исходный код · GPL-3.0-or-later"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Нужна HTTPS-ссылка без логина и пароля в адресе"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Достигнут лимит устройств подписки. Обратись к провайдеру."</string>
     <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"Провайдер требует HWID. Включи его отправку в настройках."</string>
@@ -529,4 +529,5 @@
     <string name="check_needs_wifi">Чтобы проверить эти серверы, подключитесь к Wi-Fi</string>
     <string name="ua_custom">Свой</string>
     <string name="ua_custom_invalid">Только печатные латинские символы, до 160</string>
+    <string name="about_github">Исходный код на GitHub</string>
 </resources>

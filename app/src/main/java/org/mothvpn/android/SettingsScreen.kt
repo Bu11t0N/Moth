@@ -28,7 +28,7 @@ import org.mothvpn.core.DnsServers
 import org.mothvpn.core.SubscriptionSchedule
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}, restore: (org.mothvpn.core.Backup.Content) -> Unit = {}) {
+@Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}, restore: (org.mothvpn.core.Backup.Content) -> Unit = {}, rootRequest: Int = 0) {
     var draft by remember(initial) { mutableStateOf(initial) }
     var section by remember { mutableStateOf<String?>(if (startUpdates) tr(R.string.update_title) else null) }
     LaunchedEffect(Unit) { if (startUpdates) started() }
@@ -42,6 +42,10 @@ import org.mothvpn.core.SubscriptionSchedule
     var interval by remember(initial) { mutableStateOf(initial.healthIntervalSeconds.toString()) }
     var error by remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
+    // A tap on Settings in the bottom bar: back to the main list from any subpage. The pages' sheets and dialogs live inside the
+    // pages, so they close with them; the usual page transition plays. (The first composition keeps a pending "open updates".)
+    val firstRoot = remember { rootRequest }
+    LaunchedEffect(rootRequest) { if (rootRequest != firstRoot) { logPage = 0; licenseAsset = ""; showHwid = false; error = ""; section = null } }
     BackHandler(enabled = section != null) { if (logPage == 5) logPage = 4 else if (logPage == 3 || logPage == 4) { logPage = 0; section = tr(R.string.msg_about_78) } else if (logPage != 0) logPage = 0 else if (section == tr(R.string.rules_title)) section = tr(R.string.msg_connection_75) else section = null }
     fun applySettings(next: ClientSettings) {
         draft = next
@@ -302,6 +306,12 @@ import org.mothvpn.core.SubscriptionSchedule
                     Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111))
                     SettingsCategory(tr(R.string.set_changelog), "", "changelog") { section = tr(R.string.set_changelog); logPage = 3 }
                     SettingsCategory(tr(R.string.set_licenses), tr(R.string.set_licenses_sum), "licenses") { section = tr(R.string.set_licenses); logPage = 4 }
+                    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+                    FilledTonalButton(onClick = { runCatching { uri.openUri("https://github.com/Bu11t0N/Moth") } }, modifier = Modifier.pressScale().fillMaxWidth().heightIn(min = 48.dp)) {
+                        Icon(androidx.compose.material.icons.Icons.Outlined.Code, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp)); Text(tr(R.string.about_github))
+                        Spacer(Modifier.width(6.dp)); Icon(androidx.compose.material.icons.Icons.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
             AnimatedVisibility(error.isNotEmpty()) { Text(error, color = MaterialTheme.colorScheme.error) }

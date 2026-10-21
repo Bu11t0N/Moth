@@ -132,6 +132,7 @@ class MainActivity : AppCompatActivity() {
         }
         setContent {
             var tab by rememberSaveable { mutableStateOf(0) }
+            var settingsRoot by remember { mutableStateOf(0) } // incremented by a tap on Settings: the Settings screen goes back to its main list
             LaunchedEffect(homeRequest) { if (homeRequest > 0) tab = 0 }
             BackHandler(enabled = tab != 0) { tab = 0 }
             val network by networks.state.collectAsState()
@@ -164,7 +165,7 @@ class MainActivity : AppCompatActivity() {
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
-                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) })
+                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) }, rootRequest = settingsRoot)
                                 }
                             }
                             }
@@ -174,7 +175,7 @@ class MainActivity : AppCompatActivity() {
                         // Same colour as the content surface and no tonal overlay: no lighter band at the bottom.
                         NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                             listOf(tr(R.string.msg_home_26) to "home", tr(R.string.msg_servers_27) to "list", tr(R.string.msg_settings_28) to "settings").forEachIndexed { i, item ->
-                                NavigationBarItem(selected = tab == i, onClick = { tab = i }, label = { Text(item.first) }, modifier = Modifier.pressScale(), icon = {
+                                NavigationBarItem(selected = tab == i, onClick = { val t = org.mothvpn.core.TabTap.tap(i, settingsRoot); tab = t.tab; settingsRoot = t.rootRequest }, label = { Text(item.first) }, modifier = Modifier.pressScale(), icon = {
                                     // Material icons that are clearly different (house, bulleted list, gear): outlined, filled when selected.
                                     NavIcon(tab == i, when (item.second) { "home" -> androidx.compose.material.icons.Icons.Outlined.Home
                                         "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.FormatListBulleted

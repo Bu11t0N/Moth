@@ -13,6 +13,7 @@ Not released yet.
 - The line under each server is coloured by protocol and security (Reality green, TLS blue, unencrypted red); VLESS and Trojan without TLS are now marked as unencrypted.
 - Balancers show the best ping among their servers instead of probing only one of them; auto-select and failover pick only regular servers, and a balancer you choose by hand is replaced by a working server when it stops answering.
 - A server or balancer you pick by hand while connected is kept as long as it works (no switching to a faster server); if it stops answering and auto-select is on, the VPN moves to a working server.
+- Tapping Settings in the bottom bar always opens the main Settings list, from any settings page. About has a GitHub button instead of a plain link.
 
 ## 0.7.1
 
