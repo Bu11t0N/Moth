@@ -64,8 +64,8 @@ class BalancerPingTest {
 
     @Test fun deadBalancerFailsOverToALivePlainServer() {
         // The user picked the balancer; its members all stopped answering, so the health check through the tunnel fails.
-        assertTrue(Reselect.failoverDue(autoSelect = true, manualPick = false, failures = 3, after = 3))
-        assertFalse(Reselect.failoverDue(autoSelect = false, manualPick = false, failures = 10, after = 3)) // auto-select off: nothing switches
+        assertTrue(Reselect.failoverDue(autoSelect = true, failures = 3, after = 3))
+        assertFalse(Reselect.failoverDue(autoSelect = false, failures = 10, after = 3)) // auto-select off: nothing switches
         val candidates = ProbePlan.autoPool(list, ClientSettings(), "wifi").map { it.id }
         assertEquals(Reselect.Decision.Switch(id("Other")), Reselect.decide(Reselect.Reason.FAILOVER, group.id, listOf(id("Other"), id("WS")).filter { it in candidates }))
         assertEquals(Reselect.Decision.Stay, Reselect.decide(Reselect.Reason.FAILOVER, group.id, emptyList())) // none answer: stay (backoff)

@@ -132,7 +132,8 @@ class TunnelService : VpnService(), PlatformInterface {
             } else if (TunnelStatus.state.value == TunnelState.OFF && !Diagnostics.running.value) stopSelf(startId)
         } else if (intent?.action == "SWITCH") {
             // Manual server pick while connected: restart the core on the new server without stopping the service.
-            // The user's choice overrides auto-select (no re-measuring, no failover) until the next regular connect.
+            // The user's choice overrides auto-select while it answers (no re-measuring for a faster server, no reshuffle on a
+            // network change) until the next regular connect; if it stops answering, failover still moves to a live plain server.
             val id = intent.getStringExtra("profile")
             if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR, TunnelState.BLOCKED) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING && !intent.getBooleanExtra("force", false)) return START_NOT_STICKY
             Logger.i("Tunnel", "server switch requested (state=${TunnelStatus.state.value}, user check running=${Diagnostics.running.value && userProbe})")
@@ -169,7 +170,7 @@ class TunnelService : VpnService(), PlatformInterface {
     @Volatile private var ranking = emptyList<String>()
     /** The server last started, kept for restarts after a subscription update removed it (see startTunnel). */
     @Volatile private var lastStarted: org.mothvpn.core.Profile? = null
-    @Volatile private var manualPick = false // set by a manual server switch while connected: auto-select is paused for this session
+    @Volatile private var manualPick = false // set by a manual server switch while connected: kept while it answers (no reshuffle); failover still replaces it once dead
     private val tried = java.util.Collections.synchronizedSet(HashSet<String>())
     @Volatile private var activeSettings = ClientSettings()
     /** Runs on [executor]. [pickBest]: with auto-select on, measure all servers first (existing probe code) and use the fastest. */
@@ -417,6 +418,8 @@ class TunnelService : VpnService(), PlatformInterface {
         when (decision) {
             is Reselect.Decision.Switch -> {
                 emptyRounds = 0; remeasureNotBefore = 0
+                // The hand-picked server is gone: the replacement is an automatic choice, so auto-select applies again.
+                if (decision.id != active) manualPick = false
                 Logger.i("Tunnel", "$tag: ${if (decision.id == active) "only the current server answers; restarting its core" else "switching to a server that answered"} ($checked checked)")
                 saveSelection(decision.id, access.kind)
                 serverName = ""; TunnelStatus.mutable.value = TunnelState.STARTING; runCatching { foreground() }
@@ -596,7 +599,8 @@ class TunnelService : VpnService(), PlatformInterface {
         if (generation.get() == current && TunnelStatus.state.value == TunnelState.RUNNING) {
             Diagnostics.healthMutable.value = next
             if (next.failures == 0) { emptyRounds = 0; remeasureNotBefore = 0 }
-            if (Reselect.failoverDue(settings.autoSelect, manualPick, next.failures, ServerPicker.failoverAfter)) failover(current)
+            // A manual pick is kept while it answers; once it is dead, failover runs as for any server (plain servers only).
+            if (Reselect.failoverDue(settings.autoSelect, next.failures, ServerPicker.failoverAfter)) failover(current)
         }
     }
     /** [only]: check just these servers (one subscription from its header menu); empty = all. */

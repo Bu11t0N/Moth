@@ -12,6 +12,7 @@ Not released yet.
 - The subscription User-Agent is now a single setting: choose Moth (default), v2rayNG, Hiddify, sing-box or INCY, or enter your own value.
 - The line under each server is coloured by protocol and security (Reality green, TLS blue, unencrypted red); VLESS and Trojan without TLS are now marked as unencrypted.
 - Balancers show the best ping among their servers instead of probing only one of them; auto-select and failover pick only regular servers, and a balancer you choose by hand is replaced by a working server when it stops answering.
+- A server or balancer you pick by hand while connected is kept as long as it works (no switching to a faster server); if it stops answering and auto-select is on, the VPN moves to a working server.
 
 ## 0.7.1
 
