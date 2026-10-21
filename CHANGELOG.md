@@ -4,16 +4,15 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ## 0.7.2
 
-Not released yet.
+Released 2026-10-22.
 
 ### Changes
 
-- “Check all” and the subscription check measure only the servers your filter shows, and the list is fixed when the check starts: changing the filter during a check no longer adds servers to it.
-- The subscription User-Agent is now a single setting: choose Moth (default), v2rayNG, Hiddify, sing-box or INCY, or enter your own value.
-- The line under each server is coloured by protocol and security (Reality green, TLS blue, unencrypted red); VLESS and Trojan without TLS are now marked as unencrypted.
-- Balancers show the best ping among their servers instead of probing only one of them; auto-select and failover pick only regular servers, and a balancer you choose by hand is replaced by a working server when it stops answering.
-- A server or balancer you pick by hand while connected is kept as long as it works (no switching to a faster server); if it stops answering and auto-select is on, the VPN moves to a working server.
-- Tapping Settings in the bottom bar always opens the main Settings list, from any settings page. About has a GitHub button instead of a plain link.
+- “Check all” and the subscription check measure only the servers your filter shows, fixed when the check starts: changing the filter during a check no longer adds servers.
+- Balancers show the best ping among their servers. Auto-select and failover pick only regular servers; a server or balancer you choose by hand stays while it works and is replaced by a working server if it stops answering.
+- The line under each server is coloured by protocol and security (Reality green, TLS blue, unencrypted red); VLESS and Trojan without TLS are now marked unencrypted.
+- The subscription User-Agent is one setting: Moth (default), v2rayNG, Hiddify, sing-box or INCY in their current versions, or your own value.
+- Tapping Settings in the bottom bar always opens the main Settings list; About has a GitHub button.
 
 ## 0.7.1
 
