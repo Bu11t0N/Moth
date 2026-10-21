@@ -85,6 +85,8 @@ class TunnelService : VpnService(), PlatformInterface {
     private var healthTask: java.util.concurrent.ScheduledFuture<*>? = null
     private val generation = AtomicLong()
     private var probeCancel = AtomicBoolean(false)
+    /** The running check was started by the user (Check servers); false for auto-select / failover measurements. */
+    @Volatile private var userProbe = false
     private var initialized = false
     @Volatile private var tun: ParcelFileDescriptor? = null
     @Volatile private var stopped = false
@@ -133,8 +135,10 @@ class TunnelService : VpnService(), PlatformInterface {
             // The user's choice overrides auto-select (no re-measuring, no failover) until the next regular connect.
             val id = intent.getStringExtra("profile")
             if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR, TunnelState.BLOCKED) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING && !intent.getBooleanExtra("force", false)) return START_NOT_STICKY
-            Logger.i("Tunnel", "server switch requested (state=${TunnelStatus.state.value})")
-            cancelProbes()
+            Logger.i("Tunnel", "server switch requested (state=${TunnelStatus.state.value}, user check running=${Diagnostics.running.value && userProbe})")
+            // A user's check keeps running across a manual switch (its probes use their own cores and protected sockets, independent of
+            // the tunnel). An auto-select / failover measurement is cancelled: the user's pick replaces whatever it would decide.
+            if (!(Diagnostics.running.value && userProbe)) cancelProbes()
             // A reconnect that only applies changed settings keeps the same server and does not pause auto-select.
             if (!intent.getBooleanExtra("settings", false)) manualPick = true
             ranking = emptyList(); tried.clear(); cancelRetry()
@@ -149,7 +153,7 @@ class TunnelService : VpnService(), PlatformInterface {
         } else if (intent?.action == "PROBE") {
             if (Diagnostics.running.value) { Logger.w("Probe", "request ignored: a check is already running"); return START_NOT_STICKY }
             foreground() // while connected the notification keeps showing the server name
-            probeCancel = AtomicBoolean(false)
+            probeCancel = AtomicBoolean(false); userProbe = true
             val cancel = probeCancel
             val id = intent?.getStringExtra("profile")
             val order = intent?.getStringArrayListExtra("order").orEmpty()
@@ -293,7 +297,7 @@ class TunnelService : VpnService(), PlatformInterface {
     private fun measureAlive(ids: List<String>, access: AccessNetwork, cancel: AtomicBoolean): List<String>? {
         if (ids.isEmpty()) return emptyList()
         if (Diagnostics.running.value) return null
-        Diagnostics.runningMutable.value = true
+        Diagnostics.runningMutable.value = true; userProbe = false
         val from = System.currentTimeMillis()
         probeProfiles(null, cancel, access.kind, ids, only = ids.toSet())
         if (cancel.get() || NetworkTracker.read(connectivity).handle != access.handle) return null
@@ -609,7 +613,9 @@ class TunnelService : VpnService(), PlatformInterface {
                 val method = if (settings.probeMode == "tcp") "TCP" else "HTTPS"
                 fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false, kind: ProbeErrorKind? = null) = Diagnostics.result(key,
                     ProbeResult(checking = checking, latencyMs = ms, error = error, method = method, networkHandle = access.handle, cancelled = wasCancelled, kind = kind))
-                val before = Diagnostics.results.value[key]?.takeIf { !it.checking && !it.cancelled && it.networkHandle == access.handle }
+                // Put back after an interrupted check: the last finished value of this server on this page, from any network handle
+                // (the handle changes on every reconnect of the same Wi-Fi or mobile network, so matching it blanked values).
+                val before = Diagnostics.lastFinished(key)
                 result(checking = true)
                 val label = describe(profile)
                 var stage = "start"

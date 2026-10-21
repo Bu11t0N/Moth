@@ -17,6 +17,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -98,11 +104,14 @@ val LocalPageScope = androidx.compose.runtime.compositionLocalOf<androidx.compos
     }
 }
 
-/** Keyed lazy-list rows: fade in/out and slide to new places (Modifier.animateItem); nothing with "Remove animations". */
-@Composable fun Modifier.listItemMotion(scope: androidx.compose.foundation.lazy.LazyItemScope): Modifier {
+/**
+ * Keyed lazy-list rows: fade in/out and slide to new places (Modifier.animateItem); nothing with "Remove animations".
+ * [fadeIn] false: the row brings its own entrance (see [unfold]).
+ */
+@Composable fun Modifier.listItemMotion(scope: androidx.compose.foundation.lazy.LazyItemScope, fadeIn: Boolean = true): Modifier {
     if (!animationsOn()) return this
     return with(scope) {
-        this@listItemMotion.animateItem(fadeInSpec = tween(Motion.SHORT), fadeOutSpec = tween(180),
+        this@listItemMotion.animateItem(fadeInSpec = if (fadeIn) tween(Motion.SHORT) else null, fadeOutSpec = tween(180),
             placementSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold))
     }
 }
@@ -127,4 +136,80 @@ val LocalPageScope = androidx.compose.runtime.compositionLocalOf<androidx.compos
         androidx.compose.material3.Icon(if (s) filled else outlined, contentDescription = null,
             modifier = Modifier.graphicsLayer { scaleX = bounce.value; scaleY = bounce.value })
     }
+}
+
+/** A server group that the user just opened ([opening]) or is closing, at [at] (uptime ms). */
+data class Unfold(val opening: Boolean, val at: Long = android.os.SystemClock.uptimeMillis())
+
+/**
+ * Staggered group rows (GroupUnfold timing): opening, each row slides down 8 dp from under the header, fades in and grows from 0.95;
+ * closing reverses it faster, bottom row first. Rows composed after their slot has passed (scrolling later) show at once. Only a
+ * graphics layer per visible row, so long lists stay smooth. Nothing with "Remove animations".
+ */
+fun Modifier.unfold(event: Unfold?, index: Int, count: Int): Modifier = composed {
+    val on = animationsOn()
+    if (event == null || !on) return@composed this
+    val t = org.mothvpn.core.GroupUnfold.timing(index, count, event.opening)
+    val p = remember(event) {
+        val elapsed = android.os.SystemClock.uptimeMillis() - event.at
+        androidx.compose.animation.core.Animatable(if (event.opening) (if (elapsed >= t.delayMs + t.durationMs) 1f else 0f) else 1f)
+    }
+    androidx.compose.runtime.LaunchedEffect(event) {
+        val wait = t.delayMs - (android.os.SystemClock.uptimeMillis() - event.at)
+        if (wait > 0) kotlinx.coroutines.delay(wait)
+        if (event.opening) p.animateTo(1f, tween(t.durationMs, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
+        else p.animateTo(0f, tween(t.durationMs, easing = androidx.compose.animation.core.FastOutLinearInEasing))
+    }
+    graphicsLayer {
+        val v = p.value
+        alpha = v; translationY = -(1f - v) * 8.dp.toPx()
+        val sc = 0.95f + 0.05f * v; scaleX = sc; scaleY = sc
+        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+    }
+}
+
+/**
+ * Buttons that come out of the element at the start of their row (the subscription card's avatar): while [shown] they slide out from
+ * the row start to their place with a fade and a scale from 0.6, [index] staggered by 40 ms; when hidden they slide back into it.
+ * Instant with "Remove animations".
+ */
+fun Modifier.emergeFromStart(shown: Boolean, index: Int, startDelayMs: Int = 120): Modifier = composed {
+    val on = animationsOn()
+    if (!on) return@composed this
+    val p = remember { androidx.compose.animation.core.Animatable(0f) }
+    var x by remember { mutableStateOf(0f) }
+    androidx.compose.runtime.LaunchedEffect(shown) {
+        if (shown) { kotlinx.coroutines.delay((startDelayMs + index * 40).toLong()); p.animateTo(1f, spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow)) }
+        else p.animateTo(0f, tween(160, delayMillis = (2 - index).coerceAtLeast(0) * 25, easing = androidx.compose.animation.core.FastOutLinearInEasing))
+    }
+    this.then(Modifier.onPlaced { x = it.positionInParent().x }).graphicsLayer {
+        val v = p.value
+        translationX = -x * (1f - v); alpha = v.coerceIn(0f, 1f)
+        val sc = 0.6f + 0.4f * v; scaleX = sc; scaleY = sc
+    }
+}
+
+/**
+ * The app's switch (WhatsApp style, colour-blind friendly): the thumb shows a check when on and a minus when off (16 dp icons), so
+ * the state never depends on colour alone. Icon colours are the higher-contrast black or white on the thumb, in every theme.
+ */
+@Composable fun MothSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    val scheme = androidx.compose.material3.MaterialTheme.colorScheme
+    val defaults = androidx.compose.material3.SwitchDefaults.colors()
+    val checkedThumb = scheme.onPrimary; val uncheckedThumb = scheme.outline
+    val colors = androidx.compose.material3.SwitchDefaults.colors(
+        checkedThumbColor = checkedThumb, checkedIconColor = contrastOn(checkedThumb),
+        uncheckedThumbColor = uncheckedThumb, uncheckedIconColor = contrastOn(uncheckedThumb),
+        disabledCheckedIconColor = defaults.disabledCheckedIconColor, disabledUncheckedIconColor = defaults.disabledUncheckedIconColor)
+    androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = colors,
+        thumbContent = {
+            androidx.compose.material3.Icon(if (checked) androidx.compose.material.icons.Icons.Rounded.Check else androidx.compose.material.icons.Icons.Rounded.Remove,
+                contentDescription = null, modifier = Modifier.size(androidx.compose.material3.SwitchDefaults.IconSize))
+        })
+}
+
+/** Black or white, whichever contrasts more with [background] (WCAG relative luminance). */
+fun contrastOn(background: androidx.compose.ui.graphics.Color): androidx.compose.ui.graphics.Color {
+    val l = background.luminance()
+    return if ((l + 0.05f) / 0.05f >= 1.05f / (l + 0.05f)) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White
 }

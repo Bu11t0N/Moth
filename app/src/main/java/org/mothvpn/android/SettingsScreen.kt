@@ -338,7 +338,7 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
     Row(Modifier.pressScale(enabled = enabled).fillMaxWidth().heightIn(min = 56.dp).clickable(enabled = enabled) { change(!checked) },
         horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
         Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp))
-        Switch(checked = checked, onCheckedChange = change, enabled = enabled)
+        MothSwitch(checked = checked, onCheckedChange = change, enabled = enabled)
     }
 }
 

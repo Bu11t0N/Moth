@@ -369,7 +369,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private fun select(id: String, kind: String) {
-        if (busy || Diagnostics.running.value || TunnelStatus.state.value == TunnelState.STOPPING) return
+        // Selecting (and switching while connected) also works during a server check; the check keeps running.
+        if (busy || TunnelStatus.state.value == TunnelState.STOPPING) return
         val switching = TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED) && kind == networks.state.value.kind && id != TunnelStatus.activeProfile.value
         val next = saved?.let { if (kind == "mobile") it.copy(selected = id, mobileSelected = id) else it.copy(selected = id, wifiSelected = id) } ?: return
         val nextBook = book?.withSelection(next)

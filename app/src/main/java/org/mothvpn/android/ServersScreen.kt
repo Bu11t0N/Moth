@@ -46,6 +46,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.rememberCoroutineScope
 import org.mothvpn.core.ClientSettings
 import org.mothvpn.core.ServerOrder
 import org.mothvpn.core.Favorites
@@ -78,7 +81,26 @@ import org.mothvpn.core.SubscriptionSource
     val context = androidx.compose.ui.platform.LocalContext.current
     // Collapsed subscription groups (and favorites), saved across restarts.
     var collapsed by remember { mutableStateOf(CollapsedGroups.load(context)) }
-    fun toggleGroup(key: String) { collapsed = if (key in collapsed) collapsed - key else collapsed + key; CollapsedGroups.save(context, collapsed) }
+    // Opening / closing groups: rows unfold staggered from under the header (Modifier.unfold); a closing group keeps its rows until
+    // they have folded back, then collapses (the content below then slides up).
+    var unfolds by remember { mutableStateOf<Map<String, Unfold>>(emptyMap()) }
+    val unfoldJobs = remember { HashMap<String, kotlinx.coroutines.Job>() }
+    val unfoldScope = rememberCoroutineScope()
+    val motion = animationsOn()
+    fun saveCollapsed(next: Set<String>) { collapsed = next; CollapsedGroups.save(context, next) }
+    fun toggleGroup(key: String, count: Int) {
+        unfoldJobs.remove(key)?.cancel()
+        val closing = unfolds[key]?.opening == false
+        if (!motion) { unfolds = unfolds - key; saveCollapsed(if (key in collapsed) collapsed - key else collapsed + key); return }
+        if (key in collapsed || closing) {
+            // Open (also a tap while it was still folding back).
+            val event = Unfold(opening = true); unfolds = unfolds + (key to event); if (key in collapsed) saveCollapsed(collapsed - key)
+            unfoldJobs[key] = unfoldScope.launch { delay(org.mothvpn.core.GroupUnfold.total(count, true) + 50L); if (unfolds[key] == event) unfolds = unfolds - key }
+        } else {
+            val event = Unfold(opening = false); unfolds = unfolds + (key to event)
+            unfoldJobs[key] = unfoldScope.launch { delay(org.mothvpn.core.GroupUnfold.total(count, false).toLong()); if (unfolds[key] == event) { saveCollapsed(collapsed + key); unfolds = unfolds - key } }
+        }
+    }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(results) { now = System.currentTimeMillis(); while (true) { delay(60_000); now = System.currentTimeMillis() } }
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
@@ -136,16 +158,17 @@ import org.mothvpn.core.SubscriptionSource
                 val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true }
                 // This group's servers in the order shown (favorites: the favorite servers).
                 val ids = group.profiles.map { it.id }
-                NewGroupHeader(source, group.profiles.size, folded, checking, probing, canRefresh = source != null && !source.local && !refreshLocked, canCheck = canCheck && ids.isNotEmpty(),
-                    toggle = { toggleGroup(groupKey) }, refresh = { source?.let { refreshOne(it.id) } }, check = { checkOn(k) { probeGroup(k, ids) } }, cancel = cancel,
+                NewGroupHeader(source, group.profiles.size, folded || unfolds[groupKey]?.opening == false, checking, probing, canRefresh = source != null && !source.local && !refreshLocked, canCheck = canCheck && ids.isNotEmpty(),
+                    toggle = { toggleGroup(groupKey, group.profiles.size) }, refresh = { source?.let { refreshOne(it.id) } }, check = { checkOn(k) { probeGroup(k, ids) } }, cancel = cancel,
                     actions = { if (source != null) actionsFor = source.id })
             } }
-            if (!folded) items(group.profiles, key = { it.id }) { p ->
+            val unfoldEvent = unfolds[groupKey]
+            if (!folded) itemsIndexed(group.profiles, key = { _, p -> p.id }) { index, p ->
                 val chosen = p.id == saved?.selection(k)
                 val r = results["$k:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED } // cancelled checks show no indicator
                 Surface(color = if (chosen) NewDesignRow.selectedColor() else NdTone.raised(),
                     border = NewDesignRow.selectedBorder(chosen),
-                    shape = MaterialTheme.shapes.medium, modifier = Modifier.listItemMotion(this).pressScale().fillMaxWidth().heightIn(min = if (settings.compactServers) 64.dp else 72.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && !probing && tunnel != TunnelState.STOPPING) select(p.id, k) }
+                    shape = MaterialTheme.shapes.medium, modifier = Modifier.listItemMotion(this, fadeIn = unfoldEvent == null).unfold(unfoldEvent, index, group.profiles.size).pressScale().fillMaxWidth().heightIn(min = if (settings.compactServers) 64.dp else 72.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && tunnel != TunnelState.STOPPING) select(p.id, k) }
                         .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
                     Row(Modifier.padding(horizontal = 18.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {

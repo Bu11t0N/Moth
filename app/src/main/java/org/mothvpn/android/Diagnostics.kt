@@ -26,9 +26,56 @@ object Diagnostics {
     val health = healthMutable.asStateFlow()
     internal val runningMutable = MutableStateFlow(false)
     val running = runningMutable.asStateFlow()
-    /** Puts back [previous] (or removes the entry) after a check was cancelled. */
-    @Synchronized fun restore(id: String, previous: ProbeResult?) { resultsMutable.value = if (previous != null) resultsMutable.value + (id to previous) else resultsMutable.value - id }
-    @Synchronized fun result(id: String, value: ProbeResult) { resultsMutable.value = resultsMutable.value + (id to value) }
+    /**
+     * The last finished result per "network page:server" (see PingMemory): kept until that server is checked again, with no expiry,
+     * across network changes, VPN on/off and app restarts (saved to a private file). A running or interrupted check never blanks it.
+     */
+    private val finished = HashMap<String, ProbeResult>()
+    private val saver = java.util.concurrent.Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "ping-memory").apply { isDaemon = true } }
+    private var saveQueued = false
+    private var loaded = false
+    private fun file() = java.io.File(MothApplication.instance.filesDir, "pings.txt")
+
+    /** Reads the saved results once per process (called from the Application, before any screen or check). */
+    @Synchronized fun load() {
+        if (loaded) return; loaded = true
+        val entries = runCatching { file().takeIf { it.exists() }?.readText().orEmpty() }.getOrDefault("").let { org.mothvpn.core.PingMemory.decode(it) }
+        for (e in entries) {
+            val kind = e.kind?.let { k -> runCatching { ProbeErrorKind.valueOf(k) }.getOrNull() ?: ProbeErrorKind.FAILED }
+            finished[e.key] = ProbeResult(latencyMs = e.latencyMs, error = kind?.let { kindText(it) }, checkedAt = e.checkedAt, method = e.method, networkHandle = e.networkHandle, kind = kind)
+        }
+        // Live entries (a check that already started) win over the saved ones.
+        resultsMutable.value = finished + resultsMutable.value
+        Logger.i("Probe", "restored ${entries.size} saved ping results")
+    }
+
+    private fun scheduleSave() {
+        if (saveQueued) return; saveQueued = true
+        saver.schedule({
+            val snapshot = synchronized(this) { saveQueued = false; finished.map { (k, r) -> org.mothvpn.core.PingMemory.Entry(k, r.latencyMs, r.kind?.name ?: if (r.latencyMs == null) ProbeErrorKind.FAILED.name else null, r.method, r.checkedAt, r.networkHandle) } }
+            runCatching {
+                val target = file(); val tmp = java.io.File(target.parentFile, "pings.txt.tmp")
+                tmp.writeText(org.mothvpn.core.PingMemory.encode(snapshot)); if (!tmp.renameTo(target)) { target.delete(); tmp.renameTo(target) }
+            }.onFailure { Logger.w("Probe", "saving ping results failed", it) }
+        }, 1, java.util.concurrent.TimeUnit.SECONDS)
+    }
+
+    /**
+     * Ends a check that did not finish (cancelled, network changed, crashed): shows [previous] again, or else the last finished
+     * result of this server on this page. Only a server that was never checked shows nothing.
+     */
+    @Synchronized fun restore(id: String, previous: ProbeResult?) {
+        val back = previous ?: finished[id]
+        resultsMutable.value = if (back != null) resultsMutable.value + (id to back) else resultsMutable.value - id
+    }
+    @Synchronized fun result(id: String, value: ProbeResult) {
+        resultsMutable.value = resultsMutable.value + (id to value)
+        if (org.mothvpn.core.PingMemory.keeps(value.checking, value.cancelled || value.kind == ProbeErrorKind.CANCELLED, value.latencyMs, value.error != null)) {
+            finished[id] = value; scheduleSave()
+        }
+    }
+    /** The last finished result of [id] (any network handle), for putting it back after an interrupted check. */
+    @Synchronized fun lastFinished(id: String): ProbeResult? = finished[id]
     /** Built-in probe URLs are public and logged verbatim; a user-supplied URL is only reported as "custom". */
     fun describeUrl(url: String): String = if (url in setOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204", "https://www.google.com/generate_204")) url else "custom"
     fun friendly(e: Throwable) = kindText(ProbeErrorKind.of(e))

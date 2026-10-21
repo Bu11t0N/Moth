@@ -8,7 +8,7 @@ Not released yet.
 
 ### Changes
 
-- Smoother motion: subscription groups open and close softly, the server list moves into place after checks and changes, settings pages grow out of the item you tap, every button, row and card reacts to a press, and the bottom bar icons bounce and fill in when you switch tabs.
+- Smoother motion: subscription groups unfold row by row and fold back, the server list moves into place after checks and changes, settings pages grow out of the item you tap, every button, row and card reacts to a press, the bottom bar icons bounce and fill in when you switch tabs, and the provider buttons slide out of the subscription card.
 - Home: the status text and the server card change with a short fade; the traffic ring fills smoothly.
 - Home: a soft light glows behind the moth: dim when off, warm and pulsing while connecting or checking, bright when connected.
 - Home: speed, session traffic and connection time are shown together in one panel.
@@ -17,6 +17,9 @@ Not released yet.
 - Notices at the top of the screen stay visible when you switch tabs.
 - Auto-select and failover no longer drop the VPN while checking servers: the connection stays up on the current server and switches only to a server that answers.
 - The TCP server check now works while the VPN is on (before, every server showed as failed).
+- You can select and switch servers while a check is running; the check keeps going.
+- The last ping of each server stays until you check it again, also after a network change, turning the VPN off and on or restarting the app.
+- Switches show a check mark when on and a minus when off.
 
 ## 0.7.0
 

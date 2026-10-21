@@ -231,10 +231,13 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMoth(open: Floa
     }
 }
 
-/** Probe result of [p] on [kind] for display: (latency, failed), ignoring cancelled checks and checks on another network. */
+/**
+ * Last finished probe result of [p] on the [kind] page for display: (latency, failed), ignoring cancelled and running checks. The
+ * value stays until the server is checked again; it is not hidden when the network handle changes (a Wi-Fi reconnect).
+ */
+@Suppress("UNUSED_PARAMETER")
 private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, network: AccessNetwork): Pair<Long?, Boolean> {
     val r = results["$kind:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED || it.checking } ?: return null to false
-    if (r.networkHandle != network.handle) return null to false
     return r.latencyMs to (r.latencyMs == null && r.error != null)
 }
 
@@ -384,7 +387,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         val ordered = remember(saved, results, settings.serverSort, settings.favorites, settings.wifiFilter, settings.mobileFilter, kind) {
             Favorites.first(ServerOrder.sort(saved.profiles.filter { settings.filterShows(it, kind) }, settings.serverSort, { it.name }) { p -> results["$kind:${p.id}"]?.latencyMs }, settings.favorites) { it.id }
         }
-        val canSelect = !busy && !probing && tunnel != TunnelState.STOPPING
+        val canSelect = !busy && tunnel != TunnelState.STOPPING // also during a server check
         ModalBottomSheet(onDismissRequest = { sheet = false }, sheetState = state, containerColor = NdTone.sheet()) {
             Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = listMax), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -448,7 +451,10 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun SubscriptionsSheet(sources: List<org.mothvpn.core.SubscriptionSource>, close: () -> Unit, copy: (String) -> Unit) {
     val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0])
-    ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // The provider link buttons slide out of their subscription card's avatar once the sheet rises and slide back in as it hides.
+    val linksShown = sheetState.targetValue != SheetValue.Hidden
+    ModalBottomSheet(onDismissRequest = close, sheetState = sheetState, containerColor = NdTone.sheet()) {
         Text(tr(R.string.sub_all_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.7f).dp),
             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -471,7 +477,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                             Icon(androidx.compose.material.icons.Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(22.dp))
                         }
                     }
-                    if (!s.links.isEmpty) ProviderLinkButtons(s.links, Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp))
+                    if (!s.links.isEmpty) ProviderLinkButtons(s.links, Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp), shown = linksShown)
                     // The full announcement at the bottom of the card.
                     if (s.links.announceText.isNotEmpty()) Text(s.links.announceText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = if (s.links.isEmpty) 0.dp else 4.dp, bottom = 14.dp))
@@ -585,15 +591,15 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
  * Provider link buttons (support, web page, news) as [IconTile]s with a short caption. Telegram links get a paper-plane icon.
  * The URL is opened by the system; it is never written to the log.
  */
-@Composable fun ProviderLinkButtons(links: org.mothvpn.core.ProviderLinks, modifier: Modifier = Modifier) {
+@Composable fun ProviderLinkButtons(links: org.mothvpn.core.ProviderLinks, modifier: Modifier = Modifier, shown: Boolean = true) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val items = listOfNotNull(
         links.support.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_support), if (org.mothvpn.core.ProviderLinks.telegram(it)) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Send else androidx.compose.material.icons.Icons.Rounded.SupportAgent) },
         links.announce.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_news), if (org.mothvpn.core.ProviderLinks.telegram(it)) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Send else androidx.compose.material.icons.Icons.Rounded.Campaign) },
         links.web.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_web), androidx.compose.material.icons.Icons.Rounded.Language) })
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        items.forEach { (url, label, icon) ->
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.widthIn(min = 56.dp)) {
+        items.forEachIndexed { index, (url, label, icon) ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.emergeFromStart(shown, index).widthIn(min = 56.dp)) {
                 IconTile(icon, label = label, onClick = {
                     runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         .onFailure { Logger.w("Links", "no app can open the provider link") }
