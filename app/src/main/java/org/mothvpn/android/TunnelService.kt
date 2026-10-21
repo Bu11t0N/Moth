@@ -605,7 +605,11 @@ class TunnelService : VpnService(), PlatformInterface {
             val access = NetworkTracker.read(connectivity)
             Logger.i("Probe", "probeProfiles: mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
             if (!access.available || (wantedNetwork != null && wantedNetwork != access.kind)) { Logger.w("Probe", "skipped: network unavailable or changed"); return }
-            val profiles = SubscriptionStore(this).load()?.profiles.orEmpty().filter { (id == null || it.id == id) && (only.isEmpty() || it.id in only) }.let { all -> ProbeOrder.arrange(all, shownOrder) { it.id } } // list order: the pool queue is FIFO
+            // The servers to check, fixed now (a snapshot): only those the page's keyword filter shows, narrowed to [only]. A filter
+            // change during the check neither adds nor removes servers. Shown order first (the pool queue is FIFO).
+            val profiles = org.mothvpn.core.ProbePlan.targets(SubscriptionStore(this).load()?.profiles.orEmpty(), settings, access.kind, id, only)
+                .let { all -> ProbeOrder.arrange(all, shownOrder) { it.id } }
+            Logger.i("Probe", "check covers ${profiles.size} servers")
             val pool = Executors.newFixedThreadPool(settings.probeParallel.coerceAtMost(profiles.size).coerceAtLeast(1))
             fun probeOne(profile: Profile) {
                 if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) return

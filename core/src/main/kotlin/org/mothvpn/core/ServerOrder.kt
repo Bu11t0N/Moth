@@ -62,3 +62,17 @@ object ProbeOrder {
         return items.withIndex().sortedWith(compareBy({ position[id(it.value)] ?: Int.MAX_VALUE }, { it.index })).map { it.value }
     }
 }
+
+/**
+ * Which servers a check measures, fixed once when it starts. A check of all servers or of one subscription covers only the
+ * servers the page's keyword filter shows (hidden servers are never measured); [only], when given (a subscription, or the
+ * list the screen showed when Check was tapped), narrows that set further. [id] is a single server. Changing the filter
+ * while a check runs never adds servers to it: callers compute this list once and keep it.
+ */
+object ProbePlan {
+    fun targets(profiles: List<Profile>, settings: ClientSettings, kind: String, id: String? = null, only: Set<String> = emptySet()): List<Profile> {
+        if (id != null) return profiles.filter { it.id == id }
+        val pool = ServerFilter.pool(profiles, settings, kind)
+        return if (only.isEmpty()) pool else pool.filter { it.id in only }
+    }
+}

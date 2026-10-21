@@ -158,7 +158,7 @@ class MainActivity : AppCompatActivity() {
                                 1 -> ServersScreen(saved, book, settings, network, busy, message,
                                     add = { url = ""; subName = ""; dialog = true }, refresh = { refreshAll() }, refreshOne = { id -> book?.source(id)?.takeIf { !it.local }?.let { import(it.url, "refresh", id) } },
                                     edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
-                                    select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
+                                    select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order, only = checkSnapshot(kind)) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
                                     cancel = { cancelChecks() },
                                     preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) }, selecting = selecting)
                                 2 -> {
@@ -445,6 +445,9 @@ class MainActivity : AppCompatActivity() {
         val profile = subscription.profiles.firstOrNull { it.id == subscription.selection(networks.state.value.kind) } ?: run { Logger.w("Tunnel", "connect ignored: the selected server is missing"); return }
         authorize(Intent(this, TunnelService::class.java).setAction("START").putExtra("profile", profile.id))
     }
+    /** "Check all": the servers the page's keyword filter shows right now, fixed for the whole check. */
+    private fun checkSnapshot(kind: String): List<String> =
+        org.mothvpn.core.ProbePlan.targets(saved?.profiles.orEmpty(), settings, kind).map { it.id }
     private fun diagnose(kind: String, order: List<String> = emptyList(), only: List<String> = emptyList()) {
         Logger.i("Probe", "check tapped (kind=$kind, network=${networks.state.value.kind}, available=${networks.state.value.available})")
         if (!networks.state.value.available || networks.state.value.kind != kind) { message = tr(R.string.msg_switch_networks_to_run_this_check_44); return }
