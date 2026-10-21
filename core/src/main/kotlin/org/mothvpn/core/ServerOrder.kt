@@ -75,4 +75,8 @@ object ProbePlan {
         val pool = ServerFilter.pool(profiles, settings, kind)
         return if (only.isEmpty()) pool else pool.filter { it.id in only }
     }
+
+    /** Candidates for auto-select and failover: the servers the filter shows, never balancer groups (they can only be picked by hand). */
+    fun autoPool(profiles: List<Profile>, settings: ClientSettings, kind: String): List<Profile> =
+        ServerFilter.pool(profiles, settings, kind).filterNot(BalancerPing::isGroup)
 }

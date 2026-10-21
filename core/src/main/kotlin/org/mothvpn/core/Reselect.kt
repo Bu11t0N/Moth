@@ -32,6 +32,13 @@ object Reselect {
     }
 
     /**
+     * Whether failed health checks start a failover. The check goes through the tunnel, so it is the same for a plain server and a
+     * balancer group (a group whose members all stopped answering fails it like a dead server). Auto-select off, or a server
+     * switched by hand in this session, never switches.
+     */
+    fun failoverDue(autoSelect: Boolean, manualPick: Boolean, failures: Int, after: Int): Boolean = autoSelect && !manualPick && failures >= after
+
+    /**
      * Failover first re-checks a few servers that ranked best last time (one batch, a few seconds) before measuring all of them.
      * A switch still needs a fresh answer: an old ranking alone never decides.
      */
