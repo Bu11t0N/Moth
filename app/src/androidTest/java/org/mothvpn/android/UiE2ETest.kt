@@ -115,6 +115,12 @@ class UiE2ETest {
             wait(By.desc("Connect VPN").enabled(true)).click()
             wait(By.text("VPN is on"), 60_000); Thread.sleep(2500)
             assertEquals("moth button moved between off and on", offBounds, check("on"))
+            // The session panel (speed / traffic / time in one surface) sits between the moth and the subscription card.
+            val speed = wait(By.textContains("Speed")).visibleBounds; val time = wait(By.textContains("Connected")).visibleBounds
+            val card = wait(By.descContains(": Show all subscriptions")).visibleBounds
+            log("short $tag panel: speed=$speed time=$time")
+            assertTrue("session panel overlaps the moth or the card", speed.top >= offBounds.bottom && speed.bottom <= card.top && time.bottom <= card.top)
+            assertTrue("session panel columns out of order", speed.right <= time.left)
             wait(By.descStartsWith("Choose server")).click()
             val first = wait(By.descStartsWith("E2E Trojan")); Thread.sleep(1000)
             val h = device.displayHeight

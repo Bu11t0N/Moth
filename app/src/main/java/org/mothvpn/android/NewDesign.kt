@@ -18,6 +18,9 @@ import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material.icons.outlined.DataUsage
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.CardMembership
 import androidx.compose.material.icons.rounded.SupportAgent
 import androidx.compose.material.icons.rounded.Campaign
@@ -326,7 +329,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         }
         } },
         { Column(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // Session tiles (speed, traffic, time) while connected, directly above the subscription card with the same edges, corner radius,
+        // Session panel (speed, traffic, time) while connected, directly above the subscription card with the same edges, corner radius,
         // tone and gap as the card and the server bar. The space is always reserved, so the moth never moves when they appear.
         if (saved != null) SessionTiles(stats.takeIf { on }, tilesHeight)
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
@@ -625,24 +628,37 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
     }
 }
 
-/** Three tonal tiles with a big number and a small label: current speed, traffic of this session, connection time. Empty (but sized) when [stats] is null. */
+/**
+ * One tonal panel (same shape and tone as the cards) with three equal columns split by thin inset dividers: current speed, traffic of
+ * this session, connection time. Each column: a small icon and its label above the value. Empty (but sized) when [stats] is null.
+ */
 @Composable fun SessionTiles(stats: org.mothvpn.core.TrafficFormat.Stats?, height: androidx.compose.ui.unit.Dp = 72.dp) {
     // The height is always reserved (also while disconnected) so Home doesn't jump; the caller scales it with the font size.
     Box(Modifier.fillMaxWidth().height(height)) {
         if (stats != null) {
             val units = tr(R.string.notif_units).split("|"); val locale = AppLanguage.context().resources.configuration.locales[0]
-            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(org.mothvpn.core.TrafficFormat.bytes(stats.txRate + stats.rxRate, units, locale) + tr(R.string.nd_per_second) to tr(R.string.nd_stat_speed),
-                    org.mothvpn.core.TrafficFormat.bytes(stats.txTotal + stats.rxTotal, units, locale) to tr(R.string.nd_stat_traffic),
-                    org.mothvpn.core.TrafficFormat.duration(stats.seconds) to tr(R.string.nd_stat_time)).forEach { (value, label) ->
-                    Surface(shape = MaterialTheme.shapes.large, color = NdTone.card(), modifier = Modifier.weight(1f).fillMaxHeight().semantics(mergeDescendants = true) {}) {
-                        Column(Modifier.padding(horizontal = 10.dp, vertical = 10.dp), verticalArrangement = Arrangement.Center) {
-                            // Values such as "123.4 MB/s" shrink to fit a narrow tile (down to 11 sp) before any ellipsis.
-                            val big = MaterialTheme.typography.titleLarge
-                            androidx.compose.foundation.text.BasicText(value, style = big.copy(fontFeatureSettings = "tnum", color = MaterialTheme.colorScheme.onSurface), maxLines = 1,
-                                overflow = TextOverflow.Ellipsis, softWrap = false,
-                                autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = big.fontSize, stepSize = 0.5.sp))
-                            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val compact = height < 66.dp
+            val icons = androidx.compose.material.icons.Icons.Outlined
+            val columns = listOf(
+                Triple(icons.SwapVert, tr(R.string.nd_stat_speed), org.mothvpn.core.TrafficFormat.bytes(stats.txRate + stats.rxRate, units, locale) + tr(R.string.nd_per_second)),
+                Triple(icons.DataUsage, tr(R.string.nd_stat_traffic), org.mothvpn.core.TrafficFormat.bytes(stats.txTotal + stats.rxTotal, units, locale)),
+                Triple(icons.Schedule, tr(R.string.nd_stat_time), org.mothvpn.core.TrafficFormat.duration(stats.seconds)))
+            Surface(shape = MaterialTheme.shapes.large, color = NdTone.card(), modifier = Modifier.fillMaxSize()) {
+                Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                    columns.forEachIndexed { index, (icon, label, value) ->
+                        if (index > 0) androidx.compose.material3.VerticalDivider(Modifier.fillMaxHeight().padding(vertical = if (compact) 10.dp else 14.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant)
+                        Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp, vertical = if (compact) 4.dp else 8.dp).semantics(mergeDescendants = true) {},
+                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(icon, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            // Values such as "123.4 MB/s" shrink to fit a narrow column (down to 11 sp) before any ellipsis; no rolling digits.
+                            val big = MaterialTheme.typography.titleMedium
+                            androidx.compose.foundation.text.BasicText(value, style = big.copy(fontFeatureSettings = "tnum", color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis, softWrap = false,
+                                autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = if (compact) big.fontSize else MaterialTheme.typography.titleLarge.fontSize, stepSize = 0.5.sp))
                         }
                     }
                 }
