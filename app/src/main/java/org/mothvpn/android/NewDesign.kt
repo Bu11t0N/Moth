@@ -451,10 +451,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun SubscriptionsSheet(sources: List<org.mothvpn.core.SubscriptionSource>, close: () -> Unit, copy: (String) -> Unit) {
     val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0])
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    // The provider link buttons slide out of their subscription card's avatar once the sheet rises and slide back in as it hides.
-    val linksShown = sheetState.targetValue != SheetValue.Hidden
-    ModalBottomSheet(onDismissRequest = close, sheetState = sheetState, containerColor = NdTone.sheet()) {
+    ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
         Text(tr(R.string.sub_all_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.7f).dp),
             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -477,7 +474,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                             Icon(androidx.compose.material.icons.Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(22.dp))
                         }
                     }
-                    if (!s.links.isEmpty) ProviderLinkButtons(s.links, Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp), shown = linksShown)
+                    if (!s.links.isEmpty) ProviderLinkButtons(s.links, Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp))
                     // The full announcement at the bottom of the card.
                     if (s.links.announceText.isNotEmpty()) Text(s.links.announceText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = if (s.links.isEmpty) 0.dp else 4.dp, bottom = 14.dp))
@@ -591,15 +588,15 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
  * Provider link buttons (support, web page, news) as [IconTile]s with a short caption. Telegram links get a paper-plane icon.
  * The URL is opened by the system; it is never written to the log.
  */
-@Composable fun ProviderLinkButtons(links: org.mothvpn.core.ProviderLinks, modifier: Modifier = Modifier, shown: Boolean = true) {
+@Composable fun ProviderLinkButtons(links: org.mothvpn.core.ProviderLinks, modifier: Modifier = Modifier) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val items = listOfNotNull(
         links.support.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_support), if (org.mothvpn.core.ProviderLinks.telegram(it)) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Send else androidx.compose.material.icons.Icons.Rounded.SupportAgent) },
         links.announce.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_news), if (org.mothvpn.core.ProviderLinks.telegram(it)) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Send else androidx.compose.material.icons.Icons.Rounded.Campaign) },
         links.web.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_web), androidx.compose.material.icons.Icons.Rounded.Language) })
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        items.forEachIndexed { index, (url, label, icon) ->
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.emergeFromStart(shown, index).widthIn(min = 56.dp)) {
+        items.forEach { (url, label, icon) ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.widthIn(min = 56.dp)) {
                 IconTile(icon, label = label, onClick = {
                     runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         .onFailure { Logger.w("Links", "no app can open the provider link") }
@@ -640,8 +637,24 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
  */
 @Composable fun SessionTiles(stats: org.mothvpn.core.TrafficFormat.Stats?, height: androidx.compose.ui.unit.Dp = 72.dp) {
     // The height is always reserved (also while disconnected) so Home doesn't jump; the caller scales it with the font size.
+    // It slides out from behind the subscription card below it when the VPN connects (rises from the card's edge, grows and fades in,
+    // the columns slightly staggered, ~360 ms) and retracts into the card on disconnect (~240 ms, showing the last values meanwhile).
+    // The card is drawn after the panel, so the part still inside the card's area stays hidden behind it. Instant with animations off;
+    // no entrance when Home opens while already connected.
+    val motion = animationsOn()
+    var last by remember { mutableStateOf(stats) }
+    SideEffect { if (stats != null) last = stats }
+    val reveal = remember { androidx.compose.animation.core.Animatable(if (stats != null) 1f else 0f) }
+    LaunchedEffect(stats != null, motion) {
+        val target = if (stats != null) 1f else 0f
+        if (!motion) reveal.snapTo(target)
+        else reveal.animateTo(target, tween(if (target == 1f) 360 else 240, easing = if (target == 1f) androidx.compose.animation.core.LinearOutSlowInEasing else androidx.compose.animation.core.FastOutLinearInEasing))
+    }
+    val visible by remember { derivedStateOf { reveal.value > 0f } }
     Box(Modifier.fillMaxWidth().height(height)) {
-        if (stats != null) {
+        val shown = stats ?: last
+        if (shown != null && visible) {
+            val stats = shown
             val units = tr(R.string.notif_units).split("|"); val locale = AppLanguage.context().resources.configuration.locales[0]
             val compact = height < 66.dp
             val icons = androidx.compose.material.icons.Icons.Outlined
@@ -649,12 +662,21 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
                 Triple(icons.SwapVert, tr(R.string.nd_stat_speed), org.mothvpn.core.TrafficFormat.bytes(stats.txRate + stats.rxRate, units, locale) + tr(R.string.nd_per_second)),
                 Triple(icons.DataUsage, tr(R.string.nd_stat_traffic), org.mothvpn.core.TrafficFormat.bytes(stats.txTotal + stats.rxTotal, units, locale)),
                 Triple(icons.Schedule, tr(R.string.nd_stat_time), org.mothvpn.core.TrafficFormat.duration(stats.seconds)))
-            Surface(shape = MaterialTheme.shapes.large, color = NdTone.card(), modifier = Modifier.fillMaxSize()) {
+            Surface(shape = MaterialTheme.shapes.large, color = NdTone.card(), modifier = Modifier.fillMaxSize().graphicsLayer {
+                val v = reveal.value
+                translationY = (1f - v) * size.height * 0.8f; alpha = (v * 1.6f).coerceAtMost(1f)
+                val sc = 0.94f + 0.06f * v; scaleX = sc; scaleY = sc
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
+            }) {
                 Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                     columns.forEachIndexed { index, (icon, label, value) ->
                         if (index > 0) androidx.compose.material3.VerticalDivider(Modifier.fillMaxHeight().padding(vertical = if (compact) 10.dp else 14.dp),
                             color = MaterialTheme.colorScheme.outlineVariant)
-                        Column(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 8.dp, vertical = if (compact) 4.dp else 8.dp).semantics(mergeDescendants = true) {},
+                        Column(Modifier.weight(1f).fillMaxHeight().graphicsLayer {
+                                // Columns follow left to right, 12 % of the reveal apart.
+                                val c = ((reveal.value - index * 0.12f) / 0.76f).coerceIn(0f, 1f)
+                                alpha = c; translationY = (1f - c) * 6.dp.toPx()
+                            }.padding(horizontal = 8.dp, vertical = if (compact) 4.dp else 8.dp).semantics(mergeDescendants = true) {},
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Icon(icon, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)

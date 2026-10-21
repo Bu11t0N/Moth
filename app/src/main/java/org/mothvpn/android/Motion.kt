@@ -18,8 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Remove
@@ -165,27 +163,6 @@ fun Modifier.unfold(event: Unfold?, index: Int, count: Int): Modifier = composed
         alpha = v; translationY = -(1f - v) * 8.dp.toPx()
         val sc = 0.95f + 0.05f * v; scaleX = sc; scaleY = sc
         transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
-    }
-}
-
-/**
- * Buttons that come out of the element at the start of their row (the subscription card's avatar): while [shown] they slide out from
- * the row start to their place with a fade and a scale from 0.6, [index] staggered by 40 ms; when hidden they slide back into it.
- * Instant with "Remove animations".
- */
-fun Modifier.emergeFromStart(shown: Boolean, index: Int, startDelayMs: Int = 120): Modifier = composed {
-    val on = animationsOn()
-    if (!on) return@composed this
-    val p = remember { androidx.compose.animation.core.Animatable(0f) }
-    var x by remember { mutableStateOf(0f) }
-    androidx.compose.runtime.LaunchedEffect(shown) {
-        if (shown) { kotlinx.coroutines.delay((startDelayMs + index * 40).toLong()); p.animateTo(1f, spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow)) }
-        else p.animateTo(0f, tween(160, delayMillis = (2 - index).coerceAtLeast(0) * 25, easing = androidx.compose.animation.core.FastOutLinearInEasing))
-    }
-    this.then(Modifier.onPlaced { x = it.positionInParent().x }).graphicsLayer {
-        val v = p.value
-        translationX = -x * (1f - v); alpha = v.coerceIn(0f, 1f)
-        val sc = 0.6f + 0.4f * v; scaleX = sc; scaleY = sc
     }
 }
 
