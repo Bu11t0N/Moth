@@ -58,7 +58,7 @@ object NetworkServerChoice {
     }
     /**
      * [previousKind]/[newKind]: "wifi" or "mobile" of the real underlying network (not the VPN).
-     * [manualPick]: the user picked a server by hand in this session, which pauses auto-select.
+     * [manualPick]: the user picked a server by hand in this session: it is kept (no auto-select reshuffle) while it answers.
      */
     fun decide(previousKind: String, newKind: String, activeId: String, selectedForNew: String?, available: Set<String>,
                autoSelect: Boolean, manualPick: Boolean): Decision {

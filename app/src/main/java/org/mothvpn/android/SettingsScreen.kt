@@ -1,5 +1,8 @@
 package org.mothvpn.android
 
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -25,7 +28,7 @@ import org.mothvpn.core.DnsServers
 import org.mothvpn.core.SubscriptionSchedule
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}, restore: (org.mothvpn.core.Backup.Content) -> Unit = {}) {
+@Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}, restore: (org.mothvpn.core.Backup.Content) -> Unit = {}, rootRequest: Int = 0) {
     var draft by remember(initial) { mutableStateOf(initial) }
     var section by remember { mutableStateOf<String?>(if (startUpdates) tr(R.string.update_title) else null) }
     LaunchedEffect(Unit) { if (startUpdates) started() }
@@ -39,6 +42,10 @@ import org.mothvpn.core.SubscriptionSchedule
     var interval by remember(initial) { mutableStateOf(initial.healthIntervalSeconds.toString()) }
     var error by remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
+    // A tap on Settings in the bottom bar: back to the main list from any subpage. The pages' sheets and dialogs live inside the
+    // pages, so they close with them; the usual page transition plays. (The first composition keeps a pending "open updates".)
+    val firstRoot = remember { rootRequest }
+    LaunchedEffect(rootRequest) { if (rootRequest != firstRoot) { logPage = 0; licenseAsset = ""; showHwid = false; error = ""; section = null } }
     BackHandler(enabled = section != null) { if (logPage == 5) logPage = 4 else if (logPage == 3 || logPage == 4) { logPage = 0; section = tr(R.string.msg_about_78) } else if (logPage != 0) logPage = 0 else if (section == tr(R.string.rules_title)) section = tr(R.string.msg_connection_75) else section = null }
     fun applySettings(next: ClientSettings) {
         draft = next
@@ -214,7 +221,10 @@ import org.mothvpn.core.SubscriptionSchedule
                         DialogRow(tr(R.string.device_title), sent.joinToString(" · "), enabled = !locked) { deviceDialog = true }
                         if (deviceDialog) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
                     }
-                    OutlinedTextField(draft.userAgent, { applySettings(draft.copy(userAgent = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_subscription_user_agent_109)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    // Subscription User-Agent: one row with the current choice; a sheet picks Moth, a client preset or the user's own value. Never logged.
+                    var uaSheet by remember { mutableStateOf(false) }
+                    DialogRow(tr(R.string.msg_subscription_user_agent_109), org.mothvpn.core.UserAgents.title(draft.userAgent, BuildConfig.VERSION_NAME), enabled = !locked) { uaSheet = true }
+                    if (uaSheet) UserAgentSheet(draft.userAgent, close = { uaSheet = false }) { applySettings(draft.copy(userAgent = it)); uaSheet = false }
                     Text(tr(R.string.msg_providers_may_select_the_subscription_format_110), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.msg_appearance_74) -> {
@@ -296,6 +306,12 @@ import org.mothvpn.core.SubscriptionSchedule
                     Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111))
                     SettingsCategory(tr(R.string.set_changelog), "", "changelog") { section = tr(R.string.set_changelog); logPage = 3 }
                     SettingsCategory(tr(R.string.set_licenses), tr(R.string.set_licenses_sum), "licenses") { section = tr(R.string.set_licenses); logPage = 4 }
+                    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+                    FilledTonalButton(onClick = { runCatching { uri.openUri("https://github.com/Bu11t0N/Moth") } }, modifier = Modifier.pressScale().fillMaxWidth().heightIn(min = 48.dp)) {
+                        Icon(androidx.compose.material.icons.Icons.Outlined.Code, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp)); Text(tr(R.string.about_github))
+                        Spacer(Modifier.width(6.dp)); Icon(androidx.compose.material.icons.Icons.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
             AnimatedVisibility(error.isNotEmpty()) { Text(error, color = MaterialTheme.colorScheme.error) }
@@ -406,4 +422,42 @@ object DeviceDefaults {
         val v = fields.mapIndexed { i, f -> f.value.trim().takeIf { it != defaults[i] }.orEmpty() }
         save(settings.copy(deviceOs = v[0], deviceOsVersion = v[1], deviceModel = v[2]))
     }, modifier = Modifier.pressScale(enabled = valid)) { Text(tr(R.string.sub_save)) } }, dismissButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
+}
+
+/** Radio list of User-Agent choices in the Nd sheet style; "Custom" opens an empty field (prefilled only when the saved value is already custom). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable fun UserAgentSheet(current: String, close: () -> Unit, choose: (String) -> Unit) {
+    val version = BuildConfig.VERSION_NAME
+    val start = remember(current) { org.mothvpn.core.UserAgents.choice(current, version) }
+    var selected by remember { mutableStateOf(start.id) }
+    var custom by remember { mutableStateOf(start.custom) }
+    ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
+        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(tr(R.string.msg_subscription_user_agent_109), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+            org.mothvpn.core.UserAgents.presets(version).forEach { p ->
+                Row(Modifier.pressScale().fillMaxWidth().heightIn(min = 56.dp).clickable(role = androidx.compose.ui.semantics.Role.RadioButton) { selected = p.id; choose(p.value) },
+                    verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected == p.id, { selected = p.id; choose(p.value) })
+                    Column(Modifier.weight(1f)) {
+                        Text(p.label, style = MaterialTheme.typography.bodyLarge)
+                        Text(p.value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+            Row(Modifier.pressScale().fillMaxWidth().heightIn(min = 56.dp).clickable(role = androidx.compose.ui.semantics.Role.RadioButton) { selected = org.mothvpn.core.UserAgents.CUSTOM },
+                verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected == org.mothvpn.core.UserAgents.CUSTOM, { selected = org.mothvpn.core.UserAgents.CUSTOM })
+                Text(tr(R.string.ua_custom), style = MaterialTheme.typography.bodyLarge)
+            }
+            if (selected == org.mothvpn.core.UserAgents.CUSTOM) {
+                val ok = org.mothvpn.core.UserAgents.valid(custom)
+                OutlinedTextField(custom, { custom = it }, singleLine = true, label = { Text("User-Agent") }, isError = custom.isNotEmpty() && !ok,
+                    supportingText = if (custom.isNotEmpty() && !ok) { { Text(tr(R.string.ua_custom_invalid)) } } else null,
+                    shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { if (ok) choose(custom) }))
+                Button(onClick = { choose(custom) }, enabled = ok, modifier = Modifier.pressScale(enabled = ok).align(Alignment.End)) { Text(tr(R.string.sub_save)) }
+            }
+        }
+    }
 }

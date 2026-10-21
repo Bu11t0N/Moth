@@ -20,10 +20,27 @@ object ProxyProtocols {
     private fun unbase64(s: String): String? = runCatching { Subscriptions.unbase64(s) }.getOrNull()?.takeIf(::printable)
     private val hostPort = Regex("(\\[[0-9A-Fa-f:.]+]|[^\\s:/@\\[\\]]+):\\d{1,5}([/?].*)?")
 
-    /** True for servers whose traffic is not encrypted between the phone and the server (plain SOCKS and HTTP proxies). */
+    /**
+     * True for servers whose traffic is not encrypted between the phone and the server: VLESS and Trojan without TLS/Reality,
+     * SOCKS5 and plain HTTP proxies. VMess, Shadowsocks, Hysteria2, TUIC, AnyTLS, WireGuard and SSH encrypt on their own;
+     * balancer groups are judged by their members elsewhere and count as encrypted here.
+     */
     fun unencrypted(p: Profile): Boolean {
-        val first = p.protocol.lowercase().substringBefore(' ').substringBefore('/')
-        return first in setOf("socks", "http") && !p.protocol.contains("tls")
+        val o = runCatching { JSONObject(p.outbound) }.getOrNull()
+        if (o == null) {
+            val first = p.protocol.lowercase().substringBefore(' ').substringBefore('/')
+            return first in setOf("socks", "socks5", "http") && !p.protocol.contains("tls")
+        }
+        if (o.optBoolean("group")) return false
+        if (o.has("protocol")) { // Xray JSON
+            val protocol = o.optString("protocol").lowercase()
+            val security = o.optJSONObject("streamSettings")?.optString("security")?.lowercase().orEmpty()
+            val secured = security == "tls" || security == "reality" || security == "xtls"
+            return when (protocol) { "vless", "trojan", "http", "socks" -> !secured; else -> false }
+        }
+        val type = o.optString("type").lowercase()
+        val tls = o.optJSONObject("tls")?.optBoolean("enabled") == true
+        return when (type) { "vless", "trojan", "http" -> !tls; "socks" -> true; else -> false }
     }
 
     fun parse(link: String): Profile = when (link.substringBefore("://").lowercase()) {

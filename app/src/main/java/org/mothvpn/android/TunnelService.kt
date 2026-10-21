@@ -132,7 +132,8 @@ class TunnelService : VpnService(), PlatformInterface {
             } else if (TunnelStatus.state.value == TunnelState.OFF && !Diagnostics.running.value) stopSelf(startId)
         } else if (intent?.action == "SWITCH") {
             // Manual server pick while connected: restart the core on the new server without stopping the service.
-            // The user's choice overrides auto-select (no re-measuring, no failover) until the next regular connect.
+            // The user's choice overrides auto-select while it answers (no re-measuring for a faster server, no reshuffle on a
+            // network change) until the next regular connect; if it stops answering, failover still moves to a live plain server.
             val id = intent.getStringExtra("profile")
             if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR, TunnelState.BLOCKED) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING && !intent.getBooleanExtra("force", false)) return START_NOT_STICKY
             Logger.i("Tunnel", "server switch requested (state=${TunnelStatus.state.value}, user check running=${Diagnostics.running.value && userProbe})")
@@ -169,7 +170,7 @@ class TunnelService : VpnService(), PlatformInterface {
     @Volatile private var ranking = emptyList<String>()
     /** The server last started, kept for restarts after a subscription update removed it (see startTunnel). */
     @Volatile private var lastStarted: org.mothvpn.core.Profile? = null
-    @Volatile private var manualPick = false // set by a manual server switch while connected: auto-select is paused for this session
+    @Volatile private var manualPick = false // set by a manual server switch while connected: kept while it answers (no reshuffle); failover still replaces it once dead
     private val tried = java.util.Collections.synchronizedSet(HashSet<String>())
     @Volatile private var activeSettings = ClientSettings()
     /** Runs on [executor]. [pickBest]: with auto-select on, measure all servers first (existing probe code) and use the fastest. */
@@ -266,8 +267,9 @@ class TunnelService : VpnService(), PlatformInterface {
     private fun pickFastest(subscription: SavedSubscription, settings: ClientSettings): String? {
         val access = NetworkTracker.read(connectivity)
         // Only servers the keyword filter shows are candidates (failover walks this ranking too), so a hidden server is never picked.
-        val pool = org.mothvpn.core.ServerFilter.pool(subscription.profiles, settings, access.kind) // the filter of the network in use
-        TunnelStatus.filterHidesAllMutable.value = pool.isEmpty()
+        TunnelStatus.filterHidesAllMutable.value = org.mothvpn.core.ServerFilter.pool(subscription.profiles, settings, access.kind).isEmpty() // the filter of the network in use
+        // Balancer groups are never picked automatically (only by hand): candidates are plain servers.
+        val pool = org.mothvpn.core.ProbePlan.autoPool(subscription.profiles, settings, access.kind)
         if (pool.isEmpty()) { ranking = emptyList(); Logger.w("Tunnel", "auto select skipped: the server filter hides all ${subscription.profiles.size} server(s); keeping the selected server"); return null }
         if (pool.size < subscription.profiles.size) Logger.i("Tunnel", "auto select: ${pool.size} of ${subscription.profiles.size} server(s) pass the server filter")
         if (pool.size == 1) { ranking = listOf(pool[0].id); saveSelection(pool[0].id, access.kind); return pool[0].id }
@@ -386,9 +388,9 @@ class TunnelService : VpnService(), PlatformInterface {
         val settings = runCatching { SettingsStore(this).load() }.getOrDefault(activeSettings)
         val subscription = runCatching { SubscriptionStore(this).load() }.getOrNull() ?: run { onKeep(); return }
         val access = NetworkTracker.read(connectivity)
-        // Only servers the keyword filter shows on this network are candidates.
-        val pool = org.mothvpn.core.ServerFilter.pool(subscription.profiles, settings, access.kind).map { it.id }
-        TunnelStatus.filterHidesAllMutable.value = pool.isEmpty()
+        // Only servers the keyword filter shows on this network are candidates, and never balancer groups (picked by hand only).
+        TunnelStatus.filterHidesAllMutable.value = org.mothvpn.core.ServerFilter.pool(subscription.profiles, settings, access.kind).isEmpty()
+        val pool = org.mothvpn.core.ProbePlan.autoPool(subscription.profiles, settings, access.kind).map { it.id }
         val cancel = AtomicBoolean(false).also { probeCancel = it }
         fun recovered() = reason == Reselect.Reason.FAILOVER && Diagnostics.health.value.failures == 0
         fun skipped() {
@@ -416,6 +418,8 @@ class TunnelService : VpnService(), PlatformInterface {
         when (decision) {
             is Reselect.Decision.Switch -> {
                 emptyRounds = 0; remeasureNotBefore = 0
+                // The hand-picked server is gone: the replacement is an automatic choice, so auto-select applies again.
+                if (decision.id != active) manualPick = false
                 Logger.i("Tunnel", "$tag: ${if (decision.id == active) "only the current server answers; restarting its core" else "switching to a server that answered"} ($checked checked)")
                 saveSelection(decision.id, access.kind)
                 serverName = ""; TunnelStatus.mutable.value = TunnelState.STARTING; runCatching { foreground() }
@@ -595,7 +599,8 @@ class TunnelService : VpnService(), PlatformInterface {
         if (generation.get() == current && TunnelStatus.state.value == TunnelState.RUNNING) {
             Diagnostics.healthMutable.value = next
             if (next.failures == 0) { emptyRounds = 0; remeasureNotBefore = 0 }
-            if (settings.autoSelect && !manualPick && next.failures >= ServerPicker.failoverAfter) failover(current)
+            // A manual pick is kept while it answers; once it is dead, failover runs as for any server (plain servers only).
+            if (Reselect.failoverDue(settings.autoSelect, next.failures, ServerPicker.failoverAfter)) failover(current)
         }
     }
     /** [only]: check just these servers (one subscription from its header menu); empty = all. */
@@ -605,7 +610,17 @@ class TunnelService : VpnService(), PlatformInterface {
             val access = NetworkTracker.read(connectivity)
             Logger.i("Probe", "probeProfiles: mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
             if (!access.available || (wantedNetwork != null && wantedNetwork != access.kind)) { Logger.w("Probe", "skipped: network unavailable or changed"); return }
-            val profiles = SubscriptionStore(this).load()?.profiles.orEmpty().filter { (id == null || it.id == id) && (only.isEmpty() || it.id in only) }.let { all -> ProbeOrder.arrange(all, shownOrder) { it.id } } // list order: the pool queue is FIFO
+            // The servers to check, fixed now (a snapshot): only those the page's keyword filter shows, narrowed to [only]. A filter
+            // change during the check neither adds nor removes servers. Shown order first (the pool queue is FIFO).
+            val stored = SubscriptionStore(this).load()?.profiles.orEmpty()
+            val targets = org.mothvpn.core.ProbePlan.targets(stored, settings, access.kind, id, only)
+                .let { all -> ProbeOrder.arrange(all, shownOrder) { it.id } }
+            // Balancers with listed members are not probed: their ping is derived from the members afterwards (see BalancerPing).
+            val plan = org.mothvpn.core.BalancerPing.plan(targets, stored, single = id != null)
+            val profiles = plan.probe
+            Logger.i("Probe", "check covers ${targets.size} servers (${profiles.size} probed, ${plan.derived.size} balancer(s) from members)")
+            val derivedBefore = plan.derived.keys.associateWith { g -> Diagnostics.lastFinished("${access.kind}:$g") }
+            plan.derived.keys.forEach { g -> Diagnostics.result("${access.kind}:$g", ProbeResult(checking = true, method = if (settings.probeMode == "tcp") "TCP" else "HTTPS", networkHandle = access.handle)) }
             val pool = Executors.newFixedThreadPool(settings.probeParallel.coerceAtMost(profiles.size).coerceAtLeast(1))
             fun probeOne(profile: Profile) {
                 if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) return
@@ -686,8 +701,38 @@ class TunnelService : VpnService(), PlatformInterface {
                     if (Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, before)
                 }
             }
-            val futures = profiles.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }
-            try { futures.forEach { runCatching { it.get() } } } finally { pool.shutdownNow() }
+            try {
+                val futures = profiles.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }
+                futures.forEach { runCatching { it.get() } }
+                // Balancer pings from their members; a balancer none of whose members has a result is probed itself.
+                val live = !cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle
+                val method = if (settings.probeMode == "tcp") "TCP" else "HTTPS"
+                val fallback = mutableListOf<Profile>()
+                val probed = profiles.map { it.id }.toSet()
+                val pageGroups = org.mothvpn.core.ServerFilter.pool(stored, settings, access.kind).filter(org.mothvpn.core.BalancerPing::isGroup)
+                // Also refresh balancers outside this check whose members it measured.
+                val groups = plan.derived + pageGroups.filter { it.id !in plan.derived }
+                    .associate { g -> g.id to org.mothvpn.core.BalancerPing.members(g, stored) }.filterValues { m -> m.any { it in probed } }
+                for ((g, members) in groups) {
+                    val key = "${access.kind}:$g"
+                    if (!live) { if (g in plan.derived) Diagnostics.restore(key, derivedBefore[g]); continue }
+                    val results = members.mapNotNull { m -> Diagnostics.lastFinished("${access.kind}:$m")?.let { r -> m to org.mothvpn.core.BalancerPing.Member(r.latencyMs, r.latencyMs == null && r.error != null) } }.toMap()
+                    when (val d = org.mothvpn.core.BalancerPing.derive(members, results)) {
+                        is org.mothvpn.core.BalancerPing.Derived.Value -> Diagnostics.result(key, ProbeResult(latencyMs = d.latencyMs, method = method, networkHandle = access.handle))
+                        is org.mothvpn.core.BalancerPing.Derived.Failed -> Diagnostics.lastFinished("${access.kind}:${d.memberId}").let { r ->
+                            Diagnostics.result(key, ProbeResult(error = r?.error ?: tr(R.string.msg_server_timed_out_1), method = method, networkHandle = access.handle, kind = r?.kind)) }
+                        org.mothvpn.core.BalancerPing.Derived.Unknown -> if (g in plan.derived) stored.firstOrNull { it.id == g }?.let(fallback::add)
+                    }
+                }
+                if (fallback.isNotEmpty()) {
+                    Logger.i("Probe", "${fallback.size} balancer(s) without measured members: probing them directly")
+                    fallback.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }.forEach { runCatching { it.get() } }
+                }
+            } finally {
+                pool.shutdownNow()
+                // Anything still marked as checking (cancelled meanwhile) goes back to its last finished value.
+                plan.derived.keys.forEach { g -> val key = "${access.kind}:$g"; if (Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, derivedBefore[g]) }
+            }
         } catch (t: Throwable) {
             Logger.e("Probe", "probeProfiles aborted", t)
         } finally {

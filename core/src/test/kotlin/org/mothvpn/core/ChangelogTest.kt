@@ -15,10 +15,12 @@ class ChangelogTest {
     @Test fun repositoryFilesParseAndMatch() {
         val enAll = Changelog.parse(File("../CHANGELOG.md").readText())
         val ruAll = Changelog.parse(File("../CHANGELOG.ru.md").readText())
-        assertEquals("0.7.1", enAll[0].title); assertEquals("0.7.1", ruAll[0].title)
-        assertEquals(listOf("Changes"), enAll[0].groups.map { it.title }); assertEquals(listOf("Изменения"), ruAll[0].groups.map { it.title })
-        assertEquals(enAll[0].items.size, ruAll[0].items.size)
-        val enRest = enAll.drop(1); val ruRest = ruAll.drop(1)
+        for (i in 0..1) {
+            assertEquals(listOf("0.7.2", "0.7.1")[i], enAll[i].title); assertEquals(enAll[i].title, ruAll[i].title)
+            assertEquals(listOf("Changes"), enAll[i].groups.map { it.title }); assertEquals(listOf("Изменения"), ruAll[i].groups.map { it.title })
+            assertEquals(enAll[i].items.size, ruAll[i].items.size)
+        }
+        val enRest = enAll.drop(2); val ruRest = ruAll.drop(2)
         restParseAndMatch(enRest, ruRest)
     }
     private fun restParseAndMatch(enAll: List<ChangelogSection>, ruAll: List<ChangelogSection>) {

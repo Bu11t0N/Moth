@@ -178,7 +178,7 @@ import org.mothvpn.core.SubscriptionSource
                                 }
                                 Text(p.name, maxLines = if (settings.compactServers) 1 else 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
                             }
-                            Text(org.mothvpn.core.ServerLabels.label(p, tr(R.string.server_balancer)) + if (org.mothvpn.core.ProxyProtocols.unencrypted(p)) " · " + tr(R.string.proto_unencrypted) else "", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(serverSubtitle(p), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         val detailed = settings.detailedIcons
                         when {
@@ -269,8 +269,9 @@ import org.mothvpn.core.SubscriptionSource
         NdActionSheet(source.title(), { actionsFor = null }) {
             NdSheetItem(tr(R.string.sub_edit), androidx.compose.material.icons.Icons.Rounded.Edit, enabled = !busy) { actionsFor = null; editFor = source.id }
             if (!source.local) NdSheetItem(tr(R.string.sub_update), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !refreshLocked) { actionsFor = null; refreshOne(source.id) }
-            val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }.ifEmpty { source.profiles.map { it.id } }
-            NdSheetItem(tr(R.string.sub_check), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck) { actionsFor = null; checkOn(kind) { probeGroup(kind, ids) } }
+            // This subscription's servers that the page shows; servers the filter hides are never checked (nothing to check: disabled).
+            val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }
+            NdSheetItem(tr(R.string.sub_check), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck && ids.isNotEmpty()) { actionsFor = null; checkOn(kind) { probeGroup(kind, ids) } }
             // Dimmed but tappable when locked: the tap closes the sheet and explains why in the top notice.
             NdSheetItem(tr(R.string.sub_delete), androidx.compose.material.icons.Icons.Rounded.Delete, dimmed = deleteLocked(source.id)) {
                 actionsFor = null

@@ -132,6 +132,7 @@ class MainActivity : AppCompatActivity() {
         }
         setContent {
             var tab by rememberSaveable { mutableStateOf(0) }
+            var settingsRoot by remember { mutableStateOf(0) } // incremented by a tap on Settings: the Settings screen goes back to its main list
             LaunchedEffect(homeRequest) { if (homeRequest > 0) tab = 0 }
             BackHandler(enabled = tab != 0) { tab = 0 }
             val network by networks.state.collectAsState()
@@ -158,13 +159,13 @@ class MainActivity : AppCompatActivity() {
                                 1 -> ServersScreen(saved, book, settings, network, busy, message,
                                     add = { url = ""; subName = ""; dialog = true }, refresh = { refreshAll() }, refreshOne = { id -> book?.source(id)?.takeIf { !it.local }?.let { import(it.url, "refresh", id) } },
                                     edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
-                                    select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
+                                    select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order, only = checkSnapshot(kind)) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
                                     cancel = { cancelChecks() },
                                     preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) }, selecting = selecting)
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
-                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) })
+                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) }, rootRequest = settingsRoot)
                                 }
                             }
                             }
@@ -174,7 +175,7 @@ class MainActivity : AppCompatActivity() {
                         // Same colour as the content surface and no tonal overlay: no lighter band at the bottom.
                         NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                             listOf(tr(R.string.msg_home_26) to "home", tr(R.string.msg_servers_27) to "list", tr(R.string.msg_settings_28) to "settings").forEachIndexed { i, item ->
-                                NavigationBarItem(selected = tab == i, onClick = { tab = i }, label = { Text(item.first) }, modifier = Modifier.pressScale(), icon = {
+                                NavigationBarItem(selected = tab == i, onClick = { val t = org.mothvpn.core.TabTap.tap(i, settingsRoot); tab = t.tab; settingsRoot = t.rootRequest }, label = { Text(item.first) }, modifier = Modifier.pressScale(), icon = {
                                     // Material icons that are clearly different (house, bulleted list, gear): outlined, filled when selected.
                                     NavIcon(tab == i, when (item.second) { "home" -> androidx.compose.material.icons.Icons.Outlined.Home
                                         "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.FormatListBulleted
@@ -445,6 +446,9 @@ class MainActivity : AppCompatActivity() {
         val profile = subscription.profiles.firstOrNull { it.id == subscription.selection(networks.state.value.kind) } ?: run { Logger.w("Tunnel", "connect ignored: the selected server is missing"); return }
         authorize(Intent(this, TunnelService::class.java).setAction("START").putExtra("profile", profile.id))
     }
+    /** "Check all": the servers the page's keyword filter shows right now, fixed for the whole check. */
+    private fun checkSnapshot(kind: String): List<String> =
+        org.mothvpn.core.ProbePlan.targets(saved?.profiles.orEmpty(), settings, kind).map { it.id }
     private fun diagnose(kind: String, order: List<String> = emptyList(), only: List<String> = emptyList()) {
         Logger.i("Probe", "check tapped (kind=$kind, network=${networks.state.value.kind}, available=${networks.state.value.available})")
         if (!networks.state.value.available || networks.state.value.kind != kind) { message = tr(R.string.msg_switch_networks_to_run_this_check_44); return }

@@ -1,5 +1,6 @@
 package org.mothvpn.android
 
+import androidx.compose.ui.text.withStyle
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.VisibilityThreshold
@@ -527,9 +528,45 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     }
 }
 
-/** The protocol line of a server, as in the server list. */
-@Composable fun serverSubtitle(p: Profile): String =
-    org.mothvpn.core.ServerLabels.label(p, tr(R.string.server_balancer)) + if (org.mothvpn.core.ProxyProtocols.unencrypted(p)) " · " + tr(R.string.proto_unencrypted) else ""
+/**
+ * The protocol line of a server (server list and home): muted text colours per part, no chips or icons. Green and red are kept
+ * for security (Reality / unencrypted); transport, separators and the balancer word stay grey. Server names are never coloured.
+ */
+@Composable fun serverSubtitle(p: Profile): androidx.compose.ui.text.AnnotatedString {
+    val parts = org.mothvpn.core.ServerLabels.parts(p, tr(R.string.server_balancer), tr(R.string.proto_unencrypted))
+    val dark = MaterialTheme.colorScheme.background.luminanceLow()
+    val grey = MaterialTheme.colorScheme.onSurfaceVariant
+    return androidx.compose.ui.text.buildAnnotatedString {
+        parts.forEachIndexed { i, part ->
+            if (i > 0) withStyle(androidx.compose.ui.text.SpanStyle(color = grey)) { append(" · ") }
+            withStyle(androidx.compose.ui.text.SpanStyle(color = SubtitlePalette.color(part, dark) ?: grey)) { append(part.text) }
+        }
+    }
+}
+
+/** Subtitle colours (dark / light; AMOLED uses dark). Each is at least 4.5:1 on the card (dark #1C1C1C, AMOLED #161616, light #EDEDED). */
+object SubtitlePalette {
+    private fun c(dark: Boolean, d: Long, l: Long) = Color(if (dark) d else l)
+    fun protocol(t: org.mothvpn.core.ProtocolTone, dark: Boolean): Color = when (t) {
+        org.mothvpn.core.ProtocolTone.VLESS -> c(dark, 0xFF4DB6AC, 0xFF00695C)
+        org.mothvpn.core.ProtocolTone.TROJAN -> c(dark, 0xFFB39DDB, 0xFF6A42B8)
+        org.mothvpn.core.ProtocolTone.SHADOWSOCKS -> c(dark, 0xFFF48FB1, 0xFFA0285E)
+        org.mothvpn.core.ProtocolTone.HYSTERIA -> c(dark, 0xFFFFB74D, 0xFF7A4F00)
+        org.mothvpn.core.ProtocolTone.VMESS -> c(dark, 0xFFD7A189, 0xFF8A4B2F)
+        org.mothvpn.core.ProtocolTone.ANYTLS -> c(dark, 0xFF9FA8DA, 0xFF3F51B5)
+        org.mothvpn.core.ProtocolTone.WIREGUARD -> c(dark, 0xFFCE93D8, 0xFF8E24AA)
+        org.mothvpn.core.ProtocolTone.OTHER -> c(dark, 0xFFBCAAA4, 0xFF6D4C41)
+    }
+    /** Null: the grey of the rest of the line. */
+    fun color(part: org.mothvpn.core.LabelPart, dark: Boolean): Color? = when (part.kind) {
+        org.mothvpn.core.LabelPart.Kind.PROTOCOL -> protocol(part.protocol ?: org.mothvpn.core.ProtocolTone.OTHER, dark)
+        org.mothvpn.core.LabelPart.Kind.REALITY -> c(dark, 0xFF81C784, 0xFF1E6B23)
+        org.mothvpn.core.LabelPart.Kind.TLS -> c(dark, 0xFF64B5F6, 0xFF0F5AAE)
+        org.mothvpn.core.LabelPart.Kind.UNENCRYPTED -> c(dark, 0xFFEF9A9A, 0xFFB71C1C)
+        org.mothvpn.core.LabelPart.Kind.SOURCE -> c(dark, 0xFFC2BC7A, 0xFF5C5B22)
+        org.mothvpn.core.LabelPart.Kind.TRANSPORT, org.mothvpn.core.LabelPart.Kind.BALANCER -> null
+    }
+}
 
 /**
  * Keyword server filter. Keywords are added one by one (text field + Add) and listed as rows with a delete button;
