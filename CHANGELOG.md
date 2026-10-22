@@ -9,6 +9,7 @@ Not released yet.
 ### Changes
 
 - The server check and the connection check use only the HTTPS address set in Settings; the “Use only this address” switch is gone and there are no built-in backup addresses.
+- About: the GitHub link now looks like the other items.
 
 ## 0.7.2
 
