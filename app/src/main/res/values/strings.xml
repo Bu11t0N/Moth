@@ -266,7 +266,7 @@
     <string name="msg_err_split_apps">Invalid app list</string>
     <string name="msg_err_dns">Invalid DNS server</string>
     <string name="kill_switch">Kill switch</string>
-    <string name="kill_switch_hint">If the connection to the server fails, the VPN stays on and blocks all traffic until Moth reconnects or you disconnect. For full protection (also while the app is not running), turn on Always-on VPN and \"Block connections without VPN\" in the system VPN settings.</string>
+    <string name="kill_switch_hint">If Moth can\'t reconnect, the VPN stays on: it blocks all traffic and keeps trying to reconnect. Traffic is also blocked while switching servers. Without this option, a failed reconnect turns the VPN off and apps go to the internet directly. To keep traffic from bypassing the VPN even when the app is closed, turn on “Always-on VPN” and “Block connections without VPN” in the system VPN settings.</string>
     <string name="kill_switch_system">Open system VPN settings</string>
     <string name="notif_blocked">Traffic blocked: no connection</string>
     <string name="notif_blocked_text">Kill switch is on. Reconnecting…</string>
