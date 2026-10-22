@@ -505,7 +505,6 @@
     <string name="ping_full_hint">First request, including connecting to the server and all handshakes.</string>
     <string name="ping_tcp">TCP</string>
     <string name="ping_tcp_hint">Only checks that the server port answers; no traffic goes through.</string>
-    <string name="ping_url_only">Use only this address (no backup addresses)</string>
     <string name="dev_sub_headers">Subscription headers</string>
     <string name="dev_sub_headers_sum">Names of the headers the provider sent</string>
     <string name="dev_sub_headers_hint">Names only, from the last update of each subscription. Values and links are never stored.</string>

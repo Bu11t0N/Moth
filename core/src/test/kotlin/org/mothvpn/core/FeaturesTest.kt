@@ -111,9 +111,10 @@ class FeaturesTest {
     }
     @Test fun probeVariantsAndUdpAreNotConfusedWithTcp() {
         val s = ClientSettings()
-        assertEquals(3, ProbePolicy.urls(s).size)
-        assertEquals(2, ProbePolicy.urls(s.copy(probeUrl = "https://cp.cloudflare.com/generate_204")).size)
-        assertEquals(listOf(s.probeUrl), ProbePolicy.urls(s.copy(probeUrlOnly = true)))
+        // One check address: the one set in settings, no built-in fallbacks.
+        assertEquals(listOf(s.probeUrl), ProbePolicy.urls(s))
+        assertEquals(listOf("https://example.com/ping"), ProbePolicy.urls(s.copy(probeUrl = "https://example.com/ping")))
+        assertEquals(listOf(s.probeUrl), ProbePolicy.urls(s.copy(probeMode = ProbePolicy.TCP)))
         val tcp = Subscriptions.parseLink("vless://$uuid@example.com:443?security=tls")
         assertEquals("example.com" to 443, ProbePolicy.tcpEndpoint(tcp))
         val xhttp = Subscriptions.parseLink("vless://$uuid@example.com:443?type=xhttp&security=tls")
@@ -123,7 +124,7 @@ class FeaturesTest {
         assertFails { s.copy(probeMode = "icmp").validate() }
     }
     @Test fun customBootstrapDnsIsUsedByAllCoreConfigs() {
-        val s = ClientSettings(bootstrapDns = "https://8.8.8.8/dns-query", probeUrlOnly = true)
+        val s = ClientSettings(bootstrapDns = "https://8.8.8.8/dns-query")
         val p = Subscriptions.parseLink("hy2://secret@example.com:443")
         JSONObject(TunnelConfig.create(p, s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(1).let { assertEquals("https", it.getString("type")); assertEquals("8.8.8.8", it.getString("server")); assertFalse(it.has("domain_resolver")) }
         assertEquals("8.8.8.8", JSONObject(LocalProxyConfig.singBox(p, 18080, "u", "p", s)).getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("server"))
@@ -155,7 +156,7 @@ class OfflineStatusTest {
     @Test fun reconnectOnlyForSettingsFixedAtConnect() {
         val a = ClientSettings()
         listOf(a.copy(mtu = 1300), a.copy(dns = "https://9.9.9.9/dns-query"), a.copy(splitMode = "only"), a.copy(splitApps = listOf("com.example")),
-            a.copy(fragment = "tlshello"), a.copy(mux = "smux"), a.copy(directRu = true), a.copy(healthIntervalSeconds = 120), a.copy(probeUrlOnly = true),
+            a.copy(fragment = "tlshello"), a.copy(mux = "smux"), a.copy(directRu = true), a.copy(healthIntervalSeconds = 120), a.copy(probeUrl = "https://example.com/ping"),
             a.copy(probeMode = ProbePolicy.TCP)).forEach { assertTrue(a.needsReconnect(it), it.toString()) }
         listOf(a.copy(autoSelect = true), a.copy(killSwitch = true), a.copy(probeParallel = 2), a.copy(probeTimeoutMs = 3000), a.copy(probeMode = ProbePolicy.FULL),
             a.copy(userAgent = "x"), a.copy(theme = "dark"), a.copy(compactServers = false)).forEach { assertFalse(a.needsReconnect(it), it.toString()) }

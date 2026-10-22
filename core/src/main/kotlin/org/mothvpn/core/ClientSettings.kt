@@ -58,7 +58,6 @@ data class ClientSettings(
     /** The same for the mobile data page: each network has its own keywords and mode. */
     val mobileFilter: ServerFilter.Rule = ServerFilter.Rule(),
     /** HTTPS checks use only [probeUrl], without the fallback addresses (the former "HTTPS · custom URL" method). */
-    val probeUrlOnly: Boolean = false,
     /** True once the user changed the device-info switch; files without it never had a real choice and get the new default (on). */
     val deviceInfoSet: Boolean = false,
     /** Custom device info sent instead of the system values; empty = the system value ("Android", Build.VERSION.RELEASE, the model). */
@@ -82,7 +81,7 @@ data class ClientSettings(
             directRu != next.directRu || routingRules != next.routingRules || splitMode != next.splitMode || splitApps != next.splitApps ||
             fragment != next.fragment || noise != next.noise || mux != next.mux ||
             healthEnabled != next.healthEnabled || healthIntervalSeconds != next.healthIntervalSeconds || timeoutMs != next.timeoutMs ||
-            probeUrl != next.probeUrl || probeUrlOnly != next.probeUrlOnly || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP)
+            probeUrl != next.probeUrl || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP)
 
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
@@ -125,7 +124,7 @@ data class ClientSettings(
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
         .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("amoled", amoled)
-        .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json()).put("probeUrlOnly", probeUrlOnly)
+        .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json())
         .put("deviceInfoSet", deviceInfoSet).put("deviceOs", deviceOs).put("deviceOsVersion", deviceOsVersion).put("deviceModel", deviceModel)
     companion object {
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
@@ -161,8 +160,6 @@ data class ClientSettings(
             // beta 4 had one filter ("serverFilter" + "serverFilterMode"); it becomes the filter of both networks.
             wifiFilter = j.optJSONObject("serverFilterWifi")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),
             mobileFilter = j.optJSONObject("serverFilterMobile")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),
-            // 0.7.0 beta 5 and earlier: "https" meant "only the custom URL"; that choice is kept as probeUrlOnly.
-            probeUrlOnly = j.optBoolean("probeUrlOnly", j.optString("probeMode") == "https"),
             // Up to beta 6 "deviceInfo" was always written (default off), so a stored false is not a real choice: only files with
             // "deviceInfoSet" keep their value; everyone else gets the new default (on).
             deviceInfoSet = j.optBoolean("deviceInfoSet", false),

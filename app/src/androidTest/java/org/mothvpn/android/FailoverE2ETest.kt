@@ -76,7 +76,7 @@ class FailoverE2ETest {
         SubscriptionStore(context).saveBook(SubscriptionBook(listOf(SubscriptionSource(SubscriptionSource.LOCAL_ID, "My servers", SubscriptionRecord.LOCAL_URL, profiles)), profiles[0].id))
         // Health checks through the tunnel go to the test host (HTTPS with the test CA); TCP probes; the shortest check interval.
         SettingsStore(context).save(ClientSettings(hwid = hwid, autoSelect = true, killSwitch = false, probeMode = ProbePolicy.TCP,
-            probeUrl = "https://$host:8443/sub", probeUrlOnly = true, healthIntervalSeconds = 30))
+            probeUrl = "https://$host:8443/sub", healthIntervalSeconds = 30))
 
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         wait(By.text("Settings")); Thread.sleep(800)

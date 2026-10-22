@@ -165,7 +165,6 @@ import org.mothvpn.core.SubscriptionSchedule
                             }
                         }
                     }
-                    SettingsToggle(tr(R.string.ping_url_only), draft.probeUrlOnly, !locked && draft.probeMode != org.mothvpn.core.ProbePolicy.TCP) { applySettings(draft.copy(probeUrlOnly = it)) }
                     Text(tr(R.string.msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.set_cat_routing) -> {

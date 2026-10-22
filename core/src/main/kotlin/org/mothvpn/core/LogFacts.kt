@@ -19,7 +19,7 @@ object LogFacts {
         // Custom device info: only that it changed, never the values.
         hidden("deviceOs", old.deviceOs, new.deviceOs); hidden("deviceOsVersion", old.deviceOsVersion, new.deviceOsVersion); hidden("deviceModel", old.deviceModel, new.deviceModel)
         plain("serverSort", old.serverSort, new.serverSort); plain("compactServers", old.compactServers, new.compactServers)
-        plain("hideUnavailable", old.hideUnavailable, new.hideUnavailable); plain("probeMode", old.probeMode, new.probeMode); plain("probeUrlOnly", old.probeUrlOnly, new.probeUrlOnly)
+        plain("hideUnavailable", old.hideUnavailable, new.hideUnavailable); plain("probeMode", old.probeMode, new.probeMode)
         plain("probeParallel", old.probeParallel, new.probeParallel); plain("probeTimeoutMs", old.probeTimeoutMs, new.probeTimeoutMs)
         plain("updateChannel", old.updateChannel.ifEmpty { "auto" }, new.updateChannel.ifEmpty { "auto" })
         plain("splitMode", old.splitMode, new.splitMode); plain("splitApps", old.splitApps.size, new.splitApps.size)

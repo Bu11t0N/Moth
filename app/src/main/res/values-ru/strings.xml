@@ -509,7 +509,6 @@
     <string name="ping_full_hint">Первый запрос вместе с подключением к серверу и всеми рукопожатиями.</string>
     <string name="ping_tcp">TCP</string>
     <string name="ping_tcp_hint">Только проверяет, что порт сервера отвечает; трафик через сервер не идёт.</string>
-    <string name="ping_url_only">Только этот адрес (без запасных)</string>
     <string name="dev_sub_headers">Заголовки подписки</string>
     <string name="dev_sub_headers_sum">Названия заголовков, которые прислал провайдер</string>
     <string name="dev_sub_headers_hint">Только названия, с последнего обновления каждой подписки. Значения и ссылки не сохраняются.</string>

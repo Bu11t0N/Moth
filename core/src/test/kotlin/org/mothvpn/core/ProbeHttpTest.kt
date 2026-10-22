@@ -45,17 +45,18 @@ class ProbeHttpTest {
 
     @Test fun probeMethodsAndMigration() {
         assertEquals(ProbePolicy.LATENCY, ClientSettings().probeMode)
-        fun from(mode: String) = ClientSettings.from(ClientSettings().json().put("probeMode", mode).apply { remove("probeUrlOnly") })
-        assertEquals(ProbePolicy.LATENCY, from("auto").probeMode); assertFalse(from("auto").probeUrlOnly)
-        assertEquals(ProbePolicy.LATENCY, from("https").probeMode); assertTrue(from("https").probeUrlOnly)
+        fun from(mode: String) = ClientSettings.from(ClientSettings().json().put("probeMode", mode))
+        assertEquals(ProbePolicy.LATENCY, from("auto").probeMode)
+        assertEquals(ProbePolicy.LATENCY, from("https").probeMode)
         assertEquals(ProbePolicy.TCP, from("tcp").probeMode)
         assertEquals(ProbePolicy.FULL, from("full").probeMode)
         assertEquals(ProbePolicy.LATENCY, from("icmp").probeMode)
-        val full = ClientSettings(probeMode = ProbePolicy.FULL, probeUrlOnly = true)
+        val full = ClientSettings(probeMode = ProbePolicy.FULL)
         assertEquals(full, ClientSettings.from(full.json()))
-        // The health check keeps its URLs: several by default, one with "only this URL" and with TCP checks (as before).
-        assertEquals(3, ProbePolicy.urls(ClientSettings()).size)
-        assertEquals(1, ProbePolicy.urls(ClientSettings(probeMode = ProbePolicy.TCP)).size)
-        assertEquals(1, ProbePolicy.urls(full).size)
+        // Old saved "only this address" values are ignored; there is always exactly the one address from settings.
+        val old = ClientSettings.from(ClientSettings().json().put("probeUrlOnly", true).put("probeUrl", "https://example.com/ping"))
+        assertEquals(listOf("https://example.com/ping"), ProbePolicy.urls(old))
+        assertFalse(old.json().has("probeUrlOnly"))
+        for (s in listOf(ClientSettings(), ClientSettings(probeMode = ProbePolicy.TCP), full)) assertEquals(listOf(s.probeUrl), ProbePolicy.urls(s))
     }
 }

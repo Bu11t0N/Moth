@@ -14,13 +14,11 @@ object ProbePolicy {
     const val FULL = "full"
     const val TCP = "tcp"
     val modes = setOf(LATENCY, FULL, TCP)
-    /** Saved values of older versions: "auto" (several URLs) and "https" (custom URL) both become [LATENCY]; the URL choice is probeUrlOnly. */
+    /** Saved values of older versions: "auto" (several URLs) and "https" (custom URL) both become [LATENCY]; a saved "only this URL" choice is ignored (there is one URL). */
     fun migrateMode(saved: String) = when (saved) { in modes -> saved; else -> LATENCY }
 
-    /** HTTPS check addresses in order. The TCP method keeps one address for the health check, as before. */
-    fun urls(settings: ClientSettings): List<String> = if (!settings.probeUrlOnly && settings.probeMode != TCP)
-        listOf(settings.probeUrl, "https://cp.cloudflare.com/generate_204", "https://www.google.com/generate_204").distinct()
-    else listOf(settings.probeUrl)
+    /** The HTTPS check address: only the one set in settings (no built-in fallbacks), for server checks and the health check. */
+    fun urls(settings: ClientSettings): List<String> = listOf(settings.probeUrl)
 
     fun tcpEndpoint(profile: Profile): Pair<String, Int>? {
         if (JSONObject(profile.outbound).optBoolean("group")) return null // balancer group: use the HTTPS probe

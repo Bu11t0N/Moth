@@ -76,8 +76,8 @@ object Diagnostics {
     }
     /** The last finished result of [id] (any network handle), for putting it back after an interrupted check. */
     @Synchronized fun lastFinished(id: String): ProbeResult? = finished[id]
-    /** Built-in probe URLs are public and logged verbatim; a user-supplied URL is only reported as "custom". */
-    fun describeUrl(url: String): String = if (url in setOf("https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204", "https://www.google.com/generate_204")) url else "custom"
+    /** Check URLs are never logged: the app's default address is reported as "default", anything else as "custom". */
+    fun describeUrl(url: String): String = if (url == org.mothvpn.core.ClientSettings().probeUrl) "default" else "custom"
     fun friendly(e: Throwable) = kindText(ProbeErrorKind.of(e))
     /** Localized text for an outcome code (used for the log-free tooltip of the detailed icons). */
     fun kindText(k: ProbeErrorKind) = when (k) {
