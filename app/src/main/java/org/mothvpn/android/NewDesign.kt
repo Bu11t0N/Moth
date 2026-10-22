@@ -109,9 +109,13 @@ object MonoTheme {
         surfaceContainerLowest = Color(0xFF000000), surfaceContainerLow = Color(0xFF0F0F0F), surfaceContainer = Color(0xFF161616),
         surfaceContainerHigh = Color(0xFF1F1F1F), surfaceContainerHighest = Color(0xFF2A2A2A), surfaceVariant = Color(0xFF161616), surfaceBright = Color(0xFF2A2A2A),
         primaryContainer = Color(0xFF363636))
-    /** Colours for the home hero card (the server bar): the inverse tone, with background = the card fill so ping colours and greys stay readable. */
-    fun hero(darkTheme: Boolean) = if (darkTheme) light.copy(background = Color(0xFFF0F0F0), surface = Color(0xFFF0F0F0), onSurfaceVariant = Color(0xFF4A4A4A))
-        else this.dark.copy(background = Color(0xFF161616), surface = Color(0xFF161616), onSurfaceVariant = Color(0xFFB5B5B5))
+    /**
+     * Colours for the home hero card (the server bar): the inverse tone, with background = the card fill so ping colours and greys stay readable.
+     * The fill matches the primary buttons (dark theme #C9C9C9, light theme #3A3A3A). Grey text is >= 5.3:1 on it, the coloured subtitle parts >= 3.9:1.
+     */
+    fun hero(darkTheme: Boolean) = if (darkTheme) light.copy(background = HERO_LIGHT_FILL, surface = HERO_LIGHT_FILL, onSurfaceVariant = Color(0xFF4A4A4A))
+        else this.dark.copy(background = Color(0xFF3A3A3A), surface = Color(0xFF3A3A3A), onSurfaceVariant = Color(0xFFB5B5B5))
+    val HERO_LIGHT_FILL = Color(0xFFC9C9C9)
     /** Larger, rounder components than the defaults. */
     val shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(20.dp),
         large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(32.dp))
@@ -119,8 +123,12 @@ object MonoTheme {
 
 /** Green/yellow/red dot by latency band plus the number in grey; a failed check shows only a grey dash (no dot). */
 @Composable fun PingDot(latencyMs: Long?, failed: Boolean, modifier: Modifier = Modifier) {
-    val dark = MaterialTheme.colorScheme.background.luminanceLow()
+    val background = MaterialTheme.colorScheme.background
+    val dark = background.luminanceLow()
+    // On the grey server bar of the dark theme the usual light-theme dots are too faint (green 2.1:1, yellow 1.5:1): deeper tones there (>= 3.3:1).
+    val grey = background == MonoTheme.HERO_LIGHT_FILL
     val color = when {
+        grey -> when (latencyMs?.let { LatencyBand.of(it) }) { LatencyBand.GOOD -> Color(0xFF0E6E31); LatencyBand.MEDIUM -> Color(0xFF8A6200); else -> Color(0xFFB02020) }
         latencyMs == null -> if (dark) Color(0xFFFF6B6B) else Color(0xFFC62828)
         else -> when (LatencyBand.of(latencyMs)) {
             LatencyBand.GOOD -> if (dark) Color(0xFF4CD07D) else Color(0xFF1E9E4A)
