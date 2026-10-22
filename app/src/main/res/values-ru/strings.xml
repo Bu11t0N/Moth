@@ -251,7 +251,8 @@
     <string name="split_show_system">Показывать системные</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
     <string name="direct_ru_hint">Российские сайты (.ru, .su, .рф и список geosite category-ru) и российские IP-адреса (geoip:ru) открываются без VPN. Списки скачиваются у SagerNet и обновляются раз в неделю.</string>
-    <string name="auto_select">Автовыбор лучшего сервера</string>
+    <string name="auto_select_wifi">Автовыбор на Wi‑Fi</string>
+    <string name="auto_select_mobile">Автовыбор на мобильном интернете</string>
     <string name="auto_select_hint">При подключении выбирается самый быстрый сервер (используются результаты проверки за последние 5 минут, иначе проверяются все серверы). Если проверка интернета не проходит 3 раза подряд, Мотылёк переключается на следующий по скорости сервер.</string>
     <string name="boot_connect">Запускать VPN при включении телефона</string>
     <string name="boot_connect_hint">После перезагрузки подключается к последнему серверу. Также поддерживается постоянный VPN Android (системные настройки VPN).</string>
@@ -268,7 +269,7 @@
     <string name="msg_err_split_apps">Неверный список приложений</string>
     <string name="msg_err_dns">Неверный DNS-сервер</string>
     <string name="kill_switch">Kill switch</string>
-    <string name="kill_switch_hint">Если связь с сервером пропала, VPN остаётся включённым и блокирует весь трафик, пока Мотылёк не переподключится или вы не отключитесь. Для полной защиты (и когда приложение не запущено) включите «Постоянную VPN» и «Блокировать подключения без VPN» в системных настройках VPN.</string>
+    <string name="kill_switch_hint">Если Мотылёк не смог переподключиться, VPN не выключается: он блокирует весь трафик и сам пробует подключиться снова. На время смены сервера трафик тоже блокируется. Без этой опции при неудачном переподключении VPN отключится, и приложения пойдут в интернет напрямую. Чтобы трафик не уходил мимо VPN, даже когда приложение закрыто, включите «Постоянную VPN» и «Блокировать подключения без VPN» в системных настройках.</string>
     <string name="kill_switch_system">Открыть системные настройки VPN</string>
     <string name="notif_blocked">Трафик заблокирован: нет связи</string>
     <string name="notif_blocked_text">Kill switch включён. Переподключение…</string>
@@ -313,6 +314,8 @@
     <string name="set_head_health">Проверка туннеля</string>
     <string name="set_head_probes">Проверка серверов</string>
     <string name="set_short_auto">Автовыбор</string>
+    <string name="set_short_auto_wifi">Автовыбор: Wi‑Fi</string>
+    <string name="set_short_auto_mobile">Автовыбор: мобильный</string>
     <string name="set_short_ks">Kill switch</string>
     <string name="set_short_boot">Автозапуск</string>
     <string name="set_short_health">Проверка туннеля</string>
@@ -509,7 +512,6 @@
     <string name="ping_full_hint">Первый запрос вместе с подключением к серверу и всеми рукопожатиями.</string>
     <string name="ping_tcp">TCP</string>
     <string name="ping_tcp_hint">Только проверяет, что порт сервера отвечает; трафик через сервер не идёт.</string>
-    <string name="ping_url_only">Только этот адрес (без запасных)</string>
     <string name="dev_sub_headers">Заголовки подписки</string>
     <string name="dev_sub_headers_sum">Названия заголовков, которые прислал провайдер</string>
     <string name="dev_sub_headers_hint">Только названия, с последнего обновления каждой подписки. Значения и ссылки не сохраняются.</string>

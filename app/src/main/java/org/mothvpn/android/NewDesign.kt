@@ -85,7 +85,7 @@ object NewDesignRow {
  */
 object MonoTheme {
     val dark = darkColorScheme(
-        primary = Color(0xFFF2F2F2), onPrimary = Color(0xFF000000), primaryContainer = Color(0xFF3D3D3D), onPrimaryContainer = Color(0xFFFFFFFF),
+        primary = Color(0xFFC9C9C9), onPrimary = Color(0xFF000000), primaryContainer = Color(0xFF3D3D3D), onPrimaryContainer = Color(0xFFFFFFFF),
         secondary = Color(0xFFBDBDBD), onSecondary = Color(0xFF000000), secondaryContainer = Color(0xFF2C2C2C), onSecondaryContainer = Color(0xFFF2F2F2),
         tertiary = Color(0xFFBDBDBD), onTertiary = Color(0xFF000000), tertiaryContainer = Color(0xFF2C2C2C), onTertiaryContainer = Color(0xFFF2F2F2),
         background = Color(0xFF0A0A0A), onBackground = Color(0xFFF2F2F2), surface = Color(0xFF0A0A0A), onSurface = Color(0xFFF2F2F2),
@@ -95,7 +95,7 @@ object MonoTheme {
         surfaceBright = Color(0xFF363636), surfaceDim = Color(0xFF0A0A0A), surfaceContainerLowest = Color(0xFF050505), surfaceContainerLow = Color(0xFF141414),
         surfaceContainer = Color(0xFF1C1C1C), surfaceContainerHigh = Color(0xFF262626), surfaceContainerHighest = Color(0xFF313131))
     val light = lightColorScheme(
-        primary = Color(0xFF111111), onPrimary = Color(0xFFFFFFFF), primaryContainer = Color(0xFFCFCFCF), onPrimaryContainer = Color(0xFF000000),
+        primary = Color(0xFF3A3A3A), onPrimary = Color(0xFFFFFFFF), primaryContainer = Color(0xFFCFCFCF), onPrimaryContainer = Color(0xFF000000),
         secondary = Color(0xFF555555), onSecondary = Color(0xFFFFFFFF), secondaryContainer = Color(0xFFE6E6E6), onSecondaryContainer = Color(0xFF111111),
         tertiary = Color(0xFF555555), onTertiary = Color(0xFFFFFFFF), tertiaryContainer = Color(0xFFE6E6E6), onTertiaryContainer = Color(0xFF111111),
         background = Color(0xFFFBFBFB), onBackground = Color(0xFF111111), surface = Color(0xFFFBFBFB), onSurface = Color(0xFF111111),
@@ -109,9 +109,13 @@ object MonoTheme {
         surfaceContainerLowest = Color(0xFF000000), surfaceContainerLow = Color(0xFF0F0F0F), surfaceContainer = Color(0xFF161616),
         surfaceContainerHigh = Color(0xFF1F1F1F), surfaceContainerHighest = Color(0xFF2A2A2A), surfaceVariant = Color(0xFF161616), surfaceBright = Color(0xFF2A2A2A),
         primaryContainer = Color(0xFF363636))
-    /** Colours for the home hero card (the server bar): the inverse tone, with background = the card fill so ping colours and greys stay readable. */
-    fun hero(darkTheme: Boolean) = if (darkTheme) light.copy(background = Color(0xFFF0F0F0), surface = Color(0xFFF0F0F0), onSurfaceVariant = Color(0xFF4A4A4A))
-        else this.dark.copy(background = Color(0xFF161616), surface = Color(0xFF161616), onSurfaceVariant = Color(0xFFB5B5B5))
+    /**
+     * Colours for the home hero card (the server bar): the inverse tone, with background = the card fill so ping colours and greys stay readable.
+     * The fill matches the primary buttons (dark theme #C9C9C9, light theme #3A3A3A). Grey text is >= 5.3:1 on it, the coloured subtitle parts >= 3.9:1.
+     */
+    fun hero(darkTheme: Boolean) = if (darkTheme) light.copy(background = HERO_LIGHT_FILL, surface = HERO_LIGHT_FILL, onSurfaceVariant = Color(0xFF4A4A4A))
+        else this.dark.copy(background = Color(0xFF3A3A3A), surface = Color(0xFF3A3A3A), onSurfaceVariant = Color(0xFFB5B5B5))
+    val HERO_LIGHT_FILL = Color(0xFFC9C9C9)
     /** Larger, rounder components than the defaults. */
     val shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(20.dp),
         large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(32.dp))
@@ -119,8 +123,12 @@ object MonoTheme {
 
 /** Green/yellow/red dot by latency band plus the number in grey; a failed check shows only a grey dash (no dot). */
 @Composable fun PingDot(latencyMs: Long?, failed: Boolean, modifier: Modifier = Modifier) {
-    val dark = MaterialTheme.colorScheme.background.luminanceLow()
+    val background = MaterialTheme.colorScheme.background
+    val dark = background.luminanceLow()
+    // On the grey server bar of the dark theme the usual light-theme dots are too faint (green 2.1:1, yellow 1.5:1): deeper tones there (>= 3.3:1).
+    val grey = background == MonoTheme.HERO_LIGHT_FILL
     val color = when {
+        grey -> when (latencyMs?.let { LatencyBand.of(it) }) { LatencyBand.GOOD -> Color(0xFF0E6E31); LatencyBand.MEDIUM -> Color(0xFF8A6200); else -> Color(0xFFB02020) }
         latencyMs == null -> if (dark) Color(0xFFFF6B6B) else Color(0xFFC62828)
         else -> when (LatencyBand.of(latencyMs)) {
             LatencyBand.GOOD -> if (dark) Color(0xFF4CD07D) else Color(0xFF1E9E4A)
@@ -340,7 +348,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
-        if (filterHidesAll && settings.autoSelect && settings.filterFor(network.kind).keywords.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
+        if (filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).keywords.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error, maxLines = 3, overflow = TextOverflow.Ellipsis)
         // The whole bar is one touch target: it opens the server sheet.
         // Hero card: the inverse tone (light fill in the dark theme, dark fill in the light theme) with its own readable colours.

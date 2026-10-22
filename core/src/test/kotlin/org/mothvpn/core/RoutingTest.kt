@@ -16,10 +16,10 @@ class RoutingTest {
     }
     @Test fun settingsRoundTripAndDefaults() {
         val d = ClientSettings()
-        assertEquals("off", d.splitMode); assertFalse(d.directRu); assertEquals(0, d.subUpdateHours); assertFalse(d.autoSelect); assertFalse(d.bootConnect); assertTrue(d.dnsLeakProtection)
-        val s = d.copy(splitMode = "bypass", splitApps = listOf("com.example.app"), directRu = true, subUpdateHours = 12, autoSelect = true, bootConnect = true, dnsLeakProtection = false, dns = "tls://dns.example")
+        assertEquals("off", d.splitMode); assertFalse(d.directRu); assertEquals(0, d.subUpdateHours); assertFalse(d.autoSelectWifi); assertFalse(d.autoSelectMobile); assertFalse(d.bootConnect); assertTrue(d.dnsLeakProtection)
+        val s = d.copy(splitMode = "bypass", splitApps = listOf("com.example.app"), directRu = true, subUpdateHours = 12, autoSelectWifi = true, bootConnect = true, dnsLeakProtection = false, dns = "tls://dns.example")
         assertEquals(s, ClientSettings.from(s.json()))
-        val old = d.json().apply { listOf("splitMode", "splitApps", "directRu", "subUpdateHours", "autoSelect", "bootConnect", "dnsLeakProtection").forEach { remove(it) } }
+        val old = d.json().apply { listOf("splitMode", "splitApps", "directRu", "subUpdateHours", "autoSelect", "autoSelectWifi", "autoSelectMobile", "bootConnect", "dnsLeakProtection").forEach { remove(it) } }
         assertEquals(d, ClientSettings.from(old))
         assertFailsWith<IllegalArgumentException> { d.copy(subUpdateHours = 5).validate() }
         assertEquals(listOf(0, 1, 2, 3, 6, 12, 24), SubscriptionSchedule.intervals)

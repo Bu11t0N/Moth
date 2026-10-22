@@ -28,7 +28,9 @@ data class ClientSettings(
     /** Automatic subscription update interval in hours: 0 (off), 6, 12 or 24. */
     val subUpdateHours: Int = 0,
     /** Pick the fastest server on connect and switch to the next one when health checks keep failing. */
-    val autoSelect: Boolean = false,
+    /** Auto-select and failover, separately for Wi-Fi (and any non-mobile network) and mobile data. */
+    val autoSelectWifi: Boolean = false,
+    val autoSelectMobile: Boolean = false,
     /** Connect to the last server when the phone starts. */
     val bootConnect: Boolean = false,
     /** Strict routing: DNS and traffic cannot bypass the tunnel. */
@@ -58,7 +60,6 @@ data class ClientSettings(
     /** The same for the mobile data page: each network has its own keywords and mode. */
     val mobileFilter: ServerFilter.Rule = ServerFilter.Rule(),
     /** HTTPS checks use only [probeUrl], without the fallback addresses (the former "HTTPS · custom URL" method). */
-    val probeUrlOnly: Boolean = false,
     /** True once the user changed the device-info switch; files without it never had a real choice and get the new default (on). */
     val deviceInfoSet: Boolean = false,
     /** Custom device info sent instead of the system values; empty = the system value ("Android", Build.VERSION.RELEASE, the model). */
@@ -68,6 +69,9 @@ data class ClientSettings(
     fun withDefaultDeviceInfo() = copy(deviceOs = "", deviceOsVersion = "", deviceModel = "")
     /** The filter of a network kind ("wifi" or "mobile"; anything else is Wi-Fi). */
     fun filterFor(kind: String) = if (kind == "mobile") mobileFilter else wifiFilter
+    /** Auto-select for the network kind in use ("mobile", anything else counts as Wi-Fi, as for [filterFor]). */
+    fun autoSelectFor(kind: String) = if (kind == "mobile") autoSelectMobile else autoSelectWifi
+    val autoSelectAny get() = autoSelectWifi || autoSelectMobile
     fun withFilter(kind: String, rule: ServerFilter.Rule) = if (kind == "mobile") copy(mobileFilter = rule) else copy(wifiFilter = rule)
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
@@ -82,7 +86,7 @@ data class ClientSettings(
             directRu != next.directRu || routingRules != next.routingRules || splitMode != next.splitMode || splitApps != next.splitApps ||
             fragment != next.fragment || noise != next.noise || mux != next.mux ||
             healthEnabled != next.healthEnabled || healthIntervalSeconds != next.healthIntervalSeconds || timeoutMs != next.timeoutMs ||
-            probeUrl != next.probeUrl || probeUrlOnly != next.probeUrlOnly || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP)
+            probeUrl != next.probeUrl || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP)
 
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
@@ -121,11 +125,11 @@ data class ClientSettings(
         .put("probeMode", probeMode).put("bootstrapDns", bootstrapDns)
         .put("probeParallel", probeParallel).put("probeTimeoutMs", probeTimeoutMs).put("updateChannel", updateChannel).put("detailedIcons", detailedIcons)
         .put("splitMode", splitMode).put("splitApps", org.json.JSONArray(splitApps)).put("directRu", directRu).put("subUpdateHours", subUpdateHours)
-        .put("autoSelect", autoSelect).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
+        .put("autoSelectWifi", autoSelectWifi).put("autoSelectMobile", autoSelectMobile).put("autoSelect", autoSelectAny).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
         .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("amoled", amoled)
-        .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json()).put("probeUrlOnly", probeUrlOnly)
+        .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json())
         .put("deviceInfoSet", deviceInfoSet).put("deviceOs", deviceOs).put("deviceOsVersion", deviceOsVersion).put("deviceModel", deviceModel)
     companion object {
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
@@ -146,7 +150,8 @@ data class ClientSettings(
             splitApps = j.optJSONArray("splitApps")?.let { a -> (0 until a.length()).map { a.getString(it) }.filter(SplitTunnel::validPackage).distinct() }.orEmpty(),
             directRu = j.optBoolean("directRu", false),
             subUpdateHours = SubscriptionSchedule.normalize(j.optInt("subUpdateHours", 0)),
-            autoSelect = j.optBoolean("autoSelect", false), bootConnect = j.optBoolean("bootConnect", false),
+            // 0.7.2 and earlier: one "autoSelect" for both networks; it seeds both.
+            autoSelectWifi = j.optBoolean("autoSelectWifi", j.optBoolean("autoSelect", false)), autoSelectMobile = j.optBoolean("autoSelectMobile", j.optBoolean("autoSelect", false)), bootConnect = j.optBoolean("bootConnect", false),
             dnsLeakProtection = j.optBoolean("dnsLeakProtection", true),
             killSwitch = j.optBoolean("killSwitch", false),
             favorites = j.optJSONArray("favorites")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { Regex("[0-9a-f]{16,64}").matches(it) }.distinct().take(5000) }.orEmpty(),
@@ -161,8 +166,6 @@ data class ClientSettings(
             // beta 4 had one filter ("serverFilter" + "serverFilterMode"); it becomes the filter of both networks.
             wifiFilter = j.optJSONObject("serverFilterWifi")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),
             mobileFilter = j.optJSONObject("serverFilterMobile")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),
-            // 0.7.0 beta 5 and earlier: "https" meant "only the custom URL"; that choice is kept as probeUrlOnly.
-            probeUrlOnly = j.optBoolean("probeUrlOnly", j.optString("probeMode") == "https"),
             // Up to beta 6 "deviceInfo" was always written (default off), so a stored false is not a real choice: only files with
             // "deviceInfoSet" keep their value; everyone else gets the new default (on).
             deviceInfoSet = j.optBoolean("deviceInfoSet", false),

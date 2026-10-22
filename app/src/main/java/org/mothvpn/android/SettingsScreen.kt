@@ -102,7 +102,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     val loc = AppLanguage.context().resources.configuration.locales[0]
                     val units = tr(R.string.notif_units).split("|")
                     val today = stats.day(java.time.LocalDate.now())
-                    val onOff = listOfNotNull(tr(R.string.set_short_auto).takeIf { draft.autoSelect }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
+                    val onOff = listOfNotNull(when { draft.autoSelectWifi && draft.autoSelectMobile -> tr(R.string.set_short_auto); draft.autoSelectWifi -> tr(R.string.set_short_auto_wifi); draft.autoSelectMobile -> tr(R.string.set_short_auto_mobile); else -> null }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
                         tr(R.string.set_short_boot).takeIf { draft.bootConnect }, tr(R.string.set_short_health).takeIf { draft.healthEnabled })
                     val theme = when (draft.theme) { "dark" -> tr(R.string.set_theme_dark); "light" -> tr(R.string.set_theme_light); else -> tr(R.string.set_theme_auto) }
                     val split = when (draft.splitMode) { "only" -> tr(R.string.set_split_only, draft.splitApps.size); "bypass" -> tr(R.string.set_split_bypass, draft.splitApps.size); else -> tr(R.string.set_split_off) }
@@ -120,7 +120,9 @@ import org.mothvpn.core.SubscriptionSchedule
                 }
                 tr(R.string.msg_connection_75) -> {
                     LiveApplyHint()
-                    SettingsToggle(tr(R.string.auto_select), draft.autoSelect, !locked) { applySettings(draft.copy(autoSelect = it)) }
+                    // Separate auto-select for Wi-Fi and mobile data; the one of the network in use applies.
+                    SettingsToggle(tr(R.string.auto_select_wifi), draft.autoSelectWifi, !locked) { applySettings(draft.copy(autoSelectWifi = it)) }
+                    SettingsToggle(tr(R.string.auto_select_mobile), draft.autoSelectMobile, !locked) { applySettings(draft.copy(autoSelectMobile = it)) }
                     Text(tr(R.string.auto_select_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsCategory(tr(R.string.rules_title), if (draft.routingRules.isEmpty()) tr(R.string.rules_sum_none) else tr(R.string.rules_sum_count, draft.routingRules.size), "rules") { section = tr(R.string.rules_title) }
                     SettingsToggle(tr(R.string.kill_switch), draft.killSwitch) { applySettings(draft.copy(killSwitch = it)) }
@@ -165,7 +167,6 @@ import org.mothvpn.core.SubscriptionSchedule
                             }
                         }
                     }
-                    SettingsToggle(tr(R.string.ping_url_only), draft.probeUrlOnly, !locked && draft.probeMode != org.mothvpn.core.ProbePolicy.TCP) { applySettings(draft.copy(probeUrlOnly = it)) }
                     Text(tr(R.string.msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.set_cat_routing) -> {
@@ -306,12 +307,9 @@ import org.mothvpn.core.SubscriptionSchedule
                     Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111))
                     SettingsCategory(tr(R.string.set_changelog), "", "changelog") { section = tr(R.string.set_changelog); logPage = 3 }
                     SettingsCategory(tr(R.string.set_licenses), tr(R.string.set_licenses_sum), "licenses") { section = tr(R.string.set_licenses); logPage = 4 }
+                    // Opens the browser, not a page: same card, no container transform, an "open in new" mark instead of the arrow.
                     val uri = androidx.compose.ui.platform.LocalUriHandler.current
-                    FilledTonalButton(onClick = { runCatching { uri.openUri("https://github.com/Bu11t0N/Moth") } }, modifier = Modifier.pressScale().fillMaxWidth().heightIn(min = 48.dp)) {
-                        Icon(androidx.compose.material.icons.Icons.Outlined.Code, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp)); Text(tr(R.string.about_github))
-                        Spacer(Modifier.width(6.dp)); Icon(androidx.compose.material.icons.Icons.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                    }
+                    SettingsCategory(tr(R.string.about_github), "github.com/Bu11t0N/Moth", "github", external = true) { runCatching { uri.openUri("https://github.com/Bu11t0N/Moth") } }
                 }
             }
             AnimatedVisibility(error.isNotEmpty()) { Text(error, color = MaterialTheme.colorScheme.error) }
@@ -324,9 +322,10 @@ import org.mothvpn.core.SubscriptionSchedule
     }
 }
 
-@Composable private fun SettingsCategory(title: String, subtitle: String, icon: String, open: () -> Unit) {
+@Composable private fun SettingsCategory(title: String, subtitle: String, icon: String, external: Boolean = false, open: () -> Unit) {
     // The card is the start/end of its page's container transform (key = icon name) and shrinks slightly while pressed.
-    Card(Modifier.containerTransform(icon).pressScale().fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
+    // [external]: a link that opens the browser: no container transform, and an "open in new" mark instead of the arrow.
+    Card(Modifier.containerTransform(if (external) null else icon).pressScale().fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
         Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             // A monochrome icon in a grey rounded-square tile (no colours, no circle).
             IconTile(categoryIcon(icon))
@@ -335,7 +334,8 @@ import org.mothvpn.core.SubscriptionSchedule
                 if (subtitle.isNotEmpty()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
-            Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(if (external) androidx.compose.material.icons.Icons.Outlined.OpenInNew else androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -343,7 +343,7 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
     when (name) {
         "connection" -> PowerSettingsNew; "split" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.CallSplit; "routing" -> Dns
         "subscription" -> CardMembership; "stats" -> BarChart; "interface" -> Palette; "updates" -> SystemUpdate
-        "about" -> Info; "rules" -> AltRoute; "backup" -> SettingsBackupRestore; "changelog" -> History; "licenses" -> Description; else -> Code
+        "about" -> Info; "rules" -> AltRoute; "backup" -> SettingsBackupRestore; "changelog" -> History; "licenses" -> Description; "github" -> Code; else -> Code
     }
 }
 @Composable private fun SectionHeader(text: String) {
