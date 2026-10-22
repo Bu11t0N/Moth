@@ -10,6 +10,8 @@ Not released yet.
 
 - The server check and the connection check use only the HTTPS address set in Settings; the “Use only this address” switch is gone and there are no built-in backup addresses.
 - About: the GitHub link now looks like the other items.
+- Auto-select can be turned on separately for Wi-Fi and for mobile data; the setting of the network you are on applies.
+- Softer button colours: grey instead of near-white in the dark theme and dark grey instead of black in the light theme.
 
 ## 0.7.2
 

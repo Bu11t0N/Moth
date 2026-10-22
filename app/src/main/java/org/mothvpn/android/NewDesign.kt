@@ -85,7 +85,7 @@ object NewDesignRow {
  */
 object MonoTheme {
     val dark = darkColorScheme(
-        primary = Color(0xFFF2F2F2), onPrimary = Color(0xFF000000), primaryContainer = Color(0xFF3D3D3D), onPrimaryContainer = Color(0xFFFFFFFF),
+        primary = Color(0xFFC9C9C9), onPrimary = Color(0xFF000000), primaryContainer = Color(0xFF3D3D3D), onPrimaryContainer = Color(0xFFFFFFFF),
         secondary = Color(0xFFBDBDBD), onSecondary = Color(0xFF000000), secondaryContainer = Color(0xFF2C2C2C), onSecondaryContainer = Color(0xFFF2F2F2),
         tertiary = Color(0xFFBDBDBD), onTertiary = Color(0xFF000000), tertiaryContainer = Color(0xFF2C2C2C), onTertiaryContainer = Color(0xFFF2F2F2),
         background = Color(0xFF0A0A0A), onBackground = Color(0xFFF2F2F2), surface = Color(0xFF0A0A0A), onSurface = Color(0xFFF2F2F2),
@@ -95,7 +95,7 @@ object MonoTheme {
         surfaceBright = Color(0xFF363636), surfaceDim = Color(0xFF0A0A0A), surfaceContainerLowest = Color(0xFF050505), surfaceContainerLow = Color(0xFF141414),
         surfaceContainer = Color(0xFF1C1C1C), surfaceContainerHigh = Color(0xFF262626), surfaceContainerHighest = Color(0xFF313131))
     val light = lightColorScheme(
-        primary = Color(0xFF111111), onPrimary = Color(0xFFFFFFFF), primaryContainer = Color(0xFFCFCFCF), onPrimaryContainer = Color(0xFF000000),
+        primary = Color(0xFF3A3A3A), onPrimary = Color(0xFFFFFFFF), primaryContainer = Color(0xFFCFCFCF), onPrimaryContainer = Color(0xFF000000),
         secondary = Color(0xFF555555), onSecondary = Color(0xFFFFFFFF), secondaryContainer = Color(0xFFE6E6E6), onSecondaryContainer = Color(0xFF111111),
         tertiary = Color(0xFF555555), onTertiary = Color(0xFFFFFFFF), tertiaryContainer = Color(0xFFE6E6E6), onTertiaryContainer = Color(0xFF111111),
         background = Color(0xFFFBFBFB), onBackground = Color(0xFF111111), surface = Color(0xFFFBFBFB), onSurface = Color(0xFF111111),
@@ -340,7 +340,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
         if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
         val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
-        if (filterHidesAll && settings.autoSelect && settings.filterFor(network.kind).keywords.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
+        if (filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).keywords.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error, maxLines = 3, overflow = TextOverflow.Ellipsis)
         // The whole bar is one touch target: it opens the server sheet.
         // Hero card: the inverse tone (light fill in the dark theme, dark fill in the light theme) with its own readable colours.

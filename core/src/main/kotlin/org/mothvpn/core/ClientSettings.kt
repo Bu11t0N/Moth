@@ -28,7 +28,9 @@ data class ClientSettings(
     /** Automatic subscription update interval in hours: 0 (off), 6, 12 or 24. */
     val subUpdateHours: Int = 0,
     /** Pick the fastest server on connect and switch to the next one when health checks keep failing. */
-    val autoSelect: Boolean = false,
+    /** Auto-select and failover, separately for Wi-Fi (and any non-mobile network) and mobile data. */
+    val autoSelectWifi: Boolean = false,
+    val autoSelectMobile: Boolean = false,
     /** Connect to the last server when the phone starts. */
     val bootConnect: Boolean = false,
     /** Strict routing: DNS and traffic cannot bypass the tunnel. */
@@ -67,6 +69,9 @@ data class ClientSettings(
     fun withDefaultDeviceInfo() = copy(deviceOs = "", deviceOsVersion = "", deviceModel = "")
     /** The filter of a network kind ("wifi" or "mobile"; anything else is Wi-Fi). */
     fun filterFor(kind: String) = if (kind == "mobile") mobileFilter else wifiFilter
+    /** Auto-select for the network kind in use ("mobile", anything else counts as Wi-Fi, as for [filterFor]). */
+    fun autoSelectFor(kind: String) = if (kind == "mobile") autoSelectMobile else autoSelectWifi
+    val autoSelectAny get() = autoSelectWifi || autoSelectMobile
     fun withFilter(kind: String, rule: ServerFilter.Rule) = if (kind == "mobile") copy(mobileFilter = rule) else copy(wifiFilter = rule)
     /** The default user agent follows the app version; "Moth", "Moth/0.2" etc. become "Moth/<version>". Custom values are kept. */
     fun withAppVersion(version: String): ClientSettings =
@@ -120,7 +125,7 @@ data class ClientSettings(
         .put("probeMode", probeMode).put("bootstrapDns", bootstrapDns)
         .put("probeParallel", probeParallel).put("probeTimeoutMs", probeTimeoutMs).put("updateChannel", updateChannel).put("detailedIcons", detailedIcons)
         .put("splitMode", splitMode).put("splitApps", org.json.JSONArray(splitApps)).put("directRu", directRu).put("subUpdateHours", subUpdateHours)
-        .put("autoSelect", autoSelect).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
+        .put("autoSelectWifi", autoSelectWifi).put("autoSelectMobile", autoSelectMobile).put("autoSelect", autoSelectAny).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
         .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("amoled", amoled)
@@ -145,7 +150,8 @@ data class ClientSettings(
             splitApps = j.optJSONArray("splitApps")?.let { a -> (0 until a.length()).map { a.getString(it) }.filter(SplitTunnel::validPackage).distinct() }.orEmpty(),
             directRu = j.optBoolean("directRu", false),
             subUpdateHours = SubscriptionSchedule.normalize(j.optInt("subUpdateHours", 0)),
-            autoSelect = j.optBoolean("autoSelect", false), bootConnect = j.optBoolean("bootConnect", false),
+            // 0.7.2 and earlier: one "autoSelect" for both networks; it seeds both.
+            autoSelectWifi = j.optBoolean("autoSelectWifi", j.optBoolean("autoSelect", false)), autoSelectMobile = j.optBoolean("autoSelectMobile", j.optBoolean("autoSelect", false)), bootConnect = j.optBoolean("bootConnect", false),
             dnsLeakProtection = j.optBoolean("dnsLeakProtection", true),
             killSwitch = j.optBoolean("killSwitch", false),
             favorites = j.optJSONArray("favorites")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { Regex("[0-9a-f]{16,64}").matches(it) }.distinct().take(5000) }.orEmpty(),

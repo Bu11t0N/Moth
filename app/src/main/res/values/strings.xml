@@ -249,7 +249,8 @@
     <string name="split_show_system">Show system apps</string>
     <string name="direct_ru">Russian sites and IPs directly</string>
     <string name="direct_ru_hint">Russian sites (.ru, .su, .рф and the geosite category-ru list) and Russian IP addresses (geoip:ru) open without the VPN. Lists are downloaded from SagerNet and updated weekly.</string>
-    <string name="auto_select">Auto-select the best server</string>
+    <string name="auto_select_wifi">Auto-select on Wi-Fi</string>
+    <string name="auto_select_mobile">Auto-select on mobile data</string>
     <string name="auto_select_hint">On connect, the fastest server is used (results of a check made in the last 5 minutes are reused, otherwise all servers are checked). If the internet check fails 3 times in a row, Moth switches to the next fastest server.</string>
     <string name="boot_connect">Start VPN when the phone turns on</string>
     <string name="boot_connect_hint">Connects to the last server after a restart. Android\'s Always-on VPN (system VPN settings) is also supported.</string>
@@ -309,6 +310,8 @@
     <string name="set_head_health">Tunnel health check</string>
     <string name="set_head_probes">Server checks</string>
     <string name="set_short_auto">Auto-select</string>
+    <string name="set_short_auto_wifi">Auto-select: Wi-Fi</string>
+    <string name="set_short_auto_mobile">Auto-select: mobile</string>
     <string name="set_short_ks">Kill switch</string>
     <string name="set_short_boot">Start on boot</string>
     <string name="set_short_health">Health check</string>

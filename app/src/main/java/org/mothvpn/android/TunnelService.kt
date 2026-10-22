@@ -190,7 +190,7 @@ class TunnelService : VpnService(), PlatformInterface {
             stage = "load settings/profile"
             val settings = SettingsStore(this).load(); activeSettings = settings
             val subscription = SubscriptionStore(this).load() ?: error("Missing subscription")
-            when (Reselect.startPlan(tunnelUp, settings.autoSelect, pickBest, subscription.profiles.size)) {
+            when (Reselect.startPlan(tunnelUp, settings.autoSelectFor(NetworkTracker.read(connectivity).kind), pickBest, subscription.profiles.size)) {
                 Reselect.StartPlan.MEASURE_THEN_CONNECT -> if (!stopped) { stage = "auto select"; id = pickFastest(subscription, settings) ?: id }
                 Reselect.StartPlan.MEASURE_WHILE_UP -> {
                     stage = "auto select (tunnel up)"
@@ -212,7 +212,7 @@ class TunnelService : VpnService(), PlatformInterface {
             val started = profile
             activeEngine = profile.engine; activeKind = trackedKind()
             serverName = profile.name; foreground() // the name is shown in the notification only, never logged
-            Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled} split=${settings.splitMode} directRu=${settings.directRu} auto=${settings.autoSelect}")
+            Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled} split=${settings.splitMode} directRu=${settings.directRu} auto(wifi/mobile)=${settings.autoSelectWifi}/${settings.autoSelectMobile}")
             val ruleSets = if (settings.directRu) { stage = "rule sets"; RuleSetCache.prepare(this, connectivity) } else emptyMap()
             var dpi: LocalHop? = null
             if (profile.engine == "xray") {
@@ -600,7 +600,8 @@ class TunnelService : VpnService(), PlatformInterface {
             Diagnostics.healthMutable.value = next
             if (next.failures == 0) { emptyRounds = 0; remeasureNotBefore = 0 }
             // A manual pick is kept while it answers; once it is dead, failover runs as for any server (plain servers only).
-            if (Reselect.failoverDue(settings.autoSelect, next.failures, ServerPicker.failoverAfter)) failover(current)
+            // Auto-select / failover of the network in use (a change of network type applies its own setting from then on).
+            if (Reselect.failoverDue(settings.autoSelectFor(NetworkTracker.read(connectivity).kind), next.failures, ServerPicker.failoverAfter)) failover(current)
         }
     }
     /** [only]: check just these servers (one subscription from its header menu); empty = all. */
@@ -892,7 +893,7 @@ class TunnelService : VpnService(), PlatformInterface {
             val subscription = runCatching { SubscriptionStore(this).load() }.getOrNull()
             val decision = if (subscription == null || previous.isEmpty() || kind == "none") org.mothvpn.core.NetworkServerChoice.Decision.Keep
                 else org.mothvpn.core.NetworkServerChoice.decide(previous, kind, TunnelStatus.activeProfile.value.ifBlank { targetId }, subscription.selection(kind),
-                    subscription.profiles.map { it.id }.toSet(), runCatching { SettingsStore(this).load().autoSelect }.getOrDefault(activeSettings.autoSelect), manualPick)
+                    subscription.profiles.map { it.id }.toSet(), runCatching { SettingsStore(this).load() }.getOrDefault(activeSettings).autoSelectFor(kind), manualPick)
             if (decision !is org.mothvpn.core.NetworkServerChoice.Decision.Keep) {
                 Logger.i("Tunnel", "network type $previous -> $kind: ${if (decision is org.mothvpn.core.NetworkServerChoice.Decision.Switch) "switching to the server selected for $kind" else "auto-selecting on the $kind list"}")
                 val id = (decision as? org.mothvpn.core.NetworkServerChoice.Decision.Switch)?.id ?: TunnelStatus.activeProfile.value.ifBlank { targetId }

@@ -102,7 +102,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     val loc = AppLanguage.context().resources.configuration.locales[0]
                     val units = tr(R.string.notif_units).split("|")
                     val today = stats.day(java.time.LocalDate.now())
-                    val onOff = listOfNotNull(tr(R.string.set_short_auto).takeIf { draft.autoSelect }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
+                    val onOff = listOfNotNull(when { draft.autoSelectWifi && draft.autoSelectMobile -> tr(R.string.set_short_auto); draft.autoSelectWifi -> tr(R.string.set_short_auto_wifi); draft.autoSelectMobile -> tr(R.string.set_short_auto_mobile); else -> null }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
                         tr(R.string.set_short_boot).takeIf { draft.bootConnect }, tr(R.string.set_short_health).takeIf { draft.healthEnabled })
                     val theme = when (draft.theme) { "dark" -> tr(R.string.set_theme_dark); "light" -> tr(R.string.set_theme_light); else -> tr(R.string.set_theme_auto) }
                     val split = when (draft.splitMode) { "only" -> tr(R.string.set_split_only, draft.splitApps.size); "bypass" -> tr(R.string.set_split_bypass, draft.splitApps.size); else -> tr(R.string.set_split_off) }
@@ -120,7 +120,9 @@ import org.mothvpn.core.SubscriptionSchedule
                 }
                 tr(R.string.msg_connection_75) -> {
                     LiveApplyHint()
-                    SettingsToggle(tr(R.string.auto_select), draft.autoSelect, !locked) { applySettings(draft.copy(autoSelect = it)) }
+                    // Separate auto-select for Wi-Fi and mobile data; the one of the network in use applies.
+                    SettingsToggle(tr(R.string.auto_select_wifi), draft.autoSelectWifi, !locked) { applySettings(draft.copy(autoSelectWifi = it)) }
+                    SettingsToggle(tr(R.string.auto_select_mobile), draft.autoSelectMobile, !locked) { applySettings(draft.copy(autoSelectMobile = it)) }
                     Text(tr(R.string.auto_select_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsCategory(tr(R.string.rules_title), if (draft.routingRules.isEmpty()) tr(R.string.rules_sum_none) else tr(R.string.rules_sum_count, draft.routingRules.size), "rules") { section = tr(R.string.rules_title) }
                     SettingsToggle(tr(R.string.kill_switch), draft.killSwitch) { applySettings(draft.copy(killSwitch = it)) }

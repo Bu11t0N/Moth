@@ -24,7 +24,7 @@ object LogFacts {
         plain("updateChannel", old.updateChannel.ifEmpty { "auto" }, new.updateChannel.ifEmpty { "auto" })
         plain("splitMode", old.splitMode, new.splitMode); plain("splitApps", old.splitApps.size, new.splitApps.size)
         plain("directRu", old.directRu, new.directRu); plain("subUpdateHours", old.subUpdateHours, new.subUpdateHours)
-        plain("autoSelect", old.autoSelect, new.autoSelect); plain("bootConnect", old.bootConnect, new.bootConnect)
+        plain("autoSelectWifi", old.autoSelectWifi, new.autoSelectWifi); plain("autoSelectMobile", old.autoSelectMobile, new.autoSelectMobile); plain("bootConnect", old.bootConnect, new.bootConnect)
         plain("dnsLeakProtection", old.dnsLeakProtection, new.dnsLeakProtection)
         plain("killSwitch", old.killSwitch, new.killSwitch); plain("favorites", old.favorites.size, new.favorites.size)
         plain("expiryWarning", old.expiryWarning, new.expiryWarning)
