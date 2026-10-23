@@ -4,13 +4,16 @@ import java.net.URI
 
 /** Per-app split tunneling: which packages go to VpnService.Builder.addAllowedApplication / addDisallowedApplication. */
 object SplitTunnel {
-    val modes = listOf("off", "only", "bypass")
+    /** "bypass" first (the default); with nothing selected both modes put every app in the VPN. "off" existed until 0.7.3 (see [migrateMode]). */
+    val modes = listOf("bypass", "only")
+    /** A saved mode from any version: 0.7.3 and earlier had "off" (same as an empty list), it and unknown values become "bypass". */
+    fun migrateMode(saved: String): String = saved.takeIf { it in modes } ?: "bypass"
     private val packageName = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+")
     fun validPackage(name: String) = name.length <= 255 && packageName.matches(name)
     data class Plan(val allowed: List<String>, val disallowed: List<String>)
     /**
      * "only": the selected apps plus Moth itself (its health checks run through the VPN); with nothing selected the VPN applies to all apps.
-     * "bypass": the selected apps except Moth. Moth itself always stays in the VPN, exactly as before; the cores protect their own sockets.
+     * "bypass": the selected apps except Moth; with nothing selected the VPN applies to all apps. Moth itself always stays in the VPN, exactly as before; the cores protect their own sockets.
      */
     fun plan(mode: String, apps: List<String>, self: String): Plan {
         val chosen = apps.filter { it != self && validPackage(it) }.distinct().sorted()

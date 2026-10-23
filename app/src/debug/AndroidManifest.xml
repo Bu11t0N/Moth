@@ -1,3 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <!-- E2E only: the split-tunnel helper has no launcher icon, so the release <queries> (launcher apps) would hide it from VpnService.Builder. -->
+    <queries>
+        <package android:name="org.mothvpn.e2ehelper" />
+    </queries>
     <application android:networkSecurityConfig="@xml/e2e_network_security" tools:replace="android:networkSecurityConfig" />
 </manifest>

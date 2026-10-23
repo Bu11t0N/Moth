@@ -21,9 +21,37 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.mothvpn.core.ClientSettings
 
-private class AppEntry(val packageName: String, val label: String, val system: Boolean)
+private class AppEntry(val packageName: String, val label: String, val system: Boolean, val unlisted: Boolean = false)
 
-/** Per-app split tunneling: mode dialog row, search and the list of installed apps that use the internet. */
+/**
+ * The apps split tunneling offers: only apps with an icon on the home screen / in the app drawer (<queries> MAIN/LAUNCHER in the manifest,
+ * no QUERY_ALL_PACKAGES), and of those only the ones that can use the network (INTERNET permission). Moth itself is left out.
+ * System apps with an icon are marked (shown behind "Show system apps"). Call off the main thread.
+ */
+private fun listedApps(context: android.content.Context): List<AppEntry> {
+    val pm = context.packageManager
+    return listedPackages(context).map { (p, info) ->
+        AppEntry(p.packageName, info.loadLabel(pm).toString(), info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0)
+    }
+}
+private fun listedPackages(context: android.content.Context): List<Pair<android.content.pm.PackageInfo, ApplicationInfo>> {
+    val pm = context.packageManager
+    @Suppress("DEPRECATION")
+    val launchable = pm.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER), 0)
+        .map { it.activityInfo.packageName }.toSet()
+    return launchable.filter { it != context.packageName }.mapNotNull { name ->
+        @Suppress("DEPRECATION")
+        val p = runCatching { pm.getPackageInfo(name, PackageManager.GET_PERMISSIONS) }.getOrNull() ?: return@mapNotNull null
+        val info = p.applicationInfo ?: return@mapNotNull null
+        if (p.requestedPermissions?.contains(android.Manifest.permission.INTERNET) != true) return@mapNotNull null
+        p to info
+    }
+}
+
+/** Package names split tunneling lists ([listedApps], without loading labels); the Settings summary does not count selected apps outside it. */
+fun splitListedPackages(context: android.content.Context): Set<String> = listedPackages(context).map { it.first.packageName }.toSet()
+
+/** Per-app split tunneling: mode dialog row, search and the list of home-screen apps that use the internet. */
 @Composable fun SplitTunnelPage(saved: ClientSettings, enabledOff: Boolean, applyNow: (ClientSettings) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     // Editable while connected (both designs): every tap is saved at once; MainActivity reconnects once, 5 s after the last change.
@@ -38,23 +66,16 @@ private class AppEntry(val packageName: String, val label: String, val system: B
     LaunchedEffect(Unit) {
         apps = withContext(Dispatchers.IO) {
             runCatching {
-                // Every installed package of this user (QUERY_ALL_PACKAGES), not only apps with a launcher icon. Apps that cannot use the
-                // network (no INTERNET permission) are left out: routing them changes nothing. System apps stay behind the "Show system apps" box.
-                @Suppress("DEPRECATION")
-                val found = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS).filter { it.packageName != context.packageName }.mapNotNull { p ->
-                    val info = p.applicationInfo ?: return@mapNotNull null
-                    if (p.requestedPermissions?.contains(android.Manifest.permission.INTERNET) != true) return@mapNotNull null
-                    AppEntry(p.packageName, info.loadLabel(pm).toString(), info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0)
-                }
-                // Apps chosen earlier that are no longer installed stay in the list so they can be unchecked.
-                (found + settings.splitApps.filter { id -> found.none { it.packageName == id } }.map { AppEntry(it, it, false) })
+                val found = listedApps(context)
+                // Apps chosen earlier that are no longer listed (uninstalled, or without a home-screen icon) stay in the list so they can be unchecked.
+                (found + settings.splitApps.filter { id -> found.none { it.packageName == id } }.map { AppEntry(it, it, false, unlisted = true) })
                     .sortedBy { it.label.lowercase() }
             }.onFailure { Logger.w("Split", "listing apps failed", it) }.getOrDefault(emptyList())
         }
     }
-    val modes = listOf("off" to tr(R.string.split_mode_off), "only" to tr(R.string.split_mode_only), "bypass" to tr(R.string.split_mode_bypass))
+    val modes = listOf("bypass" to tr(R.string.split_mode_bypass), "only" to tr(R.string.split_mode_only))
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        DialogRow(tr(R.string.split_mode), modes.first { it.first == settings.splitMode }.second, enabled) { modeDialog = true }
+        DialogRow(tr(R.string.split_mode), (modes.firstOrNull { it.first == settings.splitMode } ?: modes.first()).second, enabled) { modeDialog = true }
         OutlinedTextField(search, { search = it }, label = { Text(tr(R.string.split_search)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.pressScale().fillMaxWidth().clickable { showSystem = !showSystem }) {
             Checkbox(showSystem, { showSystem = it }); Text(tr(R.string.split_show_system))
@@ -78,7 +99,7 @@ private class AppEntry(val packageName: String, val label: String, val system: B
                         Box(Modifier.size(40.dp)) { icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) } }
                         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                             Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(app.packageName, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(if (app.unlisted) tr(R.string.split_unlisted) else app.packageName, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         Checkbox(checked, { toggle() }, enabled = enabled)
                     }

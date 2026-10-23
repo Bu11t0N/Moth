@@ -21,8 +21,8 @@ data class ClientSettings(
     val updateChannel: String = "",
     /** Developer option: small icons with explanations instead of the red dash for failed server checks. */
     val detailedIcons: Boolean = false,
-    /** Per-app split tunneling: "off", "only" (only the selected apps use the VPN) or "bypass" (selected apps bypass the VPN). */
-    val splitMode: String = "off", val splitApps: List<String> = emptyList(),
+    /** Per-app split tunneling: "bypass" (selected apps bypass the VPN, the default) or "only" (only the selected apps use the VPN); an empty list puts every app in the VPN. */
+    val splitMode: String = "bypass", val splitApps: List<String> = emptyList(),
     /** Russian sites and IP addresses go directly, not through the server. */
     val directRu: Boolean = false,
     /** Automatic subscription update interval in hours: 0 (off), 6, 12 or 24. */
@@ -146,8 +146,10 @@ data class ClientSettings(
                 else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(500, 30000),
             j.optString("updateChannel", "").takeIf { it in setOf("release", "beta") } ?: "",
             j.optBoolean("detailedIcons", false)).copy(
-            splitMode = j.optString("splitMode", "off").takeIf { it in SplitTunnel.modes } ?: "off",
-            splitApps = j.optJSONArray("splitApps")?.let { a -> (0 until a.length()).map { a.getString(it) }.filter(SplitTunnel::validPackage).distinct() }.orEmpty(),
+            splitMode = SplitTunnel.migrateMode(j.optString("splitMode", "bypass")),
+            // 0.7.3 and earlier: apps ticked under "off" (or an unknown mode) were not applied; they must not start bypassing the VPN now.
+            splitApps = if (j.optString("splitMode", "bypass") !in SplitTunnel.modes) emptyList()
+                else j.optJSONArray("splitApps")?.let { a -> (0 until a.length()).map { a.getString(it) }.filter(SplitTunnel::validPackage).distinct() }.orEmpty(),
             directRu = j.optBoolean("directRu", false),
             subUpdateHours = SubscriptionSchedule.normalize(j.optInt("subUpdateHours", 0)),
             // 0.7.2 and earlier: one "autoSelect" for both networks; it seeds both.

@@ -28,7 +28,7 @@ import org.mothvpn.core.ServerEditor
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = cancel, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) }
-                    Button(onClick = {
+                    NdButton(onClick = {
                         when (val r = ServerEditor.validate(text, profile.engine)) {
                             is ServerEditor.Result.Ok -> save(r.outbound)
                             is ServerEditor.Result.Invalid -> error = tr(when (r.error) {

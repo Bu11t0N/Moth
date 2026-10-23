@@ -242,9 +242,9 @@
     <string name="share_copy">Copy link</string>
     <string name="split_title">Split tunneling</string>
     <string name="split_mode">Mode</string>
-    <string name="split_mode_off">Off: all apps use the VPN</string>
-    <string name="split_mode_only">Only selected apps use the VPN</string>
+    <string name="split_mode_only">Selected apps use the VPN</string>
     <string name="split_mode_bypass">Selected apps bypass the VPN</string>
+    <string name="split_unlisted">Not on the home screen: tap to remove</string>
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
     <string name="direct_ru">Russian sites and IPs directly</string>

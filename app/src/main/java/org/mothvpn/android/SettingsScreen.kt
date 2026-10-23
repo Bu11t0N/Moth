@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -30,10 +31,13 @@ import org.mothvpn.core.SubscriptionSchedule
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}, restore: (org.mothvpn.core.Backup.Content) -> Unit = {}, rootRequest: Int = 0) {
     var draft by remember(initial) { mutableStateOf(initial) }
-    var section by remember { mutableStateOf<String?>(if (startUpdates) tr(R.string.update_title) else null) }
+    // The open page survives the activity being recreated (process death, theme or language change) like the selected tab does, so
+    // coming back shows the same page. Saved as a string resource id, not the title, so a language change still finds the page.
+    // Sheets and dialogs are not restored (closed on recreation, on every tab and page alike).
+    var section by rememberSaveable(saver = SettingsSections.saver) { mutableStateOf<String?>(if (startUpdates) tr(R.string.update_title) else null) }
     LaunchedEffect(Unit) { if (startUpdates) started() }
-    var logPage by remember { mutableStateOf(0) } // 0 none, 1 log, 2 crash log, 3 changelog, 4 licenses, 5 license text
-    var licenseAsset by remember { mutableStateOf("") }
+    var logPage by rememberSaveable { mutableStateOf(0) } // 0 none, 1 log, 2 crash log, 3 changelog, 4 licenses, 5 license text
+    var licenseAsset by rememberSaveable { mutableStateOf("") }
     var mtu by remember(initial) { mutableStateOf(initial.mtu.toString()) }
     var timeout by remember(initial) { mutableStateOf(initial.timeoutMs.toString()) }
     var pingTimeout by remember(initial) { mutableStateOf(initial.probeTimeoutMs.toString()) }
@@ -105,7 +109,10 @@ import org.mothvpn.core.SubscriptionSchedule
                     val onOff = listOfNotNull(when { draft.autoSelectWifi && draft.autoSelectMobile -> tr(R.string.set_short_auto); draft.autoSelectWifi -> tr(R.string.set_short_auto_wifi); draft.autoSelectMobile -> tr(R.string.set_short_auto_mobile); else -> null }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
                         tr(R.string.set_short_boot).takeIf { draft.bootConnect }, tr(R.string.set_short_health).takeIf { draft.healthEnabled })
                     val theme = when (draft.theme) { "dark" -> tr(R.string.set_theme_dark); "light" -> tr(R.string.set_theme_light); else -> tr(R.string.set_theme_auto) }
-                    val split = when (draft.splitMode) { "only" -> tr(R.string.set_split_only, draft.splitApps.size); "bypass" -> tr(R.string.set_split_bypass, draft.splitApps.size); else -> tr(R.string.set_split_off) }
+                    // Selected apps that the list no longer offers (no home-screen icon, uninstalled) are not counted; none left = "Off".
+                    val listed by produceState<Set<String>?>(null, draft.splitApps) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { splitListedPackages(ctxMenu) }.getOrNull() } }
+                    val splitCount = listed?.let { l -> draft.splitApps.count { it in l } } ?: draft.splitApps.size
+                    val split = when { splitCount == 0 -> tr(R.string.set_split_off); draft.splitMode == "only" -> tr(R.string.set_split_only, splitCount); else -> tr(R.string.set_split_bypass, splitCount) }
                     val subAuto = if (draft.subUpdateHours == 0) tr(R.string.set_sum_sub_off) else tr(R.string.set_sum_sub_hours, draft.subUpdateHours)
                     SettingsCategory(tr(R.string.msg_connection_75), onOff.joinToString(" · ").ifEmpty { tr(R.string.set_sum_defaults) }, "connection") { section = tr(R.string.msg_connection_75) }
                     SettingsCategory(tr(R.string.split_title), split, "split") { section = tr(R.string.split_title) }
@@ -392,6 +399,16 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
 }
 
 /** The device info Moth sends by default (same values as the subscription headers) and what it sends with [settings]. */
+/** Settings pages by title (the page key used by [SettingsScreen]); saved by string resource id. */
+object SettingsSections {
+    private val ids = listOf(R.string.msg_connection_75, R.string.split_title, R.string.set_cat_routing, R.string.set_cat_subscription, R.string.stats_title,
+        R.string.msg_appearance_74, R.string.update_title, R.string.backup_title, R.string.msg_about_78, R.string.dev_for_developers, R.string.rules_title,
+        R.string.set_changelog, R.string.set_licenses)
+    val saver: androidx.compose.runtime.saveable.Saver<androidx.compose.runtime.MutableState<String?>, Int> = androidx.compose.runtime.saveable.Saver(
+        save = { state -> state.value?.let { title -> ids.firstOrNull { tr(it) == title } } ?: 0 },
+        restore = { id -> mutableStateOf(ids.firstOrNull { it == id }?.let { tr(it) }) })
+}
+
 object DeviceDefaults {
     val values get() = listOf("Android", org.mothvpn.core.DeviceInfo.clean(android.os.Build.VERSION.RELEASE.orEmpty(), 64),
         org.mothvpn.core.DeviceInfo.clean("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}", 120))
@@ -456,7 +473,7 @@ object DeviceDefaults {
                     shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
                     keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { if (ok) choose(custom) }))
-                Button(onClick = { choose(custom) }, enabled = ok, modifier = Modifier.pressScale(enabled = ok).align(Alignment.End)) { Text(tr(R.string.sub_save)) }
+                NdButton(onClick = { choose(custom) }, enabled = ok, modifier = Modifier.pressScale(enabled = ok).align(Alignment.End)) { Text(tr(R.string.sub_save)) }
             }
         }
     }
