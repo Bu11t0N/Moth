@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.first
 class MainActivity : AppCompatActivity() {
     companion object {
         const val CONNECT_FROM_TILE = "org.mothvpn.android.CONNECT_FROM_TILE"
+        private const val LAUNCH_HANDLED = "moth_launch_intent_handled"
         /** Debounced "apply connection settings" reconnect; process-wide so it survives the activity. */
         private val reconnectScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Main)
         private var reconnectJob: kotlinx.coroutines.Job? = null
@@ -96,6 +97,10 @@ class MainActivity : AppCompatActivity() {
         @Suppress("DEPRECATION")
         val restoredAction = state?.getParcelable<Intent>("pending_vpn_action")
         pendingAction = restoredAction
+        // Recreated after Android closed the process in the background: getIntent() is the original launch intent again, without the
+        // "handled" marks added in memory. A tile long-press, tile/widget connect or link that already ran must not run again
+        // (it forced the home tab and could reconnect or show the import dialog again).
+        if (state?.getBoolean(LAUNCH_HANDLED, false) == true) intent?.let { markHandled(it); Logger.i("Main", "restored: launch request already handled") }
         window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         store = SubscriptionStore(this)
         networks = NetworkTracker(this)
@@ -475,6 +480,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putParcelable("pending_vpn_action", pendingAction)
+        outState.putBoolean(LAUNCH_HANDLED, settingsApplied.value != null)
         super.onSaveInstanceState(outState)
     }
     /** Links such as moth://import-sub?url=… or vless://…: parsed here, imported only after the user confirms. */
@@ -488,6 +494,9 @@ class MainActivity : AppCompatActivity() {
         Logger.i("DeepLink", "link opened (scheme=$scheme, ${when (action) { null -> "not recognised"; is org.mothvpn.core.DeepLinks.Action.Subscription -> "subscription"; is org.mothvpn.core.DeepLinks.Action.Links -> "server links" }})")
         if (action == null) { message = tr(R.string.import_invalid); return }
         deepLink = action
+    }
+    private fun markHandled(i: Intent) {
+        i.putExtra("moth_tile_prefs_handled", true); i.putExtra("moth_deeplink_handled", true); i.removeExtra(CONNECT_FROM_TILE)
     }
     /** Bumped by a long-press on the Quick Settings tile (ACTION_QS_TILE_PREFERENCES): the window switches to the home tab. */
     private var homeRequest by androidx.compose.runtime.mutableIntStateOf(0)

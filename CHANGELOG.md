@@ -11,7 +11,7 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 - Split tunneling lists only the apps with an icon on the home screen that use the internet, as before. Moth no longer asks to see all installed apps.
 - Split tunneling has two modes: “Selected apps bypass the VPN” (the default, now first) and “Selected apps use the VPN”. The “Off” mode is gone: with no apps selected, every app uses the VPN. Apps selected while the mode was “Off” are cleared.
 - Selected apps that are no longer listed are shown with a note and not counted.
-- Coming back to Moth after Android closed it in the background opens the settings page you left instead of the main settings list; open sheets and dialogs are closed.
+- Coming back to Moth after Android closed it in the background opens the settings page you left instead of the main settings list; open sheets and dialogs are closed. If Moth was opened from the Quick Settings tile, the widget, a notification or a link, that action no longer runs again on return, so Moth no longer jumps to the home screen and does not reconnect or ask to import again.
 
 ## 0.7.3
 
