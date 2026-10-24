@@ -10,7 +10,6 @@ Released 2026-10-24.
 
 - Buttons use the colour of the theme with a light outline instead of standing out in light grey or black.
 - The server bar on the home screen looks like the cards above it: the same colour and shape, without an outline.
-- Closing all apps in the recent apps screen no longer turns the VPN off.
 - Split tunneling lists only the apps with an icon on the home screen that use the internet, as before. Moth no longer asks to see all installed apps.
 - Split tunneling has two modes: “Selected apps bypass the VPN” (the default, now first) and “Selected apps use the VPN”. The “Off” mode is gone: with no apps selected, every app uses the VPN. Apps selected while the mode was “Off” are cleared.
 - Selected apps that are no longer listed are shown with a note and not counted.
