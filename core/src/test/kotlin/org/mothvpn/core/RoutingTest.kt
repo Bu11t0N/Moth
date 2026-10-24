@@ -10,13 +10,13 @@ class RoutingTest {
         assertEquals(SplitTunnel.Plan(listOf("a.b", "c.d", "org.mothvpn.android"), emptyList()), SplitTunnel.plan("only", listOf("c.d", "a.b", "org.mothvpn.android"), "org.mothvpn.android"))
         assertEquals(SplitTunnel.Plan(emptyList(), listOf("a.b")), SplitTunnel.plan("bypass", listOf("a.b", "org.mothvpn.android"), "org.mothvpn.android"))
         assertEquals(SplitTunnel.Plan(emptyList(), emptyList()), SplitTunnel.plan("only", emptyList(), "org.mothvpn.android"))
-        assertEquals(SplitTunnel.Plan(emptyList(), emptyList()), SplitTunnel.plan("off", listOf("a.b"), "x.y"))
+        assertEquals(SplitTunnel.Plan(emptyList(), emptyList()), SplitTunnel.plan("bypass", emptyList(), "x.y"))
         assertFalse(SplitTunnel.validPackage("bad"))
         assertFailsWith<IllegalArgumentException> { ClientSettings(splitMode = "all").validate() }
     }
     @Test fun settingsRoundTripAndDefaults() {
         val d = ClientSettings()
-        assertEquals("off", d.splitMode); assertFalse(d.directRu); assertEquals(0, d.subUpdateHours); assertFalse(d.autoSelectWifi); assertFalse(d.autoSelectMobile); assertFalse(d.bootConnect); assertTrue(d.dnsLeakProtection)
+        assertEquals("bypass", d.splitMode); assertEquals(emptyList(), d.splitApps); assertFalse(d.directRu); assertEquals(0, d.subUpdateHours); assertFalse(d.autoSelectWifi); assertFalse(d.autoSelectMobile); assertFalse(d.bootConnect); assertTrue(d.dnsLeakProtection)
         val s = d.copy(splitMode = "bypass", splitApps = listOf("com.example.app"), directRu = true, subUpdateHours = 12, autoSelectWifi = true, bootConnect = true, dnsLeakProtection = false, dns = "tls://dns.example")
         assertEquals(s, ClientSettings.from(s.json()))
         val old = d.json().apply { listOf("splitMode", "splitApps", "directRu", "subUpdateHours", "autoSelect", "autoSelectWifi", "autoSelectMobile", "bootConnect", "dnsLeakProtection").forEach { remove(it) } }
@@ -25,6 +25,24 @@ class RoutingTest {
         assertEquals(listOf(0, 1, 2, 3, 6, 12, 24), SubscriptionSchedule.intervals)
         assertEquals(listOf(0, 0, 1, 3, 6, 12, 24, 24), listOf(-1, 0, 1, 3, 4, 7, 13, 48).map(SubscriptionSchedule::normalize))
         assertEquals(6, ClientSettings.from(d.json().put("subUpdateHours", 5)).subUpdateHours)
+    }
+    @Test fun splitModeMigration() {
+        val d = ClientSettings()
+        assertEquals(listOf("bypass", "only"), SplitTunnel.modes)
+        // 0.7.3 "off" with ticked apps: the apps were inactive, so they are cleared instead of starting to bypass the VPN.
+        ClientSettings.from(d.json().put("splitMode", "off").put("splitApps", org.json.JSONArray(listOf("com.example.app")))).let {
+            assertEquals("bypass", it.splitMode); assertEquals(emptyList(), it.splitApps) }
+        ClientSettings.from(d.json().put("splitMode", "off").put("splitApps", org.json.JSONArray())).let {
+            assertEquals("bypass", it.splitMode); assertEquals(emptyList(), it.splitApps) }
+        ClientSettings.from(d.json().put("splitMode", "all").put("splitApps", org.json.JSONArray(listOf("com.example.app")))).let {
+            assertEquals("bypass", it.splitMode); assertEquals(emptyList(), it.splitApps) }
+        // Valid modes keep their apps.
+        listOf("bypass", "only").forEach { mode ->
+            ClientSettings.from(d.json().put("splitMode", mode).put("splitApps", org.json.JSONArray(listOf("com.example.app")))).let {
+                assertEquals(mode, it.splitMode); assertEquals(listOf("com.example.app"), it.splitApps) }
+        }
+        assertFailsWith<IllegalArgumentException> { d.copy(splitMode = "off").validate() }
+        assertEquals("bypass", SplitTunnel.migrateMode("off")); assertEquals("only", SplitTunnel.migrateMode("only"))
     }
     @Test fun dnsAddresses() {
         listOf("https://1.1.1.1/dns-query", "tls://dns.google", "1.1.1.1").forEach { assertTrue(DnsServers.valid(it), it) }

@@ -110,23 +110,48 @@ object MonoTheme {
         surfaceContainerHigh = Color(0xFF1F1F1F), surfaceContainerHighest = Color(0xFF2A2A2A), surfaceVariant = Color(0xFF161616), surfaceBright = Color(0xFF2A2A2A),
         primaryContainer = Color(0xFF363636))
     /**
-     * Colours for the home hero card (the server bar): the inverse tone, with background = the card fill so ping colours and greys stay readable.
-     * The fill matches the primary buttons (dark theme #C9C9C9, light theme #3A3A3A). Grey text is >= 5.3:1 on it, the coloured subtitle parts >= 3.9:1.
+     * Main filled buttons: the theme's own tone with a slight highlight instead of the white / black primary,
+     * plus a 1dp outline so they stay easy to find on cards and sheets. primary itself is unchanged (headers, switches, radios, fields...).
+     * Text on the fill: dark 11.3:1, AMOLED 12.8:1, light 14.3:1.
      */
-    fun hero(darkTheme: Boolean) = if (darkTheme) light.copy(background = HERO_LIGHT_FILL, surface = HERO_LIGHT_FILL, onSurfaceVariant = Color(0xFF4A4A4A))
-        else this.dark.copy(background = Color(0xFF3A3A3A), surface = Color(0xFF3A3A3A), onSurfaceVariant = Color(0xFFB5B5B5))
-    val HERO_LIGHT_FILL = Color(0xFFC9C9C9)
+    class ButtonTone(val container: Color, val content: Color, val outline: Color)
+    val buttonDark = ButtonTone(Color(0xFF333333), Color(0xFFF2F2F2), Color(0xFF4A4A4A))
+    val buttonAmoled = ButtonTone(Color(0xFF2A2A2A), Color(0xFFF2F2F2), Color(0xFF444444))
+    val buttonLight = ButtonTone(Color(0xFFE0E0E0), Color(0xFF111111), Color(0xFFC4C4C4))
+    @Composable fun buttonTone(): ButtonTone {
+        val background = MaterialTheme.colorScheme.background
+        return when { background == Color.Black -> buttonAmoled; background.luminanceLow() -> buttonDark; else -> buttonLight }
+    }
+    /**
+     * Colours for the home hero card (the server bar): the current theme with background = the home card tone ([NdTone.card]: dark #1C1C1C,
+     * AMOLED #161616, light #EDEDED), so it matches the session and subscription cards above it and the usual text colours, protocol colours
+     * and ping dots apply (subtitle parts >= 4.5:1 on the card). The light bar keeps the deeper dots ([LocalDeepPingDots], >= 4.7:1 on #EDEDED;
+     * the usual light green / yellow would be 3.0:1 / 2.1:1).
+     */
+    fun hero(scheme: ColorScheme, card: Color) = scheme.copy(background = card, surface = card)
     /** Larger, rounder components than the defaults. */
     val shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(20.dp),
         large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(32.dp))
+}
+
+/** Set by the light-theme server bar: deeper ping dot colours that stay readable on its card fill. */
+val LocalDeepPingDots = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+/** A main filled button in the theme's own tone ([MonoTheme.buttonTone]) with a 1dp outline; same parameters as [Button]. */
+@Composable fun NdButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, shape: androidx.compose.ui.graphics.Shape = ButtonDefaults.shape,
+    content: @Composable RowScope.() -> Unit) {
+    val tone = MonoTheme.buttonTone()
+    Button(onClick = onClick, modifier = modifier, enabled = enabled, shape = shape,
+        colors = ButtonDefaults.buttonColors(containerColor = tone.container, contentColor = tone.content),
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (enabled) tone.outline else tone.outline.copy(alpha = 0.38f)), content = content)
 }
 
 /** Green/yellow/red dot by latency band plus the number in grey; a failed check shows only a grey dash (no dot). */
 @Composable fun PingDot(latencyMs: Long?, failed: Boolean, modifier: Modifier = Modifier) {
     val background = MaterialTheme.colorScheme.background
     val dark = background.luminanceLow()
-    // On the grey server bar of the dark theme the usual light-theme dots are too faint (green 2.1:1, yellow 1.5:1): deeper tones there (>= 3.3:1).
-    val grey = background == MonoTheme.HERO_LIGHT_FILL
+    // On the light-theme server bar (#EDEDED) the usual light-theme dots are too faint (green 3.0:1, yellow 2.1:1): deeper tones there (>= 4.7:1).
+    val grey = LocalDeepPingDots.current
     val color = when {
         grey -> when (latencyMs?.let { LatencyBand.of(it) }) { LatencyBand.GOOD -> Color(0xFF0E6E31); LatencyBand.MEDIUM -> Color(0xFF8A6200); else -> Color(0xFFB02020) }
         latencyMs == null -> if (dark) Color(0xFFFF6B6B) else Color(0xFFC62828)
@@ -337,7 +362,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                     maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         }
-        if (saved == null) Button(enabled = !busy, onClick = add, modifier = Modifier.pressScale().heightIn(min = 56.dp)) { Text(tr(R.string.msg_add_subscription_16)) }
+        if (saved == null) NdButton(enabled = !busy, onClick = add, modifier = Modifier.pressScale().heightIn(min = 56.dp)) { Text(tr(R.string.msg_add_subscription_16)) }
         }
         } },
         { Column(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -351,9 +376,10 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         if (filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).keywords.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error, maxLines = 3, overflow = TextOverflow.Ellipsis)
         // The whole bar is one touch target: it opens the server sheet.
-        // Hero card: the inverse tone (light fill in the dark theme, dark fill in the light theme) with its own readable colours.
-        if (selected != null) MaterialTheme(colorScheme = MonoTheme.hero(dark)) {
-            Surface(onClick = { sheet = true }, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.background,
+        // Hero card: the same family as the session and subscription cards above it (card tone, large shape, no outline, no tonal elevation).
+        val heroCard = NdTone.card()
+        if (selected != null) MaterialTheme(colorScheme = MonoTheme.hero(MaterialTheme.colorScheme, heroCard)) { androidx.compose.runtime.CompositionLocalProvider(LocalDeepPingDots provides !dark) {
+            Surface(onClick = { sheet = true }, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.background, tonalElevation = 0.dp,
                 modifier = Modifier.pressScale().fillMaxWidth().heightIn(min = 72.dp).semantics { contentDescription = tr(R.string.nd_choose_server) + ": " + selected.name }) {
                 Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     // Another server: the name and protocol line flip through (the new one slides up and fades in). The ping dot is outside,
@@ -374,7 +400,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                     Icon(androidx.compose.material.icons.Icons.Rounded.KeyboardArrowUp, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp).size(28.dp))
                 }
             }
-        }
+        } }
         } }),
         modifier = Modifier.fillMaxWidth().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 20.dp)) { (h, a, b), constraints ->
         val gap = 10.dp.roundToPx()
@@ -605,7 +631,7 @@ object SubtitlePalette {
                     shape = RoundedCornerShape(16.dp), modifier = Modifier.weight(1f),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
                     keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { add() }))
-                Button(onClick = { add() }, enabled = org.mothvpn.core.ServerFilter.clean(text) != null && keywords.size < org.mothvpn.core.ServerFilter.MAX_KEYWORDS,
+                NdButton(onClick = { add() }, enabled = org.mothvpn.core.ServerFilter.clean(text) != null && keywords.size < org.mothvpn.core.ServerFilter.MAX_KEYWORDS,
                     modifier = Modifier.pressScale(enabled = org.mothvpn.core.ServerFilter.clean(text) != null && keywords.size < org.mothvpn.core.ServerFilter.MAX_KEYWORDS).then(Modifier.heightIn(min = 56.dp)), shape = RoundedCornerShape(16.dp)) { Text(tr(R.string.nd_filter_add)) }
             }
             if (keywords.isEmpty()) Text(tr(R.string.nd_filter_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, top = 4.dp))

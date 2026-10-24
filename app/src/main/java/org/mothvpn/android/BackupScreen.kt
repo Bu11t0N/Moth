@@ -89,7 +89,7 @@ fun writeDocument(context: android.content.Context, uri: android.net.Uri, text: 
     }
     Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(tr(R.string.backup_hint), style = MaterialTheme.typography.bodyMedium)
-        Button(enabled = !working, onClick = { exportPassword = ""; exportDialog = true }, modifier = Modifier.pressScale(enabled = !working).then(Modifier.fillMaxWidth())) { Text(tr(R.string.backup_export)) }
+        NdButton(enabled = !working, onClick = { exportPassword = ""; exportDialog = true }, modifier = Modifier.pressScale(enabled = !working).then(Modifier.fillMaxWidth())) { Text(tr(R.string.backup_export)) }
         if (locked) Text(tr(R.string.backup_locked), style = MaterialTheme.typography.bodySmall)
         OutlinedButton(enabled = !working && !locked, onClick = { status = ""; pick.launch(arrayOf("application/json", "application/octet-stream", "text/plain")) }, modifier = Modifier.pressScale(enabled = !working && !locked).then(Modifier.fillMaxWidth())) { Text(tr(R.string.backup_import)) }
         Text(tr(R.string.backup_import_hint), style = MaterialTheme.typography.bodySmall)

@@ -53,7 +53,7 @@ private fun actionLabel(action: String) = when (action) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (!enabled) Text(tr(R.string.settings_wait_hint))
         Text(tr(R.string.rules_hint), style = MaterialTheme.typography.bodySmall)
-        Button(enabled = enabled && rules.size < CustomRouting.MAX_RULES, onClick = { editing = -1 }, modifier = Modifier.pressScale(enabled = enabled && rules.size < CustomRouting.MAX_RULES)) { Text(tr(R.string.rules_add)) }
+        NdButton(enabled = enabled && rules.size < CustomRouting.MAX_RULES, onClick = { editing = -1 }, modifier = Modifier.pressScale(enabled = enabled && rules.size < CustomRouting.MAX_RULES)) { Text(tr(R.string.rules_add)) }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             OutlinedButton(enabled = enabled, onClick = { status = ""; picker.launch(arrayOf("text/*")) }, modifier = Modifier.pressScale(enabled = enabled)) { Text(tr(R.string.rules_import_file)) }
             OutlinedButton(enabled = enabled, onClick = { status = ""; clipboard.getText()?.text?.takeIf { it.isNotBlank() }?.let { importText = it.take(RuleText.MAX_CHARS) } ?: run { status = tr(R.string.import_clipboard_empty) } }, modifier = Modifier.pressScale(enabled = enabled)) { Text(tr(R.string.rules_paste)) }

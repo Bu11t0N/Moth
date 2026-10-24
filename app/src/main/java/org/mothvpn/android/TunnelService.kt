@@ -93,6 +93,20 @@ class TunnelService : VpnService(), PlatformInterface {
     private val connectivity by lazy { getSystemService(ConnectivityManager::class.java) }
     /** Newest start id: finish() stops the service only if no command arrived after it (a Connect right after Disconnect must survive). */
     @Volatile private var lastStartId = 0
+    /**
+     * Sticky while a tunnel is up or coming up, so the system restarts the service (null intent, reconnect to the last server) if the
+     * process is killed; otherwise not sticky. Every command returns it, the newest return value is the one the system keeps.
+     */
+    private fun restartMode(): Int =
+        if (!stopped && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED)) START_STICKY else START_NOT_STICKY
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // The app's task was swiped away / "clear all" in recents. The VPN keeps running; keep the service in the foreground.
+        val state = TunnelStatus.state.value
+        Logger.i("Tunnel", "task removed (state=$state)")
+        if (state in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED, TunnelState.STOPPING) || Diagnostics.running.value)
+            runCatching { foreground() }.onFailure { Logger.w("Tunnel", "could not re-assert the foreground after task removal", it) }
+        super.onTaskRemoved(rootIntent)
+    }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         lastStartId = startId
         Logger.d("Tunnel", "onStartCommand action=${intent?.action} state=${TunnelStatus.state.value}")
@@ -103,16 +117,21 @@ class TunnelService : VpnService(), PlatformInterface {
             stopStats(); foreground()
             cancelRetry()
             executor.execute { closeTunnel(); closeBlock(); Logger.i("Tunnel", "VPN disconnected (tunnel stopped)"); TunnelStatus.mutable.value = TunnelState.OFF; finish() }
+            // An explicit Disconnect is never brought back by the system: not sticky, and finish() stops the service.
+            return START_NOT_STICKY
         } else if (intent == null || intent.action == null || intent.action == SERVICE_INTERFACE || intent.action == "START") {
             // "START" comes from the app, the tile and the boot receiver; a null intent or android.net.VpnService comes from Always-on VPN.
             val alwaysOn = intent?.action != "START"
+            // A null intent is also the system restarting a sticky service after its process was killed (e.g. "clear all" in recents on
+            // some phones): it reconnects to the last server through the same path as Always-on.
+            if (intent == null) Logger.i("Tunnel", "restarted by the system (state=${TunnelStatus.state.value})")
             val id = intent?.getStringExtra("profile") ?: VpnLauncher.lastProfileId(this)
             if (id == null) {
                 Logger.w("Tunnel", "start without a server ignored (alwaysOn=$alwaysOn)")
                 runCatching { foreground() }; if (TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED)) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(startId) }
-                return START_NOT_STICKY
+                return restartMode()
             }
-            if (alwaysOn && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED)) { Logger.i("Tunnel", "always-on start ignored: already connected"); return START_NOT_STICKY }
+            if (alwaysOn && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED)) { Logger.i("Tunnel", "always-on start ignored: already connected"); return restartMode() }
             Logger.i("Tunnel", "VPN connect requested (previous state=${TunnelStatus.state.value}, alwaysOn=$alwaysOn)")
             serverName = ""
             TunnelStatus.mutable.value = TunnelState.STARTING
@@ -135,7 +154,7 @@ class TunnelService : VpnService(), PlatformInterface {
             // The user's choice overrides auto-select while it answers (no re-measuring for a faster server, no reshuffle on a
             // network change) until the next regular connect; if it stops answering, failover still moves to a live plain server.
             val id = intent.getStringExtra("profile")
-            if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR, TunnelState.BLOCKED) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING && !intent.getBooleanExtra("force", false)) return START_NOT_STICKY
+            if (id == null || TunnelStatus.state.value !in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.ERROR, TunnelState.BLOCKED) || id == TunnelStatus.activeProfile.value && TunnelStatus.state.value == TunnelState.RUNNING && !intent.getBooleanExtra("force", false)) return restartMode()
             Logger.i("Tunnel", "server switch requested (state=${TunnelStatus.state.value}, user check running=${Diagnostics.running.value && userProbe})")
             // A user's check keeps running across a manual switch (its probes use their own cores and protected sockets, independent of
             // the tunnel). An auto-select / failover measurement is cancelled: the user's pick replaces whatever it would decide.
@@ -152,7 +171,7 @@ class TunnelService : VpnService(), PlatformInterface {
         } else if (intent?.action == "CANCEL_PROBES") {
             cancelProbes()
         } else if (intent?.action == "PROBE") {
-            if (Diagnostics.running.value) { Logger.w("Probe", "request ignored: a check is already running"); return START_NOT_STICKY }
+            if (Diagnostics.running.value) { Logger.w("Probe", "request ignored: a check is already running"); return restartMode() }
             foreground() // while connected the notification keeps showing the server name
             probeCancel = AtomicBoolean(false); userProbe = true
             val cancel = probeCancel
@@ -165,7 +184,7 @@ class TunnelService : VpnService(), PlatformInterface {
                 catch (t: Throwable) { Logger.e("Probe", "probe setup failed (initCore or scheduling)", t); Diagnostics.runningMutable.value = false; finish() }
             }
         }
-        return START_NOT_STICKY
+        return restartMode()
     }
     @Volatile private var ranking = emptyList<String>()
     /** The server last started, kept for restarts after a subscription update removed it (see startTunnel). */

@@ -87,9 +87,9 @@ import java.io.File
             if (message.isNotEmpty()) Text(message)
         }
         release?.let { available ->
-            Button(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth())) { Text(tr(R.string.update_install)) }
+            NdButton(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth())) { Text(tr(R.string.update_install)) }
         }
-        Button(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth())) { Text(tr(R.string.update_check)) }
+        NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth())) { Text(tr(R.string.update_check)) }
         warning?.let {
             AlertDialog(onDismissRequest = { warning = null; waiting = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }, title = { Text(tr(R.string.update_unknown_title)) },
                 text = { Text(tr(R.string.update_unknown_body)) },

@@ -244,9 +244,9 @@
     <string name="share_copy">Копировать ссылку</string>
     <string name="split_title">Раздельное туннелирование</string>
     <string name="split_mode">Режим</string>
-    <string name="split_mode_off">Выключено: все приложения через VPN</string>
-    <string name="split_mode_only">Только выбранные через VPN</string>
+    <string name="split_mode_only">Выбранные через VPN</string>
     <string name="split_mode_bypass">Выбранные в обход VPN</string>
+    <string name="split_unlisted">Нет на рабочем столе: нажмите, чтобы убрать</string>
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>

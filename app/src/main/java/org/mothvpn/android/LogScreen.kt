@@ -101,7 +101,7 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
             Text(tr(R.string.dev_log_privacy_note), style = MaterialTheme.typography.bodySmall)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
+            NdButton(onClick = {
                 val file = if (crash) CrashLog.shareFile() else Logger.shareFile()
                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.logs", file)
                 Logger.i("Log", "sharing the ${if (crash) "crash log" else "log"}")
@@ -109,7 +109,7 @@ private fun saveToDownloads(context: android.content.Context, name: String, text
                     .putExtra(Intent.EXTRA_SUBJECT, "Moth log").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 context.startActivity(Intent.createChooser(send, tr(R.string.dev_share_log)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
             }, modifier = Modifier.pressScale()) { Text(tr(R.string.dev_share_log)) }
-            Button(onClick = {
+            NdButton(onClick = {
                 if (Build.VERSION.SDK_INT >= 29) {
                     val ok = saveToDownloads(context, fileName(), full())
                     Logger.i("UI", "toast: log ${if (ok) "saved" else "save failed"}"); Toast.makeText(context, if (ok) tr(R.string.dev_saved_to_downloads) else tr(R.string.dev_save_failed), Toast.LENGTH_SHORT).show()
