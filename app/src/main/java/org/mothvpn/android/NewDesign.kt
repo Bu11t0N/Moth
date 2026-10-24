@@ -110,14 +110,14 @@ object MonoTheme {
         surfaceContainerHigh = Color(0xFF1F1F1F), surfaceContainerHighest = Color(0xFF2A2A2A), surfaceVariant = Color(0xFF161616), surfaceBright = Color(0xFF2A2A2A),
         primaryContainer = Color(0xFF363636))
     /**
-     * Main filled buttons: the theme's own tone with a slight highlight instead of the white / black primary,
-     * plus a 1dp outline so they stay easy to find on cards and sheets. primary itself is unchanged (headers, switches, radios, fields...).
+     * Main filled buttons: the theme's own tone with a slight highlight instead of the white / black primary, no outline
+     * (like the home server bar). primary itself is unchanged (headers, switches, radios, fields...).
      * Text on the fill: dark 11.3:1, AMOLED 12.8:1, light 14.3:1.
      */
-    class ButtonTone(val container: Color, val content: Color, val outline: Color)
-    val buttonDark = ButtonTone(Color(0xFF333333), Color(0xFFF2F2F2), Color(0xFF4A4A4A))
-    val buttonAmoled = ButtonTone(Color(0xFF2A2A2A), Color(0xFFF2F2F2), Color(0xFF444444))
-    val buttonLight = ButtonTone(Color(0xFFE0E0E0), Color(0xFF111111), Color(0xFFC4C4C4))
+    class ButtonTone(val container: Color, val content: Color)
+    val buttonDark = ButtonTone(Color(0xFF333333), Color(0xFFF2F2F2))
+    val buttonAmoled = ButtonTone(Color(0xFF2A2A2A), Color(0xFFF2F2F2))
+    val buttonLight = ButtonTone(Color(0xFFE0E0E0), Color(0xFF111111))
     @Composable fun buttonTone(): ButtonTone {
         val background = MaterialTheme.colorScheme.background
         return when { background == Color.Black -> buttonAmoled; background.luminanceLow() -> buttonDark; else -> buttonLight }
@@ -137,13 +137,12 @@ object MonoTheme {
 /** Set by the light-theme server bar: deeper ping dot colours that stay readable on its card fill. */
 val LocalDeepPingDots = androidx.compose.runtime.staticCompositionLocalOf { false }
 
-/** A main filled button in the theme's own tone ([MonoTheme.buttonTone]) with a 1dp outline; same parameters as [Button]. */
+/** A main filled button in the theme's own tone ([MonoTheme.buttonTone]), no outline; same parameters as [Button]. */
 @Composable fun NdButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, shape: androidx.compose.ui.graphics.Shape = ButtonDefaults.shape,
     content: @Composable RowScope.() -> Unit) {
     val tone = MonoTheme.buttonTone()
     Button(onClick = onClick, modifier = modifier, enabled = enabled, shape = shape,
-        colors = ButtonDefaults.buttonColors(containerColor = tone.container, contentColor = tone.content),
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (enabled) tone.outline else tone.outline.copy(alpha = 0.38f)), content = content)
+        colors = ButtonDefaults.buttonColors(containerColor = tone.container, contentColor = tone.content), content = content)
 }
 
 /** Green/yellow/red dot by latency band plus the number in grey; a failed check shows only a grey dash (no dot). */
