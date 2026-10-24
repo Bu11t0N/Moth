@@ -43,7 +43,6 @@ import org.mothvpn.core.SubscriptionSchedule
     var pingTimeout by remember(initial) { mutableStateOf(initial.probeTimeoutMs.toString()) }
     var parallel by remember(initial) { mutableStateOf(initial.probeParallel.toString()) }
     var showHwid by remember { mutableStateOf(false) }
-    var interval by remember(initial) { mutableStateOf(initial.healthIntervalSeconds.toString()) }
     var error by remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
     // A tap on Settings in the bottom bar: back to the main list from any subpage. The pages' sheets and dialogs live inside the
@@ -59,7 +58,7 @@ import org.mothvpn.core.SubscriptionSchedule
     fun number(text: String, field: String) {
         val n = text.toIntOrNull()
         if (n == null) { Logger.w("Settings", "not a number for $field"); error = tr(R.string.msg_enter_a_whole_number_72); return }
-        applySettings(when (field) { "mtu" -> draft.copy(mtu = n); "timeout" -> draft.copy(timeoutMs = n); "pingTimeout" -> draft.copy(probeTimeoutMs = n); "parallel" -> draft.copy(probeParallel = n); else -> draft.copy(healthIntervalSeconds = n) })
+        applySettings(when (field) { "mtu" -> draft.copy(mtu = n); "timeout" -> draft.copy(timeoutMs = n); "pingTimeout" -> draft.copy(probeTimeoutMs = n); "parallel" -> draft.copy(probeParallel = n); else -> draft })
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -131,6 +130,11 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsToggle(tr(R.string.auto_select_wifi), draft.autoSelectWifi, !locked) { applySettings(draft.copy(autoSelectWifi = it)) }
                     SettingsToggle(tr(R.string.auto_select_mobile), draft.autoSelectMobile, !locked) { applySettings(draft.copy(autoSelectMobile = it)) }
                     Text(tr(R.string.auto_select_hint), style = MaterialTheme.typography.bodySmall)
+                    var reuseDialog by remember { mutableStateOf(false) }
+                    val reuseOptions = org.mothvpn.core.AutoSelectReuse.minutes.map { it to tr(R.string.set_minutes, it) }
+                    DialogRow(tr(R.string.auto_select_reuse), tr(R.string.set_minutes, draft.autoSelectReuseMinutes), enabled = !locked && draft.autoSelectAny) { reuseDialog = true }
+                    if (reuseDialog) ChoiceDialog(tr(R.string.auto_select_reuse), reuseOptions, draft.autoSelectReuseMinutes, { reuseDialog = false }) { applySettings(draft.copy(autoSelectReuseMinutes = it)) }
+                    Text(tr(R.string.auto_select_reuse_hint), style = MaterialTheme.typography.bodySmall)
                     SettingsCategory(tr(R.string.rules_title), if (draft.routingRules.isEmpty()) tr(R.string.rules_sum_none) else tr(R.string.rules_sum_count, draft.routingRules.size), "rules") { section = tr(R.string.rules_title) }
                     SettingsToggle(tr(R.string.kill_switch), draft.killSwitch) { applySettings(draft.copy(killSwitch = it)) }
                     Text(tr(R.string.kill_switch_hint), style = MaterialTheme.typography.bodySmall)
@@ -153,7 +157,12 @@ import org.mothvpn.core.SubscriptionSchedule
                     Text(tr(R.string.mux_hint), style = MaterialTheme.typography.bodySmall)
                     SectionHeader(tr(R.string.set_head_health))
                     SettingsToggle(tr(R.string.msg_check_the_active_tunnel_94), draft.healthEnabled, !locked) { applySettings(draft.copy(healthEnabled = it)) }
-                    OutlinedTextField(interval, { interval = it; number(it, "interval") }, enabled = !locked, label = { Text(tr(R.string.msg_interval_30_600_seconds_95)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    var healthDialog by remember { mutableStateOf(false) }
+                    val healthOptions = org.mothvpn.core.HealthSchedule.minutes.map { it * 60 to tr(R.string.set_minutes, it) }
+                    val healthValue = healthOptions.firstOrNull { it.first == draft.healthIntervalSeconds }?.second ?: tr(R.string.set_seconds, draft.healthIntervalSeconds)
+                    DialogRow(tr(R.string.set_health_interval), healthValue, enabled = !locked && draft.healthEnabled) { healthDialog = true }
+                    if (healthDialog) ChoiceDialog(tr(R.string.set_health_interval), healthOptions, draft.healthIntervalSeconds, { healthDialog = false }) { applySettings(draft.copy(healthIntervalSeconds = it)) }
+                    Text(tr(R.string.set_health_hint), style = MaterialTheme.typography.bodySmall)
                     OutlinedTextField(timeout, { timeout = it; number(it, "timeout") }, enabled = !locked, label = { Text(tr(R.string.msg_timeout_3_30_seconds_96)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     SectionHeader(tr(R.string.set_head_probes))
                     OutlinedTextField(draft.probeUrl, { applySettings(draft.copy(probeUrl = it)) }, enabled = !locked, label = { Text(tr(R.string.msg_https_check_url_97)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -300,6 +309,16 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsToggle(tr(R.string.msg_compact_server_rows_83), draft.compactServers) { applySettings(draft.copy(compactServers = it)) }
                     SettingsToggle(tr(R.string.dev_detailed_icons), draft.detailedIcons) { applySettings(draft.copy(detailedIcons = it)) }
                     Text(tr(R.string.dev_detailed_icons_hint), style = MaterialTheme.typography.bodySmall)
+                    SectionHeader(tr(R.string.set_head_notification))
+                    listOf(Triple(R.string.notif_line_speed, draft.notifySpeed) { on: Boolean -> draft.copy(notifySpeed = on) },
+                        Triple(R.string.notif_line_total, draft.notifyTotal) { on: Boolean -> draft.copy(notifyTotal = on) },
+                        Triple(R.string.notif_line_uptime, draft.notifyUptime) { on: Boolean -> draft.copy(notifyUptime = on) }).forEach { (label, checked, change) ->
+                        Row(Modifier.pressScale().fillMaxWidth().heightIn(min = 48.dp).clickable { applySettings(change(!checked)) }, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Checkbox(checked, { applySettings(change(it)) })
+                            Text(tr(label))
+                        }
+                    }
+                    Text(tr(R.string.notif_lines_hint), style = MaterialTheme.typography.bodySmall)
                 }
                 tr(R.string.dev_for_developers) -> {
                     DeveloperSection({ logPage = 1 }, { logPage = 2 })

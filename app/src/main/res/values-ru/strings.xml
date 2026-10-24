@@ -129,7 +129,7 @@
     <string name="msg_invalid_check_method_145" formatted="false">"Неверный способ проверки"</string>
     <string name="msg_mtu_must_be_between_1280_and_9000_146" formatted="false">"MTU: от 1280 до 9000"</string>
     <string name="msg_timeout_must_be_between_3_and_30_seconds_147" formatted="false">"Тайм-аут: от 1000 до 60000 мс"</string>
-    <string name="msg_check_interval_must_be_between_30_and_600_sec_148" formatted="false">"Интервал проверки: от 30 до 600 секунд"</string>
+    <string name="msg_check_interval_must_be_between_30_and_600_sec_148" formatted="false">"Интервал проверки: от 30 до 900 секунд"</string>
     <string name="msg_hwid_10_64_letters_digits_or_149" formatted="false">"HWID: 10–64 символа, буквы, цифры, = или -"</string>
     <string name="msg_user_agent_must_contain_printable_ascii_chara_150" formatted="false">"User-Agent должен содержать печатные латинские символы"</string>
     <string name="msg_disabling_tls_verification_is_not_supported_151" formatted="false">"Отключение проверки TLS не поддерживается"</string>
@@ -532,4 +532,16 @@
     <string name="ua_custom">Свой</string>
     <string name="ua_custom_invalid">Только печатные латинские символы, до 160</string>
     <string name="about_github">Исходный код на GitHub</string>
+    <string name="set_health_interval">Интервал проверки</string>
+    <string name="set_minutes">%1$d мин</string>
+    <string name="set_seconds">%1$d с</string>
+    <string name="set_health_hint">Плановая проверка пропускается, пока через VPN идёт трафик (туннель и так работает) или нет сети. После неудачной проверки следующие идут без пропусков.</string>
+    <string name="auto_select_reuse">Не перемерять, если замер новее</string>
+    <string name="auto_select_reuse_hint">При смене Wi-Fi ↔ мобильная сеть автовыбор берёт результаты проверки серверов не старше этого срока и не измеряет все серверы заново.</string>
+    <string name="set_head_notification">Уведомление</string>
+    <string name="notif_line_speed">Скорость</string>
+    <string name="notif_line_total">Общий трафик</string>
+    <string name="notif_line_uptime">Время подключения</string>
+    <string name="notif_lines_hint">Строки уведомления о подключении. Пока экран выключен, уведомление не обновляется.</string>
+    <string name="msg_err_reuse">Неверный срок повторного замера</string>
 </resources>

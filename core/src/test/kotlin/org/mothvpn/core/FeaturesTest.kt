@@ -158,7 +158,8 @@ class OfflineStatusTest {
         listOf(a.copy(mtu = 1300), a.copy(dns = "https://9.9.9.9/dns-query"), a.copy(splitMode = "only"), a.copy(splitApps = listOf("com.example")),
             a.copy(fragment = "tlshello"), a.copy(mux = "smux"), a.copy(directRu = true), a.copy(healthIntervalSeconds = 120), a.copy(probeUrl = "https://example.com/ping"),
             a.copy(probeMode = ProbePolicy.TCP)).forEach { assertTrue(a.needsReconnect(it), it.toString()) }
-        listOf(a.copy(autoSelectWifi = true), a.copy(autoSelectMobile = true), a.copy(killSwitch = true), a.copy(probeParallel = 2), a.copy(probeTimeoutMs = 3000), a.copy(probeMode = ProbePolicy.FULL),
+        listOf(a.copy(autoSelectWifi = true), a.copy(autoSelectMobile = true), a.copy(killSwitch = true), a.copy(probeParallel = 2), a.copy(probeTimeoutMs = 4000), a.copy(probeMode = ProbePolicy.FULL),
+            a.copy(notifySpeed = false), a.copy(notifyTotal = false), a.copy(notifyUptime = false), a.copy(autoSelectReuseMinutes = 5),
             a.copy(userAgent = "x"), a.copy(theme = "dark"), a.copy(compactServers = false)).forEach { assertFalse(a.needsReconnect(it), it.toString()) }
     }
 

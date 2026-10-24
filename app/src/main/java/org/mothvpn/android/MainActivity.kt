@@ -250,11 +250,17 @@ class MainActivity : AppCompatActivity() {
         val hours = settings.subUpdateHours
         val kill = settings.killSwitch
         val reconnect = settings.needsReconnect(next)
+        val old = settings
         settings = next.validate()
         settingsQueue.trySend(next)
         if (next.subUpdateHours != hours) SubscriptionUpdates.schedule(this, next.subUpdateHours)
         if (next.killSwitch != kill && TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.BLOCKED))
             runCatching { startService(Intent(this, TunnelService::class.java).setAction("KILL_SWITCH").putExtra("on", next.killSwitch)) }.onFailure { Logger.w("Settings", "kill switch update not delivered", it) }
+        if (next.notifySpeed != old.notifySpeed || next.notifyTotal != old.notifyTotal || next.notifyUptime != old.notifyUptime) {
+            if (TunnelStatus.state.value == TunnelState.RUNNING) runCatching { startService(Intent(this, TunnelService::class.java).setAction("NOTIFICATION")
+                .putExtra("speed", next.notifySpeed).putExtra("total", next.notifyTotal).putExtra("uptime", next.notifyUptime)) }
+                .onFailure { Logger.w("Settings", "notification update not delivered", it) }
+        }
         // Settings fixed when the tunnel is built (DNS, MTU, routing, split tunneling, DPI tricks, health check…) can be changed while
         // connected: they are saved at once and applied by ONE reconnect on the same server 5 s after the last such change (and after any
         // running server check). The timer lives outside the activity, so leaving the app doesn't lose it.
@@ -510,6 +516,9 @@ class MainActivity : AppCompatActivity() {
         if (saved == null) message = tr(R.string.tile_setup)
         else if (TunnelStatus.state.value in setOf(TunnelState.OFF, TunnelState.ERROR) && !Diagnostics.running.value) connect()
     }
+    // While the app is on screen the service keeps its live numbers updating (even with every notification line off).
+    override fun onStart() { super.onStart(); TunnelStatus.setUiVisible(true) }
+    override fun onStop() { TunnelStatus.setUiVisible(false); super.onStop() }
     // Closing the app is not logged (not useful for diagnostics).
     override fun onDestroy() { networks.close(); settingsQueue.close(); super.onDestroy() }
 }

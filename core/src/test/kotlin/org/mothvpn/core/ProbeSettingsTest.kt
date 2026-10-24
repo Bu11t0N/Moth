@@ -6,7 +6,7 @@ import kotlin.test.*
 class ProbeSettingsTest {
     @Test fun defaultsAndRoundTrip() {
         val d = ClientSettings()
-        assertEquals(5, d.probeParallel); assertEquals(5000, d.probeTimeoutMs)
+        assertEquals(5, d.probeParallel); assertEquals(3000, d.probeTimeoutMs)
         val back = ClientSettings.from(ClientSettings(probeParallel = 16, probeTimeoutMs = 750).validate().json())
         assertEquals(16, back.probeParallel); assertEquals(750, back.probeTimeoutMs)
     }
