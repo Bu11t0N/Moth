@@ -110,7 +110,7 @@ object MonoTheme {
         surfaceContainerHigh = Color(0xFF1F1F1F), surfaceContainerHighest = Color(0xFF2A2A2A), surfaceVariant = Color(0xFF161616), surfaceBright = Color(0xFF2A2A2A),
         primaryContainer = Color(0xFF363636))
     /**
-     * Main filled buttons and the home server bar: the theme's own tone with a slight highlight instead of the white / black primary,
+     * Main filled buttons: the theme's own tone with a slight highlight instead of the white / black primary,
      * plus a 1dp outline so they stay easy to find on cards and sheets. primary itself is unchanged (headers, switches, radios, fields...).
      * Text on the fill: dark 11.3:1, AMOLED 12.8:1, light 14.3:1.
      */
@@ -123,17 +123,18 @@ object MonoTheme {
         return when { background == Color.Black -> buttonAmoled; background.luminanceLow() -> buttonDark; else -> buttonLight }
     }
     /**
-     * Colours for the home hero card (the server bar): the current theme with background = the button fill, so the usual text colours,
-     * protocol colours and ping dots apply. On the fill: grey text >= 4.9:1, coloured subtitle parts >= 5.0:1 (light) / 5.2:1 (dark),
-     * ping dots >= 4.5:1 (dark); the light bar uses the deeper dots ([LocalDeepPingDots]) at >= 4.1:1.
+     * Colours for the home hero card (the server bar): the current theme with background = the home card tone ([NdTone.card]: dark #1C1C1C,
+     * AMOLED #161616, light #EDEDED), so it matches the session and subscription cards above it and the usual text colours, protocol colours
+     * and ping dots apply (subtitle parts >= 4.5:1 on the card). The light bar keeps the deeper dots ([LocalDeepPingDots], >= 4.7:1 on #EDEDED;
+     * the usual light green / yellow would be 3.0:1 / 2.1:1).
      */
-    fun hero(scheme: ColorScheme, tone: ButtonTone) = scheme.copy(background = tone.container, surface = tone.container)
+    fun hero(scheme: ColorScheme, card: Color) = scheme.copy(background = card, surface = card)
     /** Larger, rounder components than the defaults. */
     val shapes = Shapes(extraSmall = RoundedCornerShape(8.dp), small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(20.dp),
         large = RoundedCornerShape(28.dp), extraLarge = RoundedCornerShape(32.dp))
 }
 
-/** Set by the light-theme server bar: deeper ping dot colours that stay readable on its grey fill. */
+/** Set by the light-theme server bar: deeper ping dot colours that stay readable on its card fill. */
 val LocalDeepPingDots = androidx.compose.runtime.staticCompositionLocalOf { false }
 
 /** A main filled button in the theme's own tone ([MonoTheme.buttonTone]) with a 1dp outline; same parameters as [Button]. */
@@ -149,7 +150,7 @@ val LocalDeepPingDots = androidx.compose.runtime.staticCompositionLocalOf { fals
 @Composable fun PingDot(latencyMs: Long?, failed: Boolean, modifier: Modifier = Modifier) {
     val background = MaterialTheme.colorScheme.background
     val dark = background.luminanceLow()
-    // On the grey server bar of the light theme the usual light-theme dots are too faint (green 2.6:1, yellow 1.9:1): deeper tones there (>= 4.1:1).
+    // On the light-theme server bar (#EDEDED) the usual light-theme dots are too faint (green 3.0:1, yellow 2.1:1): deeper tones there (>= 4.7:1).
     val grey = LocalDeepPingDots.current
     val color = when {
         grey -> when (latencyMs?.let { LatencyBand.of(it) }) { LatencyBand.GOOD -> Color(0xFF0E6E31); LatencyBand.MEDIUM -> Color(0xFF8A6200); else -> Color(0xFFB02020) }
@@ -375,11 +376,10 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         if (filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).keywords.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error, maxLines = 3, overflow = TextOverflow.Ellipsis)
         // The whole bar is one touch target: it opens the server sheet.
-        // Hero card: the button tone of the theme (slightly lighter than the page in dark, slightly darker in light) with a 1dp outline.
-        val heroTone = MonoTheme.buttonTone()
-        if (selected != null) MaterialTheme(colorScheme = MonoTheme.hero(MaterialTheme.colorScheme, heroTone)) { androidx.compose.runtime.CompositionLocalProvider(LocalDeepPingDots provides !dark) {
-            Surface(onClick = { sheet = true }, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.background,
-                border = androidx.compose.foundation.BorderStroke(1.dp, heroTone.outline),
+        // Hero card: the same family as the session and subscription cards above it (card tone, large shape, no outline, no tonal elevation).
+        val heroCard = NdTone.card()
+        if (selected != null) MaterialTheme(colorScheme = MonoTheme.hero(MaterialTheme.colorScheme, heroCard)) { androidx.compose.runtime.CompositionLocalProvider(LocalDeepPingDots provides !dark) {
+            Surface(onClick = { sheet = true }, shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.background, tonalElevation = 0.dp,
                 modifier = Modifier.pressScale().fillMaxWidth().heightIn(min = 72.dp).semantics { contentDescription = tr(R.string.nd_choose_server) + ": " + selected.name }) {
                 Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     // Another server: the name and protocol line flip through (the new one slides up and fades in). The ping dot is outside,
