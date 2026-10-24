@@ -2,6 +2,14 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.7.5
+
+Released 2026-10-24.
+
+### Changes
+
+- Buttons no longer have an outline, like the server bar on the home screen; their colour stays the same.
+
 ## 0.7.4
 
 Released 2026-10-24.
