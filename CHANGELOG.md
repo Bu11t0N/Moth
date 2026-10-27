@@ -4,6 +4,8 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ## 0.7.6
 
+Released 2026-10-27.
+
 ### Changes
 
 - Lower battery use while connected.
