@@ -34,6 +34,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -202,12 +203,15 @@ import org.mothvpn.core.SubscriptionSource
             }
         }
     }
+    // Large title (Telegram-style, LargeTitle.kt): at the top of the list the title and its buttons sit lower, within thumb reach;
+    // scrolling the list shrinks the header back to the compact bar.
+    val largeTitle = rememberLargeTitle()
     Box(Modifier.fillMaxSize()) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxSize().nestedScroll(largeTitle.nestedScrollConnection).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Refresh and check live in each group header; the top bar has Add (+), update all subscriptions and check all servers on this page
         // (cancel while checks run) as direct buttons, no ⋮ menu.
-        Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        LargeTitleHeader(largeTitle, Modifier.padding(top = 12.dp, bottom = 4.dp)) { titleStyle ->
+            Text(tr(R.string.msg_servers_27), style = titleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             // Adding works while connected; only during checks, a connect/disconnect or another operation the + dims and a tap explains why (top notice).
             IconButton(onClick = { if (refreshLocked) show(tr(R.string.sub_wait_notice)) else add() },
                 modifier = Modifier.pressScale().then(Modifier.size(40.dp).graphicsLayer { alpha = if (refreshLocked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) })) {

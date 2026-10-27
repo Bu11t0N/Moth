@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -60,11 +61,17 @@ import org.mothvpn.core.SubscriptionSchedule
         if (n == null) { Logger.w("Settings", "not a number for $field"); error = tr(R.string.msg_enter_a_whole_number_72); return }
         applySettings(when (field) { "mtu" -> draft.copy(mtu = n); "timeout" -> draft.copy(timeoutMs = n); "pingTimeout" -> draft.copy(probeTimeoutMs = n); "parallel" -> draft.copy(probeParallel = n); else -> draft })
     }
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    // Large title (Telegram-style): big while a page is at its top, shrinks to the compact title as the page scrolls; see LargeTitle.kt.
+    val largeTitle = rememberLargeTitle()
+    val rootScroll = rememberScrollState()
+    val titleMotion = animationsOn()
+    // A new page starts at its top: large title. Back on the main list, the header follows where the list was left.
+    LaunchedEffect(section, logPage) { largeTitle.settleTo(collapsed = section == null && logPage == 0 && rootScroll.value > 0, animated = titleMotion) }
+    Column(Modifier.fillMaxSize().nestedScroll(largeTitle.nestedScrollConnection).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LargeTitleHeader(largeTitle) { titleStyle ->
             AnimatedContent(when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); 4 -> tr(R.string.set_licenses); 5 -> Licenses.entries.firstOrNull { it.asset == licenseAsset }?.let { tr(it.title) } ?: tr(R.string.set_licenses); else -> (section ?: tr(R.string.msg_settings_28)) }, modifier = Modifier.weight(1f),
                 transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) }, label = "settingsTitle") { title ->
-                Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 12.dp))
+                Text(title, style = titleStyle, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(top = 12.dp))
             }
         }
         // Settings pages: a page opened from a card (or the About entries) grows out of that card and shrinks back into it on Back
@@ -81,7 +88,6 @@ import org.mothvpn.core.SubscriptionSchedule
             "rules" -> tr(R.string.msg_connection_75) to 0; "changelog", "licenses" -> tr(R.string.msg_about_78) to 0; else -> null to 0
         }
         val motion = animationsOn()
-        val rootScroll = rememberScrollState()
         SharedTransitionLayout(Modifier.weight(1f).fillMaxWidth()) { CompositionLocalProvider(LocalSharedScope provides this) {
         AnimatedContent(targetState = section to logPage, modifier = Modifier.fillMaxSize(), transitionSpec = {
             if (!motion) return@AnimatedContent EnterTransition.None togetherWith ExitTransition.None

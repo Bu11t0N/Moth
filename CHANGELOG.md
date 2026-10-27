@@ -2,6 +2,12 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.8.0
+
+### Changes
+
+- Large titles on Settings (main list and every settings page) and Servers: at the top of a page the title is large and the header sits lower, so the first settings and the Servers buttons are easier to reach on a tall phone. Scrolling the page smoothly shrinks it to the compact title.
+
 ## 0.7.6
 
 Released 2026-10-27.
