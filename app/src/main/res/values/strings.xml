@@ -129,7 +129,7 @@
     <string name="msg_invalid_check_method_145" formatted="false">"Invalid check method"</string>
     <string name="msg_mtu_must_be_between_1280_and_9000_146" formatted="false">"MTU must be between 1280 and 9000"</string>
     <string name="msg_timeout_must_be_between_3_and_30_seconds_147" formatted="false">"Timeout must be between 1000 and 60000 ms"</string>
-    <string name="msg_check_interval_must_be_between_30_and_600_sec_148" formatted="false">"Check interval must be between 30 and 600 seconds"</string>
+    <string name="msg_check_interval_must_be_between_30_and_600_sec_148" formatted="false">"Check interval must be between 30 and 900 seconds"</string>
     <string name="msg_hwid_10_64_letters_digits_or_149" formatted="false">"HWID: 10–64 letters, digits, = or -"</string>
     <string name="msg_user_agent_must_contain_printable_ascii_chara_150" formatted="false">"User-Agent must contain printable ASCII characters"</string>
     <string name="msg_disabling_tls_verification_is_not_supported_151" formatted="false">"Disabling TLS verification is not supported"</string>
@@ -528,4 +528,16 @@
     <string name="ua_custom">Custom</string>
     <string name="ua_custom_invalid">Printable Latin characters only, up to 160</string>
     <string name="about_github">Source code on GitHub</string>
+    <string name="set_health_interval">Check interval</string>
+    <string name="set_minutes">%1$d min</string>
+    <string name="set_seconds">%1$d s</string>
+    <string name="set_health_hint">A scheduled check is skipped while traffic flows through the VPN (the tunnel works anyway) or there is no network. After a failed check the next ones are never skipped.</string>
+    <string name="auto_select_reuse">Don\'t re-measure if the last check is newer than</string>
+    <string name="auto_select_reuse_hint">When switching between Wi-Fi and mobile data, auto-select uses server check results up to this age instead of measuring every server again.</string>
+    <string name="set_head_notification">Notification</string>
+    <string name="notif_line_speed">Speed</string>
+    <string name="notif_line_total">Total traffic</string>
+    <string name="notif_line_uptime">Connection time</string>
+    <string name="notif_lines_hint">Lines of the connection notification. While the screen is off, the notification is not updated.</string>
+    <string name="msg_err_reuse">Invalid re-measure period</string>
 </resources>

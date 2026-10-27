@@ -14,6 +14,8 @@ object LogFacts {
         hidden("dns", old.dns, new.dns); hidden("probeUrl", old.probeUrl, new.probeUrl); hidden("bootstrapDns", old.bootstrapDns, new.bootstrapDns)
         plain("timeoutMs", old.timeoutMs, new.timeoutMs); plain("healthEnabled", old.healthEnabled, new.healthEnabled)
         plain("healthIntervalSeconds", old.healthIntervalSeconds, new.healthIntervalSeconds)
+        plain("notifySpeed", old.notifySpeed, new.notifySpeed); plain("notifyTotal", old.notifyTotal, new.notifyTotal); plain("notifyUptime", old.notifyUptime, new.notifyUptime)
+        plain("autoSelectReuseMinutes", old.autoSelectReuseMinutes, new.autoSelectReuseMinutes)
         plain("hwidEnabled", old.hwidEnabled, new.hwidEnabled); hidden("hwid", old.hwid, new.hwid)
         plain("deviceInfo", old.deviceInfo, new.deviceInfo); hidden("userAgent", old.userAgent, new.userAgent)
         // Custom device info: only that it changed, never the values.

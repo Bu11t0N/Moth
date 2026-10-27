@@ -2,6 +2,18 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 0.7.6
+
+Released 2026-10-27.
+
+### Changes
+
+- Lower battery use while connected.
+- Tunnel health check: choose the interval (1, 2, 5, 10 or 15 minutes; 5 minutes by default, also for anyone on the old 1-minute default). A scheduled check is skipped while traffic is flowing through the VPN or there is no network.
+- Notification: choose which lines it shows: speed, total traffic and connection time (all on by default). While the screen is off it is not updated every second.
+- Auto-select: after switching between Wi-Fi and mobile data, recent server check results are reused instead of measuring every server again. Choose how recent (5, 15, 30 or 60 minutes; 30 by default).
+- Server ping timeout: 3000 ms by default instead of 5000 ms, also for anyone on the old default.
+
 ## 0.7.5
 
 Released 2026-10-24.

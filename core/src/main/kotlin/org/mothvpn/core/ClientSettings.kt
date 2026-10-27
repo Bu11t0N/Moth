@@ -8,7 +8,8 @@ data class ClientSettings(
     val theme: String = "system", val mtu: Int = 1400, val ipv6: Boolean = true,
     val dns: String = "https://1.1.1.1/dns-query",
     val probeUrl: String = "https://www.gstatic.com/generate_204", val timeoutMs: Int = 10000,
-    val healthEnabled: Boolean = true, val healthIntervalSeconds: Int = 60,
+    /** Tunnel health check every [healthIntervalSeconds] (one of [HealthSchedule.minutes]; 30 s only in tests). */
+    val healthEnabled: Boolean = true, val healthIntervalSeconds: Int = HealthSchedule.DEFAULT_SECONDS,
     val hwidEnabled: Boolean = true, val hwid: String = UUID.randomUUID().toString(),
     /** Send x-device-os / x-ver-os / x-device-model with the HWID. On by default (see [deviceInfoSet] for the migration). */
     val deviceInfo: Boolean = true, val userAgent: String = "Moth",
@@ -16,7 +17,7 @@ data class ClientSettings(
     val compactServers: Boolean = true, val hideUnavailable: Boolean = false,
     /** Server check: [ProbePolicy.LATENCY] (second request on the warm connection), [ProbePolicy.FULL] (first request with every handshake) or "tcp". */
     val probeMode: String = ProbePolicy.LATENCY, val bootstrapDns: String = "https://1.1.1.1/dns-query",
-    val probeParallel: Int = 5, val probeTimeoutMs: Int = 5000,
+    val probeParallel: Int = 5, val probeTimeoutMs: Int = PROBE_TIMEOUT_DEFAULT,
     /** "release", "beta" or "" (not chosen yet: the default follows the installed build, see UpdateChannel.effective). */
     val updateChannel: String = "",
     /** Developer option: small icons with explanations instead of the red dash for failed server checks. */
@@ -63,8 +64,13 @@ data class ClientSettings(
     /** True once the user changed the device-info switch; files without it never had a real choice and get the new default (on). */
     val deviceInfoSet: Boolean = false,
     /** Custom device info sent instead of the system values; empty = the system value ("Android", Build.VERSION.RELEASE, the model). */
-    val deviceOs: String = "", val deviceOsVersion: String = "", val deviceModel: String = ""
+    val deviceOs: String = "", val deviceOsVersion: String = "", val deviceModel: String = "",
+    /** Lines of the connected notification: speed, total traffic, connection time. With none, the 1-second update does not run for it. */
+    val notifySpeed: Boolean = true, val notifyTotal: Boolean = true, val notifyUptime: Boolean = true,
+    /** Auto-select after a Wi-Fi <-> mobile switch reuses check results newer than this (minutes, [AutoSelectReuse.minutes]) instead of measuring again. */
+    val autoSelectReuseMinutes: Int = AutoSelectReuse.DEFAULT
 ) {
+    val notifyAny get() = notifySpeed || notifyTotal || notifyUptime
     /** The custom device info cleared (system values are sent again). */
     fun withDefaultDeviceInfo() = copy(deviceOs = "", deviceOsVersion = "", deviceModel = "")
     /** The filter of a network kind ("wifi" or "mobile"; anything else is Wi-Fi). */
@@ -97,7 +103,8 @@ data class ClientSettings(
         require(probeParallel in 1..16) { "Параллельных проверок: от 1 до 16" }
         require(probeTimeoutMs in 500..30000) { "Таймаут пинга: от 500 до 30000 мс" }
         require(timeoutMs in 1000..60000) { "Тайм-аут: от 1000 до 60000 мс" }
-        require(healthIntervalSeconds in 30..600) { "Интервал проверки: от 30 до 600 секунд" }
+        require(healthIntervalSeconds in 30..900) { "Интервал проверки: от 30 до 900 секунд" }
+        require(autoSelectReuseMinutes in AutoSelectReuse.minutes) { "Неверный срок повторного замера" }
         require(hwid.matches(Regex("[a-zA-Z0-9=-]{10,64}"))) { "HWID: 10–64 символа, буквы, цифры, = или -" }
         require(userAgent.isNotBlank() && userAgent.length <= 160 && userAgent.all { it.code in 32..126 }) { "User-Agent должен содержать печатные латинские символы" }
         require(DeviceInfo.valid(deviceOs, 64) && DeviceInfo.valid(deviceOsVersion, 64) && DeviceInfo.valid(deviceModel, 120)) { "Данные устройства: печатные латинские символы" }
@@ -119,7 +126,7 @@ data class ClientSettings(
     }
     fun json(): JSONObject = JSONObject().put("theme", theme).put("mtu", mtu).put("ipv6", ipv6).put("dns", dns)
         .put("probeUrl", probeUrl).put("timeoutMs", timeoutMs).put("healthEnabled", healthEnabled)
-        .put("healthIntervalSeconds", healthIntervalSeconds).put("hwidEnabled", hwidEnabled).put("hwid", hwid)
+        .put("hwidEnabled", hwidEnabled).put("hwid", hwid)
         .put("deviceInfo", deviceInfo).put("userAgent", userAgent).put("serverSort", serverSort)
         .put("compactServers", compactServers).put("hideUnavailable", hideUnavailable)
         .put("probeMode", probeMode).put("bootstrapDns", bootstrapDns)
@@ -131,19 +138,28 @@ data class ClientSettings(
         .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("amoled", amoled)
         .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json())
         .put("deviceInfoSet", deviceInfoSet).put("deviceOs", deviceOs).put("deviceOsVersion", deviceOsVersion).put("deviceModel", deviceModel)
+        // 0.7.6: "healthCheckSeconds" holds the interval (up to 15 min); "healthIntervalSeconds" stays within 30–600 for older builds.
+        .put("settingsVersion", SETTINGS_VERSION).put("healthCheckSeconds", healthIntervalSeconds).put("healthIntervalSeconds", healthIntervalSeconds.coerceAtMost(600))
+        .put("notifySpeed", notifySpeed).put("notifyTotal", notifyTotal).put("notifyUptime", notifyUptime).put("autoSelectReuseMinutes", autoSelectReuseMinutes)
     companion object {
+        /** 2 (0.7.6): files without it were written by older builds and still carry their defaults (60 s check, 5000 ms ping timeout). */
+        const val SETTINGS_VERSION = 2
+        const val PROBE_TIMEOUT_DEFAULT = 3000
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
         private val autoUserAgent = Regex("Moth(/[0-9][0-9A-Za-z.+-]*)?")
         fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
             DnsServers.migrate(j.optString("dns", "https://1.1.1.1/dns-query")), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
-            (if (j.has("timeoutMs")) j.getInt("timeoutMs") else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(1000, 60000), j.optBoolean("healthEnabled", true), j.optInt("healthIntervalSeconds", 60),
+            (if (j.has("timeoutMs")) j.getInt("timeoutMs") else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(1000, 60000), j.optBoolean("healthEnabled", true),
+            if (j.has("healthCheckSeconds")) j.getInt("healthCheckSeconds").coerceIn(30, 900) else HealthSchedule.migrate(j.optInt("healthIntervalSeconds", 60)),
             j.optBoolean("hwidEnabled", true), j.getString("hwid"), j.optBoolean("deviceInfo", false),
             j.optString("userAgent", "Moth"), j.optString("serverSort", if (j.optBoolean("sortByLatency", false)) "latency" else "name").takeIf { it in ServerOrder.all } ?: "name",
             j.optBoolean("compactServers", true), j.optBoolean("hideUnavailable", false),
             ProbePolicy.migrateMode(j.optString("probeMode", ProbePolicy.LATENCY)), j.optString("bootstrapDns", "https://1.1.1.1/dns-query"),
             j.optInt("probeParallel", 5).coerceIn(1, 16),
             (if (j.has("probeTimeoutMs")) j.getInt("probeTimeoutMs") else if (j.has("probeTimeoutSeconds")) j.getInt("probeTimeoutSeconds") * 1000
-                else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(500, 30000),
+                else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(500, 30000)
+                // The old default (5000 ms) becomes the new one; a value the user chose is kept.
+                .let { if (j.optInt("settingsVersion", 1) < 2 && it == 5000) PROBE_TIMEOUT_DEFAULT else it },
             j.optString("updateChannel", "").takeIf { it in setOf("release", "beta") } ?: "",
             j.optBoolean("detailedIcons", false)).copy(
             splitMode = SplitTunnel.migrateMode(j.optString("splitMode", "bypass")),
@@ -174,6 +190,8 @@ data class ClientSettings(
             deviceInfo = if (j.optBoolean("deviceInfoSet", false)) j.optBoolean("deviceInfo", true) else true,
             deviceOs = DeviceInfo.clean(j.optString("deviceOs", ""), 64), deviceOsVersion = DeviceInfo.clean(j.optString("deviceOsVersion", ""), 64),
             deviceModel = DeviceInfo.clean(j.optString("deviceModel", ""), 120),
+            notifySpeed = j.optBoolean("notifySpeed", true), notifyTotal = j.optBoolean("notifyTotal", true), notifyUptime = j.optBoolean("notifyUptime", true),
+            autoSelectReuseMinutes = AutoSelectReuse.normalize(j.optInt("autoSelectReuseMinutes", AutoSelectReuse.DEFAULT)),
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
 }
@@ -297,4 +315,35 @@ object LocalProxyConfig {
                 .put("rules", routing))
             .put("burstObservatory", source.getJSONObject("burstObservatory")).toString()
     }
+}
+
+/** Tunnel health check interval (Settings › Connection). */
+object HealthSchedule {
+    val minutes = listOf(1, 2, 5, 10, 15)
+    const val DEFAULT_SECONDS = 300
+    /** A scheduled check still runs at least this often while traffic keeps it skipped. */
+    const val MAX_SKIP_MS = 30 * 60_000L
+    /** Received bytes since the previous scheduled check that count as "traffic is flowing" (more than a failed handshake or a few resets). */
+    const val TRAFFIC_BYTES = 64 * 1024L
+    /** Values from 0.7.5 and earlier (free 30–600 s field, default 60 s): the old default becomes 5 min, anything else the nearest option. */
+    fun migrate(seconds: Int): Int = if (seconds == 60) DEFAULT_SECONDS else minutes.map { it * 60 }.minBy { kotlin.math.abs(it - seconds) }
+    enum class Skip { NO_NETWORK, TRAFFIC }
+    /**
+     * Whether a scheduled check can be skipped. No network: nothing to check. Traffic arrived through the tunnel since the previous
+     * scheduled check: the server works. Never while checks are failing (failover counts on them) and never for longer than [MAX_SKIP_MS].
+     * [rxBefore] < 0: no previous sample (the first check after connecting always runs).
+     */
+    fun skip(hasNetwork: Boolean, failures: Int, rxBefore: Long, rxNow: Long, sinceLastCheckMs: Long): Skip? = when {
+        !hasNetwork -> Skip.NO_NETWORK
+        failures > 0 || rxBefore < 0 || sinceLastCheckMs >= MAX_SKIP_MS -> null
+        rxNow - rxBefore >= TRAFFIC_BYTES -> Skip.TRAFFIC
+        else -> null
+    }
+}
+
+/** How long auto-select reuses check results after a Wi-Fi <-> mobile switch. */
+object AutoSelectReuse {
+    val minutes = listOf(5, 15, 30, 60)
+    const val DEFAULT = 30
+    fun normalize(value: Int) = if (value in minutes) value else DEFAULT
 }
