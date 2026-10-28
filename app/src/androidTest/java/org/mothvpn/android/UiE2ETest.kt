@@ -220,10 +220,12 @@ class UiE2ETest {
         tab("Settings"); Thread.sleep(600)
         if (theme == "dark") {
             // Ping method choice (Checks) and the developer list of subscription header names (About › For developers).
+            // Down first, then up: back on a list left scrolled down (large title collapsed), an entry can sit above the screen.
             fun scrollTo(text: String) {
-                repeat(10) {
+                for (up in listOf(false, true)) repeat(10) {
                     if (device.findObject(By.text(text)) != null) return
-                    device.swipe(device.displayWidth / 2, device.displayHeight * 7 / 10, device.displayWidth / 2, device.displayHeight * 3 / 10, 25); Thread.sleep(400)
+                    val (from, to) = if (up) 3 to 7 else 7 to 3
+                    device.swipe(device.displayWidth / 2, device.displayHeight * from / 10, device.displayWidth / 2, device.displayHeight * to / 10, 25); Thread.sleep(400)
                 }
             }
             wait(By.text("Checks")).click(); Thread.sleep(800)
@@ -235,7 +237,7 @@ class UiE2ETest {
             device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500)
             // Device info: a scrollable dialog whose fields hold the values that are sent (here the defaults) as real text.
             fun openDeviceInfo() {
-                wait(By.text("Subscription")).click(); Thread.sleep(800)
+                scrollTo("Subscription"); wait(By.text("Subscription")).click(); Thread.sleep(800)
                 scrollTo("Device info"); wait(By.text("Device info")).click()
                 wait(By.clazz("android.widget.EditText").text("Android")); Thread.sleep(600)
             }

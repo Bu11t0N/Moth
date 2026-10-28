@@ -291,7 +291,12 @@ class FeaturesE2ETest {
         }
         // The restored data is what the app shows.
         launch(); tab("Servers")
-        wait(By.desc("Collapse: First E2E")); wait(By.desc("Collapse: My servers")); wait(By.desc("Collapse: Favorites"))
+        wait(By.desc("Collapse: First E2E"))
+        // The large title starts the list lower: the later group headers can sit below the fold.
+        for (group in listOf("Collapse: My servers", "Collapse: Favorites")) {
+            for (dir in listOf(Direction.DOWN, Direction.UP)) repeat(6) { if (device.findObject(By.desc(group)) == null) { device.findObject(By.scrollable(true))?.scroll(dir, 0.35f); Thread.sleep(400) } }
+            wait(By.desc(group))
+        }
         tab("Settings"); wait(By.text("Routing")).click()
         scrollTo("Rules: 2")
         device.pressBack()
