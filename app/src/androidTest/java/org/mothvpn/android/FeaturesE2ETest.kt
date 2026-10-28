@@ -185,8 +185,11 @@ class FeaturesE2ETest {
 
         launch(); tab("Servers")
         // Group headers and server rows are single merged nodes: found by their descriptions.
+        wait(By.desc("Collapse: Second E2E")); wait(By.desc("Collapse: First E2E")); wait(By.descStartsWith("E2E VLESS"))
+        // The large title starts the list lower, so the second group's last rows can sit below the fold.
+        repeat(6) { if (device.findObject(By.descStartsWith("Second Trojan")) == null) { device.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.35f); Thread.sleep(400) } }
+        wait(By.descStartsWith("Second Trojan"))
         val header = wait(By.desc("Collapse: Second E2E"))
-        wait(By.desc("Collapse: First E2E")); wait(By.descStartsWith("Second Trojan")); wait(By.descStartsWith("E2E VLESS"))
         assertEquals(listOf(3, 2), SubscriptionStore(context).loadBook()!!.sources.map { it.profiles.size }.sortedDescending())
         val y = header.visibleBounds.centerY()
         device.findObjects(By.desc("Subscription actions")).minByOrNull { kotlin.math.abs(it.visibleBounds.centerY() - y) }!!.click()
