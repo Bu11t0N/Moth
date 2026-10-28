@@ -115,11 +115,10 @@ fun splitListedPackages(context: android.content.Context): Set<String> = listedP
     Card(Modifier.pressScale(enabled = enabled).fillMaxWidth().clickable(enabled = enabled, onClick = open), colors = ndCardColors()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
+                // The small ⓘ right after the title (instead of a full icon button before the arrow).
+                TitleWithInfo(title, info)
                 Text(value, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            // The setting's longer explanation, behind the info button (a dialog), instead of a hint under the card.
-            if (info != null) InfoButton(title, info)
             Text("›", modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
         }
     }

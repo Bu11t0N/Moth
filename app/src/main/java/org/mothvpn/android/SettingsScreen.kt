@@ -18,6 +18,9 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -130,12 +133,13 @@ import org.mothvpn.core.SubscriptionSchedule
                     LiveApplyHint()
                     val ctx = LocalContext.current
                     val openVpnSettings = { runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS)) }.onFailure { Logger.w("Settings", "system VPN settings unavailable", it) }; Unit }
-                    // Separate auto-select for Wi-Fi and mobile data; the one of the network in use applies.
-                    SettingsToggle(tr(R.string.auto_select_wifi), draft.autoSelectWifi, !locked, info = tr(R.string.auto_select_hint)) { applySettings(draft.copy(autoSelectWifi = it)) }
-                    SettingsToggle(tr(R.string.auto_select_mobile), draft.autoSelectMobile, !locked, info = tr(R.string.auto_select_hint)) { applySettings(draft.copy(autoSelectMobile = it)) }
+                    // Separate auto-select for Wi-Fi and mobile data; the one of the network in use applies. The auto-select explanation is
+                    // shown once, in the info of the reuse row below (not on both toggles).
+                    SettingsToggle(tr(R.string.auto_select_wifi), draft.autoSelectWifi, !locked) { applySettings(draft.copy(autoSelectWifi = it)) }
+                    SettingsToggle(tr(R.string.auto_select_mobile), draft.autoSelectMobile, !locked) { applySettings(draft.copy(autoSelectMobile = it)) }
                     var reuseDialog by remember { mutableStateOf(false) }
                     val reuseOptions = org.mothvpn.core.AutoSelectReuse.minutes.map { it to tr(R.string.set_minutes, it) }
-                    DialogRow(tr(R.string.auto_select_reuse), tr(R.string.set_minutes, draft.autoSelectReuseMinutes), enabled = !locked && draft.autoSelectAny, info = tr(R.string.auto_select_reuse_hint)) { reuseDialog = true }
+                    DialogRow(tr(R.string.auto_select_reuse), tr(R.string.set_minutes, draft.autoSelectReuseMinutes), enabled = !locked && draft.autoSelectAny, info = tr(R.string.auto_select_hint) + "\n\n" + tr(R.string.auto_select_reuse_hint)) { reuseDialog = true }
                     if (reuseDialog) ChoiceDialog(tr(R.string.auto_select_reuse), reuseOptions, draft.autoSelectReuseMinutes, { reuseDialog = false }) { applySettings(draft.copy(autoSelectReuseMinutes = it)) }
                     // The long kill switch explanation lives in its info dialog, with the way to the system VPN settings (Always-on VPN).
                     SettingsToggle(tr(R.string.kill_switch), draft.killSwitch, subtitle = tr(R.string.kill_switch_short), info = tr(R.string.kill_switch_hint),
@@ -146,11 +150,11 @@ import org.mothvpn.core.SubscriptionSchedule
                     var fragDialog by remember { mutableStateOf(false) }
                     var muxDialog by remember { mutableStateOf(false) }
                     val fragOptions = listOf("off" to tr(R.string.fragment_off), "tlshello" to tr(R.string.fragment_tlshello), "tlshello_small" to tr(R.string.fragment_tlshello_small), "first_packets" to tr(R.string.fragment_first_packets))
-                    DialogRow(tr(R.string.fragment_title), fragOptions.firstOrNull { it.first == draft.fragment }?.second ?: draft.fragment, !locked, info = tr(R.string.fragment_hint)) { fragDialog = true }
+                    DialogRow(tr(R.string.fragment_title), fragOptions.firstOrNull { it.first == draft.fragment }?.second ?: draft.fragment, !locked) { fragDialog = true }
                     if (fragDialog) ChoiceDialog(tr(R.string.fragment_title), fragOptions, draft.fragment, { fragDialog = false }) { applySettings(draft.copy(fragment = it)) }
-                    SettingsToggle(tr(R.string.noise_title), draft.noise, !locked, info = tr(R.string.noise_hint)) { applySettings(draft.copy(noise = it)) }
+                    SettingsToggle(tr(R.string.noise_title), draft.noise, !locked) { applySettings(draft.copy(noise = it)) }
                     val muxOptions = listOf("off" to tr(R.string.mux_off), "smux" to "smux", "yamux" to "yamux", "h2mux" to "h2mux")
-                    DialogRow(tr(R.string.mux_title), muxOptions.firstOrNull { it.first == draft.mux }?.second ?: draft.mux, !locked, info = tr(R.string.mux_hint)) { muxDialog = true }
+                    DialogRow(tr(R.string.mux_title), muxOptions.firstOrNull { it.first == draft.mux }?.second ?: draft.mux, !locked) { muxDialog = true }
                     if (muxDialog) ChoiceDialog(tr(R.string.mux_title), muxOptions, draft.mux, { muxDialog = false }) { applySettings(draft.copy(mux = it)) }
                 }
                 tr(R.string.msg_checks_76) -> {
@@ -205,9 +209,9 @@ import org.mothvpn.core.SubscriptionSchedule
                         } }, confirmButton = { TextButton(enabled = DnsServers.valid(text), onClick = { customDns = false; applySettings(draft.copy(dns = text)) }, modifier = Modifier.pressScale(enabled = DnsServers.valid(text))) { Text(tr(R.string.ok)) } },
                             dismissButton = { TextButton(onClick = { customDns = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
                     }
-                    SettingsToggle(tr(R.string.dns_leak), draft.dnsLeakProtection, !locked, info = tr(R.string.dns_leak_hint)) { applySettings(draft.copy(dnsLeakProtection = it)) }
+                    SettingsToggle(tr(R.string.dns_leak), draft.dnsLeakProtection, !locked) { applySettings(draft.copy(dnsLeakProtection = it)) }
                     FieldCard(draft.bootstrapDns, { applySettings(draft.copy(bootstrapDns = it)) }, tr(R.string.msg_server_bootstrap_dns_91), !locked, info = tr(R.string.msg_this_dns_is_used_directly_to_connect_to_serve_92))
-                    SettingsToggle(tr(R.string.msg_ipv6_through_vpn_89), draft.ipv6, !locked, info = tr(R.string.msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90)) { applySettings(draft.copy(ipv6 = it)) }
+                    SettingsToggle(tr(R.string.msg_ipv6_through_vpn_89), draft.ipv6, !locked) { applySettings(draft.copy(ipv6 = it)) }
                     FieldCard(mtu, { mtu = it; number(it, "mtu") }, "MTU · 1280–9000", !locked)
                 }
                 tr(R.string.set_cat_subscription) -> {
@@ -218,7 +222,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     if (subDialog) ChoiceDialog(tr(R.string.sub_auto), subOptions, draft.subUpdateHours, { subDialog = false }) { applySettings(draft.copy(subUpdateHours = it)) }
                     var trafficDialog by remember { mutableStateOf(false) }
                     val trafficOptions = org.mothvpn.core.TrafficWarning.thresholds.map { it to if (it == 0) tr(R.string.sub_auto_off) else "$it%" }
-                    DialogRow(tr(R.string.traffic_warning_setting), trafficOptions.first { it.first == draft.trafficWarning }.second, info = tr(R.string.traffic_warning_hint)) { trafficDialog = true }
+                    DialogRow(tr(R.string.traffic_warning_setting), trafficOptions.first { it.first == draft.trafficWarning }.second) { trafficDialog = true }
                     if (trafficDialog) ChoiceDialog(tr(R.string.traffic_warning_setting), trafficOptions, draft.trafficWarning, { trafficDialog = false }) { applySettings(draft.copy(trafficWarning = it)) }
                     SettingsToggle(tr(R.string.expiry_toggle), draft.expiryWarning, info = tr(R.string.expiry_toggle_hint)) { applySettings(draft.copy(expiryWarning = it)) }
                     SectionHeader(tr(R.string.set_head_provider))
@@ -291,7 +295,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsToggle(tr(R.string.dev_detailed_icons), draft.detailedIcons, info = tr(R.string.dev_detailed_icons_hint)) { applySettings(draft.copy(detailedIcons = it)) }
                     SectionHeader(tr(R.string.set_head_notification))
                     SettingCard {
-                        CardTitle(tr(R.string.set_notif_lines), info = tr(R.string.notif_lines_hint))
+                        CardTitle(tr(R.string.set_notif_lines))
                         listOf(Triple(R.string.notif_line_speed, draft.notifySpeed) { on: Boolean -> draft.copy(notifySpeed = on) },
                             Triple(R.string.notif_line_total, draft.notifyTotal) { on: Boolean -> draft.copy(notifyTotal = on) },
                             Triple(R.string.notif_line_uptime, draft.notifyUptime) { on: Boolean -> draft.copy(notifyUptime = on) }).forEach { (label, checked, change) ->
@@ -397,21 +401,35 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
 }
 /** The title row of a card that holds a group of choices (radio buttons, checkboxes), with the optional info button. */
 @Composable private fun CardTitle(title: String, info: String? = null) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(vertical = 8.dp))
-        if (info != null) InfoButton(title, info)
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 16.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        TitleWithInfo(title, info, Modifier.weight(1f).padding(vertical = 8.dp))
     }
 }
-/** ⓘ next to a setting: its longer explanation in a dialog (scrolls when long), with an optional extra action, e.g. the system VPN settings. */
+/** A setting's title with its small ⓘ right after the text (wraps with the title; the row's end stays free for the switch or arrow). */
+@Composable fun TitleWithInfo(title: String, info: String?, modifier: Modifier = Modifier, style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleMedium,
+    infoActionLabel: String? = null, infoAction: (() -> Unit)? = null) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = style, modifier = Modifier.weight(1f, fill = false))
+        if (info != null) InfoButton(title, info, infoActionLabel, infoAction)
+    }
+}
+/** ⓘ next to a setting: a small 20dp icon with a 36dp touch area (not a full 48dp icon button), opening the longer explanation in a dialog
+ *  (scrolls when long). An optional extra action (e.g. the system VPN settings) is a text button inside the dialog body, so the bottom bar keeps only OK. */
 @Composable fun InfoButton(title: String, text: String, actionLabel: String? = null, action: (() -> Unit)? = null) {
     var open by remember { mutableStateOf(false) }
-    IconButton(onClick = { open = true }, modifier = Modifier.pressScale()) {
-        Icon(androidx.compose.material.icons.Icons.Outlined.Info, contentDescription = tr(R.string.set_info_more, title), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    val description = tr(R.string.set_info_more, title)
+    Box(Modifier.size(36.dp).clip(androidx.compose.foundation.shape.CircleShape)
+        .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = description) { open = true }
+        .semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
+        Icon(androidx.compose.material.icons.Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
     }
     if (open) AlertDialog(onDismissRequest = { open = false }, title = { Text(title) },
-        text = { Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.verticalScroll(rememberScrollState())) },
-        confirmButton = { TextButton(onClick = { open = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.ok)) } },
-        dismissButton = if (action != null && actionLabel != null) { { TextButton(onClick = { open = false; action() }, modifier = Modifier.pressScale()) { Text(actionLabel) } } } else null)
+        text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+            Text(text, style = MaterialTheme.typography.bodyMedium)
+            if (action != null && actionLabel != null) TextButton(onClick = { open = false; action() }, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
+                modifier = Modifier.pressScale().padding(top = 8.dp)) { Text(actionLabel) }
+        } },
+        confirmButton = { TextButton(onClick = { open = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.ok)) } })
 }
 /** A text setting in a card; [info] adds the info button at the end of the field. */
 @Composable private fun FieldCard(value: String, change: (String) -> Unit, label: String, enabled: Boolean, info: String? = null) {
@@ -436,7 +454,7 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
     // Leaving the page mid-drag (or without saving) shows the saved value again.
     DisposableEffect(Unit) { onDispose { LargeTitleTuning.percent = range.normalize(saved) } }
     SettingCard {
-        CardTitle(tr(R.string.dev_title_height), info = tr(R.string.dev_title_height_hint))
+        CardTitle(tr(R.string.dev_title_height))
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tr(R.string.dev_title_height_value, value.toInt()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
             val notDefault = value.toInt() != range.DEFAULT
@@ -453,8 +471,8 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
     Card(Modifier.pressScale(enabled = enabled).fillMaxWidth(), colors = ndCardColors()) {
         Column(Modifier.fillMaxWidth().clickable(enabled = enabled) { change(!checked) }.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)) {
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(end = 4.dp))
-                if (info != null) InfoButton(label, info, infoActionLabel, infoAction)
+                // The small ⓘ sits right after the title; the switch is alone at the end.
+                TitleWithInfo(label, info, Modifier.weight(1f).padding(end = 8.dp), infoActionLabel = infoActionLabel, infoAction = infoAction)
                 MothSwitch(checked = checked, onCheckedChange = change, enabled = enabled)
             }
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

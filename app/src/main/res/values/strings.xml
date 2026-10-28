@@ -258,7 +258,6 @@
     <string name="dns_custom">Custom</string>
     <string name="dns_custom_hint">https://…/dns-query (DoH), tls://host (DoT) or an IPv4 address. DNS requests always go through the VPN.</string>
     <string name="dns_leak">DNS leak protection</string>
-    <string name="dns_leak_hint">All DNS requests and traffic stay inside the tunnel and cannot bypass it.</string>
     <string name="sub_auto">Update subscription automatically</string>
     <string name="sub_auto_off">Off</string>
     <string name="sub_auto_hours">Every %1$d h</string>
@@ -436,7 +435,6 @@
     <string name="rules_import_over_limit">Over the 500 limit: %1$d</string>
     <string name="rules_import_apply">Add %1$d</string>
     <string name="traffic_warning_setting">Warn when traffic is running out</string>
-    <string name="traffic_warning_hint">A notification when a subscription has used this share of its traffic (if the provider reports a limit). Once per subscription and billing period.</string>
     <string name="traffic_warning_title">Traffic is running out</string>
     <string name="traffic_warning_title_named">Traffic of “%1$s” is running out</string>
     <string name="traffic_warning_text">%1$d%% used: %2$s of %3$s</string>
@@ -452,12 +450,9 @@
     <string name="fragment_tlshello">"TLS ClientHello (recommended)"</string>
     <string name="fragment_tlshello_small">"TLS ClientHello, small pieces"</string>
     <string name="fragment_first_packets">"First packets of the connection"</string>
-    <string name="fragment_hint">"Splits the start of TLS connections into pieces so that DPI cannot read the server name. Slightly slower; enable only if servers are blocked."</string>
     <string name="noise_title">"UDP noise"</string>
-    <string name="noise_hint">"Sends a few random packets before UDP connections (QUIC, Hysteria2, TUIC, WireGuard). Only affects UDP."</string>
     <string name="mux_title">"Multiplexing (mux)"</string>
     <string name="mux_off">"Off"</string>
-    <string name="mux_hint">"Carries several connections inside one. The server must support the chosen mode; not used with XTLS flow or XHTTP."</string>
     <string name="deeplink_sub_title">"Add subscription?"</string>
     <string name="deeplink_links_title">"Add servers?"</string>
     <string name="deeplink_sub_text">"Subscription from %1$s will be downloaded and added."</string>
@@ -546,7 +541,6 @@
     <string name="notif_line_speed">Speed</string>
     <string name="notif_line_total">Total traffic</string>
     <string name="notif_line_uptime">Connection time</string>
-    <string name="notif_lines_hint">Lines of the connection notification. While the screen is off, the notification is not updated.</string>
     <string name="msg_err_reuse">Invalid re-measure period</string>
     <string name="msg_err_title_height">Invalid title height</string>
     <string name="set_info_more">More about %1$s</string>
@@ -554,6 +548,5 @@
     <string name="set_notif_lines">Notification lines</string>
     <string name="dev_title_height">Large title height</string>
     <string name="dev_title_height_value">%1$d%% of the screen</string>
-    <string name="dev_title_height_hint" formatted="false">How much taller the header of Settings and Servers is at the top of a page, in percent of the screen height (10–30 %, 20 % by default). The change applies right away.</string>
     <string name="dev_title_height_default">Default</string>
 </resources>

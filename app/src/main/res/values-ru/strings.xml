@@ -260,7 +260,6 @@
     <string name="dns_custom">Свой</string>
     <string name="dns_custom_hint">https://…/dns-query (DoH), tls://адрес (DoT) или IPv4-адрес. DNS-запросы всегда идут через VPN.</string>
     <string name="dns_leak">Защита от утечек DNS</string>
-    <string name="dns_leak_hint">Все DNS-запросы и трафик остаются внутри туннеля и не могут пойти в обход.</string>
     <string name="sub_auto">Обновлять подписку автоматически</string>
     <string name="sub_auto_off">Выключено</string>
     <string name="sub_auto_hours">Каждые %1$d ч</string>
@@ -440,7 +439,6 @@
     <string name="rules_import_over_limit">Сверх лимита 500: %1$d</string>
     <string name="rules_import_apply">Добавить %1$d</string>
     <string name="traffic_warning_setting">Предупреждать, когда трафик заканчивается</string>
-    <string name="traffic_warning_hint">Уведомление, когда подписка израсходовала эту долю трафика (если провайдер сообщает лимит). Один раз для подписки за расчётный период.</string>
     <string name="traffic_warning_title">Трафик заканчивается</string>
     <string name="traffic_warning_title_named">Трафик «%1$s» заканчивается</string>
     <string name="traffic_warning_text">Израсходовано %1$d%%: %2$s из %3$s</string>
@@ -456,12 +454,9 @@
     <string name="fragment_tlshello">"TLS ClientHello (рекомендуется)"</string>
     <string name="fragment_tlshello_small">"TLS ClientHello, мелкие части"</string>
     <string name="fragment_first_packets">"Первые пакеты соединения"</string>
-    <string name="fragment_hint">"Делит начало TLS-соединений на части, чтобы DPI не видел имя сервера. Немного медленнее; включайте, только если серверы блокируются."</string>
     <string name="noise_title">"UDP-шум"</string>
-    <string name="noise_hint">"Отправляет несколько случайных пакетов перед UDP-соединениями (QUIC, Hysteria2, TUIC, WireGuard). Влияет только на UDP."</string>
     <string name="mux_title">"Мультиплексирование (mux)"</string>
     <string name="mux_off">"Выключено"</string>
-    <string name="mux_hint">"Передаёт несколько соединений внутри одного. Сервер должен поддерживать выбранный режим; не используется с XTLS flow и XHTTP."</string>
     <string name="deeplink_sub_title">"Добавить подписку?"</string>
     <string name="deeplink_links_title">"Добавить серверы?"</string>
     <string name="deeplink_sub_text">"Будет загружена и добавлена подписка с %1$s."</string>
@@ -550,7 +545,6 @@
     <string name="notif_line_speed">Скорость</string>
     <string name="notif_line_total">Общий трафик</string>
     <string name="notif_line_uptime">Время подключения</string>
-    <string name="notif_lines_hint">Строки уведомления о подключении. Пока экран выключен, уведомление не обновляется.</string>
     <string name="msg_err_reuse">Неверный срок повторного замера</string>
     <string name="msg_err_title_height">Неверная высота заголовка</string>
     <string name="set_info_more">Подробнее: %1$s</string>
@@ -558,6 +552,5 @@
     <string name="set_notif_lines">Строки уведомления</string>
     <string name="dev_title_height">Высота большого заголовка</string>
     <string name="dev_title_height_value">%1$d%% экрана</string>
-    <string name="dev_title_height_hint" formatted="false">Насколько выше заголовок «Настроек» и «Серверов» вверху страницы, в процентах от высоты экрана (10–30 %, по умолчанию 20 %). Изменение применяется сразу.</string>
     <string name="dev_title_height_default">По умолчанию</string>
 </resources>
