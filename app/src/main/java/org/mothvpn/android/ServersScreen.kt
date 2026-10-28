@@ -61,7 +61,7 @@ import org.mothvpn.core.SubscriptionRecord
 import org.mothvpn.core.SubscriptionSource
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-@Composable fun ServersScreen(saved: SavedSubscription?, book: SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
+@Composable fun ServersScreen(saved: SavedSubscription?, book: SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean,
     add: () -> Unit, refresh: () -> Unit, refreshOne: (String) -> Unit, edit: (String, String, String) -> Unit, remove: (String) -> Unit, select: (String, String) -> Unit, probe: (String, List<String>) -> Unit,
     probeGroup: (String, List<String>) -> Unit = { _, _ -> }, cancel: () -> Unit, preferences: (ClientSettings) -> Unit,
     editServer: (String, String) -> Unit = { _, _ -> }, selecting: Boolean = false) {
@@ -210,8 +210,7 @@ import org.mothvpn.core.SubscriptionSource
     Column(Modifier.fillMaxSize().nestedScroll(largeTitle.nestedScrollConnection).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Refresh and check live in each group header; the top bar has Add (+), update all subscriptions and check all servers on this page
         // (cancel while checks run) as direct buttons, no ⋮ menu.
-        LargeTitleHeader(largeTitle, Modifier.padding(top = 12.dp, bottom = 4.dp)) { titleStyle ->
-            Text(tr(R.string.msg_servers_27), style = titleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        LargeTitleHeader(largeTitle, tr(R.string.msg_servers_27), Modifier.padding(top = 12.dp, bottom = 4.dp)) {
             // Adding works while connected; only during checks, a connect/disconnect or another operation the + dims and a tap explains why (top notice).
             IconButton(onClick = { if (refreshLocked) show(tr(R.string.sub_wait_notice)) else add() },
                 modifier = Modifier.pressScale().then(Modifier.size(40.dp).graphicsLayer { alpha = if (refreshLocked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) })) {
@@ -247,7 +246,6 @@ import org.mothvpn.core.SubscriptionSource
         OutlinedTextField(search, { search = it }, singleLine = true, placeholder = { Text(tr(R.string.msg_search_servers_57)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
         // Switching servers shows no progress bar (the selection highlight is enough).
         if ((busy && !selecting) || probing) LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         // Swipe between the Wi-Fi and mobile data pages; the pill switch follows the pager.
         run {
         LaunchedEffect(pager.currentPage) { kind = if (pager.currentPage == 0) "wifi" else "mobile" }

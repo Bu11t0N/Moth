@@ -66,11 +66,15 @@ class MainActivity : AppCompatActivity() {
     private var selecting by mutableStateOf(false)
     /** Import offered by a link that opened the app; shown in a confirmation dialog, never logged. */
     private var deepLink by mutableStateOf<org.mothvpn.core.DeepLinks.Action?>(null)
-    private var messageState by mutableStateOf("")
-    /** Every message shown to the user is also written to the log (the text is redacted by Logger). */
+    /** The app-wide top notice (hosted above the tabs, provided through [LocalNotice]). */
+    private val notices = NoticeState()
+    /**
+     * An error or status for the user. No screen shows it as a permanent text: a non-blank message appears as the top notice
+     * (for [NoticeState.ERROR_MS]); a blank one changes nothing. Every message shown is also written to the log (redacted by Logger).
+     */
     private var message: String
-        get() = messageState
-        set(value) { messageState = value; if (value.isNotBlank()) Logger.i("UI", "message shown: $value") }
+        get() = ""
+        set(value) { if (value.isNotBlank()) { notices.show(value, NoticeState.ERROR_MS); Logger.i("UI", "message shown: $value") } }
     private var settings by mutableStateOf(ClientSettings())
     private lateinit var networks: NetworkTracker
     private val settingsQueue = Channel<ClientSettings>(Channel.CONFLATED)
@@ -146,7 +150,10 @@ class MainActivity : AppCompatActivity() {
             var subName by remember { mutableStateOf("") }
             val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
             val scheme = if (dark) (if (settings.amoled) MonoTheme.amoled else MonoTheme.dark) else MonoTheme.light
-            val notices = remember { NoticeState() }
+            // The filter hides every server: a top notice once when that starts (no permanent text on Home).
+            val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
+            val hidesAll = filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).keywords.isNotEmpty()
+            androidx.compose.runtime.LaunchedEffect(hidesAll) { if (hidesAll) notices.show(tr(R.string.nd_filter_hides_all), NoticeState.ERROR_MS) }
             MaterialTheme(colorScheme = scheme, shapes = MonoTheme.shapes) {
                 androidx.compose.runtime.CompositionLocalProvider(LocalNotice provides notices) {
                 Surface(Modifier.fillMaxSize()) {
@@ -157,11 +164,11 @@ class MainActivity : AppCompatActivity() {
                                 (fadeIn(tween(220, delayMillis = 60)) + slideInHorizontally(tween(260)) { it / 12 * dir }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(260)) { -it / 12 * dir })
                             }, label = "tab") { shown ->
                             when (shown) {
-                                0 -> NewHomeScreen(saved, book, settings, network, busy, message,
+                                0 -> NewHomeScreen(saved, book, settings, network, busy,
                                     add = { url = ""; subName = ""; dialog = true },
                                     connect = { homeTap() },
                                     select = { id, kind -> select(id, kind) }, updateAvailable = updateAvailable, openUpdates = { openUpdates = true; tab = 2 })
-                                1 -> ServersScreen(saved, book, settings, network, busy, message,
+                                1 -> ServersScreen(saved, book, settings, network, busy,
                                     add = { url = ""; subName = ""; dialog = true }, refresh = { refreshAll() }, refreshOne = { id -> book?.source(id)?.takeIf { !it.local }?.let { import(it.url, "refresh", id) } },
                                     edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
                                     select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order, only = checkSnapshot(kind)) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
@@ -175,7 +182,7 @@ class MainActivity : AppCompatActivity() {
                             }
                             }
                             // One notice host above the tabs: a tab switch keeps the notice (timer and dismissal unchanged).
-                            TopNotice(notices.text, notices.seq, { notices.dismiss() }, Modifier.align(androidx.compose.ui.Alignment.TopCenter))
+                            TopNotice(notices.text, notices.seq, { notices.dismiss() }, Modifier.align(androidx.compose.ui.Alignment.TopCenter), notices.durationMs)
                         }
                         // Same colour as the content surface and no tonal overlay: no lighter band at the bottom.
                         NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
@@ -283,7 +290,7 @@ class MainActivity : AppCompatActivity() {
     /** [sourceId]: refresh or edit that subscription; null adds a new one. [name]: a name chosen by the user (never logged). */
     private fun import(url: String, trigger: String = "add", sourceId: String? = null, name: String? = null, expectedUrl: String? = null) {
         if (busy) { Logger.w("Import", "ignored: another operation is in progress (trigger=$trigger)"); return }
-        busy = true; message = tr(R.string.msg_downloading_servers_33)
+        busy = true // progress: the bar on the Servers tab, no status text
         val started = System.currentTimeMillis()
         Logger.i("Import", "subscription ${if (trigger == "refresh") "refresh" else "download"} started (trigger=$trigger, host=${LogFacts.hostTag(url)})")
         lifecycleScope.launch {
@@ -310,11 +317,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 show(result.first)
                 Logger.i("Import", "subscription saved: ${result.first.profiles.size} server(s) in ${System.currentTimeMillis() - started} ms (trigger=$trigger)")
-                message = "" // the import result is only logged, not shown
             } catch (e: org.mothvpn.core.StaleSubscriptionRefresh) {
                 Logger.i("Import", "update discarded: subscription deleted or link changed")
                 runCatching { withContext(Dispatchers.IO) { store.loadBook() } }.onSuccess { show(it) }
-                message = ""
             } catch (e: Exception) {
                 // Logger redacts links and addresses from the exception text.
                 Logger.e("Import", "subscription import failed (trigger=$trigger, host=${LogFacts.hostTag(url)}, ${System.currentTimeMillis() - started} ms)", e)
@@ -334,7 +339,7 @@ class MainActivity : AppCompatActivity() {
         if (busy) return
         val sources = book?.sources.orEmpty().filter { !it.local }
         if (sources.isEmpty()) return
-        busy = true; message = tr(R.string.msg_downloading_servers_33)
+        busy = true // progress: the bar on the Servers tab, no status text
         lifecycleScope.launch {
             var error: String? = null
             for (source in sources) {
@@ -342,7 +347,7 @@ class MainActivity : AppCompatActivity() {
                 catch (e: CancellationException) { throw e }
                 catch (e: Exception) { Logger.e("Import", "subscription refresh failed (host=${LogFacts.hostTag(source.url)})", e); error = importError(e) } // no subscription name: shown messages are also logged
             }
-            message = error.orEmpty(); busy = false
+            error?.let { message = it }; busy = false
         }
     }
     /** Renames a subscription and, when the link changed, downloads it again from the new link (same entry, same position). */
@@ -431,7 +436,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val next = withContext(Dispatchers.IO) { store.update { it.remove(id) }.also { if (it.sources.isEmpty()) store.clear(); ProviderLogos.remove(this@MainActivity, id); ResponseHeaderNames.remove(this@MainActivity, id) } }
                 show(next.takeIf { it.sources.isNotEmpty() })
-                Logger.i("Store", "subscription removed by the user (${next.sources.size} left)"); message = ""
+                Logger.i("Store", "subscription removed by the user (${next.sources.size} left)")
             }
             catch (e: Exception) { Logger.e("Store", "removing the subscription failed", e); message = tr(R.string.msg_could_not_remove_the_subscription_43) }
             finally { busy = false }

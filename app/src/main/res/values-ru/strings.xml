@@ -311,7 +311,7 @@
     <string name="expiry_toggle_hint">Уведомление за 3 дня и в последний день, если провайдер передаёт дату окончания.</string>
     <string name="set_cat_routing">Маршрутизация</string>
     <string name="set_cat_data">Данные</string>
-    <string name="set_sum_data">Статистика, резервная копия и обновления</string>
+    <string name="set_sum_data">Статистика и резервная копия</string>
     <string name="set_head_apps">Приложения</string>
     <string name="set_head_rules">Правила</string>
     <string name="set_head_network">Сеть и DNS</string>
@@ -334,7 +334,7 @@
     <string name="set_split_bypass">Приложения в обход VPN: %d</string>
     <string name="set_sum_defaults">Настройки по умолчанию</string>
     <string name="set_sum_version">Установлена %s</string>
-    <string name="set_sum_about">Версия, лицензии и список изменений</string>
+    <string name="set_sum_about">Версия, обновления, лицензии и список изменений</string>
     <string name="set_sum_dev">Журнал и журнал сбоев · уровень: %s</string>
     <string name="set_theme_light">Светлая тема</string>
     <string name="set_theme_dark">Тёмная тема</string>

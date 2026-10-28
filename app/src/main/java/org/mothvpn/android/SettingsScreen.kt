@@ -50,11 +50,11 @@ import org.mothvpn.core.SubscriptionSchedule
     // pages, so they close with them; the usual page transition plays. (The first composition keeps a pending "open updates".)
     val firstRoot = remember { rootRequest }
     LaunchedEffect(rootRequest) { if (rootRequest != firstRoot) { logPage = 0; licenseAsset = ""; showHwid = false; error = ""; section = null } }
-    // The page a page returns to on Back: the folder its card sits in (Routing, Data, About), else the main list.
+    // The page a page returns to on Back: the folder its card sits in (Routing, Data, About; Updates is in About), else the main list.
     fun parentSection(sec: String?): String? = when (sec) {
         tr(R.string.split_title), tr(R.string.rules_title) -> tr(R.string.set_cat_routing)
-        tr(R.string.stats_title), tr(R.string.backup_title), tr(R.string.update_title) -> tr(R.string.set_cat_data)
-        tr(R.string.dev_for_developers) -> tr(R.string.msg_about_78)
+        tr(R.string.stats_title), tr(R.string.backup_title) -> tr(R.string.set_cat_data)
+        tr(R.string.update_title), tr(R.string.dev_for_developers) -> tr(R.string.msg_about_78)
         else -> null
     }
     BackHandler(enabled = section != null) { if (logPage == 5) logPage = 4 else if (logPage == 3 || logPage == 4) { logPage = 0; section = tr(R.string.msg_about_78) } else if (logPage != 0) logPage = 0 else section = parentSection(section) }
@@ -75,12 +75,8 @@ import org.mothvpn.core.SubscriptionSchedule
     // A new page starts at its top: large title. Back on the main list, the header follows where the list was left.
     LaunchedEffect(section, logPage) { largeTitle.settleTo(collapsed = section == null && logPage == 0 && rootScroll.value > 0, animated = titleMotion) }
     Column(Modifier.fillMaxSize().nestedScroll(largeTitle.nestedScrollConnection).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        LargeTitleHeader(largeTitle) { titleStyle ->
-            AnimatedContent(when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); 4 -> tr(R.string.set_licenses); 5 -> Licenses.entries.firstOrNull { it.asset == licenseAsset }?.let { tr(it.title) } ?: tr(R.string.set_licenses); else -> (section ?: tr(R.string.msg_settings_28)) }, modifier = Modifier.weight(1f),
-                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) }, label = "settingsTitle") { title ->
-                Text(title, style = titleStyle, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(top = 12.dp))
-            }
-        }
+        LargeTitleHeader(largeTitle, when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); 4 -> tr(R.string.set_licenses); 5 -> Licenses.entries.firstOrNull { it.asset == licenseAsset }?.let { tr(it.title) } ?: tr(R.string.set_licenses); else -> (section ?: tr(R.string.msg_settings_28)) },
+            Modifier.padding(top = 12.dp))
         // Settings pages: a page opened from a card (or the About entries) grows out of that card and shrinks back into it on Back
         // (container transform, shared bounds); the rest fades. Pages without a card (logs, a licence text) keep the short slide.
         fun containerKey(page: Pair<String?, Int>): String? = when {
@@ -91,7 +87,7 @@ import org.mothvpn.core.SubscriptionSchedule
                 tr(R.string.backup_title) to "backup", tr(R.string.update_title) to "updates", tr(R.string.msg_about_78) to "about",
                 tr(R.string.dev_for_developers) to "dev")[page.first]
         }
-        // The page that shows the card a page opens from: the main list, a folder (Routing, Data) or About (changelog, licences, developers).
+        // The page that shows the card a page opens from: the main list, a folder (Routing, Data) or About (updates, changelog, licences, developers).
         val containerPages = listOf(R.string.split_title to "split", R.string.rules_title to "rules", R.string.stats_title to "stats", R.string.backup_title to "backup",
             R.string.update_title to "updates", R.string.dev_for_developers to "dev").associate { (id, key) -> key to tr(id) }
         fun parentPage(key: String): Pair<String?, Int> = when (key) {
@@ -344,7 +340,6 @@ import org.mothvpn.core.SubscriptionSchedule
                     val today = stats.day(java.time.LocalDate.now())
                     SettingsCategory(tr(R.string.stats_title), tr(R.string.stats_today) + ": " + org.mothvpn.core.TrafficFormat.bytes(today.first + today.second, tr(R.string.notif_units).split("|"), loc), "stats") { section = tr(R.string.stats_title) }
                     SettingsCategory(tr(R.string.backup_title), tr(R.string.backup_sum), "backup") { section = tr(R.string.backup_title) }
-                    SettingsCategory(tr(R.string.update_title), tr(R.string.set_sum_version, BuildConfig.VERSION_NAME), "updates") { section = tr(R.string.update_title) }
                 }
                 tr(R.string.dev_for_developers) -> {
                     DeveloperSection({ logPage = 1 }, { logPage = 2 })
@@ -357,6 +352,8 @@ import org.mothvpn.core.SubscriptionSchedule
                 tr(R.string.msg_about_78) -> {
                     Text(VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleLarge)
                     Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111))
+                    // App updates live in About (not under Data); the developer card stays last.
+                    SettingsCategory(tr(R.string.update_title), tr(R.string.set_sum_version, BuildConfig.VERSION_NAME), "updates") { section = tr(R.string.update_title) }
                     SettingsCategory(tr(R.string.set_changelog), "", "changelog") { section = tr(R.string.set_changelog); logPage = 3 }
                     SettingsCategory(tr(R.string.set_licenses), tr(R.string.set_licenses_sum), "licenses") { section = tr(R.string.set_licenses); logPage = 4 }
                     // Opens the browser, not a page: same card, no container transform, an "open in new" mark instead of the arrow.

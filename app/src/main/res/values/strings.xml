@@ -307,7 +307,7 @@
     <string name="expiry_toggle_hint">A notification 3 days before and on the last day, if the provider sends the end date.</string>
     <string name="set_cat_routing">Routing</string>
     <string name="set_cat_data">Data</string>
-    <string name="set_sum_data">Statistics, backup and updates</string>
+    <string name="set_sum_data">Statistics and backup</string>
     <string name="set_head_apps">Apps</string>
     <string name="set_head_rules">Rules</string>
     <string name="set_head_network">Network and DNS</string>
@@ -330,7 +330,7 @@
     <string name="set_split_bypass">Apps bypassing VPN: %d</string>
     <string name="set_sum_defaults">Default settings</string>
     <string name="set_sum_version">Installed %s</string>
-    <string name="set_sum_about">Version, licenses and changelog</string>
+    <string name="set_sum_about">Version, updates, licenses and changelog</string>
     <string name="set_sum_dev">Log and crash log · level: %s</string>
     <string name="set_theme_light">Light theme</string>
     <string name="set_theme_dark">Dark theme</string>

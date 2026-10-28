@@ -276,7 +276,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 
 /** Home screen: moth connect button, status, stat tiles, subscription card and a server bar with a bottom sheet. */
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun NewHomeScreen(saved: SavedSubscription?, book: org.mothvpn.core.SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
+@Composable fun NewHomeScreen(saved: SavedSubscription?, book: org.mothvpn.core.SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean,
     add: () -> Unit, connect: () -> Unit, select: (String, String) -> Unit, updateAvailable: Boolean = false, openUpdates: () -> Unit = {}) {
     val tunnel by TunnelStatus.state.collectAsState()
     val health by Diagnostics.health.collectAsState()
@@ -370,10 +370,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         if (saved != null) SessionTiles(stats.takeIf { on }, tilesHeight)
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
-        if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
-        val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
-        if (filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).keywords.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        // No error or status text on Home: errors (a failed subscription update, the filter hiding every server…) show as the top notice.
         // The whole bar is one touch target: it opens the server sheet.
         // Hero card: the same family as the session and subscription cards above it (card tone, large shape, no outline, no tonal elevation).
         val heroCard = NdTone.card()
@@ -820,7 +817,8 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
 
 /**
  * In-app notice at the top of the screen (not an Android notification): monochrome inverse surface, shown for 2 seconds or until
- * tapped or swiped away. [seq] restarts the timer for a repeated message. With "Remove animations" it appears and disappears at once.
+ * tapped or swiped away (errors stay longer, [NoticeState.durationMs]). [seq] restarts the timer for a repeated message. With
+ * "Remove animations" it appears and disappears at once.
  */
 /**
  * The app-wide top notice. MainActivity hosts one [TopNotice] above the tab content and provides this state through [LocalNotice],
@@ -829,17 +827,20 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
 class NoticeState {
     var text by mutableStateOf<String?>(null); private set
     var seq by mutableStateOf(0); private set
-    fun show(message: String) { text = message; seq++ }
+    /** How long the notice stays: 2 s for a short hint, longer for an error ([ERROR_MS]) so it can be read. */
+    var durationMs by mutableStateOf(2000L); private set
+    fun show(message: String, durationMs: Long = 2000L) { text = message; this.durationMs = durationMs; seq++ }
     fun dismiss() { text = null }
+    companion object { const val ERROR_MS = 4500L }
 }
 val LocalNotice = androidx.compose.runtime.staticCompositionLocalOf { NoticeState() }
 
-@Composable fun TopNotice(text: String?, seq: Int, dismiss: () -> Unit, modifier: Modifier = Modifier) {
+@Composable fun TopNotice(text: String?, seq: Int, dismiss: () -> Unit, modifier: Modifier = Modifier, durationMs: Long = 2000L) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val animations = remember { runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) > 0f }
     var shown by remember { mutableStateOf("") }
     if (text != null) shown = text
-    LaunchedEffect(text, seq) { if (text != null) { kotlinx.coroutines.delay(2000); dismiss() } }
+    LaunchedEffect(text, seq) { if (text != null) { kotlinx.coroutines.delay(durationMs); dismiss() } }
     val drag = remember(seq) { androidx.compose.animation.core.Animatable(0f) }
     val scope = rememberCoroutineScope()
     androidx.compose.animation.AnimatedVisibility(visible = text != null, modifier = modifier,
