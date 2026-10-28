@@ -149,6 +149,8 @@ class MainActivity : AppCompatActivity() {
             var url by remember { mutableStateOf("") }
             var subName by remember { mutableStateOf("") }
             val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
+            // Large title height (developer option): follows the saved value; the developer slider previews it live before saving.
+            LaunchedEffect(settings.largeTitlePercent) { LargeTitleTuning.percent = settings.largeTitlePercent }
             val scheme = if (dark) (if (settings.amoled) MonoTheme.amoled else MonoTheme.dark) else MonoTheme.light
             // The filter hides every server: a top notice once when that starts (no permanent text on Home).
             val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()

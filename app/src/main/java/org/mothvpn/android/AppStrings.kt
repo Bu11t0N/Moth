@@ -75,6 +75,7 @@ private val errorResources = mapOf(
         "Неверный режим раздельного туннеля" to R.string.msg_err_split_mode,
         "Неверный интервал обновления подписки" to R.string.msg_err_sub_interval,
         "Неверный срок повторного замера" to R.string.msg_err_reuse,
+        "Неверная высота заголовка" to R.string.msg_err_title_height,
         "Неверный список приложений" to R.string.msg_err_split_apps,
         "Неверный DNS-сервер" to R.string.msg_err_dns,
         "Неверное правило маршрутизации" to R.string.msg_err_routing_rule,

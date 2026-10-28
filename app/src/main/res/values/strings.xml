@@ -548,4 +548,12 @@
     <string name="notif_line_uptime">Connection time</string>
     <string name="notif_lines_hint">Lines of the connection notification. While the screen is off, the notification is not updated.</string>
     <string name="msg_err_reuse">Invalid re-measure period</string>
+    <string name="msg_err_title_height">Invalid title height</string>
+    <string name="set_info_more">More about %1$s</string>
+    <string name="kill_switch_short">Blocks traffic if reconnecting fails</string>
+    <string name="set_notif_lines">Notification lines</string>
+    <string name="dev_title_height">Large title height</string>
+    <string name="dev_title_height_value">%1$d%% of the screen</string>
+    <string name="dev_title_height_hint" formatted="false">How much taller the header of Settings and Servers is at the top of a page, in percent of the screen height (10–30 %, 20 % by default). The change applies right away.</string>
+    <string name="dev_title_height_default">Default</string>
 </resources>

@@ -1,7 +1,6 @@
 package org.mothvpn.android
 
 import androidx.compose.animation.core.animate
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Text
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
@@ -25,9 +23,13 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -62,46 +64,57 @@ class LargeTitle internal constructor(internal val behavior: TopAppBarScrollBeha
 }
 
 /**
- * How much taller the header is when expanded: about a fifth of the screen height (96–200 dp), so on a tall phone the big title
- * fills the empty top of the screen and the buttons and the list start lower, within thumb reach.
+ * The expanded header's extra height in percent of the screen height (Settings › About › For developers, 10–30 %, 20 % by default).
+ * Set from the saved settings and, while the developer slider is dragged, from the slider, so every large title follows it live.
  */
-@Composable private fun largeTitleExtra() = (LocalConfiguration.current.screenHeightDp * 0.2f).coerceIn(96f, 200f).dp
+object LargeTitleTuning {
+    var percent by androidx.compose.runtime.mutableIntStateOf(org.mothvpn.core.LargeTitleSize.DEFAULT)
+}
+
+/** How much taller the header is when expanded: [LargeTitleTuning.percent] of the screen height, kept within 56–260 dp. */
+@Composable private fun largeTitleExtra() =
+    org.mothvpn.core.LargeTitleSize.extraDp(LargeTitleTuning.percent, LocalConfiguration.current.screenHeightDp).dp
 
 /**
- * The header. Expanded (top of the page): a big title centred in the extra space at the top, the buttons ([actions]) in the row
- * under it, at the right. Collapsing (the page scrolls up): the extra space shrinks, the big title fades out and the compact title
- * (headlineSmall) fades in at the start of the button row. Only one of the two titles exists at rest (expanded or collapsed), so
- * accessibility and UI tests see the title once. A title change crossfades.
+ * The header. Expanded (top of the page): a big title centred in the extra space at the top, the buttons ([actions]) in the row under
+ * it, at the right. Collapsing (the page scrolls up): the extra space shrinks and the same title shrinks and moves into the start of the
+ * button row, where it ends at the compact size (headlineSmall). One title, morphing; nothing fades or swaps, so accessibility and UI
+ * tests always see it once. A long title is ellipsized to fit the compact slot and scaled down to fit the width when expanded.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun LargeTitleHeader(largeTitle: LargeTitle, title: String, modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {}) {
-    val extraPx = with(LocalDensity.current) { largeTitleExtra().toPx() }
+    val density = LocalDensity.current
+    val extraPx = with(density) { largeTitleExtra().toPx() }
     val state = largeTitle.behavior.state
     SideEffect { if (state.heightOffsetLimit != -extraPx) state.heightOffsetLimit = -extraPx }
-    val fraction = state.collapsedFraction
-    val fade = androidx.compose.animation.core.tween<Float>(if (animationsOn()) 200 else 0)
     val big = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium)
-    Column(modifier.fillMaxWidth()) {
-        // The big title's area: its height is the current extra space; the title keeps its full size and stays centred in it (clipped).
-        Box(Modifier.fillMaxWidth().clipToBounds().layout { measurable, constraints ->
-            val full = extraPx.roundToInt()
-            val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = full))
-            val now = (extraPx + state.heightOffset).coerceIn(0f, extraPx).roundToInt()
-            layout(placeable.width, now) { placeable.place(0, (now - placeable.height) / 2) }
-        }, contentAlignment = Alignment.Center) {
-            if (fraction < 1f) Crossfade(title, animationSpec = fade, label = "largeTitle") { t ->
-                Text(t, style = big, maxLines = 1, textAlign = TextAlign.Center,
-                    autoSize = TextAutoSize.StepBased(minFontSize = 24.sp, maxFontSize = big.fontSize),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
-                        .graphicsLayer { alpha = (1f - fraction * 1.6f).coerceIn(0f, 1f); val k = 1f - 0.15f * fraction; scaleX = k; scaleY = k })
-            }
-        }
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (fraction > 0f) Crossfade(title, Modifier.weight(1f).graphicsLayer { alpha = ((fraction - 0.4f) / 0.6f).coerceIn(0f, 1f) }, animationSpec = fade, label = "compactTitle") { t ->
-                Text(t, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            } else Spacer(Modifier.weight(1f))
-            actions()
+    val compact = MaterialTheme.typography.headlineSmall
+    val ratio = with(density) { compact.fontSize.toPx() / big.fontSize.toPx() }
+    Layout(content = {
+        Text(title, style = big, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically, content = actions)
+    }, modifier = modifier.fillMaxWidth().clipToBounds()) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val fraction = state.collapsedFraction.coerceIn(0f, 1f)
+        val row = measurables[1].measure(constraints.copy(minWidth = 0, minHeight = 0))
+        val rowHeight = maxOf(48.dp.roundToPx(), row.height)
+        val gap = if (row.width > 0) 8.dp.roundToPx() else 0
+        // Measured at the big size, as wide as the compact slot allows once scaled down to the compact size.
+        val slot = (width - row.width - gap).coerceAtLeast(1)
+        val text = measurables[0].measure(Constraints(maxWidth = (slot / ratio).toInt().coerceAtLeast(1)))
+        val side = 8.dp.roundToPx()
+        val expandedScale = minOf(1f, (width - 2 * side).coerceAtLeast(1) / text.width.coerceAtLeast(1).toFloat())
+        val scale = expandedScale + (ratio - expandedScale) * fraction
+        val extraNow = (extraPx + state.heightOffset).coerceIn(0f, extraPx)
+        val height = (extraNow + rowHeight).roundToInt()
+        // Centre: in the middle of the full extra space when expanded, in the middle of the button row when collapsed.
+        val x = (width - text.width * expandedScale) / 2f * (1f - fraction)
+        val centreY = extraPx / 2f + (rowHeight / 2f - extraPx / 2f) * fraction
+        val y = centreY - text.height * scale / 2f
+        layout(width, height) {
+            text.placeWithLayer(x.roundToInt(), y.roundToInt()) { transformOrigin = TransformOrigin(0f, 0f); scaleX = scale; scaleY = scale }
+            row.place(width - row.width, (extraNow + (rowHeight - row.height) / 2f).roundToInt())
         }
     }
 }

@@ -6,8 +6,10 @@ Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md)
 
 ### Changes
 
-- Large titles on Settings (main list and every settings page) and Servers: at the top of a page a big centred title fills the top of the screen and the buttons and the list sit lower, so they are easier to reach on a tall phone. Scrolling the page smoothly shrinks it to the compact title.
+- Large titles on Settings (main list and every settings page) and Servers: at the top of a page a big centred title fills the top of the screen and the buttons and the list sit lower, so they are easier to reach on a tall phone. Scrolling the page smoothly shrinks the same title and moves it into the compact title position next to the buttons.
 - Settings regrouped into seven sections: Connection, Checks (tunnel and server checks), Routing (split tunneling, routing rules, network and DNS), Subscription, Interface, Data (statistics, backup) and About (updates, changelog, licenses, with For developers at the bottom). Long pages are split into short labelled groups. No setting changed or was removed.
+- Settings pages: every setting is now a card, like the sections on the main settings list. Long explanations moved behind an info button next to the setting (the kill switch info also opens the system VPN settings), so pages are shorter and easier to scan.
+- For developers: large title height, 10–30 % of the screen height (20 % by default), applied right away.
 - Home and Servers no longer show error or status text under the cards (for example after a failed subscription update). Errors now appear briefly as the notice at the top of the screen.
 
 ## 0.7.6
