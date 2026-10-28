@@ -91,9 +91,9 @@
     <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Проверка идёт по HTTPS через сервер. Отказ этого адреса не доказывает недоступность всех сайтов."</string>
     <string name="msg_check_method_99" formatted="false">"Способ проверки"</string>
     <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP не подтверждает работу VPN и не подходит для Hysteria/TUIC на UDP. HTTPS проверяет передачу трафика через сервер."</string>
-    <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Заверши подключение и проверки, чтобы менять параметры подписки."</string>
+    <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Завершите подключение и проверки, чтобы менять параметры подписки."</string>
     <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Передавать HWID провайдеру"</string>
-    <string name="msg_a_persistent_installation_identifier_without_106" formatted="false">"Постоянный идентификатор установки, без IMEI и серийного номера. Меняй его только если провайдер выдал конкретное значение."</string>
+    <string name="msg_a_persistent_installation_identifier_without_106" formatted="false">"Постоянный идентификатор установки, без IMEI и серийного номера. Меняйте его, только если провайдер выдал конкретное значение."</string>
     <string name="msg_copy_hwid_107" formatted="false">"Скопировать HWID"</string>
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Передавать модель и версию Android"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"User-Agent подписки"</string>
@@ -253,7 +253,7 @@
     <string name="direct_ru_hint">Российские сайты (.ru, .su, .рф и список geosite category-ru) и российские IP-адреса (geoip:ru) открываются без VPN. Списки скачиваются у SagerNet и обновляются раз в неделю.</string>
     <string name="auto_select_wifi">Автовыбор на Wi‑Fi</string>
     <string name="auto_select_mobile">Автовыбор на мобильном интернете</string>
-    <string name="auto_select_hint">При подключении выбирается самый быстрый сервер (используются результаты проверки за последние 5 минут, иначе проверяются все серверы). Если проверка интернета не проходит 3 раза подряд, Мотылёк переключается на следующий по скорости сервер.</string>
+    <string name="auto_select_hint">При подключении выбирается самый быстрый сервер (используются результаты проверки на этой же сети за последние 5 минут, иначе проверяются все серверы). Если проверка интернета не проходит 3 раза подряд, Мотылёк переключается на следующий по скорости сервер.</string>
     <string name="boot_connect">Запускать VPN при включении телефона</string>
     <string name="boot_connect_hint">После перезагрузки подключается к последнему серверу. Также поддерживается постоянный VPN Android (системные настройки VPN).</string>
     <string name="dns_server">DNS-сервер</string>
@@ -309,10 +309,18 @@
     <string name="expiry_today">Подписка заканчивается сегодня.</string>
     <string name="expiry_toggle">Напоминать об окончании подписки</string>
     <string name="expiry_toggle_hint">Уведомление за 3 дня и в последний день, если провайдер передаёт дату окончания.</string>
-    <string name="set_cat_routing">Маршрутизация и DNS</string>
+    <string name="set_cat_routing">Маршрутизация</string>
+    <string name="set_cat_data">Данные</string>
+    <string name="set_sum_data">Статистика, резервная копия и обновления</string>
+    <string name="set_head_apps">Приложения</string>
+    <string name="set_head_rules">Правила</string>
+    <string name="set_head_network">Сеть и DNS</string>
+    <string name="set_head_provider">Для провайдера</string>
+    <string name="set_head_appearance">Оформление</string>
+    <string name="set_head_server_list">Список серверов</string>
     <string name="set_cat_subscription">Подписка</string>
-    <string name="set_head_health">Проверка туннеля</string>
-    <string name="set_head_probes">Проверка серверов</string>
+    <string name="set_head_health">Туннель</string>
+    <string name="set_head_probes">Серверы</string>
     <string name="set_short_auto">Автовыбор</string>
     <string name="set_short_auto_wifi">Автовыбор: Wi‑Fi</string>
     <string name="set_short_auto_mobile">Автовыбор: мобильный</string>

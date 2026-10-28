@@ -219,19 +219,20 @@ class UiE2ETest {
         device.pressBack(); Thread.sleep(800)
         tab("Settings"); Thread.sleep(600)
         if (theme == "dark") {
-            // Ping method choice (Connection) and the developer list of subscription header names.
+            // Ping method choice (Checks) and the developer list of subscription header names (About › For developers).
             fun scrollTo(text: String) {
                 repeat(10) {
                     if (device.findObject(By.text(text)) != null) return
                     device.swipe(device.displayWidth / 2, device.displayHeight * 7 / 10, device.displayWidth / 2, device.displayHeight * 3 / 10, 25); Thread.sleep(400)
                 }
             }
-            wait(By.text("Connection")).click(); Thread.sleep(800)
+            wait(By.text("Checks")).click(); Thread.sleep(800)
             scrollTo("Full latency"); wait(By.text("Full latency")); Thread.sleep(500)
             device.pressBack(); Thread.sleep(800)
+            scrollTo("About"); wait(By.text("About")).click(); Thread.sleep(800)
             scrollTo("For developers"); wait(By.text("For developers")).click(); Thread.sleep(800)
             wait(By.text("Subscription headers")).click(); wait(By.textStartsWith("HTTP headers:")); Thread.sleep(600)
-            device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500)
+            device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500)
             // Device info: a scrollable dialog whose fields hold the values that are sent (here the defaults) as real text.
             fun openDeviceInfo() {
                 wait(By.text("Subscription")).click(); Thread.sleep(800)
@@ -292,6 +293,7 @@ class UiE2ETest {
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         assertNotNull(device.wait(Until.findObject(By.text("Settings")), 20_000)); Thread.sleep(800)
         device.findObject(By.text("Settings")).click(); Thread.sleep(800)
+        device.wait(Until.findObject(By.text("Data")), 10_000).click()
         device.wait(Until.findObject(By.text("Statistics")), 10_000).click()
         val chart = device.wait(Until.findObject(By.desc("Daily traffic")), 10_000)
         assertNotNull("chart not shown", chart)
@@ -322,7 +324,10 @@ class UiE2ETest {
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         assertNotNull(device.wait(Until.findObject(By.text("Settings")), 20_000)); Thread.sleep(800)
         device.findObject(By.text("Settings")).click()
-        assertNotNull(device.wait(Until.findObject(By.text("Routing and DNS")), 10_000)); Thread.sleep(1000)
+        assertNotNull(device.wait(Until.findObject(By.text("Routing")), 10_000)); Thread.sleep(1000)
+        var about = device.findObject(By.text("About"))
+        repeat(5) { if (about == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); about = device.findObject(By.text("About")) } }
+        assertNotNull("about entry", about); about!!.click(); Thread.sleep(800)
         var dev = device.findObject(By.text("For developers"))
         repeat(5) { if (dev == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); dev = device.findObject(By.text("For developers")) } }
         assertNotNull("developer menu entry", dev); dev!!.click()

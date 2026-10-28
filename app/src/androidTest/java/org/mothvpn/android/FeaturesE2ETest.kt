@@ -203,7 +203,7 @@ class FeaturesE2ETest {
         val direct = fetch("/ip")
         assertNotNull("echo server unreachable", direct); assertFalse(direct in tunneled)
         launch(); tab("Settings")
-        wait(By.text("Connection")).click()
+        wait(By.text("Routing")).click()
         scrollTo("Routing rules").click()
         // 1. Add a rule with the dialog.
         wait(By.text("Add rule")).click()
@@ -289,7 +289,7 @@ class FeaturesE2ETest {
         // The restored data is what the app shows.
         launch(); tab("Servers")
         wait(By.desc("Collapse: First E2E")); wait(By.desc("Collapse: My servers")); wait(By.desc("Collapse: Favorites"))
-        tab("Settings"); wait(By.text("Connection")).click()
+        tab("Settings"); wait(By.text("Routing")).click()
         scrollTo("Rules: 2")
         device.pressBack()
         assertEquals(first.sourceId, store.loadBook()!!.sources.first().id)
