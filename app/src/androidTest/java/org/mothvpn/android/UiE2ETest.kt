@@ -247,6 +247,8 @@ class UiE2ETest {
                 // Short screen and a large font: the dialog scrolls so "Reset to defaults" stays reachable.
                 shell("wm size 1080x1600"); shell("settings put system font_scale 1.5"); Thread.sleep(1500)
                 tab("Settings"); Thread.sleep(800)
+                // The bigger large title can push "Subscription" below a short screen: scroll first, go back only if it is really not on this list.
+                scrollTo("Subscription")
                 if (device.findObject(By.text("Subscription")) == null) { device.pressBack(); Thread.sleep(800) }
                 openDeviceInfo()
                 repeat(6) { if (device.findObject(By.text("Reset to defaults")) == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.6f); Thread.sleep(400) } }
