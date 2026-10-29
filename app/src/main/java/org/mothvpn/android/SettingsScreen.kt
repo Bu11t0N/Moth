@@ -169,11 +169,11 @@ import org.mothvpn.core.SubscriptionSchedule
                     var fragDialog by remember { mutableStateOf(false) }
                     var muxDialog by remember { mutableStateOf(false) }
                     val fragOptions = listOf("off" to tr(R.string.fragment_off), "tlshello" to tr(R.string.fragment_tlshello), "tlshello_small" to tr(R.string.fragment_tlshello_small), "first_packets" to tr(R.string.fragment_first_packets))
-                    DialogRow(tr(R.string.fragment_title), fragOptions.firstOrNull { it.first == draft.fragment }?.second ?: draft.fragment, !locked) { fragDialog = true }
+                    DialogRow(tr(R.string.fragment_title), fragOptions.firstOrNull { it.first == draft.fragment }?.second ?: draft.fragment, !locked, info = tr(R.string.fragment_info)) { fragDialog = true }
                     if (fragDialog) ChoiceDialog(tr(R.string.fragment_title), fragOptions, draft.fragment, { fragDialog = false }) { applySettings(draft.copy(fragment = it)) }
-                    SettingsToggle(tr(R.string.noise_title), draft.noise, !locked) { applySettings(draft.copy(noise = it)) }
+                    SettingsToggle(tr(R.string.noise_title), draft.noise, !locked, info = tr(R.string.noise_info)) { applySettings(draft.copy(noise = it)) }
                     val muxOptions = listOf("off" to tr(R.string.mux_off), "smux" to "smux", "yamux" to "yamux", "h2mux" to "h2mux")
-                    DialogRow(tr(R.string.mux_title), muxOptions.firstOrNull { it.first == draft.mux }?.second ?: draft.mux, !locked) { muxDialog = true }
+                    DialogRow(tr(R.string.mux_title), muxOptions.firstOrNull { it.first == draft.mux }?.second ?: draft.mux, !locked, info = tr(R.string.mux_info)) { muxDialog = true }
                     if (muxDialog) ChoiceDialog(tr(R.string.mux_title), muxOptions, draft.mux, { muxDialog = false }) { applySettings(draft.copy(mux = it)) }
                 }
                 tr(R.string.msg_checks_76) -> {

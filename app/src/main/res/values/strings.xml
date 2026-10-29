@@ -442,6 +442,9 @@
     <string name="fragment_tlshello_small">"TLS ClientHello, small pieces"</string>
     <string name="fragment_first_packets">"First packets of the connection"</string>
     <string name="noise_title">"UDP noise"</string>
+    <string name="fragment_info">Splits the start of the TLS connection (ClientHello) into small pieces so that deep packet inspection (DPI) can\'t read the site name and block it. Helps where VPN servers are blocked by DPI; it can slightly slow down connecting. “Small pieces” also splits TLS records, for stricter filters. “First packets” splits the first packets of any connection. Leave it off if everything works.</string>
+    <string name="noise_info">Before the first real UDP packet, sends a few random packets so that the start of the connection doesn\'t look like a known VPN protocol. Helps where UDP protocols (Hysteria2, WireGuard, QUIC) are throttled or blocked. Slightly more traffic; leave it off if everything works.</string>
+    <string name="mux_info">Carries several connections inside one connection to the server. Opening new connections gets faster and fewer connections are visible from outside, but a slow download can hold up the others. For sing-box servers, the server must support the selected protocol (smux, yamux or h2mux); Xray servers use their own Mux.Cool. Not used with XTLS Vision (flow) or XHTTP. If you don\'t know, leave it off.</string>
     <string name="mux_title">"Multiplexing (mux)"</string>
     <string name="mux_off">"Off"</string>
     <string name="deeplink_sub_title">"Add subscription?"</string>

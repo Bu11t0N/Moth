@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -91,7 +92,12 @@ import java.io.File
         release != null -> tr(R.string.update_available, release!!.version)
         else -> ""
     }
-    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    // Scrolls only when the content really does not fit (small screen, big font): otherwise no drag, no empty overscroll stretch and no
+    // nested scroll that would fold the large title over a page that has nothing more to show.
+    val scroll = rememberScrollState()
+    val scrollable = scroll.maxValue > 0
+    Column(modifier.fillMaxWidth().verticalScroll(scroll, overscrollEffect = if (scrollable) rememberOverscrollEffect() else null, enabled = scrollable),
+        verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
         Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             MothFlutter(busy = busy)
