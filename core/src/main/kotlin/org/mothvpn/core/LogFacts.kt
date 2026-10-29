@@ -31,9 +31,12 @@ object LogFacts {
         plain("killSwitch", old.killSwitch, new.killSwitch); plain("favorites", old.favorites.size, new.favorites.size)
         plain("expiryWarning", old.expiryWarning, new.expiryWarning)
         plain("routingRules", old.routingRules.size, new.routingRules.size)
+        // A rule switched on or off (same count): only the number of rules that are off.
+        if (old.routingRules.size == new.routingRules.size) plain("routingRulesOff", old.routingRules.count { !it.enabled }, new.routingRules.count { !it.enabled })
         plain("trafficWarning", old.trafficWarning, new.trafficWarning)
         plain("fragment", old.fragment, new.fragment); plain("noise", old.noise, new.noise); plain("mux", old.mux, new.mux)
         plain("editServers", old.editServers, new.editServers); plain("amoled", old.amoled, new.amoled)
+        plain("largeTitlePercent", old.largeTitlePercent, new.largeTitlePercent); plain("largeTitles", old.largeTitles, new.largeTitles)
         // Keywords can be provider or location names: only the count is logged.
         plain("wifiFilter", old.wifiFilter.keywords.size, new.wifiFilter.keywords.size); plain("wifiFilterMode", old.wifiFilter.mode, new.wifiFilter.mode)
         plain("mobileFilter", old.mobileFilter.keywords.size, new.mobileFilter.keywords.size); plain("mobileFilterMode", old.mobileFilter.mode, new.mobileFilter.mode)

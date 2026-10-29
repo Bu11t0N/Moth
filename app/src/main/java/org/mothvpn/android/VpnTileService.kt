@@ -46,7 +46,7 @@ class VpnTileService : TileService() {
                 TunnelState.STOPPING -> R.string.tile_stopping
                 TunnelState.BLOCKED -> R.string.tile_blocked
                 else -> R.string.tile_off
-            }.let { if (TunnelStatus.waitingForNetwork(state, offline)) R.string.tile_reconnecting else it })
+            }.let { if (TunnelStatus.waitingForNetwork(state, offline)) R.string.offline_title else it })
             updateTile()
         }
     }

@@ -5,13 +5,19 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberOverscrollEffect
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.*
 import org.mothvpn.core.AppRelease
@@ -76,57 +82,84 @@ import java.io.File
     LaunchedEffect(channel) { check() }
     // The user closed the system install confirmation: back to idle so "Install" can be tapped again.
     LaunchedEffect(Unit) { val seen = AppUpdater.installAborted.value; AppUpdater.installAborted.collect { if (it > seen) { message = ""; on(org.mothvpn.core.UpdatePhase.Event.INSTALL_ABORTED) } } }
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(tr(R.string.update_current, BuildConfig.VERSION_NAME))
-            release?.let { Text(tr(R.string.update_available, it.version)) }
-            if (busy) {
-                progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
-                TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_cancel)) }
+    val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
+    var channelDialog by remember { mutableStateOf(false) }
+    // One quiet status line under the moth (the versions are in the card below): what is happening now, the result of the last check or an error.
+    val status = when {
+        phase is org.mothvpn.core.UpdatePhase.Downloading -> tr(R.string.update_downloading) + (progress?.let { " ${(it * 100).toInt().coerceIn(0, 100)} %" } ?: "")
+        busy && release == null -> tr(R.string.update_checking)
+        message.isNotEmpty() -> message
+        release != null -> tr(R.string.update_available, release!!.version)
+        else -> ""
+    }
+    // The moth, the status and the version card take the space above (and scroll only when they really do not fit: small screen, big font;
+    // otherwise no drag, no empty overscroll stretch and no nested scroll that would fold the large title). The channel row and the main
+    // button are pinned to the bottom, so the button stays in place while the status, the progress or the card above change.
+    val scroll = rememberScrollState()
+    val scrollable = scroll.maxValue > 0
+    Column(modifier.fillMaxWidth()) {
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll, overscrollEffect = if (scrollable) rememberOverscrollEffect() else null, enabled = scrollable),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                MothFlutter(busy = busy)
+                Spacer(Modifier.height(12.dp))
+                Text(status.ifEmpty { " " }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 4.dp, start = 16.dp, end = 16.dp).semantics { liveRegion = LiveRegionMode.Polite })
             }
-            if (message.isNotEmpty()) Text(message)
-        }
-        release?.let { available ->
-            NdButton(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth())) { Text(tr(R.string.update_install)) }
-        }
-        NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth())) { Text(tr(R.string.update_check)) }
-        warning?.let {
-            AlertDialog(onDismissRequest = { warning = null; waiting = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }, title = { Text(tr(R.string.update_unknown_title)) },
-                text = { Text(tr(R.string.update_unknown_body)) },
-                confirmButton = { TextButton(onClick = {
-                    warning = null
-                    Logger.i("Update", "opening the unknown-sources settings for the app")
-                    permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
-                }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_unknown_ok)) } },
-                dismissButton = { TextButton(onClick = { warning = null; waiting = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_cancel)) } })
-        }
-        val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
-        var channelDialog by remember { mutableStateOf(false) }
-        Card(Modifier.pressScale(enabled = !busy).fillMaxWidth().clickable(enabled = !busy) { channelDialog = true }, colors = ndCardColors()) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(tr(R.string.update_channel), style = MaterialTheme.typography.titleMedium)
-                    Text(channels.first { it.first == channel }.second, style = MaterialTheme.typography.bodySmall)
-                }
-                Text("›", modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
-            }
-        }
-        if (channelDialog) {
-            val pick = { value: UpdateChannel ->
-                channelDialog = false
-                if (channel != value) { Logger.i("Settings", "update channel changed: ${channel.id} -> ${value.id}"); selectChannel(value.id) }
-            }
-            AlertDialog(onDismissRequest = { channelDialog = false }, title = { Text(tr(R.string.update_channel)) },
-                text = { Column {
-                    channels.forEach { (value, label) ->
-                        Row(Modifier.pressScale().fillMaxWidth().clickable { pick(value) }, verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(channel == value, { pick(value) })
-                            Text(label)
+            Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME)
+                    release?.let {
+                        HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        VersionRow(tr(R.string.update_available_row), it.version)
+                    }
+                    if (busy) {
+                        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.weight(1f)) {
+                                    progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
+                                }
+                                TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale().padding(start = 8.dp)) {
+                                    Text(tr(R.string.update_cancel))
+                                }
+                            }
                         }
                     }
-                } },
-                confirmButton = { TextButton(onClick = { channelDialog = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
+                }
+            }
         }
-        if (channel == UpdateChannel.BETA) Text(tr(R.string.update_channel_beta_note), style = MaterialTheme.typography.bodySmall)
+        Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
+            // One main action at the very bottom: install a found update, otherwise check again ("check again" goes above it when an update is found).
+            val available = release
+            if (available != null) {
+                TextButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).fillMaxWidth()) { Text(tr(R.string.update_check)) }
+                NdButton(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_install)) }
+            } else {
+                NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_check)) }
+            }
+        }
+    }
+    if (channelDialog) ChoiceDialog(tr(R.string.update_channel), channels, channel, { channelDialog = false }) { value ->
+        if (channel != value) { Logger.i("Settings", "update channel changed: ${channel.id} -> ${value.id}"); selectChannel(value.id) }
+    }
+    warning?.let {
+        AlertDialog(onDismissRequest = { warning = null; waiting = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }, title = { Text(tr(R.string.update_unknown_title)) },
+            text = { Text(tr(R.string.update_unknown_body)) },
+            confirmButton = { TextButton(onClick = {
+                warning = null
+                Logger.i("Update", "opening the unknown-sources settings for the app")
+                permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
+            }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_unknown_ok)) } },
+            dismissButton = { TextButton(onClick = { warning = null; waiting = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_cancel)) } })
+    }
+}
+
+/** A row of the version card: the label on the left, the version on the right (same look as the Data pages' rows). */
+@Composable private fun VersionRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(end = 12.dp))
+        Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1)
     }
 }

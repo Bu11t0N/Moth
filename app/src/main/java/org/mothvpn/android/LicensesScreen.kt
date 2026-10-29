@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -31,9 +32,13 @@ object Licenses {
     LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         items(Licenses.entries) { e ->
             Card(Modifier.pressScale().fillMaxWidth().clickable { open(e.asset) }, colors = ndCardColors()) {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-                    Text(tr(e.title), style = MaterialTheme.typography.titleMedium)
-                    Text(tr(e.summary), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // The same trailing arrow as the other settings rows, so the entries read as buttons that open the text.
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(tr(e.title), style = MaterialTheme.typography.titleMedium)
+                        Text(tr(e.summary), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text("›", modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
                 }
             }
         }

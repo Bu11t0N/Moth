@@ -111,11 +111,12 @@ fun splitListedPackages(context: android.content.Context): Set<String> = listedP
 }
 
 /** Settings row that opens a dialog (same look as the language and sort rows). */
-@Composable fun DialogRow(title: String, value: String, enabled: Boolean = true, open: () -> Unit) {
+@Composable fun DialogRow(title: String, value: String, enabled: Boolean = true, info: String? = null, open: () -> Unit) {
     Card(Modifier.pressScale(enabled = enabled).fillMaxWidth().clickable(enabled = enabled, onClick = open), colors = ndCardColors()) {
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
+                // The small ⓘ right after the title (instead of a full icon button before the arrow).
+                TitleWithInfo(title, info)
                 Text(value, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             Text("›", modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)

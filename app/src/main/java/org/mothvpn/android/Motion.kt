@@ -25,6 +25,11 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.layout
 
 /**
  * Shared motion for the UI: short (about 200–300 ms) standard easing and springs. Everything checks the system
@@ -189,4 +194,41 @@ fun Modifier.unfold(event: Unfold?, index: Int, count: Int): Modifier = composed
 fun contrastOn(background: androidx.compose.ui.graphics.Color): androidx.compose.ui.graphics.Color {
     val l = background.luminance()
     return if ((l + 0.05f) / 0.05f >= 1.05f / (l + 0.05f)) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White
+}
+
+/**
+ * A setting with settings that belong to it (shown only while it is on): the nested ones slide down out of [parent] and fade in, and fold
+ * back into it when it is switched off, instead of popping in. The parent and the nested settings are one item of the page's column, so
+ * the page spacing does not jump; nested settings keep the page's 12 dp spacing. No motion when system animations are off.
+ *
+ * The height is animated by a plain layout modifier that reports the same (animated) height in the lookahead and the main pass. The
+ * settings pages sit in a SharedTransitionLayout (a lookahead scope); AnimatedVisibility there reports the final height (0) in the
+ * lookahead pass at once, and verticalScroll clamps its position to that final, shorter page in the same frame: a page scrolled to the
+ * bottom jumped up when a switch hid its nested settings. With the same height in both passes the scroll follows the fold smoothly.
+ */
+@Composable fun WithNested(visible: Boolean, parent: @Composable () -> Unit, nested: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    val motion = animationsOn()
+    val progress = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(if (visible) 1f else 0f) }
+    androidx.compose.runtime.LaunchedEffect(visible, motion) {
+        val target = if (visible) 1f else 0f
+        if (!motion) progress.snapTo(target)
+        else progress.animateTo(target, tween(Motion.MEDIUM, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+    }
+    val shown by androidx.compose.runtime.remember { androidx.compose.runtime.derivedStateOf { progress.value > 0f } }
+    androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth()) {
+        parent()
+        if (visible || shown) {
+            androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth().clipToBounds()
+                .layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
+                    val f = progress.value
+                    val height = kotlin.math.round(placeable.height * f).toInt()
+                    layout(placeable.width, height) {
+                        // Slides from a third of its height above, fading in after the first third of the fold.
+                        placeable.placeWithLayer(0, kotlin.math.round(-(1f - f) * placeable.height / 3f).toInt()) { alpha = ((f - 0.3f) / 0.7f).coerceIn(0f, 1f) }
+                    }
+                }
+                .padding(top = 12.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp), content = nested)
+        }
+    }
 }

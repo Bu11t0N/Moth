@@ -3,13 +3,13 @@ package org.mothvpn.core
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** A user routing rule: [type] is one of [CustomRouting.types], [action] one of [CustomRouting.actions]. */
-data class RoutingRule(val type: String, val value: String, val action: String) {
-    fun json(): JSONObject = JSONObject().put("type", type).put("value", value).put("action", action)
-    companion object { fun from(j: JSONObject) = RoutingRule(j.optString("type"), j.optString("value"), j.optString("action")) }
+/** A user routing rule: [type] is one of [CustomRouting.types], [action] one of [CustomRouting.actions]. A rule switched off ([enabled] false) is kept but not applied. */
+data class RoutingRule(val type: String, val value: String, val action: String, val enabled: Boolean = true) {
+    fun json(): JSONObject = JSONObject().put("type", type).put("value", value).put("action", action).apply { if (!enabled) put("enabled", false) }
+    companion object { fun from(j: JSONObject) = RoutingRule(j.optString("type"), j.optString("value"), j.optString("action"), j.optBoolean("enabled", true)) }
 }
 
-/** User routing rules, applied in order before the built-in rules ("Russian sites directly"). */
+/** User routing rules, applied in order before the default rules ("Russian sites and IPs directly", [ClientSettings.directRu]). Rules switched off are skipped. */
 object CustomRouting {
     const val DOMAIN = "domain"; const val SUFFIX = "domain_suffix"; const val KEYWORD = "domain_keyword"; const val CIDR = "ip_cidr"
     const val PROXY = "proxy"; const val DIRECT = "direct"; const val BLOCK = "block"
@@ -59,15 +59,18 @@ object CustomRouting {
         val list = rules.toMutableList(); val r = list.removeAt(from); list.add(to.coerceIn(0, list.size), r); return list
     }
     /** Domain rules only match when the destination name is known: the cores must sniff it from the traffic. */
-    fun needsSniff(rules: List<RoutingRule>) = rules.any { it.type != CIDR }
+    fun needsSniff(rules: List<RoutingRule>) = rules.any { it.enabled && it.type != CIDR }
+    /** Switches the rule at [index] on or off. */
+    fun setEnabled(rules: List<RoutingRule>, index: Int, on: Boolean): List<RoutingRule> =
+        rules.mapIndexed { i, r -> if (i == index) r.copy(enabled = on) else r }
 
     /** sing-box route rules, one per user rule, in order. "proxy" and "direct" are the outbound tags of the tunnel config. */
-    fun singBox(rules: List<RoutingRule>): List<JSONObject> = rules.map { r ->
+    fun singBox(rules: List<RoutingRule>): List<JSONObject> = rules.filter { it.enabled }.map { r ->
         val o = JSONObject().put(r.type, JSONArray().put(r.value))
         when (r.action) { BLOCK -> o.put("action", "reject"); DIRECT -> o.put("outbound", "direct"); else -> o.put("outbound", "proxy") }
     }
     /** Xray routing rules. [proxy] sets where "proxy" goes (an outbound or the balancer); "direct" and "block" are the tags added by the config. */
-    fun xray(rules: List<RoutingRule>, proxy: (JSONObject) -> JSONObject): List<JSONObject> = rules.map { r ->
+    fun xray(rules: List<RoutingRule>, proxy: (JSONObject) -> JSONObject): List<JSONObject> = rules.filter { it.enabled }.map { r ->
         val o = JSONObject().put("type", "field")
         when (r.type) {
             DOMAIN -> o.put("domain", JSONArray().put("full:${r.value}"))

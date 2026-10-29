@@ -20,11 +20,12 @@ data class ClientSettings(
     val probeParallel: Int = 5, val probeTimeoutMs: Int = PROBE_TIMEOUT_DEFAULT,
     /** "release", "beta" or "" (not chosen yet: the default follows the installed build, see UpdateChannel.effective). */
     val updateChannel: String = "",
-    /** Developer option: small icons with explanations instead of the red dash for failed server checks. */
+    /** Small icons with explanations instead of the plain dash for failed server checks. */
     val detailedIcons: Boolean = false,
     /** Per-app split tunneling: "bypass" (selected apps bypass the VPN, the default) or "only" (only the selected apps use the VPN); an empty list puts every app in the VPN. */
     val splitMode: String = "bypass", val splitApps: List<String> = emptyList(),
-    /** Russian sites and IP addresses go directly, not through the server. */
+    /** The default routing rule "Russian sites and IPs directly" (shown and switched on the routing rules page since 0.8.0 beta 5):
+     *  Russian sites and IP addresses go directly, not through the server. Same key as before, so the saved choice is kept. */
     val directRu: Boolean = false,
     /** Automatic subscription update interval in hours: 0 (off), 6, 12 or 24. */
     val subUpdateHours: Int = 0,
@@ -66,9 +67,13 @@ data class ClientSettings(
     /** Custom device info sent instead of the system values; empty = the system value ("Android", Build.VERSION.RELEASE, the model). */
     val deviceOs: String = "", val deviceOsVersion: String = "", val deviceModel: String = "",
     /** Lines of the connected notification: speed, total traffic, connection time. With none, the 1-second update does not run for it. */
-    val notifySpeed: Boolean = true, val notifyTotal: Boolean = true, val notifyUptime: Boolean = true,
+    val notifySpeed: Boolean = true, val notifyTotal: Boolean = true, val notifyUptime: Boolean = false,
     /** Auto-select after a Wi-Fi <-> mobile switch reuses check results newer than this (minutes, [AutoSelectReuse.minutes]) instead of measuring again. */
-    val autoSelectReuseMinutes: Int = AutoSelectReuse.DEFAULT
+    val autoSelectReuseMinutes: Int = AutoSelectReuse.DEFAULT,
+    /** Interface: extra height of the expanded large title, in percent of the screen height ([LargeTitleSize.percents]). */
+    val largeTitlePercent: Int = LargeTitleSize.DEFAULT,
+    /** Interface: large collapsing titles (Settings, Servers); off = the compact title bar only. */
+    val largeTitles: Boolean = true
 ) {
     val notifyAny get() = notifySpeed || notifyTotal || notifyUptime
     /** The custom device info cleared (system values are sent again). */
@@ -105,6 +110,7 @@ data class ClientSettings(
         require(timeoutMs in 1000..60000) { "Тайм-аут: от 1000 до 60000 мс" }
         require(healthIntervalSeconds in 30..900) { "Интервал проверки: от 30 до 900 секунд" }
         require(autoSelectReuseMinutes in AutoSelectReuse.minutes) { "Неверный срок повторного замера" }
+        require(largeTitlePercent in LargeTitleSize.percents) { "Неверная высота заголовка" }
         require(hwid.matches(Regex("[a-zA-Z0-9=-]{10,64}"))) { "HWID: 10–64 символа, буквы, цифры, = или -" }
         require(userAgent.isNotBlank() && userAgent.length <= 160 && userAgent.all { it.code in 32..126 }) { "User-Agent должен содержать печатные латинские символы" }
         require(DeviceInfo.valid(deviceOs, 64) && DeviceInfo.valid(deviceOsVersion, 64) && DeviceInfo.valid(deviceModel, 120)) { "Данные устройства: печатные латинские символы" }
@@ -141,6 +147,7 @@ data class ClientSettings(
         // 0.7.6: "healthCheckSeconds" holds the interval (up to 15 min); "healthIntervalSeconds" stays within 30–600 for older builds.
         .put("settingsVersion", SETTINGS_VERSION).put("healthCheckSeconds", healthIntervalSeconds).put("healthIntervalSeconds", healthIntervalSeconds.coerceAtMost(600))
         .put("notifySpeed", notifySpeed).put("notifyTotal", notifyTotal).put("notifyUptime", notifyUptime).put("autoSelectReuseMinutes", autoSelectReuseMinutes)
+        .put("largeTitlePercent", largeTitlePercent).put("largeTitles", largeTitles)
     companion object {
         /** 2 (0.7.6): files without it were written by older builds and still carry their defaults (60 s check, 5000 ms ping timeout). */
         const val SETTINGS_VERSION = 2
@@ -190,8 +197,9 @@ data class ClientSettings(
             deviceInfo = if (j.optBoolean("deviceInfoSet", false)) j.optBoolean("deviceInfo", true) else true,
             deviceOs = DeviceInfo.clean(j.optString("deviceOs", ""), 64), deviceOsVersion = DeviceInfo.clean(j.optString("deviceOsVersion", ""), 64),
             deviceModel = DeviceInfo.clean(j.optString("deviceModel", ""), 120),
-            notifySpeed = j.optBoolean("notifySpeed", true), notifyTotal = j.optBoolean("notifyTotal", true), notifyUptime = j.optBoolean("notifyUptime", true),
+            notifySpeed = j.optBoolean("notifySpeed", true), notifyTotal = j.optBoolean("notifyTotal", true), notifyUptime = j.optBoolean("notifyUptime", false),
             autoSelectReuseMinutes = AutoSelectReuse.normalize(j.optInt("autoSelectReuseMinutes", AutoSelectReuse.DEFAULT)),
+            largeTitlePercent = LargeTitleSize.normalize(j.optInt("largeTitlePercent", LargeTitleSize.DEFAULT)), largeTitles = j.optBoolean("largeTitles", true),
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
 }
@@ -346,4 +354,22 @@ object AutoSelectReuse {
     val minutes = listOf(5, 15, 30, 60)
     const val DEFAULT = 30
     fun normalize(value: Int) = if (value in minutes) value else DEFAULT
+}
+
+/**
+ * Extra height of the expanded large title (Settings, Servers) in percent of the screen height, a developer option.
+ * Soft limits: 10–30 % (the header itself is also kept within 56–260 dp, see LargeTitle.kt), so the page never loses its list.
+ */
+object LargeTitleSize {
+    const val MIN = 10
+    const val MAX = 30
+    const val DEFAULT = 20
+    val percents = MIN..MAX
+    fun normalize(value: Int) = value.coerceIn(MIN, MAX)
+    /** The extra height in dp for a screen [screenHeightDp] high, within 56–260 dp. */
+    fun extraDp(percent: Int, screenHeightDp: Int): Float = extraDp(percent.toFloat(), screenHeightDp)
+    /** The same for a fractional percent (the slider moves smoothly between whole steps while dragged). */
+    fun extraDp(percent: Float, screenHeightDp: Int): Float = (screenHeightDp * percent.coerceIn(MIN.toFloat(), MAX.toFloat()) / 100f).coerceIn(56f, 260f)
+    /** Size of the expanded title for a height [percent], relative to the default (20 %): 0.75 at 10 %, 1.25 at 30 %, so it grows with the header. */
+    fun textScale(percent: Float): Float = 1f + (percent.coerceIn(MIN.toFloat(), MAX.toFloat()) - DEFAULT) * 0.025f
 }

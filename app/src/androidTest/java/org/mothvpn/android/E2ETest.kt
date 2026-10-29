@@ -100,11 +100,11 @@ class E2ETest {
         val firstNotification = VpnChecks.FirstRunningNotification(context)
         wait(By.desc("Connect VPN").enabled(true)).click()
         wait(By.text("VPN is on"), 60_000)
-        // The very first connected notification already has the speed, total and time lines (not just the server name).
+        // The very first connected notification already has the default speed and total lines (not just the server name; uptime is off by default).
         val lines = firstNotification.first().lines()
         log("first connected notification lines: ${lines.map { it.substringBefore(':') }}")
-        assertTrue("first connected notification lacks speed/total/time: ${lines.map { it.substringBefore(':') }}",
-            lines.size == 3 && lines[0].startsWith("Speed:") && lines[1].startsWith("Total:") && lines[2].startsWith("Time:"))
+        assertTrue("first connected notification lacks speed/total: ${lines.map { it.substringBefore(':') }}",
+            lines.size == 2 && lines[0].startsWith("Speed:") && lines[1].startsWith("Total:"))
         awaitSource(sources.getValue("vless"))
         log("connected via VLESS")
 

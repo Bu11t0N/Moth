@@ -219,14 +219,16 @@ class UiE2ETest {
         device.pressBack(); Thread.sleep(800)
         tab("Settings"); Thread.sleep(600)
         if (theme == "dark") {
-            // Ping method choice (Connection) and the developer list of subscription header names.
+            // Ping method choice (Checks) and the developer list of subscription header names (For developers, on the main list).
+            // Down first, then up: back on a list left scrolled down (large title collapsed), an entry can sit above the screen.
             fun scrollTo(text: String) {
-                repeat(10) {
+                for (up in listOf(false, true)) repeat(10) {
                     if (device.findObject(By.text(text)) != null) return
-                    device.swipe(device.displayWidth / 2, device.displayHeight * 7 / 10, device.displayWidth / 2, device.displayHeight * 3 / 10, 25); Thread.sleep(400)
+                    val (from, to) = if (up) 3 to 7 else 7 to 3
+                    device.swipe(device.displayWidth / 2, device.displayHeight * from / 10, device.displayWidth / 2, device.displayHeight * to / 10, 25); Thread.sleep(400)
                 }
             }
-            wait(By.text("Connection")).click(); Thread.sleep(800)
+            wait(By.text("Checks")).click(); Thread.sleep(800)
             scrollTo("Full latency"); wait(By.text("Full latency")); Thread.sleep(500)
             device.pressBack(); Thread.sleep(800)
             scrollTo("For developers"); wait(By.text("For developers")).click(); Thread.sleep(800)
@@ -234,7 +236,7 @@ class UiE2ETest {
             device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500)
             // Device info: a scrollable dialog whose fields hold the values that are sent (here the defaults) as real text.
             fun openDeviceInfo() {
-                wait(By.text("Subscription")).click(); Thread.sleep(800)
+                scrollTo("Subscription"); wait(By.text("Subscription")).click(); Thread.sleep(800)
                 scrollTo("Device info"); wait(By.text("Device info")).click()
                 wait(By.clazz("android.widget.EditText").text("Android")); Thread.sleep(600)
             }
@@ -244,6 +246,8 @@ class UiE2ETest {
                 // Short screen and a large font: the dialog scrolls so "Reset to defaults" stays reachable.
                 shell("wm size 1080x1600"); shell("settings put system font_scale 1.5"); Thread.sleep(1500)
                 tab("Settings"); Thread.sleep(800)
+                // The bigger large title can push "Subscription" below a short screen: scroll first, go back only if it is really not on this list.
+                scrollTo("Subscription")
                 if (device.findObject(By.text("Subscription")) == null) { device.pressBack(); Thread.sleep(800) }
                 openDeviceInfo()
                 repeat(6) { if (device.findObject(By.text("Reset to defaults")) == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.6f); Thread.sleep(400) } }
@@ -262,9 +266,11 @@ class UiE2ETest {
         wait(By.desc("Connect VPN").enabled(true)).click()
         wait(By.text("VPN is on"), 60_000); Thread.sleep(1500)
         tab("Settings"); wait(By.text(tr(R.string.set_cat_routing))).click(); Thread.sleep(800)
-        wait(By.text(tr(R.string.direct_ru)))
         // No user-facing mention of reconnecting to apply settings (the behaviour is unchanged).
         assertTrue("no reconnect hint", device.findObject(By.textContains("reconnect")) == null)
+        // Since 0.8.0 beta 5 "Russian sites and IPs directly" is the default rule on the routing rules page, with its own switch.
+        wait(By.text(tr(R.string.rules_title))).click(); Thread.sleep(800)
+        wait(By.text(tr(R.string.rules_default_head)))
         val row = wait(By.text(tr(R.string.direct_ru)))
         row.click()
         val changed = System.currentTimeMillis()
@@ -292,7 +298,11 @@ class UiE2ETest {
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         assertNotNull(device.wait(Until.findObject(By.text("Settings")), 20_000)); Thread.sleep(800)
         device.findObject(By.text("Settings")).click(); Thread.sleep(800)
-        device.wait(Until.findObject(By.text("Statistics")), 10_000).click()
+        // Statistics sits on the main list under the Data header (no Data folder since 0.8.0-beta.11).
+        assertNotNull(device.wait(Until.findObject(By.text("Routing")), 10_000)); Thread.sleep(600)
+        var stats = device.findObject(By.text("Statistics"))
+        repeat(5) { if (stats == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); stats = device.findObject(By.text("Statistics")) } }
+        assertNotNull("statistics entry", stats); stats!!.click()
         val chart = device.wait(Until.findObject(By.desc("Daily traffic")), 10_000)
         assertNotNull("chart not shown", chart)
         // The three totals at the top are labelled Day / Week / Month.
@@ -322,7 +332,9 @@ class UiE2ETest {
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         assertNotNull(device.wait(Until.findObject(By.text("Settings")), 20_000)); Thread.sleep(800)
         device.findObject(By.text("Settings")).click()
-        assertNotNull(device.wait(Until.findObject(By.text("Routing and DNS")), 10_000)); Thread.sleep(1000)
+        assertNotNull(device.wait(Until.findObject(By.text("Routing")), 10_000)); Thread.sleep(1000)
+        // The main list's three sections; the App entries (no About folder) sit straight on it.
+        assertNotNull("General header", device.findObject(By.text("General")))
         var dev = device.findObject(By.text("For developers"))
         repeat(5) { if (dev == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); dev = device.findObject(By.text("For developers")) } }
         assertNotNull("developer menu entry", dev); dev!!.click()

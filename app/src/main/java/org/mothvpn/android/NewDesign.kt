@@ -1,5 +1,6 @@
 package org.mothvpn.android
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.text.withStyle
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
@@ -42,6 +43,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.launch
@@ -227,6 +229,34 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
     }
 }
 
+/**
+ * The connected moth as a picture (Updates page): lit colours, wings slowly beating; [busy] (checking or downloading) beats faster.
+ * A tap adds a few quick flaps. Deliberately not a button: no click semantics, no ripple, no pressed state, no glow or background,
+ * and hidden from accessibility (decorative). With animations off it stays still with the wings spread.
+ */
+@Composable fun MothFlutter(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 148.dp, busy: Boolean = false) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val animations = remember { runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) > 0f }
+    val open = remember { androidx.compose.animation.core.Animatable(1f) }
+    var taps by remember { mutableIntStateOf(0) }
+    val seen = remember { intArrayOf(0) }
+    LaunchedEffect(animations, busy, taps) {
+        val tapped = taps > seen[0]; seen[0] = taps
+        if (!animations) { open.snapTo(1f); return@LaunchedEffect }
+        val ease = androidx.compose.animation.core.FastOutSlowInEasing
+        // A tap: three quick flaps, then back to the slow beat (a new tap restarts this effect).
+        if (tapped) repeat(3) { open.animateTo(0.15f, tween(200, easing = ease)); open.animateTo(1f, tween(220, easing = ease)) }
+        val (low, half) = if (busy) 0.3f to 420 else 0.55f to 1500
+        while (true) { open.animateTo(low, tween(half, easing = ease)); open.animateTo(1f, tween(half, easing = ease)) }
+    }
+    val dark = MaterialTheme.colorScheme.background.luminanceLow()
+    val color = if (dark) Color(0xFFF2F2F2) else Color(0xFF111111)
+    val vein = MaterialTheme.colorScheme.background
+    Canvas(modifier.size(size)
+        .pointerInput(animations) { if (animations) detectTapGestures(onTap = { taps++ }) }
+        .clearAndSetSemantics { }) { drawMoth(open.value, color, vein) }
+}
+
 /** Moth in a 100×100 box (scaled to the canvas): four wings pivoting at the thorax, then the body, head and antennae on top. */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMoth(open: Float, color: Color, vein: Color) {
     val k = size.minDimension / 100f
@@ -276,7 +306,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
 
 /** Home screen: moth connect button, status, stat tiles, subscription card and a server bar with a bottom sheet. */
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun NewHomeScreen(saved: SavedSubscription?, book: org.mothvpn.core.SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean, message: String,
+@Composable fun NewHomeScreen(saved: SavedSubscription?, book: org.mothvpn.core.SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean,
     add: () -> Unit, connect: () -> Unit, select: (String, String) -> Unit, updateAvailable: Boolean = false, openUpdates: () -> Unit = {}) {
     val tunnel by TunnelStatus.state.collectAsState()
     val health by Diagnostics.health.collectAsState()
@@ -348,9 +378,11 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         // Reserved space for the status lines (title + one detail line): nothing above or below moves when they change.
         Column(Modifier.fillMaxWidth().height(statusHeight), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             // The status title and the detail line crossfade when they change (instantly with "Remove animations").
-            val title = if (blocked) tr(R.string.home_disconnect) else when (tunnel) { TunnelState.OFF -> if (pinging) tr(R.string.home_checking_servers) else tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.tile_reconnecting) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }
+            val title = if (blocked) tr(R.string.home_disconnect) else when (tunnel) { TunnelState.OFF -> if (pinging) tr(R.string.home_checking_servers) else tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.offline_title) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }
             val detail: Pair<String, Boolean>? = when {
                 blocked -> tr(R.string.msg_blocked) to true
+                // No Wi-Fi and no mobile data: a steady "No network" title only (not "Reconnecting…"), no detail and no internet check line.
+                TunnelStatus.waitingForNetwork(tunnel, offline) -> null
                 tunnel == TunnelState.RUNNING -> (if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message)) to false
                 else -> null
             }
@@ -370,10 +402,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         if (saved != null) SessionTiles(stats.takeIf { on }, tilesHeight)
         val source = remember(book, selected) { selected?.let { p -> book?.sourceOf(p.id) } ?: book?.sources?.firstOrNull() }
         if (saved != null && source != null) NewSubscriptionCard(book, source, network)
-        if (message.isNotBlank()) Text(message, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
-        val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
-        if (filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).keywords.isNotEmpty()) Text(tr(R.string.nd_filter_hides_all), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        // No error or status text on Home: errors (a failed subscription update, the filter hiding every server…) show as the top notice.
         // The whole bar is one touch target: it opens the server sheet.
         // Hero card: the same family as the session and subscription cards above it (card tone, large shape, no outline, no tonal elevation).
         val heroCard = NdTone.card()
@@ -820,7 +849,8 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
 
 /**
  * In-app notice at the top of the screen (not an Android notification): monochrome inverse surface, shown for 2 seconds or until
- * tapped or swiped away. [seq] restarts the timer for a repeated message. With "Remove animations" it appears and disappears at once.
+ * tapped or swiped away (errors stay longer, [NoticeState.durationMs]). [seq] restarts the timer for a repeated message. With
+ * "Remove animations" it appears and disappears at once.
  */
 /**
  * The app-wide top notice. MainActivity hosts one [TopNotice] above the tab content and provides this state through [LocalNotice],
@@ -829,17 +859,20 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
 class NoticeState {
     var text by mutableStateOf<String?>(null); private set
     var seq by mutableStateOf(0); private set
-    fun show(message: String) { text = message; seq++ }
+    /** How long the notice stays: 2 s for a short hint, longer for an error ([ERROR_MS]) so it can be read. */
+    var durationMs by mutableStateOf(2000L); private set
+    fun show(message: String, durationMs: Long = 2000L) { text = message; this.durationMs = durationMs; seq++ }
     fun dismiss() { text = null }
+    companion object { const val ERROR_MS = 4500L }
 }
 val LocalNotice = androidx.compose.runtime.staticCompositionLocalOf { NoticeState() }
 
-@Composable fun TopNotice(text: String?, seq: Int, dismiss: () -> Unit, modifier: Modifier = Modifier) {
+@Composable fun TopNotice(text: String?, seq: Int, dismiss: () -> Unit, modifier: Modifier = Modifier, durationMs: Long = 2000L) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val animations = remember { runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) > 0f }
     var shown by remember { mutableStateOf("") }
     if (text != null) shown = text
-    LaunchedEffect(text, seq) { if (text != null) { kotlinx.coroutines.delay(2000); dismiss() } }
+    LaunchedEffect(text, seq) { if (text != null) { kotlinx.coroutines.delay(durationMs); dismiss() } }
     val drag = remember(seq) { androidx.compose.animation.core.Animatable(0f) }
     val scope = rememberCoroutineScope()
     androidx.compose.animation.AnimatedVisibility(visible = text != null, modifier = modifier,
@@ -866,4 +899,43 @@ val LocalNotice = androidx.compose.runtime.staticCompositionLocalOf { NoticeStat
             }
         }
     }
+}
+
+/**
+ * The colour scheme with a smooth theme change: switching Light / Dark / System or Pure black cross-fades every colour of the scheme
+ * (about 400 ms) instead of a hard cut. A change during a running fade starts from the colours on screen. No fade when system
+ * animations are off.
+ */
+@Composable fun animatedColorScheme(target: ColorScheme): ColorScheme {
+    val motion = animationsOn()
+    var from by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(target) }
+    var to by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(target) }
+    val progress = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(1f) }
+    androidx.compose.runtime.LaunchedEffect(target) {
+        if (target == to) return@LaunchedEffect
+        from = lerpScheme(from, to, progress.value); to = target
+        if (!motion) { progress.snapTo(1f); return@LaunchedEffect }
+        progress.snapTo(0f)
+        progress.animateTo(1f, androidx.compose.animation.core.tween(400, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+    }
+    val p = progress.value
+    return if (p >= 1f) to else lerpScheme(from, to, p)
+}
+
+private fun lerpScheme(a: ColorScheme, b: ColorScheme, t: Float): ColorScheme {
+    if (t >= 1f) return b
+    fun l(x: Color, y: Color) = androidx.compose.ui.graphics.lerp(x, y, t)
+    return b.copy(primary = l(a.primary, b.primary), onPrimary = l(a.onPrimary, b.onPrimary), primaryContainer = l(a.primaryContainer, b.primaryContainer),
+        onPrimaryContainer = l(a.onPrimaryContainer, b.onPrimaryContainer), inversePrimary = l(a.inversePrimary, b.inversePrimary),
+        secondary = l(a.secondary, b.secondary), onSecondary = l(a.onSecondary, b.onSecondary), secondaryContainer = l(a.secondaryContainer, b.secondaryContainer),
+        onSecondaryContainer = l(a.onSecondaryContainer, b.onSecondaryContainer), tertiary = l(a.tertiary, b.tertiary), onTertiary = l(a.onTertiary, b.onTertiary),
+        tertiaryContainer = l(a.tertiaryContainer, b.tertiaryContainer), onTertiaryContainer = l(a.onTertiaryContainer, b.onTertiaryContainer),
+        background = l(a.background, b.background), onBackground = l(a.onBackground, b.onBackground), surface = l(a.surface, b.surface), onSurface = l(a.onSurface, b.onSurface),
+        surfaceVariant = l(a.surfaceVariant, b.surfaceVariant), onSurfaceVariant = l(a.onSurfaceVariant, b.onSurfaceVariant), surfaceTint = l(a.surfaceTint, b.surfaceTint),
+        inverseSurface = l(a.inverseSurface, b.inverseSurface), inverseOnSurface = l(a.inverseOnSurface, b.inverseOnSurface),
+        error = l(a.error, b.error), onError = l(a.onError, b.onError), errorContainer = l(a.errorContainer, b.errorContainer), onErrorContainer = l(a.onErrorContainer, b.onErrorContainer),
+        outline = l(a.outline, b.outline), outlineVariant = l(a.outlineVariant, b.outlineVariant), scrim = l(a.scrim, b.scrim),
+        surfaceBright = l(a.surfaceBright, b.surfaceBright), surfaceDim = l(a.surfaceDim, b.surfaceDim), surfaceContainer = l(a.surfaceContainer, b.surfaceContainer),
+        surfaceContainerHigh = l(a.surfaceContainerHigh, b.surfaceContainerHigh), surfaceContainerHighest = l(a.surfaceContainerHighest, b.surfaceContainerHighest),
+        surfaceContainerLow = l(a.surfaceContainerLow, b.surfaceContainerLow), surfaceContainerLowest = l(a.surfaceContainerLowest, b.surfaceContainerLowest))
 }

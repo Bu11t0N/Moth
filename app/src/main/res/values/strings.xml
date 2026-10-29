@@ -69,7 +69,6 @@
     <string name="msg_connection_75" formatted="false">"Connection"</string>
     <string name="msg_checks_76" formatted="false">"Checks"</string>
     <string name="msg_subscription_and_hwid_77" formatted="false">"Subscription and HWID"</string>
-    <string name="msg_about_78" formatted="false">"About"</string>
     <string name="msg_theme_79" formatted="false">"Theme"</string>
     <string name="msg_system_default_80" formatted="false">"System default"</string>
     <string name="msg_dark_81" formatted="false">"Dark"</string>
@@ -88,17 +87,12 @@
     <string name="msg_interval_30_600_seconds_95" formatted="false">"Interval · 30–600 seconds"</string>
     <string name="msg_timeout_3_30_seconds_96" formatted="false">"Timeout, ms · 1000–60000"</string>
     <string name="msg_https_check_url_97" formatted="false">"HTTPS check URL"</string>
-    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Checks use HTTPS through the server. A failed check does not mean every website is unavailable."</string>
     <string name="msg_check_method_99" formatted="false">"Check method"</string>
-    <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP does not verify VPN traffic and cannot check UDP-based Hysteria/TUIC. HTTPS checks traffic through the server."</string>
     <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Disconnect and finish checks to change subscription settings."</string>
     <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Send HWID to the provider"</string>
-    <string name="msg_a_persistent_installation_identifier_without_106" formatted="false">"A persistent installation identifier, without IMEI or serial number. Change it only if the provider supplies a specific value."</string>
     <string name="msg_copy_hwid_107" formatted="false">"Copy HWID"</string>
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Send device model and Android version"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"Subscription User-Agent"</string>
-    <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Providers may select the subscription format by User-Agent. HWID is sent only to the original subscription website."</string>
-    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.21\nOpen source · GPL-3.0-or-later"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Use an HTTPS link without a username or password in the URL"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Subscription device limit reached. Contact the provider."</string>
     <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"The provider requires HWID. Enable it in settings."</string>
@@ -154,7 +148,6 @@
     <string name="msg_shadowsocks_plugins_are_not_supported_170" formatted="false">"Shadowsocks plugins are not supported"</string>
     <string name="msg_transport_type_is_not_supported_171" formatted="false">"Transport %1$s is not supported"</string>
     <string name="language">Language</string>
-    <string name="add_tile">Add VPN button to Quick Settings</string>
     <string name="tile_off">Disconnected</string>
     <string name="tile_on">Connected</string>
     <string name="tile_starting">Connecting…</string>
@@ -187,7 +180,6 @@
     <string name="msg_probe_parallel_range">Parallel probes: from 1 to 16</string>
     <string name="msg_probe_timeout_range">Ping timeout: from 500 to 30000 ms</string>
     <string name="update_title">Updates</string>
-    <string name="update_current">Installed version: %1$s</string>
     <string name="update_check">Check for updates</string>
     <string name="update_latest">You have the latest stable version.</string>
     <string name="update_available">Available version: %1$s</string>
@@ -204,18 +196,20 @@
     <string name="update_channel">Update channel</string>
     <string name="update_channel_release">Release</string>
     <string name="update_channel_beta">Beta</string>
-    <string name="update_channel_beta_note">Beta also offers test builds, which may be unstable.</string>
     <string name="update_unknown_title">Allow installing updates</string>
     <string name="update_unknown_body">To update Moth, Android needs your permission to install apps from this source. Tap OK: the Android settings for Moth will open. Turn on “Allow from this source”, then return to Moth — the installation will continue automatically.</string>
     <string name="update_unknown_ok">OK</string>
     <string name="ok">OK</string>
     <string name="update_downloading">Downloading update…</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_installed_row">Installed version</string>
+    <string name="update_available_row">Available version</string>
     <string name="set_sort_servers">Sort servers</string>
     <string name="set_sort_subscription">Default</string>
     <string name="set_sort_name">By name</string>
-    <string name="set_sort_latency">By ping</string>
+    <string name="set_sort_latency">By latency</string>
     <string name="dev_detailed_icons">Show detailed icons</string>
-    <string name="dev_detailed_icons_hint">Instead of the red dash, failed server checks show a small gray icon; tap it to see the reason.</string>
+    <string name="dev_detailed_icons_hint">Instead of a dash, failed server checks show a small gray icon; tap it to see the reason.</string>
     <string name="notif_connecting">Connecting…</string>
     <string name="notif_disconnecting">Disconnecting…</string>
     <string name="notif_checking">Checking servers</string>
@@ -248,17 +242,13 @@
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
     <string name="direct_ru">Russian sites and IPs directly</string>
-    <string name="direct_ru_hint">Russian sites (.ru, .su, .рф and the geosite category-ru list) and Russian IP addresses (geoip:ru) open without the VPN. Lists are downloaded from SagerNet and updated weekly.</string>
     <string name="auto_select_wifi">Auto-select on Wi-Fi</string>
     <string name="auto_select_mobile">Auto-select on mobile data</string>
-    <string name="auto_select_hint">On connect, the fastest server is used (results of a check made in the last 5 minutes are reused, otherwise all servers are checked). If the internet check fails 3 times in a row, Moth switches to the next fastest server.</string>
-    <string name="boot_connect">Start VPN when the phone turns on</string>
-    <string name="boot_connect_hint">Connects to the last server after a restart. Android\'s Always-on VPN (system VPN settings) is also supported.</string>
+    <string name="boot_connect">Start VPN when the device turns on</string>
     <string name="dns_server">DNS server</string>
     <string name="dns_custom">Custom</string>
     <string name="dns_custom_hint">https://…/dns-query (DoH), tls://host (DoT) or an IPv4 address. DNS requests always go through the VPN.</string>
     <string name="dns_leak">DNS leak protection</string>
-    <string name="dns_leak_hint">All DNS requests and traffic stay inside the tunnel and cannot bypass it.</string>
     <string name="sub_auto">Update subscription automatically</string>
     <string name="sub_auto_off">Off</string>
     <string name="sub_auto_hours">Every %1$d h</string>
@@ -305,10 +295,19 @@
     <string name="expiry_today">Your subscription ends today.</string>
     <string name="expiry_toggle">Remind before the subscription ends</string>
     <string name="expiry_toggle_hint">A notification 3 days before and on the last day, if the provider sends the end date.</string>
-    <string name="set_cat_routing">Routing and DNS</string>
+    <string name="set_cat_routing">Routing</string>
+    <string name="set_cat_data">Data</string>
+    <string name="set_head_main">General</string>
+    <string name="set_head_app">App</string>
+    <string name="set_head_apps">Apps</string>
+    <string name="set_head_rules">Rules</string>
+    <string name="set_head_network">Network and DNS</string>
+    <string name="set_head_provider">For the provider</string>
+    <string name="set_head_appearance">Appearance</string>
+    <string name="set_head_server_list">Server list</string>
     <string name="set_cat_subscription">Subscription</string>
-    <string name="set_head_health">Tunnel health check</string>
-    <string name="set_head_probes">Server checks</string>
+    <string name="set_head_health">Tunnel</string>
+    <string name="set_head_probes">Servers</string>
     <string name="set_short_auto">Auto-select</string>
     <string name="set_short_auto_wifi">Auto-select: Wi-Fi</string>
     <string name="set_short_auto_mobile">Auto-select: mobile</string>
@@ -322,7 +321,6 @@
     <string name="set_split_bypass">Apps bypassing VPN: %d</string>
     <string name="set_sum_defaults">Default settings</string>
     <string name="set_sum_version">Installed %s</string>
-    <string name="set_sum_about">Version, licenses and changelog</string>
     <string name="set_sum_dev">Log and crash log · level: %s</string>
     <string name="set_theme_light">Light theme</string>
     <string name="set_theme_dark">Dark theme</string>
@@ -358,9 +356,9 @@
     <string name="sub_update_all">Update all subscriptions</string>
     <string name="msg_err_routing_rule">Invalid routing rule</string>
     <string name="rules_title">Routing rules</string>
-    <string name="rules_sum_none">No rules</string>
-    <string name="rules_sum_count">Rules: %1$d</string>
-    <string name="rules_hint">Rules are checked from top to bottom before the built-in rules; the first matching rule wins.</string>
+    <string name="rules_sum_none">All rules off</string>
+    <string name="rules_sum_count">Rules on: %1$d</string>
+    <string name="rules_hint">Rules are checked from top to bottom, then the default rules; the first matching rule wins. A rule that is switched off is skipped.</string>
     <string name="rules_add">Add rule</string>
     <string name="rules_edit">Edit rule</string>
     <string name="rules_type">Type</string>
@@ -383,7 +381,7 @@
     <string name="rules_delete">Delete rule</string>
     <string name="rules_limit">No more than 500 rules</string>
     <string name="rules_duplicate">This rule already exists</string>
-    <string name="rules_empty">No rules yet. Traffic follows the other routing settings.</string>
+    <string name="rules_empty">No rules of your own yet.</string>
     <string name="home_disconnect">Disconnect</string>
     <string name="backup_title">Backup</string>
     <string name="backup_sum">Export or restore subscriptions and settings</string>
@@ -428,7 +426,6 @@
     <string name="rules_import_over_limit">Over the 500 limit: %1$d</string>
     <string name="rules_import_apply">Add %1$d</string>
     <string name="traffic_warning_setting">Warn when traffic is running out</string>
-    <string name="traffic_warning_hint">A notification when a subscription has used this share of its traffic (if the provider reports a limit). Once per subscription and billing period.</string>
     <string name="traffic_warning_title">Traffic is running out</string>
     <string name="traffic_warning_title_named">Traffic of “%1$s” is running out</string>
     <string name="traffic_warning_text">%1$d%% used: %2$s of %3$s</string>
@@ -444,12 +441,12 @@
     <string name="fragment_tlshello">"TLS ClientHello (recommended)"</string>
     <string name="fragment_tlshello_small">"TLS ClientHello, small pieces"</string>
     <string name="fragment_first_packets">"First packets of the connection"</string>
-    <string name="fragment_hint">"Splits the start of TLS connections into pieces so that DPI cannot read the server name. Slightly slower; enable only if servers are blocked."</string>
     <string name="noise_title">"UDP noise"</string>
-    <string name="noise_hint">"Sends a few random packets before UDP connections (QUIC, Hysteria2, TUIC, WireGuard). Only affects UDP."</string>
+    <string name="fragment_info">Splits the start of the TLS connection (ClientHello) into small pieces so that deep packet inspection (DPI) can\'t read the site name and block it. Helps where VPN servers are blocked by DPI; it can slightly slow down connecting. “Small pieces” also splits TLS records, for stricter filters. “First packets” splits the first packets of any connection. Leave it off if everything works.</string>
+    <string name="noise_info">Before the first real UDP packet, sends a few random packets so that the start of the connection doesn\'t look like a known VPN protocol. Helps where UDP protocols (Hysteria2, WireGuard, QUIC) are throttled or blocked. Slightly more traffic; leave it off if everything works.</string>
+    <string name="mux_info">Carries several connections inside one connection to the server. Opening new connections gets faster and fewer connections are visible from outside, but a slow download can hold up the others. For sing-box servers, the server must support the selected protocol (smux, yamux or h2mux); Xray servers use their own Mux.Cool. Not used with XTLS Vision (flow) or XHTTP. If you don\'t know, leave it off.</string>
     <string name="mux_title">"Multiplexing (mux)"</string>
     <string name="mux_off">"Off"</string>
-    <string name="mux_hint">"Carries several connections inside one. The server must support the chosen mode; not used with XTLS flow or XHTTP."</string>
     <string name="deeplink_sub_title">"Add subscription?"</string>
     <string name="deeplink_links_title">"Add servers?"</string>
     <string name="deeplink_sub_text">"Subscription from %1$s will be downloaded and added."</string>
@@ -507,7 +504,7 @@
     <string name="ping_full">Full latency</string>
     <string name="ping_full_hint">First request, including connecting to the server and all handshakes.</string>
     <string name="ping_tcp">TCP</string>
-    <string name="ping_tcp_hint">Only checks that the server port answers; no traffic goes through.</string>
+    <string name="ping_tcp_hint">Only checks that the server port answers; no traffic goes through. Can\'t check Hysteria2 and TUIC (UDP).</string>
     <string name="dev_sub_headers">Subscription headers</string>
     <string name="dev_sub_headers_sum">Names of the headers the provider sent</string>
     <string name="dev_sub_headers_hint">Names only, from the last update of each subscription. Values and links are never stored.</string>
@@ -520,7 +517,6 @@
     <string name="device_os_version">System version · x-ver-os</string>
     <string name="device_model">Device model · x-device-model</string>
     <string name="device_reset">Reset to defaults</string>
-    <string name="device_hint">The values sent to your provider. Reset puts back this phone’s real values.</string>
     <string name="servers_check_all">Check all servers</string>
     <string name="device_title">Device info</string>
     <string name="check_needs_mobile">To check these servers, turn on mobile data and turn off Wi-Fi</string>
@@ -531,13 +527,110 @@
     <string name="set_health_interval">Check interval</string>
     <string name="set_minutes">%1$d min</string>
     <string name="set_seconds">%1$d s</string>
-    <string name="set_health_hint">A scheduled check is skipped while traffic flows through the VPN (the tunnel works anyway) or there is no network. After a failed check the next ones are never skipped.</string>
+    <string name="set_health_hint">A scheduled check is skipped while traffic flows through the VPN or there is no network. After a failed check the next ones are never skipped.</string>
     <string name="auto_select_reuse">Don\'t re-measure if the last check is newer than</string>
-    <string name="auto_select_reuse_hint">When switching between Wi-Fi and mobile data, auto-select uses server check results up to this age instead of measuring every server again.</string>
     <string name="set_head_notification">Notification</string>
     <string name="notif_line_speed">Speed</string>
     <string name="notif_line_total">Total traffic</string>
     <string name="notif_line_uptime">Connection time</string>
-    <string name="notif_lines_hint">Lines of the connection notification. While the screen is off, the notification is not updated.</string>
     <string name="msg_err_reuse">Invalid re-measure period</string>
+    <string name="msg_err_title_height">Invalid title height</string>
+    <string name="set_info_more">More about %1$s</string>
+    <string name="kill_switch_short">Blocks traffic if reconnecting fails</string>
+    <string name="set_notif_lines">Notification lines</string>
+    <string name="dev_title_height">Large title height</string>
+    <string name="dev_title_height_value">%1$d%% of the screen</string>
+    <string name="dev_title_height_default">Default</string>
+    <string name="rules_default_head">Default rules</string>
+    <string name="rules_default_ru_sum">.ru, .su, .рф, Russian sites and IPs → Direct</string>
+    <string name="rules_delete_confirm">Delete this rule?</string>
+    <string name="mtu_hint">Largest packet in the tunnel. Lower it if some sites hang.</string>
+    <string name="set_large_titles">Large titles</string>
+    <string name="set_large_titles_sum">Big title at the top of Settings and Servers</string>
+    <string name="offline_title">No network</string>
+    <string name="battery_title">Battery</string>
+    <string name="battery_sum">Moth\'s battery and CPU use</string>
+    <string name="battery_moth">Moth\'s use</string>
+    <string name="battery_moth_hint">Since the last charge, as counted by Android</string>
+    <string name="battery_energy">Energy (estimate)</string>
+    <string name="battery_energy_cpu">Processor %1$s</string>
+    <string name="battery_energy_wifi">Wi-Fi %1$s</string>
+    <string name="battery_energy_mobile">Mobile %1$s</string>
+    <string name="battery_cpu">Processor time</string>
+    <string name="battery_background">VPN in the background</string>
+    <string name="battery_foreground">Moth on screen</string>
+    <string name="battery_wakelock">Keeping the device awake</string>
+    <string name="battery_radio">Mobile radio active</string>
+    <string name="battery_session">Processor since Moth started</string>
+    <string name="battery_session_value">%1$s of %2$s</string>
+    <string name="battery_unavailable">This device does not report Moth\'s battery use.</string>
+    <string name="battery_optimization">Battery optimization</string>
+    <string name="battery_opt_off">Moth is on Android\'s list of apps without battery optimization: Android will not stop the VPN to save battery.</string>
+    <string name="battery_opt_on">Android may limit Moth in the background to save battery. To turn this off, open the settings below and choose \"Don\'t optimize\" (or \"Unrestricted\") for Moth.</string>
+    <string name="battery_opt_state">Status</string>
+    <string name="battery_opt_state_on">Optimized</string>
+    <string name="battery_opt_state_off">Not optimized</string>
+    <string name="battery_opt_xiaomi">Xiaomi (HyperOS/MIUI) has its own battery saver in App info › Battery saver (\"No restrictions\"). It is a separate setting: this status is Android\'s own list and does not change with it.</string>
+    <string name="battery_opt_open">Battery optimization settings</string>
+    <string name="battery_system">Android battery usage</string>
+    <string name="appdata_title">App data usage</string>
+    <string name="appdata_sum">Traffic per app</string>
+    <string name="appdata_access_title">All traffic (optional)</string>
+    <string name="appdata_access_text">With \"Usage access\" Moth can also show traffic outside the VPN from Android\'s own counter. Only totals per app, kept on this device.</string>
+    <string name="appdata_access_button">Allow usage access</string>
+    <string name="appdata_today">Today</string>
+    <string name="appdata_7">7 days</string>
+    <string name="appdata_30">30 days</string>
+    <string name="appdata_all">All networks</string>
+    <string name="appdata_wifi">Wi-Fi</string>
+    <string name="appdata_mobile">Mobile</string>
+    <string name="appdata_total">Total: %1$s</string>
+    <string name="appdata_empty">No traffic in this period.</string>
+    <string name="appdata_failed">Android did not return data usage for this period.</string>
+    <string name="appdata_removed">Removed apps</string>
+    <string name="appdata_tethering">Hotspot and tethering</string>
+    <string name="appdata_system">Android system</string>
+    <string name="appdata_other">Other apps (hidden by Android)</string>
+    <string name="appdata_moth">Moth (VPN overhead)</string>
+    <string name="appdata_hint">Numbers come from Android\'s data usage counter. Traffic of apps that go through the VPN is counted for those apps. Mobile data may be missing on Android 9 and older.</string>
+    <string name="battery_nothing_yet">Nothing counted since the last charge yet.</string>
+    <string name="appdata_unknown">App not identified</string>
+    <string name="appdata_source_vpn">Through VPN</string>
+    <string name="appdata_source_android">All traffic</string>
+    <string name="appdata_vpn_empty">Nothing counted yet: apps appear here once their traffic goes through the VPN.</string>
+    <string name="appdata_vpn_old">Moth can count traffic per app on Android 10 and newer. Use \"Usage access\" below instead.</string>
+    <string name="appdata_vpn_hint">Counted by Moth itself while the VPN is on: traffic of apps that go through the VPN. No permission needed. Apps kept out of the VPN are not here.</string>
+    <string name="appdata_restricted_title">Android says \"Restricted setting\"?</string>
+    <string name="appdata_restricted_text">Android 13+ blocks this for apps installed from a file. Open App info and allow restricted settings: on Xiaomi (HyperOS) the switch is at the bottom of the App info page; on most other phones tap ⋮ (top right) › \"Allow restricted settings\". Then allow usage access again. The option appears after one blocked attempt.</string>
+    <string name="appdata_restricted_button">Open Moth app info</string>
+    <string name="conn_title">Connections</string>
+    <string name="conn_sum">Live list of connections through the VPN</string>
+    <string name="conn_off_title">VPN is off</string>
+    <string name="conn_off_text">Connect to see which apps use the VPN right now.</string>
+    <string name="conn_failed_title">Connection list unavailable</string>
+    <string name="conn_failed_text">Moth could not read the list from the VPN core. Reconnect and open this page again.</string>
+    <string name="conn_active">Active connections: %1$d</string>
+    <string name="conn_close_all">Close all connections</string>
+    <string name="conn_close_all_text">Every open connection through the VPN is closed. Apps usually open new ones right away.</string>
+    <string name="conn_close_all_ok">Close all</string>
+    <string name="conn_close">Close connection of %1$s</string>
+    <string name="conn_sort_new">Newest</string>
+    <string name="conn_sort_speed">Speed</string>
+    <string name="conn_sort_traffic">Traffic</string>
+    <string name="conn_empty">No open connections right now.</string>
+    <string name="conn_direct">Direct</string>
+    <string name="conn_proxy">VPN</string>
+    <string name="conn_blocked">Blocked</string>
+    <string name="conn_rate">%1$s/s</string>
+    <string name="conn_group_app">By app</string>
+    <string name="conn_group_host">By host</string>
+    <string name="conn_group_none">All</string>
+    <string name="conn_group_count">Connections: %1$d</string>
+    <string name="conn_close_group">Close connections of %1$s</string>
+    <string name="conn_closed_ago">closed %1$s ago</string>
+    <string name="conn_closed_by_you_ago">closed by you %1$s ago</string>
+    <string name="conn_recent_title">Recently closed</string>
+    <string name="conn_recent_sum">Last %1$d while the VPN is on</string>
+    <string name="conn_recent_manual">Closed by you: %1$d</string>
+    <string name="conn_recent_empty">No closed connections yet.</string>
 </resources>

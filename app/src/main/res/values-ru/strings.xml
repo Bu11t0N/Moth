@@ -69,7 +69,6 @@
     <string name="msg_connection_75" formatted="false">"Подключение"</string>
     <string name="msg_checks_76" formatted="false">"Проверки"</string>
     <string name="msg_subscription_and_hwid_77" formatted="false">"Подписка и HWID"</string>
-    <string name="msg_about_78" formatted="false">"О приложении"</string>
     <string name="msg_theme_79" formatted="false">"Тема"</string>
     <string name="msg_system_default_80" formatted="false">"Как в системе"</string>
     <string name="msg_dark_81" formatted="false">"Тёмная"</string>
@@ -88,17 +87,12 @@
     <string name="msg_interval_30_600_seconds_95" formatted="false">"Интервал · 30–600 секунд"</string>
     <string name="msg_timeout_3_30_seconds_96" formatted="false">"Тайм-аут, мс · 1000–60000"</string>
     <string name="msg_https_check_url_97" formatted="false">"HTTPS-адрес проверки"</string>
-    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Проверка идёт по HTTPS через сервер. Отказ этого адреса не доказывает недоступность всех сайтов."</string>
     <string name="msg_check_method_99" formatted="false">"Способ проверки"</string>
-    <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP не подтверждает работу VPN и не подходит для Hysteria/TUIC на UDP. HTTPS проверяет передачу трафика через сервер."</string>
-    <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Заверши подключение и проверки, чтобы менять параметры подписки."</string>
+    <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Завершите подключение и проверки, чтобы менять параметры подписки."</string>
     <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Передавать HWID провайдеру"</string>
-    <string name="msg_a_persistent_installation_identifier_without_106" formatted="false">"Постоянный идентификатор установки, без IMEI и серийного номера. Меняй его только если провайдер выдал конкретное значение."</string>
     <string name="msg_copy_hwid_107" formatted="false">"Скопировать HWID"</string>
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Передавать модель и версию Android"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"User-Agent подписки"</string>
-    <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Провайдер может выбирать формат подписки по User-Agent. HWID отправляется только исходному сайту подписки."</string>
-    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.21\nОткрытый исходный код · GPL-3.0-or-later"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Нужна HTTPS-ссылка без логина и пароля в адресе"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Достигнут лимит устройств подписки. Обратись к провайдеру."</string>
     <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"Провайдер требует HWID. Включи его отправку в настройках."</string>
@@ -154,7 +148,6 @@
     <string name="msg_shadowsocks_plugins_are_not_supported_170" formatted="false">"Shadowsocks plugin не поддерживается"</string>
     <string name="msg_transport_type_is_not_supported_171" formatted="false">"Транспорт %1$s не поддерживается"</string>
     <string name="language">Язык</string>
-    <string name="add_tile">Добавить кнопку VPN в шторку</string>
     <string name="tile_off">Отключён</string>
     <string name="tile_on">Подключён</string>
     <string name="tile_starting">Подключаемся…</string>
@@ -189,7 +182,6 @@
     <string name="msg_probe_parallel_range">Параллельных проверок: от 1 до 16</string>
     <string name="msg_probe_timeout_range">Таймаут пинга: от 500 до 30000 мс</string>
     <string name="update_title">Обновления</string>
-    <string name="update_current">Установленная версия: %1$s</string>
     <string name="update_check">Проверить обновления</string>
     <string name="update_latest">Установлена последняя стабильная версия.</string>
     <string name="update_available">Доступна версия: %1$s</string>
@@ -206,18 +198,20 @@
     <string name="update_channel">Канал обновлений</string>
     <string name="update_channel_release">Релиз</string>
     <string name="update_channel_beta">Бета</string>
-    <string name="update_channel_beta_note">В бете также предлагаются тестовые сборки, они могут работать нестабильно.</string>
     <string name="update_unknown_title">Разрешите установку обновлений</string>
     <string name="update_unknown_body">Чтобы обновить Мотылёк, Android должен разрешить установку приложений из этого источника. Нажмите «ОК»: откроются настройки Android для Мотылька. Включите «Разрешить установку из этого источника» и вернитесь в Мотылёк — установка продолжится автоматически.</string>
     <string name="update_unknown_ok">ОК</string>
     <string name="ok">ОК</string>
     <string name="update_downloading">Скачиваем обновление…</string>
+    <string name="update_checking">Проверяем обновления…</string>
+    <string name="update_installed_row">Установленная версия</string>
+    <string name="update_available_row">Доступная версия</string>
     <string name="set_sort_servers">Сортировать серверы</string>
     <string name="set_sort_subscription">По умолчанию</string>
     <string name="set_sort_name">По имени</string>
-    <string name="set_sort_latency">По пингу</string>
+    <string name="set_sort_latency">По задержке</string>
     <string name="dev_detailed_icons">Показывать подробные значки</string>
-    <string name="dev_detailed_icons_hint">Вместо красного тире неудачные проверки серверов показывают маленький серый значок; нажмите на него, чтобы увидеть причину.</string>
+    <string name="dev_detailed_icons_hint">Вместо тире неудачные проверки серверов показывают маленький серый значок; нажмите на него, чтобы увидеть причину.</string>
     <string name="notif_connecting">Подключение…</string>
     <string name="notif_disconnecting">Отключение…</string>
     <string name="notif_checking">Проверяем серверы</string>
@@ -250,17 +244,13 @@
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
-    <string name="direct_ru_hint">Российские сайты (.ru, .su, .рф и список geosite category-ru) и российские IP-адреса (geoip:ru) открываются без VPN. Списки скачиваются у SagerNet и обновляются раз в неделю.</string>
     <string name="auto_select_wifi">Автовыбор на Wi‑Fi</string>
     <string name="auto_select_mobile">Автовыбор на мобильном интернете</string>
-    <string name="auto_select_hint">При подключении выбирается самый быстрый сервер (используются результаты проверки за последние 5 минут, иначе проверяются все серверы). Если проверка интернета не проходит 3 раза подряд, Мотылёк переключается на следующий по скорости сервер.</string>
-    <string name="boot_connect">Запускать VPN при включении телефона</string>
-    <string name="boot_connect_hint">После перезагрузки подключается к последнему серверу. Также поддерживается постоянный VPN Android (системные настройки VPN).</string>
+    <string name="boot_connect">Запускать VPN при включении устройства</string>
     <string name="dns_server">DNS-сервер</string>
     <string name="dns_custom">Свой</string>
     <string name="dns_custom_hint">https://…/dns-query (DoH), tls://адрес (DoT) или IPv4-адрес. DNS-запросы всегда идут через VPN.</string>
     <string name="dns_leak">Защита от утечек DNS</string>
-    <string name="dns_leak_hint">Все DNS-запросы и трафик остаются внутри туннеля и не могут пойти в обход.</string>
     <string name="sub_auto">Обновлять подписку автоматически</string>
     <string name="sub_auto_off">Выключено</string>
     <string name="sub_auto_hours">Каждые %1$d ч</string>
@@ -309,10 +299,19 @@
     <string name="expiry_today">Подписка заканчивается сегодня.</string>
     <string name="expiry_toggle">Напоминать об окончании подписки</string>
     <string name="expiry_toggle_hint">Уведомление за 3 дня и в последний день, если провайдер передаёт дату окончания.</string>
-    <string name="set_cat_routing">Маршрутизация и DNS</string>
+    <string name="set_cat_routing">Маршрутизация</string>
+    <string name="set_cat_data">Данные</string>
+    <string name="set_head_main">Основные</string>
+    <string name="set_head_app">Приложение</string>
+    <string name="set_head_apps">Приложения</string>
+    <string name="set_head_rules">Правила</string>
+    <string name="set_head_network">Сеть и DNS</string>
+    <string name="set_head_provider">Для провайдера</string>
+    <string name="set_head_appearance">Оформление</string>
+    <string name="set_head_server_list">Список серверов</string>
     <string name="set_cat_subscription">Подписка</string>
-    <string name="set_head_health">Проверка туннеля</string>
-    <string name="set_head_probes">Проверка серверов</string>
+    <string name="set_head_health">Туннель</string>
+    <string name="set_head_probes">Серверы</string>
     <string name="set_short_auto">Автовыбор</string>
     <string name="set_short_auto_wifi">Автовыбор: Wi‑Fi</string>
     <string name="set_short_auto_mobile">Автовыбор: мобильный</string>
@@ -326,7 +325,6 @@
     <string name="set_split_bypass">Приложения в обход VPN: %d</string>
     <string name="set_sum_defaults">Настройки по умолчанию</string>
     <string name="set_sum_version">Установлена %s</string>
-    <string name="set_sum_about">Версия, лицензии и список изменений</string>
     <string name="set_sum_dev">Журнал и журнал сбоев · уровень: %s</string>
     <string name="set_theme_light">Светлая тема</string>
     <string name="set_theme_dark">Тёмная тема</string>
@@ -362,9 +360,9 @@
     <string name="sub_update_all">Обновить все подписки</string>
     <string name="msg_err_routing_rule">Неверное правило маршрутизации</string>
     <string name="rules_title">Правила маршрутизации</string>
-    <string name="rules_sum_none">Нет правил</string>
-    <string name="rules_sum_count">Правил: %1$d</string>
-    <string name="rules_hint">Правила проверяются сверху вниз до встроенных правил; срабатывает первое подходящее.</string>
+    <string name="rules_sum_none">Все правила выключены</string>
+    <string name="rules_sum_count">Включено правил: %1$d</string>
+    <string name="rules_hint">Правила проверяются сверху вниз, затем правила по умолчанию; срабатывает первое подходящее. Выключенное правило пропускается.</string>
     <string name="rules_add">Добавить правило</string>
     <string name="rules_edit">Изменить правило</string>
     <string name="rules_type">Тип</string>
@@ -387,7 +385,7 @@
     <string name="rules_delete">Удалить правило</string>
     <string name="rules_limit">Не больше 500 правил</string>
     <string name="rules_duplicate">Такое правило уже есть</string>
-    <string name="rules_empty">Правил пока нет. Трафик идёт по остальным настройкам маршрутизации.</string>
+    <string name="rules_empty">Своих правил пока нет.</string>
     <string name="home_disconnect">Отключить</string>
     <string name="backup_title">Резервная копия</string>
     <string name="backup_sum">Экспорт и восстановление подписок и настроек</string>
@@ -432,7 +430,6 @@
     <string name="rules_import_over_limit">Сверх лимита 500: %1$d</string>
     <string name="rules_import_apply">Добавить %1$d</string>
     <string name="traffic_warning_setting">Предупреждать, когда трафик заканчивается</string>
-    <string name="traffic_warning_hint">Уведомление, когда подписка израсходовала эту долю трафика (если провайдер сообщает лимит). Один раз для подписки за расчётный период.</string>
     <string name="traffic_warning_title">Трафик заканчивается</string>
     <string name="traffic_warning_title_named">Трафик «%1$s» заканчивается</string>
     <string name="traffic_warning_text">Израсходовано %1$d%%: %2$s из %3$s</string>
@@ -448,12 +445,12 @@
     <string name="fragment_tlshello">"TLS ClientHello (рекомендуется)"</string>
     <string name="fragment_tlshello_small">"TLS ClientHello, мелкие части"</string>
     <string name="fragment_first_packets">"Первые пакеты соединения"</string>
-    <string name="fragment_hint">"Делит начало TLS-соединений на части, чтобы DPI не видел имя сервера. Немного медленнее; включайте, только если серверы блокируются."</string>
     <string name="noise_title">"UDP-шум"</string>
-    <string name="noise_hint">"Отправляет несколько случайных пакетов перед UDP-соединениями (QUIC, Hysteria2, TUIC, WireGuard). Влияет только на UDP."</string>
+    <string name="fragment_info">Делит начало TLS-соединения (ClientHello) на мелкие части, чтобы система глубокой проверки трафика (DPI) не смогла прочитать имя сайта и заблокировать его. Помогает, если VPN-серверы блокируются через DPI; подключение может стать чуть медленнее. «Мелкие части» дополнительно делят TLS-записи — для более строгих фильтров. «Первые пакеты» делят первые пакеты любого соединения. Если всё работает, оставьте выключенным.</string>
+    <string name="noise_info">Перед первым настоящим UDP-пакетом отправляет несколько случайных пакетов, чтобы начало соединения не было похоже на известный VPN-протокол. Помогает, если UDP-протоколы (Hysteria2, WireGuard, QUIC) замедляют или блокируют. Немного больше трафика; если всё работает, оставьте выключенным.</string>
+    <string name="mux_info">Передаёт несколько соединений внутри одного соединения с сервером. Новые соединения открываются быстрее, а снаружи видно меньше соединений, но медленная загрузка может тормозить остальные. Для серверов sing-box сервер должен поддерживать выбранный протокол (smux, yamux или h2mux); серверы Xray используют свой Mux.Cool. Не используется с XTLS Vision (flow) и XHTTP. Если не уверены, оставьте выключенным.</string>
     <string name="mux_title">"Мультиплексирование (mux)"</string>
     <string name="mux_off">"Выключено"</string>
-    <string name="mux_hint">"Передаёт несколько соединений внутри одного. Сервер должен поддерживать выбранный режим; не используется с XTLS flow и XHTTP."</string>
     <string name="deeplink_sub_title">"Добавить подписку?"</string>
     <string name="deeplink_links_title">"Добавить серверы?"</string>
     <string name="deeplink_sub_text">"Будет загружена и добавлена подписка с %1$s."</string>
@@ -511,7 +508,7 @@
     <string name="ping_full">Полная задержка</string>
     <string name="ping_full_hint">Первый запрос вместе с подключением к серверу и всеми рукопожатиями.</string>
     <string name="ping_tcp">TCP</string>
-    <string name="ping_tcp_hint">Только проверяет, что порт сервера отвечает; трафик через сервер не идёт.</string>
+    <string name="ping_tcp_hint">Только проверяет, что порт сервера отвечает; трафик через сервер не идёт. Не подходит для Hysteria2 и TUIC (UDP).</string>
     <string name="dev_sub_headers">Заголовки подписки</string>
     <string name="dev_sub_headers_sum">Названия заголовков, которые прислал провайдер</string>
     <string name="dev_sub_headers_hint">Только названия, с последнего обновления каждой подписки. Значения и ссылки не сохраняются.</string>
@@ -524,7 +521,6 @@
     <string name="device_os_version">Версия системы · x-ver-os</string>
     <string name="device_model">Модель устройства · x-device-model</string>
     <string name="device_reset">Сбросить</string>
-    <string name="device_hint">Значения, которые передаются провайдеру. «Сбросить» вернёт настоящие значения этого телефона.</string>
     <string name="servers_check_all">Проверить все серверы</string>
     <string name="device_title">Данные устройства</string>
     <string name="check_needs_mobile">Чтобы проверить эти серверы, включите мобильные данные и отключите Wi-Fi</string>
@@ -535,13 +531,110 @@
     <string name="set_health_interval">Интервал проверки</string>
     <string name="set_minutes">%1$d мин</string>
     <string name="set_seconds">%1$d с</string>
-    <string name="set_health_hint">Плановая проверка пропускается, пока через VPN идёт трафик (туннель и так работает) или нет сети. После неудачной проверки следующие идут без пропусков.</string>
+    <string name="set_health_hint">Плановая проверка пропускается, пока через VPN идёт трафик или нет сети. После неудачной проверки следующие идут без пропусков.</string>
     <string name="auto_select_reuse">Не перемерять, если замер новее</string>
-    <string name="auto_select_reuse_hint">При смене Wi-Fi ↔ мобильная сеть автовыбор берёт результаты проверки серверов не старше этого срока и не измеряет все серверы заново.</string>
     <string name="set_head_notification">Уведомление</string>
     <string name="notif_line_speed">Скорость</string>
     <string name="notif_line_total">Общий трафик</string>
     <string name="notif_line_uptime">Время подключения</string>
-    <string name="notif_lines_hint">Строки уведомления о подключении. Пока экран выключен, уведомление не обновляется.</string>
     <string name="msg_err_reuse">Неверный срок повторного замера</string>
+    <string name="msg_err_title_height">Неверная высота заголовка</string>
+    <string name="set_info_more">Подробнее: %1$s</string>
+    <string name="kill_switch_short">Блокирует трафик, если переподключиться не удалось</string>
+    <string name="set_notif_lines">Строки уведомления</string>
+    <string name="dev_title_height">Высота большого заголовка</string>
+    <string name="dev_title_height_value">%1$d%% экрана</string>
+    <string name="dev_title_height_default">По умолчанию</string>
+    <string name="rules_default_head">Правила по умолчанию</string>
+    <string name="rules_default_ru_sum">.ru, .su, .рф, российские сайты и IP → Напрямую</string>
+    <string name="rules_delete_confirm">Удалить это правило?</string>
+    <string name="mtu_hint">Наибольший пакет в туннеле. Уменьшите, если сайты зависают.</string>
+    <string name="set_large_titles">Большие заголовки</string>
+    <string name="set_large_titles_sum">Крупный заголовок в «Настройках» и «Серверах»</string>
+    <string name="offline_title">Нет сети</string>
+    <string name="battery_title">Батарея</string>
+    <string name="battery_sum">Расход батареи и процессора Moth</string>
+    <string name="battery_moth">Расход Moth</string>
+    <string name="battery_moth_hint">С последней зарядки, по данным Android</string>
+    <string name="battery_energy">Энергия (оценка)</string>
+    <string name="battery_energy_cpu">Процессор %1$s</string>
+    <string name="battery_energy_wifi">Wi‑Fi %1$s</string>
+    <string name="battery_energy_mobile">Мобильная %1$s</string>
+    <string name="battery_cpu">Время процессора</string>
+    <string name="battery_background">VPN в фоне</string>
+    <string name="battery_foreground">Moth на экране</string>
+    <string name="battery_wakelock">Не даёт устройству уснуть</string>
+    <string name="battery_radio">Мобильный радиомодуль</string>
+    <string name="battery_session">Процессор с запуска Moth</string>
+    <string name="battery_session_value">%1$s из %2$s</string>
+    <string name="battery_unavailable">Это устройство не сообщает расход батареи Moth.</string>
+    <string name="battery_optimization">Оптимизация батареи</string>
+    <string name="battery_opt_off">Moth в списке Android «Без оптимизации»: Android не остановит VPN ради экономии батареи.</string>
+    <string name="battery_opt_on">Android может ограничивать Moth в фоне ради экономии батареи. Чтобы выключить, откройте настройки ниже и выберите для Moth «Не оптимизировать» (или «Без ограничений»).</string>
+    <string name="battery_opt_state">Состояние</string>
+    <string name="battery_opt_state_on">Оптимизируется</string>
+    <string name="battery_opt_state_off">Не оптимизируется</string>
+    <string name="battery_opt_xiaomi">У Xiaomi (HyperOS/MIUI) есть своя экономия батареи: «О приложении» › «Контроль активности» («Нет ограничений»). Это отдельная настройка: здесь показан список самого Android, и от неё он не меняется.</string>
+    <string name="battery_opt_open">Настройки оптимизации батареи</string>
+    <string name="battery_system">Расход батареи Android</string>
+    <string name="appdata_title">Трафик приложений</string>
+    <string name="appdata_sum">Трафик по приложениям</string>
+    <string name="appdata_access_title">Весь трафик (по желанию)</string>
+    <string name="appdata_access_text">С доступом «История использования» Moth покажет и трафик мимо VPN из счётчика Android. Только суммы по приложениям, хранятся на устройстве.</string>
+    <string name="appdata_access_button">Разрешить доступ</string>
+    <string name="appdata_today">Сегодня</string>
+    <string name="appdata_7">7 дней</string>
+    <string name="appdata_30">30 дней</string>
+    <string name="appdata_all">Все сети</string>
+    <string name="appdata_wifi">Wi‑Fi</string>
+    <string name="appdata_mobile">Мобильная</string>
+    <string name="appdata_total">Всего: %1$s</string>
+    <string name="appdata_empty">За этот период трафика нет.</string>
+    <string name="appdata_failed">Android не вернул данные о трафике за этот период.</string>
+    <string name="appdata_removed">Удалённые приложения</string>
+    <string name="appdata_tethering">Точка доступа и модем</string>
+    <string name="appdata_system">Система Android</string>
+    <string name="appdata_other">Другие приложения (скрыты Android)</string>
+    <string name="appdata_moth">Moth (служебный трафик VPN)</string>
+    <string name="appdata_hint">Цифры из счётчика трафика Android. Трафик приложений через VPN засчитывается этим приложениям. На Android 9 и более ранних мобильный трафик может не показываться.</string>
+    <string name="battery_nothing_yet">С последней зарядки пока ничего не посчитано.</string>
+    <string name="appdata_unknown">Приложение не определено</string>
+    <string name="appdata_source_vpn">Через VPN</string>
+    <string name="appdata_source_android">Весь трафик</string>
+    <string name="appdata_vpn_empty">Пока пусто: приложения появятся, когда их трафик пойдёт через VPN.</string>
+    <string name="appdata_vpn_old">Moth считает трафик по приложениям на Android 10 и новее. Ниже можно разрешить «Историю использования».</string>
+    <string name="appdata_vpn_hint">Считает сам Moth, пока VPN включён: трафик приложений, которые идут через VPN. Разрешения не нужны. Приложений вне VPN здесь нет.</string>
+    <string name="appdata_restricted_title">Android пишет «Доступ для приложения запрещен»?</string>
+    <string name="appdata_restricted_text">Android 13+ так блокирует приложения, установленные из файла. Откройте «О приложении» и разрешите настройки с ограниченным доступом: на Xiaomi (HyperOS) переключатель в самом низу страницы «О приложении»; на большинстве других телефонов — ⋮ (справа вверху) › «Разрешить доступ к настройкам с ограниченным доступом». Затем снова разрешите доступ. Пункт появляется после одной заблокированной попытки.</string>
+    <string name="appdata_restricted_button">Открыть «О приложении» Moth</string>
+    <string name="conn_title">Соединения</string>
+    <string name="conn_sum">Активные соединения через VPN в реальном времени</string>
+    <string name="conn_off_title">VPN выключен</string>
+    <string name="conn_off_text">Включите VPN, чтобы увидеть, какие приложения сейчас используют VPN.</string>
+    <string name="conn_failed_title">Список соединений недоступен</string>
+    <string name="conn_failed_text">Moth не смог получить список от ядра VPN. Переподключитесь и откройте страницу снова.</string>
+    <string name="conn_active">Активных соединений: %1$d</string>
+    <string name="conn_close_all">Закрыть все соединения</string>
+    <string name="conn_close_all_text">Все открытые соединения через VPN будут закрыты. Приложения обычно сразу открывают новые.</string>
+    <string name="conn_close_all_ok">Закрыть все</string>
+    <string name="conn_close">Закрыть соединение %1$s</string>
+    <string name="conn_sort_new">Новые</string>
+    <string name="conn_sort_speed">Скорость</string>
+    <string name="conn_sort_traffic">Трафик</string>
+    <string name="conn_empty">Сейчас нет открытых соединений.</string>
+    <string name="conn_direct">Напрямую</string>
+    <string name="conn_proxy">Через VPN</string>
+    <string name="conn_blocked">Заблокировано</string>
+    <string name="conn_rate">%1$s/с</string>
+    <string name="conn_group_app">По приложениям</string>
+    <string name="conn_group_host">По адресам</string>
+    <string name="conn_group_none">Все</string>
+    <string name="conn_group_count">Соединений: %1$d</string>
+    <string name="conn_close_group">Закрыть соединения: %1$s</string>
+    <string name="conn_closed_ago">закрыто %1$s назад</string>
+    <string name="conn_closed_by_you_ago">закрыто вами %1$s назад</string>
+    <string name="conn_recent_title">Недавно закрытые</string>
+    <string name="conn_recent_sum">Последние %1$d, пока VPN включён</string>
+    <string name="conn_recent_manual">Закрыты вами: %1$d</string>
+    <string name="conn_recent_empty">Закрытых соединений пока нет.</string>
 </resources>

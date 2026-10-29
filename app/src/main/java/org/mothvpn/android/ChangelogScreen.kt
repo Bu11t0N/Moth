@@ -56,22 +56,25 @@ object ChangelogRepository {
     var version by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(true) }
     var result by remember { mutableStateOf<ChangelogRepository.Result?>(null) }
+    val notices = LocalNotice.current
     LaunchedEffect(version, russian) {
         loading = true
         result = withContext(Dispatchers.IO) { ChangelogRepository.load(russian) }
         loading = false
+        // A failed load is reported by the app-wide top notice (like other errors), not by text on the page.
+        val r = result
+        if (r?.sections == null) notices.show(tr(R.string.changelog_error), NoticeState.ERROR_MS)
+        else if (r.fromCache) notices.show(tr(R.string.changelog_offline), NoticeState.ERROR_MS)
     }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         val sections = result?.sections
         when {
             loading && sections == null -> Row(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator() }
             sections == null -> Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(tr(R.string.changelog_error))
                 NdButton(onClick = { version++ }, modifier = Modifier.pressScale()) { Text(tr(R.string.changelog_retry)) }
             }
             else -> {
                 if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                if (result?.fromCache == true) Text(tr(R.string.changelog_offline), style = MaterialTheme.typography.bodySmall)
                 LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     sections.forEach { section ->
                         item(key = "h-" + section.title) { Text(section.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp, bottom = 2.dp)) }

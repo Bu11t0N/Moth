@@ -185,8 +185,11 @@ class FeaturesE2ETest {
 
         launch(); tab("Servers")
         // Group headers and server rows are single merged nodes: found by their descriptions.
+        wait(By.desc("Collapse: Second E2E")); wait(By.desc("Collapse: First E2E")); wait(By.descStartsWith("E2E VLESS"))
+        // The large title starts the list lower, so the second group's last rows can sit below the fold.
+        repeat(6) { if (device.findObject(By.descStartsWith("Second Trojan")) == null) { device.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.35f); Thread.sleep(400) } }
+        wait(By.descStartsWith("Second Trojan"))
         val header = wait(By.desc("Collapse: Second E2E"))
-        wait(By.desc("Collapse: First E2E")); wait(By.descStartsWith("Second Trojan")); wait(By.descStartsWith("E2E VLESS"))
         assertEquals(listOf(3, 2), SubscriptionStore(context).loadBook()!!.sources.map { it.profiles.size }.sortedDescending())
         val y = header.visibleBounds.centerY()
         device.findObjects(By.desc("Subscription actions")).minByOrNull { kotlin.math.abs(it.visibleBounds.centerY() - y) }!!.click()
@@ -203,7 +206,7 @@ class FeaturesE2ETest {
         val direct = fetch("/ip")
         assertNotNull("echo server unreachable", direct); assertFalse(direct in tunneled)
         launch(); tab("Settings")
-        wait(By.text("Connection")).click()
+        wait(By.text("Routing")).click()
         scrollTo("Routing rules").click()
         // 1. Add a rule with the dialog.
         wait(By.text("Add rule")).click()
@@ -213,6 +216,16 @@ class FeaturesE2ETest {
         wait(By.text("Save")).click()
         wait(By.text("$host/32"))
         val blockRule = RoutingRule("ip_cidr", "$host/32", "block")
+        waitRules(listOf(blockRule))
+        // The rule's own switch (the one on the rule's row) turns it off and on again.
+        wait(By.text(tr(R.string.rules_default_head)))
+        fun ruleSwitch(): androidx.test.uiautomator.UiObject2 {
+            val y = wait(By.text("$host/32")).visibleBounds.centerY()
+            return device.findObjects(By.checkable(true)).first { it.visibleBounds.top <= y && it.visibleBounds.bottom >= y }
+        }
+        ruleSwitch().click()
+        waitRules(listOf(blockRule.copy(enabled = false)))
+        ruleSwitch().click()
         waitRules(listOf(blockRule))
         // 2. Import from the clipboard: two new rules, one invalid line, one duplicate.
         instrumentation.runOnMainSync {
@@ -288,9 +301,15 @@ class FeaturesE2ETest {
         }
         // The restored data is what the app shows.
         launch(); tab("Servers")
-        wait(By.desc("Collapse: First E2E")); wait(By.desc("Collapse: My servers")); wait(By.desc("Collapse: Favorites"))
-        tab("Settings"); wait(By.text("Connection")).click()
-        scrollTo("Rules: 2")
+        wait(By.desc("Collapse: First E2E"))
+        // The large title starts the list lower: the later group headers can sit below the fold.
+        for (group in listOf("Collapse: My servers", "Collapse: Favorites")) {
+            for (dir in listOf(Direction.DOWN, Direction.UP)) repeat(6) { if (device.findObject(By.desc(group)) == null) { device.findObject(By.scrollable(true))?.scroll(dir, 0.35f); Thread.sleep(400) } }
+            wait(By.desc(group))
+        }
+        tab("Settings"); wait(By.text("Routing")).click()
+        val restored = SettingsStore(context).load()
+        scrollTo(tr(R.string.rules_sum_count, restored.routingRules.count { it.enabled } + (if (restored.directRu) 1 else 0)))
         device.pressBack()
         assertEquals(first.sourceId, store.loadBook()!!.sources.first().id)
     }
