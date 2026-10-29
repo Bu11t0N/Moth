@@ -217,11 +217,15 @@ class FeaturesE2ETest {
         wait(By.text("$host/32"))
         val blockRule = RoutingRule("ip_cidr", "$host/32", "block")
         waitRules(listOf(blockRule))
-        // The rule's own switch (the first one; the default Russian-sites rule follows) turns it off and on again.
+        // The rule's own switch (the one on the rule's row) turns it off and on again.
         wait(By.text(tr(R.string.rules_default_head)))
-        device.findObjects(By.clazz("android.widget.Switch")).first().click()
+        fun ruleSwitch(): androidx.test.uiautomator.UiObject2 {
+            val y = wait(By.text("$host/32")).visibleBounds.centerY()
+            return device.findObjects(By.checkable(true)).first { it.visibleBounds.top <= y && it.visibleBounds.bottom >= y }
+        }
+        ruleSwitch().click()
         waitRules(listOf(blockRule.copy(enabled = false)))
-        device.findObjects(By.clazz("android.widget.Switch")).first().click()
+        ruleSwitch().click()
         waitRules(listOf(blockRule))
         // 2. Import from the clipboard: two new rules, one invalid line, one duplicate.
         instrumentation.runOnMainSync {
@@ -304,7 +308,8 @@ class FeaturesE2ETest {
             wait(By.desc(group))
         }
         tab("Settings"); wait(By.text("Routing")).click()
-        scrollTo("Rules: 2")
+        val restored = SettingsStore(context).load()
+        scrollTo(tr(R.string.rules_sum_count, restored.routingRules.count { it.enabled } + (if (restored.directRu) 1 else 0)))
         device.pressBack()
         assertEquals(first.sourceId, store.loadBook()!!.sources.first().id)
     }
