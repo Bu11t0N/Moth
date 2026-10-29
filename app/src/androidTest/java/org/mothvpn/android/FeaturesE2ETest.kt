@@ -217,6 +217,12 @@ class FeaturesE2ETest {
         wait(By.text("$host/32"))
         val blockRule = RoutingRule("ip_cidr", "$host/32", "block")
         waitRules(listOf(blockRule))
+        // The rule's own switch (the first one; the default Russian-sites rule follows) turns it off and on again.
+        wait(By.text(tr(R.string.rules_default_head)))
+        device.findObjects(By.clazz("android.widget.Switch")).first().click()
+        waitRules(listOf(blockRule.copy(enabled = false)))
+        device.findObjects(By.clazz("android.widget.Switch")).first().click()
+        waitRules(listOf(blockRule))
         // 2. Import from the clipboard: two new rules, one invalid line, one duplicate.
         instrumentation.runOnMainSync {
             context.getSystemService(android.content.ClipboardManager::class.java)

@@ -267,9 +267,11 @@ class UiE2ETest {
         wait(By.desc("Connect VPN").enabled(true)).click()
         wait(By.text("VPN is on"), 60_000); Thread.sleep(1500)
         tab("Settings"); wait(By.text(tr(R.string.set_cat_routing))).click(); Thread.sleep(800)
-        wait(By.text(tr(R.string.direct_ru)))
         // No user-facing mention of reconnecting to apply settings (the behaviour is unchanged).
         assertTrue("no reconnect hint", device.findObject(By.textContains("reconnect")) == null)
+        // Since 0.8.0 beta 5 "Russian sites and IPs directly" is the default rule on the routing rules page, with its own switch.
+        wait(By.text(tr(R.string.rules_title))).click(); Thread.sleep(800)
+        wait(By.text(tr(R.string.rules_default_head)))
         val row = wait(By.text(tr(R.string.direct_ru)))
         row.click()
         val changed = System.currentTimeMillis()
