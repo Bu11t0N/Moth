@@ -5,11 +5,22 @@ package org.mothvpn.core
  * command socket) in plain values for the page. Nothing is decrypted: only addresses, ports, the sniffed protocol name and byte counts.
  */
 object LiveConnections {
-    /** One open connection. [up]/[down]: bytes in the last report interval; [upTotal]/[downTotal]: since it opened. */
+    /**
+     * One connection. [up]/[down]: bytes in the last report interval; [upTotal]/[downTotal]: since it opened.
+     * [closedAtMs]: when the core closed it (0 while it is open).
+     */
     data class Item(
         val id: String, val network: String, val protocol: String, val source: String, val destination: String, val domain: String,
         val outbound: String, val createdAtMs: Long, val up: Long, val down: Long, val upTotal: Long, val downTotal: Long, val app: String?,
+        val closedAtMs: Long = 0,
     ) { val total get() = upTotal + downTotal }
+
+    /** How many recently closed connections the page shows (the core already keeps its own bounded list of closed ones). */
+    const val RECENT_LIMIT = 30
+
+    /** Most recently closed first, at most [limit]; open connections are ignored. */
+    fun recentlyClosed(items: List<Item>, limit: Int = RECENT_LIMIT): List<Item> =
+        items.filter { it.closedAtMs > 0 }.sortedWith(compareByDescending<Item> { it.closedAtMs }.thenBy { it.id }).take(limit.coerceAtLeast(0))
 
     enum class Sort { NEWEST, TRAFFIC, SPEED }
 

@@ -337,8 +337,16 @@ private fun labelledVpn(context: Context, list: List<org.mothvpn.core.VpnAppTraf
  * a report every second while the page is on screen, the active connections only. Close one / all through the same socket (the core's
  * clash_api connection tracker closes them). Nothing is decrypted or logged: hosts never reach the log.
  */
-private class LiveConnectionsClient(private val onList: (List<org.mothvpn.core.LiveConnections.Item>) -> Unit, private val onLost: () -> Unit) {
+private class LiveConnectionsClient(private val onList: (List<org.mothvpn.core.LiveConnections.Item>, List<org.mothvpn.core.LiveConnections.Item>?) -> Unit,
+    private val onLost: () -> Unit) {
     private var client: io.nekohasekai.libbox.CommandClient? = null
+    /** Read the core's recently closed connections too (only while that section is open, so the collapsed page costs nothing extra). */
+    @Volatile var wantClosed = false
+    private fun item(c: io.nekohasekai.libbox.Connection, id: String): org.mothvpn.core.LiveConnections.Item {
+        val network = c.network.orEmpty(); val source = c.source.orEmpty()
+        return org.mothvpn.core.LiveConnections.Item(id, network, c.protocol.orEmpty(), source, c.destination.orEmpty(), c.domain.orEmpty(),
+            c.outbound.orEmpty(), c.createdAt, c.uplink, c.downlink, c.uplinkTotal, c.downlinkTotal, VpnTraffic.ownerApp(id, network, source), c.closedAt)
+    }
     private val handler = object : io.nekohasekai.libbox.CommandClientHandler {
         override fun connected() {}
         override fun disconnected(message: String?) { onLost() }
@@ -354,13 +362,18 @@ private class LiveConnectionsClient(private val onList: (List<org.mothvpn.core.L
                 message.filterState(io.nekohasekai.libbox.Libbox.ConnectionStateActive.toInt())
                 val out = ArrayList<org.mothvpn.core.LiveConnections.Item>()
                 val it = message.iterator()
-                while (it.hasNext()) {
-                    val c = it.next(); val id = c.id ?: continue
-                    val network = c.network.orEmpty(); val source = c.source.orEmpty()
-                    out += org.mothvpn.core.LiveConnections.Item(id, network, c.protocol.orEmpty(), source, c.destination.orEmpty(), c.domain.orEmpty(),
-                        c.outbound.orEmpty(), c.createdAt, c.uplink, c.downlink, c.uplinkTotal, c.downlinkTotal, VpnTraffic.ownerApp(id, network, source))
+                while (it.hasNext()) { val c = it.next(); val id = c.id ?: continue; out += item(c, id) }
+                // The core already keeps a bounded list of closed connections for this VPN session (gone when the VPN stops);
+                // only the newest few are converted.
+                val closed = if (!wantClosed) null else {
+                    message.filterState(io.nekohasekai.libbox.Libbox.ConnectionStateClosed.toInt())
+                    val raw = ArrayList<Pair<Long, io.nekohasekai.libbox.Connection>>()
+                    val ci = message.iterator()
+                    while (ci.hasNext()) { val c = ci.next(); raw += c.closedAt to c }
+                    raw.sortedByDescending { it.first }.take(org.mothvpn.core.LiveConnections.RECENT_LIMIT)
+                        .mapNotNull { (_, c) -> c.id?.let { id -> item(c, id) } }.let { org.mothvpn.core.LiveConnections.recentlyClosed(it) }
                 }
-                onList(out)
+                onList(out, closed)
             }.onFailure { Logger.w("Connections", "reading the connection list failed: ${it.javaClass.simpleName}") }
         }
     }
@@ -403,20 +416,24 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
     }
     // null: waiting for the first report; failed: the socket could not be reached.
     var items by remember { mutableStateOf<List<org.mothvpn.core.LiveConnections.Item>?>(null) }
+    var closedItems by remember { mutableStateOf<List<org.mothvpn.core.LiveConnections.Item>?>(null) }
     var failed by remember { mutableStateOf(false) }
     var live by remember { mutableStateOf<LiveConnectionsClient?>(null) }
+    var showClosed by rememberSaveable { mutableStateOf(false) } // "Recently closed" section, collapsed by default
     DisposableEffect(serving, visible) {
-        items = null; failed = false
-        val c = if (serving && visible) LiveConnectionsClient({ items = it; failed = false }, { if (items == null) failed = true }) else null
+        items = null; closedItems = null; failed = false
+        val c = if (serving && visible) LiveConnectionsClient({ list, closed -> items = list; closed?.let { closedItems = it }; failed = false },
+            { if (items == null) failed = true }) else null
+        c?.wantClosed = showClosed
         if (c != null && !c.connect()) failed = true
         live = c
         onDispose { c?.disconnect(); if (live === c) live = null }
     }
+    LaunchedEffect(showClosed, live) { live?.wantClosed = showClosed; if (!showClosed) closedItems = null }
     var sort by rememberSaveable { mutableStateOf(org.mothvpn.core.LiveConnections.Sort.NEWEST) }
     var groupBy by rememberSaveable { mutableStateOf(org.mothvpn.core.LiveConnections.GroupBy.APP) }
     val expanded = remember { mutableStateListOf<String>() } // "GROUPBY:key" of open groups
     var confirmAll by remember { mutableStateOf(false) }
-    var confirmGroup by remember { mutableStateOf<Pair<String, List<String>>?>(null) } // title and the ids to close
     val closing = remember { mutableStateMapOf<String, Long>() } // id -> when its close was sent: hidden until the core drops it
     val locale = AppLanguage.context().resources.configuration.locales[0]
     val units = tr(R.string.notif_units).split("|")
@@ -471,7 +488,11 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                                     val title = if (byApp) appLabel else g.key
                                     ConnectionGroupRow(g, title, if (byApp) pkg else null, byApp, open, ::bytes,
                                         toggle = { if (open) expanded.remove(stateKey) else expanded.add(stateKey) },
-                                        onClose = { confirmGroup = title to g.items.map { it.id } })
+                                        onClose = {
+                                            // No confirmation: closing an app's (or host's) connections is harmless, the app reconnects.
+                                            val at = System.currentTimeMillis()
+                                            g.items.forEach { c -> if (live?.close(c.id) == true) closing[c.id] = at }
+                                        })
                                     if (open) g.items.take(budget.coerceAtLeast(0)).forEach { c ->
                                         budget--
                                         key(c.id) {
@@ -485,6 +506,7 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                         }
                     }
                 }
+                RecentlyClosedCard(showClosed, closedItems, now, labels, ::bytes) { showClosed = !showClosed }
                 Hint(tr(R.string.conn_hint))
             }
         }
@@ -492,15 +514,6 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
     if (confirmAll) AlertDialog(onDismissRequest = { confirmAll = false }, title = { Text(tr(R.string.conn_close_all)) }, text = { Text(tr(R.string.conn_close_all_text)) },
         confirmButton = { TextButton(onClick = { confirmAll = false; live?.closeAll() }) { Text(tr(R.string.conn_close_all_ok)) } },
         dismissButton = { TextButton(onClick = { confirmAll = false }) { Text(tr(R.string.msg_cancel_32)) } })
-    confirmGroup?.let { (title, ids) ->
-        AlertDialog(onDismissRequest = { confirmGroup = null }, title = { Text(tr(R.string.conn_close_group, title)) }, text = { Text(tr(R.string.conn_close_group_text, ids.size)) },
-            confirmButton = { TextButton(onClick = {
-                confirmGroup = null
-                val at = System.currentTimeMillis()
-                ids.forEach { id -> if (live?.close(id) == true) closing[id] = at }
-            }) { Text(tr(R.string.conn_close_all_ok)) } },
-            dismissButton = { TextButton(onClick = { confirmGroup = null }) { Text(tr(R.string.msg_cancel_32)) } })
-    }
 }
 
 /** A group of connections (one app or one host): count, summed totals and rate; tap to expand, × closes every connection in it. */
@@ -539,7 +552,7 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
  * is the headline. [nested]: a row inside an expanded group, indented under the group's icon.
  */
 @Composable private fun ConnectionRow(c: org.mothvpn.core.LiveConnections.Item, label: String?, pkg: String?, now: Long, bytes: (Long) -> String,
-    nested: Boolean = false, onClose: () -> Unit) {
+    nested: Boolean = false, onClose: (() -> Unit)?) {
     val context = LocalContext.current
     val target = org.mothvpn.core.LiveConnections.target(c.domain, c.destination)
     Row(Modifier.fillMaxWidth().padding(start = if (nested) 60.dp else 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -556,15 +569,55 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
             if (label != null) Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(target, style = if (label != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val route = when (c.outbound) { "direct" -> tr(R.string.conn_direct); "block" -> tr(R.string.conn_blocked); "", "dns-out", "dns" -> null; else -> tr(R.string.conn_proxy) }
-            val age = if (c.createdAtMs > 0) TrafficFormat.duration(((now - c.createdAtMs) / 1000).coerceAtLeast(0)) else null
+            val age = when {
+                c.closedAtMs > 0 -> tr(R.string.conn_closed_ago, TrafficFormat.duration(((now - c.closedAtMs) / 1000).coerceAtLeast(0)))
+                c.createdAtMs > 0 -> TrafficFormat.duration(((now - c.createdAtMs) / 1000).coerceAtLeast(0))
+                else -> null
+            }
             Text(listOfNotNull(org.mothvpn.core.LiveConnections.protocolLabel(c.network, c.protocol), route, age).joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(tr(R.string.stats_updown, bytes(c.upTotal), bytes(c.downTotal)) + if (c.up + c.down > 0)
                 "  (" + tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.up + c.down, LIVE_INTERVAL_MS))) + ")" else "",
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
-        IconButton(onClick = onClose, modifier = Modifier.pressScale()) {
+        if (onClose != null) IconButton(onClick = onClose, modifier = Modifier.pressScale()) {
             Icon(androidx.compose.material.icons.Icons.Outlined.Close, contentDescription = tr(R.string.conn_close, label ?: target), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else Spacer(Modifier.width(12.dp))
+    }
+}
+
+/**
+ * "Recently closed" under the active list: collapsed by default; open, it lists the newest closed connections of this VPN session
+ * (the core's own bounded list, read only while the section is open; it empties when the VPN stops). Read-only rows.
+ */
+@Composable private fun RecentlyClosedCard(open: Boolean, items: List<org.mothvpn.core.LiveConnections.Item>?, now: Long,
+    labels: HashMap<String?, Pair<String, String?>>, bytes: (Long) -> String, toggle: () -> Unit) {
+    val context = LocalContext.current
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 180f else 0f, label = "closed chevron")
+    Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            Row(Modifier.fillMaxWidth().pressScale(0.98f).clickable(onClick = toggle).heightIn(min = 52.dp).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(tr(R.string.conn_recent_title), style = MaterialTheme.typography.titleMedium)
+                    Text(if (open && items != null) tr(R.string.conn_recent_count, items.size) else tr(R.string.conn_recent_sum, org.mothvpn.core.LiveConnections.RECENT_LIMIT),
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Icon(androidx.compose.material.icons.Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = turn })
+            }
+            if (open) when {
+                items == null -> LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp))
+                items.isEmpty() -> Text(tr(R.string.conn_recent_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp))
+                else -> items.forEach { c ->
+                    key("closed:" + c.id) {
+                        val (label, pkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
+                        RowDivider()
+                        ConnectionRow(c, label, pkg, now, bytes, onClose = null)
+                    }
+                }
+            }
         }
     }
 }

@@ -184,7 +184,6 @@
     <string name="msg_probe_parallel_range">Параллельных проверок: от 1 до 16</string>
     <string name="msg_probe_timeout_range">Таймаут пинга: от 500 до 30000 мс</string>
     <string name="update_title">Обновления</string>
-    <string name="update_current">Установленная версия: %1$s</string>
     <string name="update_check">Проверить обновления</string>
     <string name="update_latest">Установлена последняя стабильная версия.</string>
     <string name="update_available">Доступна версия: %1$s</string>
@@ -207,6 +206,9 @@
     <string name="update_unknown_ok">ОК</string>
     <string name="ok">ОК</string>
     <string name="update_downloading">Скачиваем обновление…</string>
+    <string name="update_checking">Проверяем обновления…</string>
+    <string name="update_installed_row">Установленная версия</string>
+    <string name="update_available_row">Доступная версия</string>
     <string name="set_sort_servers">Сортировать серверы</string>
     <string name="set_sort_subscription">По умолчанию</string>
     <string name="set_sort_name">По имени</string>
@@ -624,11 +626,15 @@
     <string name="conn_proxy">Через VPN</string>
     <string name="conn_blocked">Заблокировано</string>
     <string name="conn_rate">%1$s/с</string>
-    <string name="conn_hint">Обновляется каждую секунду, пока страница открыта. Домен берётся из самого соединения, если приложение его передаёт; трафик не расшифровывается. Закрытие соединения не блокирует приложение: оно может подключиться снова. Приложения определяются на Android 10 и новее. Соединения сгруппированы по приложениям: нажмите на группу, чтобы увидеть её соединения, × закрывает их все. Группировка по адресам показывает, куда идёт трафик.</string>
+    <string name="conn_hint">Обновляется каждую секунду, пока страница открыта. Домен берётся из самого соединения, если приложение его передаёт; трафик не расшифровывается. Закрытие соединения не блокирует приложение: оно может подключиться снова. Приложения определяются на Android 10 и новее. Соединения сгруппированы по приложениям: нажмите на группу, чтобы увидеть её соединения, × сразу закрывает их все. Группировка по адресам показывает, куда идёт трафик. «Недавно закрытые» — последние соединения, завершившиеся, пока VPN включён; они хранятся только в памяти и исчезают при выключении VPN.</string>
     <string name="conn_group_app">По приложениям</string>
     <string name="conn_group_host">По адресам</string>
     <string name="conn_group_none">Все</string>
     <string name="conn_group_count">Соединений: %1$d</string>
     <string name="conn_close_group">Закрыть соединения: %1$s</string>
-    <string name="conn_close_group_text">Будет закрыто соединений: %1$d. Приложение обычно сразу открывает новые; VPN остаётся включённым.</string>
+    <string name="conn_closed_ago">закрыто %1$s назад</string>
+    <string name="conn_recent_title">Недавно закрытые</string>
+    <string name="conn_recent_sum">Последние %1$d, пока VPN включён. Нажмите, чтобы показать</string>
+    <string name="conn_recent_count">Показано: %1$d</string>
+    <string name="conn_recent_empty">Закрытых соединений пока нет.</string>
 </resources>

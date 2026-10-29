@@ -1,5 +1,6 @@
 package org.mothvpn.android
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.text.withStyle
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
@@ -42,6 +43,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.launch
@@ -225,6 +227,34 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
         .semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(size * (210f / 260f)).graphicsLayer { alpha = if (enabled || beat) 1f else 0.55f }) { drawMoth(open.value, color, vein) }
     }
+}
+
+/**
+ * The connected moth as a picture (Updates page): lit colours, wings slowly beating; [busy] (checking or downloading) beats faster.
+ * A tap adds a few quick flaps. Deliberately not a button: no click semantics, no ripple, no pressed state, no glow or background,
+ * and hidden from accessibility (decorative). With animations off it stays still with the wings spread.
+ */
+@Composable fun MothFlutter(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 148.dp, busy: Boolean = false) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val animations = remember { runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) > 0f }
+    val open = remember { androidx.compose.animation.core.Animatable(1f) }
+    var taps by remember { mutableIntStateOf(0) }
+    val seen = remember { intArrayOf(0) }
+    LaunchedEffect(animations, busy, taps) {
+        val tapped = taps > seen[0]; seen[0] = taps
+        if (!animations) { open.snapTo(1f); return@LaunchedEffect }
+        val ease = androidx.compose.animation.core.FastOutSlowInEasing
+        // A tap: three quick flaps, then back to the slow beat (a new tap restarts this effect).
+        if (tapped) repeat(3) { open.animateTo(0.15f, tween(200, easing = ease)); open.animateTo(1f, tween(220, easing = ease)) }
+        val (low, half) = if (busy) 0.3f to 420 else 0.55f to 1500
+        while (true) { open.animateTo(low, tween(half, easing = ease)); open.animateTo(1f, tween(half, easing = ease)) }
+    }
+    val dark = MaterialTheme.colorScheme.background.luminanceLow()
+    val color = if (dark) Color(0xFFF2F2F2) else Color(0xFF111111)
+    val vein = MaterialTheme.colorScheme.background
+    Canvas(modifier.size(size)
+        .pointerInput(animations) { if (animations) detectTapGestures(onTap = { taps++ }) }
+        .clearAndSetSemantics { }) { drawMoth(open.value, color, vein) }
 }
 
 /** Moth in a 100×100 box (scaled to the canvas): four wings pivoting at the thorax, then the body, head and antennae on top. */

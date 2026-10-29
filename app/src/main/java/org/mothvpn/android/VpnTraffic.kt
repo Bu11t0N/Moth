@@ -30,10 +30,15 @@ object VpnTraffic {
     private const val FILE = "vpn_app_traffic.json"
     private const val INTERVAL_NS = 5_000_000_000L
     private const val SAVE_MS = 60_000L
+    private const val CLOSED_APPS = 64
     private val ledger = VpnAppTraffic.Ledger()
     private val deltas = VpnAppTraffic.Deltas()
     private val owners = ConcurrentHashMap<String, Long>() // owner key -> (uid shl 32) or recorded time in the low bits
     private val connectionApp = HashMap<String, String>()
+    // Owners of the last closed connections (Connections › Recently closed): a small ring in memory, dropped when the VPN stops.
+    private val closedApp = object : LinkedHashMap<String, String>(64, 0.75f, false) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > CLOSED_APPS
+    }
     private val lock = Any()
     @Volatile private var loaded = false
     @Volatile private var file: File? = null
@@ -51,7 +56,7 @@ object VpnTraffic {
 
     /** The app that opened the core's connection [id] (from [network] "tcp"/"udp" and [source] "ip:port"): a package name, "uid:N" or null. */
     fun ownerApp(id: String, network: String, source: String): String? {
-        synchronized(lock) { connectionApp[id]?.takeIf { it != UNKNOWN }?.let { return it } }
+        synchronized(lock) { (connectionApp[id] ?: closedApp[id])?.takeIf { it != UNKNOWN }?.let { return it } }
         return VpnAppTraffic.ownerKey(network, source)?.let { owners[it] }?.let { appOf((it ushr 32).toInt()) }
     }
 
@@ -98,6 +103,7 @@ object VpnTraffic {
     /** Stops counting (before the core closes) and saves what was counted. */
     fun stop() {
         servingMutable.value = false
+        synchronized(lock) { closedApp.clear() }
         client?.let { runCatching { it.disconnect() } }; client = null
         runCatching { server?.setService(null) }
         save(force = true)
@@ -128,7 +134,7 @@ object VpnTraffic {
                     VpnAppTraffic.ownerKey(c.network.orEmpty(), c.source.orEmpty())?.let { owners[it] }?.let { appOf((it ushr 32).toInt()) } ?: UNKNOWN
                 }
                 if (delta[0] > 0 || delta[1] > 0) { ledger.add(day, network, app, delta[0], delta[1]); added = true }
-                if (c.closedAt != 0L) connectionApp.remove(id)
+                if (c.closedAt != 0L) connectionApp.remove(id)?.takeIf { it != UNKNOWN }?.let { closedApp[id] = it }
             }
             deltas.retain(ids); connectionApp.keys.retainAll(ids)
             // Owner records live 10 minutes: a connection is listed within seconds of opening.

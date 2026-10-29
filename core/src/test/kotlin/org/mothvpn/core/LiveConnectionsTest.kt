@@ -59,4 +59,12 @@ class LiveConnectionsTest {
         assertEquals(listOf(1, 2, 2), byHost.map { it.items.size })
         assertEquals(5, LiveConnections.grouped(list, LiveConnections.GroupBy.NONE, LiveConnections.Sort.NEWEST).size)
     }
+
+    @Test fun recentlyClosed() {
+        fun item(id: String, closed: Long) = LiveConnections.Item(id, "tcp", "", "", "", "", "", 1, 0, 0, 0, 0, null, closed)
+        val list = listOf(item("open", 0), item("a", 10), item("b", 30), item("c", 20), item("d", 30))
+        assertEquals(listOf("b", "d", "c", "a"), LiveConnections.recentlyClosed(list).map { it.id })
+        assertEquals(listOf("b", "d"), LiveConnections.recentlyClosed(list, 2).map { it.id })
+        assertEquals(emptyList<String>(), LiveConnections.recentlyClosed(list, 0).map { it.id })
+    }
 }

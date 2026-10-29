@@ -182,7 +182,6 @@
     <string name="msg_probe_parallel_range">Parallel probes: from 1 to 16</string>
     <string name="msg_probe_timeout_range">Ping timeout: from 500 to 30000 ms</string>
     <string name="update_title">Updates</string>
-    <string name="update_current">Installed version: %1$s</string>
     <string name="update_check">Check for updates</string>
     <string name="update_latest">You have the latest stable version.</string>
     <string name="update_available">Available version: %1$s</string>
@@ -205,6 +204,9 @@
     <string name="update_unknown_ok">OK</string>
     <string name="ok">OK</string>
     <string name="update_downloading">Downloading update…</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_installed_row">Installed version</string>
+    <string name="update_available_row">Available version</string>
     <string name="set_sort_servers">Sort servers</string>
     <string name="set_sort_subscription">Default</string>
     <string name="set_sort_name">By name</string>
@@ -620,11 +622,15 @@
     <string name="conn_proxy">VPN</string>
     <string name="conn_blocked">Blocked</string>
     <string name="conn_rate">%1$s/s</string>
-    <string name="conn_hint">Updated every second while this page is open. Domain names come from the connection itself when the app sends them; traffic is not decrypted. Closing a connection does not block the app: it can connect again. Apps are identified on Android 10 and newer. Connections are grouped by app: tap a group to see its connections, × closes all of them. Group by host to see where the traffic goes.</string>
+    <string name="conn_hint">Updated every second while this page is open. Domain names come from the connection itself when the app sends them; traffic is not decrypted. Closing a connection does not block the app: it can connect again. Apps are identified on Android 10 and newer. Connections are grouped by app: tap a group to see its connections, × closes all of them at once. Group by host to see where the traffic goes. Recently closed shows the last connections that ended while the VPN is on; it is kept only in memory and cleared when the VPN stops.</string>
     <string name="conn_group_app">By app</string>
     <string name="conn_group_host">By host</string>
     <string name="conn_group_none">All</string>
     <string name="conn_group_count">Connections: %1$d</string>
     <string name="conn_close_group">Close connections of %1$s</string>
-    <string name="conn_close_group_text">%1$d connections are closed. The app usually opens new ones right away; the VPN stays on.</string>
+    <string name="conn_closed_ago">closed %1$s ago</string>
+    <string name="conn_recent_title">Recently closed</string>
+    <string name="conn_recent_sum">Last %1$d while the VPN is on. Tap to show</string>
+    <string name="conn_recent_count">Shown: %1$d</string>
+    <string name="conn_recent_empty">No closed connections yet.</string>
 </resources>
