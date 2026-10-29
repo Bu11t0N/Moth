@@ -268,7 +268,7 @@ class TunnelService : VpnService(), PlatformInterface {
             stage = "BoxService.start"
             box!!.start()
             Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
-            if (Build.VERSION.SDK_INT >= 29) VpnTraffic.start(this, box!!, ::trackedKind, ::trafficApp)
+            VpnTraffic.start(this, box!!, ::trackedKind, ::trafficApp, count = Build.VERSION.SDK_INT >= 29)
             closeBlock(); cancelRetry()
             emptyRounds = 0; remeasureNotBefore = 0
             if (!stopped) {

@@ -45,6 +45,15 @@ object VpnTraffic {
     private val changedMutable = MutableStateFlow(0L)
     /** Bumps when new traffic was counted (the page refreshes). */
     val changed: StateFlow<Long> = changedMutable
+    private val servingMutable = MutableStateFlow(false)
+    /** True while the core's command socket serves a running tunnel (Settings › Data › Connections connects to it then). */
+    val serving: StateFlow<Boolean> = servingMutable
+
+    /** The app that opened the core's connection [id] (from [network] "tcp"/"udp" and [source] "ip:port"): a package name, "uid:N" or null. */
+    fun ownerApp(id: String, network: String, source: String): String? {
+        synchronized(lock) { connectionApp[id]?.takeIf { it != UNKNOWN }?.let { return it } }
+        return VpnAppTraffic.ownerKey(network, source)?.let { owners[it] }?.let { appOf((it ushr 32).toInt()) }
+    }
 
     /** Called from the core's owner lookup: remembers which app (uid) opened the connection from [address]:[port]. */
     fun recordOwner(ipProtocol: Int, address: String, port: Int, uid: Int) {
@@ -69,21 +78,26 @@ object VpnTraffic {
         return ledger.query(today - (days.coerceAtLeast(1) - 1), today, kind)
     }
 
-    /** Starts counting for the tunnel core [box] (after it started); [networkKind]: "wifi"/"mobile" of the real network now. */
-    fun start(context: Context, box: BoxService, networkKind: () -> String, packageOf: (Int) -> String) {
+    /**
+     * Serves the core [box] (after it started) on the command socket and, when [count] (Android 10+, owners known), counts traffic per app;
+     * [networkKind]: "wifi"/"mobile" of the real network now.
+     */
+    fun start(context: Context, box: BoxService, networkKind: () -> String, packageOf: (Int) -> String, count: Boolean = true) {
         ensureLoaded(context)
         kind = networkKind; appOf = packageOf
         runCatching {
             val s = server ?: Libbox.newCommandServer(NoCommands, 0).also { it.start(); server = it }
             s.setService(box)
             synchronized(lock) { deltas.clear(); connectionApp.clear() }
-            client?.let { runCatching { it.disconnect() } }
-            client = CommandClient(Reader, CommandClientOptions().apply { command = Libbox.CommandConnections; statusInterval = INTERVAL_NS }).also { it.connect() }
+            servingMutable.value = true
+            client?.let { runCatching { it.disconnect() } }; client = null
+            if (count) client = CommandClient(Reader, CommandClientOptions().apply { command = Libbox.CommandConnections; statusInterval = INTERVAL_NS }).also { it.connect() }
         }.onFailure { Logger.w("Traffic", "per-app traffic counter unavailable", it) }
     }
 
     /** Stops counting (before the core closes) and saves what was counted. */
     fun stop() {
+        servingMutable.value = false
         client?.let { runCatching { it.disconnect() } }; client = null
         runCatching { server?.setService(null) }
         save(force = true)

@@ -56,7 +56,7 @@ import org.mothvpn.core.SubscriptionSchedule
     // The page a page returns to on Back: the folder its card sits in (Routing, Data, About; Updates is in About), else the main list.
     fun parentSection(sec: String?): String? = when (sec) {
         tr(R.string.split_title), tr(R.string.rules_title) -> tr(R.string.set_cat_routing)
-        tr(R.string.stats_title), tr(R.string.backup_title), tr(R.string.appdata_title), tr(R.string.battery_title) -> tr(R.string.set_cat_data)
+        tr(R.string.stats_title), tr(R.string.backup_title), tr(R.string.appdata_title), tr(R.string.battery_title), tr(R.string.conn_title) -> tr(R.string.set_cat_data)
         tr(R.string.update_title), tr(R.string.dev_for_developers) -> tr(R.string.msg_about_78)
         else -> null
     }
@@ -86,11 +86,11 @@ import org.mothvpn.core.SubscriptionSchedule
             else -> mapOf(tr(R.string.msg_connection_75) to "connection", tr(R.string.msg_checks_76) to "checks", tr(R.string.set_cat_routing) to "routing",
                 tr(R.string.split_title) to "split", tr(R.string.rules_title) to "rules", tr(R.string.set_cat_subscription) to "subscription",
                 tr(R.string.msg_appearance_74) to "interface", tr(R.string.set_cat_data) to "data", tr(R.string.stats_title) to "stats",
-                tr(R.string.backup_title) to "backup", tr(R.string.appdata_title) to "appdata", tr(R.string.battery_title) to "battery", tr(R.string.update_title) to "updates", tr(R.string.msg_about_78) to "about",
+                tr(R.string.backup_title) to "backup", tr(R.string.appdata_title) to "appdata", tr(R.string.battery_title) to "battery", tr(R.string.conn_title) to "connections", tr(R.string.update_title) to "updates", tr(R.string.msg_about_78) to "about",
                 tr(R.string.dev_for_developers) to "dev")[page.first]
         }
         // The page that shows the card a page opens from: the main list, a folder (Routing, Data) or About (updates, changelog, licences, developers).
-        val containerPages = listOf(R.string.split_title to "split", R.string.rules_title to "rules", R.string.stats_title to "stats", R.string.backup_title to "backup", R.string.appdata_title to "appdata", R.string.battery_title to "battery",
+        val containerPages = listOf(R.string.split_title to "split", R.string.rules_title to "rules", R.string.stats_title to "stats", R.string.backup_title to "backup", R.string.appdata_title to "appdata", R.string.battery_title to "battery", R.string.conn_title to "connections",
             R.string.update_title to "updates", R.string.dev_for_developers to "dev").associate { (id, key) -> key to tr(id) }
         fun parentPage(key: String): Pair<String?, Int> = when (key) {
             "changelog", "licenses" -> tr(R.string.msg_about_78) to 0; else -> parentSection(containerPages[key]) to 0
@@ -110,7 +110,7 @@ import org.mothvpn.core.SubscriptionSchedule
             val sec = page.first; val lp = page.second
             CompositionLocalProvider(LocalPageScope provides this) {
             Box(Modifier.fillMaxSize().containerTransform(containerKey(page))) {
-        if (sec == tr(R.string.backup_title)) BackupPage(draft, locked, restore, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, draft.directRu, !locked, { applySettings(draft.copy(routingRules = it)) }, { applySettings(draft.copy(directRu = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.appdata_title)) AppDataUsagePage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.battery_title)) BatteryPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.fillMaxSize()) else Column(Modifier.fillMaxSize().verticalScroll(if (sec == null) rootScroll else rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (sec == tr(R.string.backup_title)) BackupPage(draft, locked, restore, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, draft.directRu, !locked, { applySettings(draft.copy(routingRules = it)) }, { applySettings(draft.copy(directRu = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.appdata_title)) AppDataUsagePage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.battery_title)) BatteryPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.conn_title)) ConnectionsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.fillMaxSize()) else Column(Modifier.fillMaxSize().verticalScroll(if (sec == null) rootScroll else rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (sec) {
                 null -> {
                     val onOff = listOfNotNull(when { draft.autoSelectWifi && draft.autoSelectMobile -> tr(R.string.set_short_auto); draft.autoSelectWifi -> tr(R.string.set_short_auto_wifi); draft.autoSelectMobile -> tr(R.string.set_short_auto_mobile); else -> null }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
@@ -324,6 +324,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsCategory(tr(R.string.stats_title), tr(R.string.stats_today) + ": " + org.mothvpn.core.TrafficFormat.bytes(today.first + today.second, tr(R.string.notif_units).split("|"), loc), "stats") { section = tr(R.string.stats_title) }
                     SettingsCategory(tr(R.string.appdata_title), tr(R.string.appdata_sum), "appdata") { section = tr(R.string.appdata_title) }
                     SettingsCategory(tr(R.string.battery_title), tr(R.string.battery_sum), "battery") { section = tr(R.string.battery_title) }
+                    SettingsCategory(tr(R.string.conn_title), tr(R.string.conn_sum), "connections") { section = tr(R.string.conn_title) }
                     SettingsCategory(tr(R.string.backup_title), tr(R.string.backup_sum), "backup") { section = tr(R.string.backup_title) }
                 }
                 tr(R.string.dev_for_developers) -> {
@@ -382,7 +383,7 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
         "connection" -> PowerSettingsNew; "checks" -> NetworkCheck; "routing" -> Route; "split" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.CallSplit
         "data" -> Storage; "dev" -> DeveloperMode
         "subscription" -> CardMembership; "stats" -> BarChart; "interface" -> Palette; "updates" -> SystemUpdate
-        "about" -> Info; "rules" -> AltRoute; "backup" -> SettingsBackupRestore; "appdata" -> DataUsage; "battery" -> BatteryStd; "changelog" -> History; "licenses" -> Description; "github" -> Code; else -> Code
+        "about" -> Info; "rules" -> AltRoute; "backup" -> SettingsBackupRestore; "appdata" -> DataUsage; "battery" -> BatteryStd; "connections" -> Lan; "changelog" -> History; "licenses" -> Description; "github" -> Code; else -> Code
     }
 }
 /** Split tunnelling in one line, or null when it is off. Selected apps the list no longer offers (no home-screen icon, uninstalled) are not counted. */
@@ -526,7 +527,7 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
 object SettingsSections {
     private val ids = listOf(R.string.msg_connection_75, R.string.msg_checks_76, R.string.set_cat_routing, R.string.split_title, R.string.set_cat_subscription, R.string.stats_title, R.string.set_cat_data,
         R.string.msg_appearance_74, R.string.update_title, R.string.backup_title, R.string.msg_about_78, R.string.dev_for_developers, R.string.rules_title,
-        R.string.set_changelog, R.string.set_licenses, R.string.appdata_title, R.string.battery_title)
+        R.string.set_changelog, R.string.set_licenses, R.string.appdata_title, R.string.battery_title, R.string.conn_title)
     val saver: androidx.compose.runtime.saveable.Saver<androidx.compose.runtime.MutableState<String?>, Int> = androidx.compose.runtime.saveable.Saver(
         save = { state -> state.value?.let { title -> ids.firstOrNull { tr(it) == title } } ?: 0 },
         restore = { id -> mutableStateOf(ids.firstOrNull { it == id }?.let { tr(it) }) })

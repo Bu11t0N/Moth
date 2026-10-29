@@ -1,6 +1,7 @@
 package org.mothvpn.android
 
 import androidx.compose.material.icons.outlined.Android
+import androidx.compose.material.icons.outlined.Close
 import android.app.AppOpsManager
 import android.app.usage.NetworkStats
 import android.app.usage.NetworkStatsManager
@@ -312,6 +313,163 @@ private fun labelledVpn(context: Context, list: List<org.mothvpn.core.VpnAppTraf
             }
             LinearProgressIndicator(progress = { (row.total.toFloat() / top).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(4.dp), drawStopIndicator = {})
             Text(tr(R.string.stats_updown, bytes(row.tx), bytes(row.rx)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------------------------------ Connections
+
+/**
+ * Live connection list for Settings › Data › Connections: its own client on the core's private command socket ([VpnTraffic.serving]),
+ * a report every second while the page is on screen, the active connections only. Close one / all through the same socket (the core's
+ * clash_api connection tracker closes them). Nothing is decrypted or logged: hosts never reach the log.
+ */
+private class LiveConnectionsClient(private val onList: (List<org.mothvpn.core.LiveConnections.Item>) -> Unit, private val onLost: () -> Unit) {
+    private var client: io.nekohasekai.libbox.CommandClient? = null
+    private val handler = object : io.nekohasekai.libbox.CommandClientHandler {
+        override fun connected() {}
+        override fun disconnected(message: String?) { onLost() }
+        override fun clearLogs() {}
+        override fun writeLogs(messageList: io.nekohasekai.libbox.StringIterator?) {}
+        override fun writeStatus(message: io.nekohasekai.libbox.StatusMessage?) {}
+        override fun writeGroups(message: io.nekohasekai.libbox.OutboundGroupIterator?) {}
+        override fun initializeClashMode(modeList: io.nekohasekai.libbox.StringIterator?, currentMode: String?) {}
+        override fun updateClashMode(newMode: String?) {}
+        override fun writeConnections(message: io.nekohasekai.libbox.Connections?) {
+            message ?: return
+            runCatching {
+                message.filterState(io.nekohasekai.libbox.Libbox.ConnectionStateActive.toInt())
+                val out = ArrayList<org.mothvpn.core.LiveConnections.Item>()
+                val it = message.iterator()
+                while (it.hasNext()) {
+                    val c = it.next(); val id = c.id ?: continue
+                    val network = c.network.orEmpty(); val source = c.source.orEmpty()
+                    out += org.mothvpn.core.LiveConnections.Item(id, network, c.protocol.orEmpty(), source, c.destination.orEmpty(), c.domain.orEmpty(),
+                        c.outbound.orEmpty(), c.createdAt, c.uplink, c.downlink, c.uplinkTotal, c.downlinkTotal, VpnTraffic.ownerApp(id, network, source))
+                }
+                onList(out)
+            }.onFailure { Logger.w("Connections", "reading the connection list failed: ${it.javaClass.simpleName}") }
+        }
+    }
+    fun connect(): Boolean = runCatching {
+        client = io.nekohasekai.libbox.CommandClient(handler, io.nekohasekai.libbox.CommandClientOptions().apply {
+            command = io.nekohasekai.libbox.Libbox.CommandConnections; statusInterval = LIVE_INTERVAL_MS * 1_000_000L
+        }).also { it.connect() }
+    }.onFailure { Logger.w("Connections", "connection list unavailable: ${it.javaClass.simpleName}") }.isSuccess
+    fun close(id: String) = runCatching { client?.closeConnection(id) }.onFailure { Logger.w("Connections", "closing a connection failed: ${it.javaClass.simpleName}") }.isSuccess
+    fun closeAll() = runCatching { client?.closeConnections() }.onFailure { Logger.w("Connections", "closing all connections failed: ${it.javaClass.simpleName}") }.isSuccess
+    fun disconnect() { client?.let { runCatching { it.disconnect() } }; client = null }
+}
+private const val LIVE_INTERVAL_MS = 1_000L
+
+/** App name and package (for the icon) of a connection owner ([VpnTraffic.ownerApp]): a package, "uid:N" or null (not identified). */
+private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = when {
+    app == null -> tr(R.string.appdata_unknown) to null
+    app.startsWith("uid:") -> {
+        val uid = app.removePrefix("uid:").toIntOrNull() ?: 0
+        (if (uid % 100_000 < Process.FIRST_APPLICATION_UID) tr(R.string.appdata_system) + " · UID $uid" else "UID $uid") to null
+    }
+    app == context.packageName -> tr(R.string.appdata_moth) to app
+    else -> (runCatching { context.packageManager.getApplicationInfo(app, 0).loadLabel(context.packageManager).toString() }.getOrNull() ?: app) to app
+}
+
+/**
+ * Settings › Data › Connections (like Clash clients' connection monitor): what goes through the VPN right now — the app (or its UID),
+ * where it goes (domain or IP and port), TCP/UDP and the detected protocol, speed and bytes — refreshed every second while the page
+ * is open, with a button to close a connection (the app usually opens a new one) or all of them. Needs the VPN on.
+ */
+@Composable fun ConnectionsPage(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val serving by VpnTraffic.serving.collectAsState()
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var visible by remember { mutableStateOf(owner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) }
+    DisposableEffect(owner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, _ -> visible = owner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    // null: waiting for the first report; failed: the socket could not be reached.
+    var items by remember { mutableStateOf<List<org.mothvpn.core.LiveConnections.Item>?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    var live by remember { mutableStateOf<LiveConnectionsClient?>(null) }
+    DisposableEffect(serving, visible) {
+        items = null; failed = false
+        val c = if (serving && visible) LiveConnectionsClient({ items = it; failed = false }, { if (items == null) failed = true }) else null
+        if (c != null && !c.connect()) failed = true
+        live = c
+        onDispose { c?.disconnect(); if (live === c) live = null }
+    }
+    var sort by rememberSaveable { mutableStateOf(org.mothvpn.core.LiveConnections.Sort.NEWEST) }
+    var confirmAll by remember { mutableStateOf(false) }
+    val closing = remember { mutableStateMapOf<String, Long>() } // id -> when its close was sent: hidden until the core drops it
+    val locale = AppLanguage.context().resources.configuration.locales[0]
+    val units = tr(R.string.notif_units).split("|")
+    fun bytes(v: Long) = TrafficFormat.bytes(v, units, locale)
+    val labels = remember { HashMap<String?, Pair<String, String?>>() }
+    Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val list = items
+        when {
+            !serving -> ListCard(tr(R.string.conn_off_title), tr(R.string.conn_off_text)) { Spacer(Modifier.height(8.dp)) }
+            failed -> ListCard(tr(R.string.conn_failed_title), tr(R.string.conn_failed_text)) { Spacer(Modifier.height(8.dp)) }
+            list == null -> LinearProgressIndicator(Modifier.fillMaxWidth())
+            else -> {
+                val now = System.currentTimeMillis()
+                closing.entries.removeIf { (id, at) -> now - at > 5_000 || list.none { it.id == id } }
+                val shown = org.mothvpn.core.LiveConnections.sorted(list.filter { it.id !in closing }, sort)
+                ListCard(tr(R.string.conn_active, shown.size), tr(R.string.notif_speed,
+                    bytes(org.mothvpn.core.LiveConnections.perSecond(shown.sumOf { it.up }, LIVE_INTERVAL_MS)),
+                    bytes(org.mothvpn.core.LiveConnections.perSecond(shown.sumOf { it.down }, LIVE_INTERVAL_MS)))) {
+                    if (shown.isNotEmpty()) InfoRow(tr(R.string.conn_close_all), null, onClick = { confirmAll = true })
+                    else Spacer(Modifier.height(8.dp))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(org.mothvpn.core.LiveConnections.Sort.NEWEST to R.string.conn_sort_new, org.mothvpn.core.LiveConnections.Sort.SPEED to R.string.conn_sort_speed,
+                        org.mothvpn.core.LiveConnections.Sort.TRAFFIC to R.string.conn_sort_traffic).forEach { (s, label) ->
+                        FilterChip(selected = sort == s, onClick = { sort = s }, label = { Text(tr(label)) }, modifier = Modifier.pressScale())
+                    }
+                }
+                if (shown.isEmpty()) DataCard { Hint(tr(R.string.conn_empty)) }
+                else Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        shown.take(200).forEachIndexed { i, c ->
+                            if (i > 0) RowDivider()
+                            val (label, pkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
+                            ConnectionRow(c, label, pkg, now, ::bytes) { if (live?.close(c.id) == true) closing[c.id] = System.currentTimeMillis() }
+                        }
+                    }
+                }
+                Hint(tr(R.string.conn_hint))
+            }
+        }
+    }
+    if (confirmAll) AlertDialog(onDismissRequest = { confirmAll = false }, title = { Text(tr(R.string.conn_close_all)) }, text = { Text(tr(R.string.conn_close_all_text)) },
+        confirmButton = { TextButton(onClick = { confirmAll = false; live?.closeAll() }) { Text(tr(R.string.conn_close_all_ok)) } },
+        dismissButton = { TextButton(onClick = { confirmAll = false }) { Text(tr(R.string.msg_cancel_32)) } })
+}
+
+@Composable private fun ConnectionRow(c: org.mothvpn.core.LiveConnections.Item, label: String, pkg: String?, now: Long, bytes: (Long) -> String, onClose: () -> Unit) {
+    val context = LocalContext.current
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        val icon by produceState<ImageBitmap?>(null, pkg) {
+            value = pkg?.let { p -> withContext(Dispatchers.IO) { runCatching { context.packageManager.getApplicationIcon(p).toBitmap(96, 96).asImageBitmap() }.getOrNull() } }
+        }
+        Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+            icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) }
+                ?: Icon(androidx.compose.material.icons.Icons.Outlined.Android, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Column(Modifier.weight(1f).padding(start = 12.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(org.mothvpn.core.LiveConnections.target(c.domain, c.destination), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val route = when (c.outbound) { "direct" -> tr(R.string.conn_direct); "block" -> tr(R.string.conn_blocked); "", "dns-out", "dns" -> null; else -> tr(R.string.conn_proxy) }
+            val age = if (c.createdAtMs > 0) TrafficFormat.duration(((now - c.createdAtMs) / 1000).coerceAtLeast(0)) else null
+            Text(listOfNotNull(org.mothvpn.core.LiveConnections.protocolLabel(c.network, c.protocol), route, age).joinToString(" · "),
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(tr(R.string.stats_updown, bytes(c.upTotal), bytes(c.downTotal)) + if (c.up + c.down > 0)
+                "  (" + tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.up + c.down, LIVE_INTERVAL_MS))) + ")" else "",
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        }
+        IconButton(onClick = onClose, modifier = Modifier.pressScale()) {
+            Icon(androidx.compose.material.icons.Icons.Outlined.Close, contentDescription = tr(R.string.conn_close, label), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

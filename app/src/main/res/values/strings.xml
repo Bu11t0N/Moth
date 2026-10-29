@@ -595,6 +595,26 @@
     <string name="appdata_vpn_old">Moth can count traffic per app on Android 10 and newer. Use \"Usage access\" below instead.</string>
     <string name="appdata_vpn_hint">Counted by Moth itself while the VPN is on: traffic of apps that go through the VPN. No permission needed. Apps kept out of the VPN are not here.</string>
     <string name="appdata_restricted_title">Android says \"Restricted setting\"?</string>
-    <string name="appdata_restricted_text">Android 13+ blocks this for apps installed from a file. Open App info, tap ⋮ (top right) › \"Allow restricted settings\", then allow usage access again. The menu item appears after one blocked attempt.</string>
+    <string name="appdata_restricted_text">Android 13+ blocks this for apps installed from a file. Open App info and allow restricted settings: on Xiaomi (HyperOS) the switch is at the bottom of the App info page; on most other phones tap ⋮ (top right) › \"Allow restricted settings\". Then allow usage access again. The option appears after one blocked attempt.</string>
     <string name="appdata_restricted_button">Open Moth app info</string>
+    <string name="conn_title">Connections</string>
+    <string name="conn_sum">Live list of connections through the VPN</string>
+    <string name="conn_off_title">VPN is off</string>
+    <string name="conn_off_text">Connect to see which apps use the VPN right now.</string>
+    <string name="conn_failed_title">Connection list unavailable</string>
+    <string name="conn_failed_text">Moth could not read the list from the VPN core. Reconnect and open this page again.</string>
+    <string name="conn_active">Active connections: %1$d</string>
+    <string name="conn_close_all">Close all connections</string>
+    <string name="conn_close_all_text">Every open connection through the VPN is closed. Apps usually open new ones right away; the VPN stays on.</string>
+    <string name="conn_close_all_ok">Close all</string>
+    <string name="conn_close">Close connection of %1$s</string>
+    <string name="conn_sort_new">Newest</string>
+    <string name="conn_sort_speed">Speed</string>
+    <string name="conn_sort_traffic">Traffic</string>
+    <string name="conn_empty">No open connections right now.</string>
+    <string name="conn_direct">Direct</string>
+    <string name="conn_proxy">VPN</string>
+    <string name="conn_blocked">Blocked</string>
+    <string name="conn_rate">%1$s/s</string>
+    <string name="conn_hint">Updated every second while this page is open. Domain names come from the connection itself when the app sends them; traffic is not decrypted. Closing a connection does not block the app: it can connect again. Apps are identified on Android 10 and newer.</string>
 </resources>
