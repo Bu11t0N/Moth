@@ -64,16 +64,24 @@ class LargeTitle internal constructor(internal val behavior: TopAppBarScrollBeha
 }
 
 /**
- * The expanded header's extra height in percent of the screen height (Settings › About › For developers, 10–30 %, 20 % by default).
- * Set from the saved settings and, while the developer slider is dragged, from the slider, so every large title follows it live.
+ * Large titles on or off and the expanded header's extra height in percent of the screen height (Settings › Interface, 10–30 %, 20 % by
+ * default). Set from the settings in memory (not after the file write) and, while the height slider is dragged, from the slider, so every
+ * large title follows it at once. [percent] is fractional while dragging, so the height changes smoothly between whole steps.
  */
 object LargeTitleTuning {
-    var percent by androidx.compose.runtime.mutableIntStateOf(org.mothvpn.core.LargeTitleSize.DEFAULT)
+    var percent by androidx.compose.runtime.mutableFloatStateOf(org.mothvpn.core.LargeTitleSize.DEFAULT.toFloat())
+    var enabled by androidx.compose.runtime.mutableStateOf(true)
 }
 
-/** How much taller the header is when expanded: [LargeTitleTuning.percent] of the screen height, kept within 56–260 dp. */
-@Composable private fun largeTitleExtra() =
-    org.mothvpn.core.LargeTitleSize.extraDp(LargeTitleTuning.percent, LocalConfiguration.current.screenHeightDp).dp
+/** How much taller the header is when expanded: [LargeTitleTuning.percent] of the screen height, kept within 56–260 dp; animated, so a
+ *  new value (the Default button, a restored backup) grows or shrinks the header smoothly instead of jumping. */
+@Composable private fun largeTitleExtra(): Float {
+    val target = org.mothvpn.core.LargeTitleSize.extraDp(LargeTitleTuning.percent, LocalConfiguration.current.screenHeightDp)
+    val motion = animationsOn()
+    val value by androidx.compose.animation.core.animateFloatAsState(target,
+        if (motion) androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow) else androidx.compose.animation.core.snap(), label = "largeTitleExtra")
+    return value
+}
 
 /**
  * The header. Expanded (top of the page): a big title centred in the extra space at the top, the buttons ([actions]) in the row under
@@ -85,7 +93,12 @@ object LargeTitleTuning {
 @Composable fun LargeTitleHeader(largeTitle: LargeTitle, title: String, modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {}) {
     val density = LocalDensity.current
-    val extraPx = with(density) { largeTitleExtra().toPx() }
+    // Large titles off (Settings › Interface): no extra space and the title stays at the compact size, like a plain top bar. The switch
+    // animates between the two (the extra space folds away while the title shrinks into its compact place).
+    val motion = animationsOn()
+    val off by androidx.compose.animation.core.animateFloatAsState(if (LargeTitleTuning.enabled) 0f else 1f,
+        if (motion) androidx.compose.animation.core.tween(Motion.SHORT) else androidx.compose.animation.core.snap(), label = "largeTitleOff")
+    val extraPx = with(density) { largeTitleExtra().dp.toPx() } * (1f - off)
     val state = largeTitle.behavior.state
     SideEffect { if (state.heightOffsetLimit != -extraPx) state.heightOffsetLimit = -extraPx }
     val big = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium)
@@ -96,7 +109,7 @@ object LargeTitleTuning {
         Row(verticalAlignment = Alignment.CenterVertically, content = actions)
     }, modifier = modifier.fillMaxWidth().clipToBounds()) { measurables, constraints ->
         val width = constraints.maxWidth
-        val fraction = state.collapsedFraction.coerceIn(0f, 1f)
+        val fraction = maxOf(state.collapsedFraction.coerceIn(0f, 1f), off)
         val row = measurables[1].measure(constraints.copy(minWidth = 0, minHeight = 0))
         val rowHeight = maxOf(48.dp.roundToPx(), row.height)
         val gap = if (row.width > 0) 8.dp.roundToPx() else 0

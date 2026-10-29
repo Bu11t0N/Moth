@@ -25,6 +25,9 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
 
 /**
  * Shared motion for the UI: short (about 200–300 ms) standard easing and springs. Everything checks the system
@@ -189,4 +192,27 @@ fun Modifier.unfold(event: Unfold?, index: Int, count: Int): Modifier = composed
 fun contrastOn(background: androidx.compose.ui.graphics.Color): androidx.compose.ui.graphics.Color {
     val l = background.luminance()
     return if ((l + 0.05f) / 0.05f >= 1.05f / (l + 0.05f)) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White
+}
+
+/**
+ * A setting with settings that belong to it (shown only while it is on): the nested ones slide down out of [parent] and fade in, and fold
+ * back into it when it is switched off, instead of popping in. The parent and the nested settings are one item of the page's column, so
+ * the page spacing does not jump; nested settings keep the page's 12 dp spacing. No motion when system animations are off.
+ */
+@Composable fun WithNested(visible: Boolean, parent: @Composable () -> Unit, nested: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    val motion = animationsOn()
+    androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth()) {
+        parent()
+        androidx.compose.animation.AnimatedVisibility(visible,
+            enter = if (motion) androidx.compose.animation.expandVertically(tween(Motion.MEDIUM, easing = androidx.compose.animation.core.FastOutSlowInEasing), expandFrom = Alignment.Top) +
+                androidx.compose.animation.fadeIn(tween(Motion.SHORT, delayMillis = 60)) +
+                androidx.compose.animation.slideInVertically(tween(Motion.MEDIUM, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { -it / 3 }
+                else androidx.compose.animation.EnterTransition.None,
+            exit = if (motion) androidx.compose.animation.shrinkVertically(tween(Motion.SHORT, easing = androidx.compose.animation.core.FastOutSlowInEasing), shrinkTowards = Alignment.Top) +
+                androidx.compose.animation.fadeOut(tween(140)) +
+                androidx.compose.animation.slideOutVertically(tween(Motion.SHORT)) { -it / 3 }
+                else androidx.compose.animation.ExitTransition.None) {
+            androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp), content = nested)
+        }
+    }
 }

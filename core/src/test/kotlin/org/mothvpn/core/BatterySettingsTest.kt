@@ -15,7 +15,7 @@ class BatterySettingsTest {
         val d = ClientSettings()
         assertEquals(300, d.healthIntervalSeconds); assertTrue(d.healthEnabled)
         assertEquals(3000, d.probeTimeoutMs)
-        assertTrue(d.notifySpeed && d.notifyTotal && d.notifyUptime && d.notifyAny)
+        assertTrue(d.notifySpeed && d.notifyTotal && d.notifyAny); assertFalse(d.notifyUptime) // 0.8.0 beta 5: uptime off by default
         assertEquals(30, d.autoSelectReuseMinutes)
     }
 
@@ -23,7 +23,7 @@ class BatterySettingsTest {
         val s = legacy()
         assertEquals(300, s.healthIntervalSeconds) // 60 s -> 5 min
         assertEquals(3000, s.probeTimeoutMs) // 5000 ms -> 3000 ms
-        assertTrue(s.notifySpeed && s.notifyTotal && s.notifyUptime); assertEquals(30, s.autoSelectReuseMinutes)
+        assertTrue(s.notifySpeed && s.notifyTotal); assertFalse(s.notifyUptime); assertEquals(30, s.autoSelectReuseMinutes)
         // Written back by 0.7.6, a chosen 1 min and 5000 ms stay as they are.
         val chosen = ClientSettings.from(s.copy(healthIntervalSeconds = 60, probeTimeoutMs = 5000).validate().json())
         assertEquals(60, chosen.healthIntervalSeconds); assertEquals(5000, chosen.probeTimeoutMs)

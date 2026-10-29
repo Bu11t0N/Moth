@@ -150,8 +150,9 @@ class MainActivity : AppCompatActivity() {
             var subName by remember { mutableStateOf("") }
             val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
             // Large title height (developer option): follows the saved value; the developer slider previews it live before saving.
-            LaunchedEffect(settings.largeTitlePercent) { LargeTitleTuning.percent = settings.largeTitlePercent }
-            val scheme = if (dark) (if (settings.amoled) MonoTheme.amoled else MonoTheme.dark) else MonoTheme.light
+            LaunchedEffect(settings.largeTitlePercent, settings.largeTitles) { LargeTitleTuning.percent = settings.largeTitlePercent.toFloat(); LargeTitleTuning.enabled = settings.largeTitles }
+            // Theme changes cross-fade (animatedColorScheme) instead of switching in one frame.
+            val scheme = animatedColorScheme(if (dark) (if (settings.amoled) MonoTheme.amoled else MonoTheme.dark) else MonoTheme.light)
             // The filter hides every server: a top notice once when that starts (no permanent text on Home).
             val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
             val hidesAll = filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).keywords.isNotEmpty()

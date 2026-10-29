@@ -868,3 +868,42 @@ val LocalNotice = androidx.compose.runtime.staticCompositionLocalOf { NoticeStat
         }
     }
 }
+
+/**
+ * The colour scheme with a smooth theme change: switching Light / Dark / System or Pure black cross-fades every colour of the scheme
+ * (about 400 ms) instead of a hard cut. A change during a running fade starts from the colours on screen. No fade when system
+ * animations are off.
+ */
+@Composable fun animatedColorScheme(target: ColorScheme): ColorScheme {
+    val motion = animationsOn()
+    var from by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(target) }
+    var to by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(target) }
+    val progress = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(1f) }
+    androidx.compose.runtime.LaunchedEffect(target) {
+        if (target == to) return@LaunchedEffect
+        from = lerpScheme(from, to, progress.value); to = target
+        if (!motion) { progress.snapTo(1f); return@LaunchedEffect }
+        progress.snapTo(0f)
+        progress.animateTo(1f, androidx.compose.animation.core.tween(400, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+    }
+    val p = progress.value
+    return if (p >= 1f) to else lerpScheme(from, to, p)
+}
+
+private fun lerpScheme(a: ColorScheme, b: ColorScheme, t: Float): ColorScheme {
+    if (t >= 1f) return b
+    fun l(x: Color, y: Color) = androidx.compose.ui.graphics.lerp(x, y, t)
+    return b.copy(primary = l(a.primary, b.primary), onPrimary = l(a.onPrimary, b.onPrimary), primaryContainer = l(a.primaryContainer, b.primaryContainer),
+        onPrimaryContainer = l(a.onPrimaryContainer, b.onPrimaryContainer), inversePrimary = l(a.inversePrimary, b.inversePrimary),
+        secondary = l(a.secondary, b.secondary), onSecondary = l(a.onSecondary, b.onSecondary), secondaryContainer = l(a.secondaryContainer, b.secondaryContainer),
+        onSecondaryContainer = l(a.onSecondaryContainer, b.onSecondaryContainer), tertiary = l(a.tertiary, b.tertiary), onTertiary = l(a.onTertiary, b.onTertiary),
+        tertiaryContainer = l(a.tertiaryContainer, b.tertiaryContainer), onTertiaryContainer = l(a.onTertiaryContainer, b.onTertiaryContainer),
+        background = l(a.background, b.background), onBackground = l(a.onBackground, b.onBackground), surface = l(a.surface, b.surface), onSurface = l(a.onSurface, b.onSurface),
+        surfaceVariant = l(a.surfaceVariant, b.surfaceVariant), onSurfaceVariant = l(a.onSurfaceVariant, b.onSurfaceVariant), surfaceTint = l(a.surfaceTint, b.surfaceTint),
+        inverseSurface = l(a.inverseSurface, b.inverseSurface), inverseOnSurface = l(a.inverseOnSurface, b.inverseOnSurface),
+        error = l(a.error, b.error), onError = l(a.onError, b.onError), errorContainer = l(a.errorContainer, b.errorContainer), onErrorContainer = l(a.onErrorContainer, b.onErrorContainer),
+        outline = l(a.outline, b.outline), outlineVariant = l(a.outlineVariant, b.outlineVariant), scrim = l(a.scrim, b.scrim),
+        surfaceBright = l(a.surfaceBright, b.surfaceBright), surfaceDim = l(a.surfaceDim, b.surfaceDim), surfaceContainer = l(a.surfaceContainer, b.surfaceContainer),
+        surfaceContainerHigh = l(a.surfaceContainerHigh, b.surfaceContainerHigh), surfaceContainerHighest = l(a.surfaceContainerHighest, b.surfaceContainerHighest),
+        surfaceContainerLow = l(a.surfaceContainerLow, b.surfaceContainerLow), surfaceContainerLowest = l(a.surfaceContainerLowest, b.surfaceContainerLowest))
+}
