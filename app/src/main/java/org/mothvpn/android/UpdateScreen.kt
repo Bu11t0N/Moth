@@ -92,49 +92,54 @@ import java.io.File
         release != null -> tr(R.string.update_available, release!!.version)
         else -> ""
     }
-    // Scrolls only when the content really does not fit (small screen, big font): otherwise no drag, no empty overscroll stretch and no
-    // nested scroll that would fold the large title over a page that has nothing more to show.
+    // The moth, the status and the version card take the space above (and scroll only when they really do not fit: small screen, big font;
+    // otherwise no drag, no empty overscroll stretch and no nested scroll that would fold the large title). The channel row and the main
+    // button are pinned to the bottom, so the button stays in place while the status, the progress or the card above change.
     val scroll = rememberScrollState()
     val scrollable = scroll.maxValue > 0
-    Column(modifier.fillMaxWidth().verticalScroll(scroll, overscrollEffect = if (scrollable) rememberOverscrollEffect() else null, enabled = scrollable),
-        verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
-        Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            MothFlutter(busy = busy)
-            Spacer(Modifier.height(12.dp))
-            Text(status.ifEmpty { " " }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 4.dp, start = 16.dp, end = 16.dp).semantics { liveRegion = LiveRegionMode.Polite })
-        }
-        Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
-            Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME)
-                release?.let {
-                    HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    VersionRow(tr(R.string.update_available_row), it.version)
-                }
-                if (busy) {
-                    Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.weight(1f)) {
-                                progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
-                            }
-                            TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale().padding(start = 8.dp)) {
-                                Text(tr(R.string.update_cancel))
+    Column(modifier.fillMaxWidth()) {
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll, overscrollEffect = if (scrollable) rememberOverscrollEffect() else null, enabled = scrollable),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                MothFlutter(busy = busy)
+                Spacer(Modifier.height(12.dp))
+                Text(status.ifEmpty { " " }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 4.dp, start = 16.dp, end = 16.dp).semantics { liveRegion = LiveRegionMode.Polite })
+            }
+            Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME)
+                    release?.let {
+                        HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        VersionRow(tr(R.string.update_available_row), it.version)
+                    }
+                    if (busy) {
+                        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.weight(1f)) {
+                                    progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
+                                }
+                                TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale().padding(start = 8.dp)) {
+                                    Text(tr(R.string.update_cancel))
+                                }
                             }
                         }
                     }
                 }
             }
         }
-        // One main action: install a found update, otherwise check again.
-        val available = release
-        if (available != null) {
-            NdButton(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_install)) }
-            TextButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).fillMaxWidth()) { Text(tr(R.string.update_check)) }
-        } else {
-            NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_check)) }
+        Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
+            // One main action at the very bottom: install a found update, otherwise check again ("check again" goes above it when an update is found).
+            val available = release
+            if (available != null) {
+                TextButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).fillMaxWidth()) { Text(tr(R.string.update_check)) }
+                NdButton(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_install)) }
+            } else {
+                NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_check)) }
+            }
         }
-        DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
     }
     if (channelDialog) ChoiceDialog(tr(R.string.update_channel), channels, channel, { channelDialog = false }) { value ->
         if (channel != value) { Logger.i("Settings", "update channel changed: ${channel.id} -> ${value.id}"); selectChannel(value.id) }
