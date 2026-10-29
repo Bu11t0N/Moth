@@ -44,11 +44,25 @@ import kotlin.math.roundToInt
  */
 @OptIn(ExperimentalMaterial3Api::class)
 class LargeTitle internal constructor(internal val behavior: TopAppBarScrollBehavior) {
-    val nestedScrollConnection get() = behavior.nestedScrollConnection
+    /** The Material behaviour's connection; while large titles are off (no limit) it also notes whether the page left its top. */
+    val nestedScrollConnection: androidx.compose.ui.input.nestedscroll.NestedScrollConnection = object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+        private val inner get() = behavior.nestedScrollConnection
+        override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource) = inner.onPreScroll(available, source)
+        override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset,
+            source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): androidx.compose.ui.geometry.Offset {
+            if (behavior.state.heightOffsetLimit > -0.5f) { if (consumed.y < 0f) wasCollapsed = true else if (available.y > 0f) wasCollapsed = false }
+            return inner.onPostScroll(consumed, available, source)
+        }
+        override suspend fun onPreFling(available: androidx.compose.ui.unit.Velocity) = inner.onPreFling(available)
+        override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity) = inner.onPostFling(consumed, available)
+    }
+    /** Last known collapsed state; used when the limit changes while it is 0 (large titles off), where the offset says nothing. */
+    internal var wasCollapsed = false
 
     /** Expanded (top of the page) or collapsed (the page is scrolled), animated; used when the page under the header changes. */
     suspend fun settleTo(collapsed: Boolean, animated: Boolean) {
         val state = behavior.state
+        wasCollapsed = collapsed
         val target = if (collapsed) state.heightOffsetLimit else 0f
         if (target == -Float.MAX_VALUE || state.heightOffset == target) return
         if (!animated) { state.heightOffset = target; return }
@@ -100,7 +114,18 @@ object LargeTitleTuning {
         if (motion) androidx.compose.animation.core.tween(Motion.SHORT) else androidx.compose.animation.core.snap(), label = "largeTitleOff")
     val extraPx = with(density) { largeTitleExtra().dp.toPx() } * (1f - off)
     val state = largeTitle.behavior.state
-    SideEffect { if (state.heightOffsetLimit != -extraPx) state.heightOffsetLimit = -extraPx }
+    // A new height (the Interface slider, Default, large titles on/off) changes how far the header can fold. A collapsed header (the page
+    // is scrolled) stays collapsed at the new limit; the new height shows when the page is back at its top. Without this, a taller
+    // limit would open the header part-way while the page is scrolled. [LargeTitle.wasCollapsed] keeps the state while there is no limit (off).
+    SideEffect {
+        val old = state.heightOffsetLimit
+        if (old != -extraPx) {
+            val collapsed = if (old < -0.5f && old != -Float.MAX_VALUE) state.heightOffset <= old + 0.5f else largeTitle.wasCollapsed
+            state.heightOffsetLimit = -extraPx
+            if (collapsed) state.heightOffset = -extraPx
+        }
+        if (state.heightOffsetLimit < -0.5f) largeTitle.wasCollapsed = state.heightOffset <= state.heightOffsetLimit + 0.5f
+    }
     val big = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium)
     val compact = MaterialTheme.typography.headlineSmall
     val ratio = with(density) { compact.fontSize.toPx() / big.fontSize.toPx() }

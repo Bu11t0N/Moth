@@ -49,7 +49,7 @@ class MothWidget : AppWidgetProvider() {
             val profile = subscription?.profiles?.firstOrNull { it.id == (active ?: subscription.selection(network?.kind ?: "wifi")) }
             val on = blocked || state == TunnelState.RUNNING || state == TunnelState.BLOCKED
             // Same TunnelStatus as the home screen and the tile, including "no network" (OfflineStatus).
-            val status = tr(if (blocked) (if (state == TunnelState.STARTING) R.string.tile_reconnecting else R.string.tile_blocked) else if (TunnelStatus.waitingForNetwork(state)) R.string.tile_reconnecting else when (state) {
+            val status = tr(if (blocked) (if (state == TunnelState.STARTING) R.string.tile_reconnecting else R.string.tile_blocked) else if (TunnelStatus.waitingForNetwork(state)) R.string.offline_title else when (state) {
                 TunnelState.RUNNING -> R.string.tile_on
                 TunnelState.STARTING -> R.string.tile_starting
                 TunnelState.STOPPING -> R.string.tile_stopping

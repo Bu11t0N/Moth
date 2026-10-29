@@ -56,7 +56,7 @@ import org.mothvpn.core.SubscriptionSchedule
     // The page a page returns to on Back: the folder its card sits in (Routing, Data, About; Updates is in About), else the main list.
     fun parentSection(sec: String?): String? = when (sec) {
         tr(R.string.split_title), tr(R.string.rules_title) -> tr(R.string.set_cat_routing)
-        tr(R.string.stats_title), tr(R.string.backup_title) -> tr(R.string.set_cat_data)
+        tr(R.string.stats_title), tr(R.string.backup_title), tr(R.string.appdata_title), tr(R.string.battery_title) -> tr(R.string.set_cat_data)
         tr(R.string.update_title), tr(R.string.dev_for_developers) -> tr(R.string.msg_about_78)
         else -> null
     }
@@ -87,11 +87,11 @@ import org.mothvpn.core.SubscriptionSchedule
             else -> mapOf(tr(R.string.msg_connection_75) to "connection", tr(R.string.msg_checks_76) to "checks", tr(R.string.set_cat_routing) to "routing",
                 tr(R.string.split_title) to "split", tr(R.string.rules_title) to "rules", tr(R.string.set_cat_subscription) to "subscription",
                 tr(R.string.msg_appearance_74) to "interface", tr(R.string.set_cat_data) to "data", tr(R.string.stats_title) to "stats",
-                tr(R.string.backup_title) to "backup", tr(R.string.update_title) to "updates", tr(R.string.msg_about_78) to "about",
+                tr(R.string.backup_title) to "backup", tr(R.string.appdata_title) to "appdata", tr(R.string.battery_title) to "battery", tr(R.string.update_title) to "updates", tr(R.string.msg_about_78) to "about",
                 tr(R.string.dev_for_developers) to "dev")[page.first]
         }
         // The page that shows the card a page opens from: the main list, a folder (Routing, Data) or About (updates, changelog, licences, developers).
-        val containerPages = listOf(R.string.split_title to "split", R.string.rules_title to "rules", R.string.stats_title to "stats", R.string.backup_title to "backup",
+        val containerPages = listOf(R.string.split_title to "split", R.string.rules_title to "rules", R.string.stats_title to "stats", R.string.backup_title to "backup", R.string.appdata_title to "appdata", R.string.battery_title to "battery",
             R.string.update_title to "updates", R.string.dev_for_developers to "dev").associate { (id, key) -> key to tr(id) }
         fun parentPage(key: String): Pair<String?, Int> = when (key) {
             "changelog", "licenses" -> tr(R.string.msg_about_78) to 0; else -> parentSection(containerPages[key]) to 0
@@ -111,7 +111,7 @@ import org.mothvpn.core.SubscriptionSchedule
             val sec = page.first; val lp = page.second
             CompositionLocalProvider(LocalPageScope provides this) {
             Box(Modifier.fillMaxSize().containerTransform(containerKey(page))) {
-        if (sec == tr(R.string.backup_title)) BackupPage(draft, locked, restore, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, draft.directRu, !locked, { applySettings(draft.copy(routingRules = it)) }, { applySettings(draft.copy(directRu = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.fillMaxSize()) else Column(Modifier.fillMaxSize().verticalScroll(if (sec == null) rootScroll else rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (sec == tr(R.string.backup_title)) BackupPage(draft, locked, restore, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, draft.directRu, !locked, { applySettings(draft.copy(routingRules = it)) }, { applySettings(draft.copy(directRu = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.appdata_title)) AppDataUsagePage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.battery_title)) BatteryPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.fillMaxSize()) else Column(Modifier.fillMaxSize().verticalScroll(if (sec == null) rootScroll else rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (sec) {
                 null -> {
                     val onOff = listOfNotNull(when { draft.autoSelectWifi && draft.autoSelectMobile -> tr(R.string.set_short_auto); draft.autoSelectWifi -> tr(R.string.set_short_auto_wifi); draft.autoSelectMobile -> tr(R.string.set_short_auto_mobile); else -> null }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
@@ -134,8 +134,12 @@ import org.mothvpn.core.SubscriptionSchedule
                     val ctx = LocalContext.current
                     val openVpnSettings = { runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS)) }.onFailure { Logger.w("Settings", "system VPN settings unavailable", it) }; Unit }
                     // Separate auto-select for Wi-Fi and mobile data; the one of the network in use applies.
-                    SettingsToggle(tr(R.string.auto_select_wifi), draft.autoSelectWifi, !locked) { applySettings(draft.copy(autoSelectWifi = it)) }
-                    SettingsToggle(tr(R.string.auto_select_mobile), draft.autoSelectMobile, !locked) { applySettings(draft.copy(autoSelectMobile = it)) }
+                    // Both in one card: one switch row per network type, a thin divider between them.
+                    SettingCard {
+                        ToggleRow(tr(R.string.auto_select_wifi), draft.autoSelectWifi, !locked) { applySettings(draft.copy(autoSelectWifi = it)) }
+                        HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        ToggleRow(tr(R.string.auto_select_mobile), draft.autoSelectMobile, !locked) { applySettings(draft.copy(autoSelectMobile = it)) }
+                    }
                     var reuseDialog by remember { mutableStateOf(false) }
                     val reuseOptions = org.mothvpn.core.AutoSelectReuse.minutes.map { it to tr(R.string.set_minutes, it) }
                     // Always editable: the reuse also applies to a manual "Check all" after a network change, and it is ready before auto-select is turned on.
@@ -144,8 +148,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     // The long kill switch explanation lives in its info dialog, with the way to the system VPN settings (Always-on VPN).
                     SettingsToggle(tr(R.string.kill_switch), draft.killSwitch, subtitle = tr(R.string.kill_switch_short), info = tr(R.string.kill_switch_hint),
                         infoActionLabel = tr(R.string.kill_switch_system), infoAction = openVpnSettings) { applySettings(draft.copy(killSwitch = it)) }
-                    SettingsToggle(tr(R.string.boot_connect), draft.bootConnect, info = tr(R.string.boot_connect_hint),
-                        infoActionLabel = tr(R.string.kill_switch_system), infoAction = openVpnSettings) { applySettings(draft.copy(bootConnect = it)) }
+                    SettingsToggle(tr(R.string.boot_connect), draft.bootConnect) { applySettings(draft.copy(bootConnect = it)) }
                     SectionHeader(tr(R.string.set_head_dpi))
                     var fragDialog by remember { mutableStateOf(false) }
                     var muxDialog by remember { mutableStateOf(false) }
@@ -213,7 +216,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsToggle(tr(R.string.dns_leak), draft.dnsLeakProtection, !locked) { applySettings(draft.copy(dnsLeakProtection = it)) }
                     FieldCard(draft.bootstrapDns, { applySettings(draft.copy(bootstrapDns = it)) }, tr(R.string.msg_server_bootstrap_dns_91), !locked, info = tr(R.string.msg_this_dns_is_used_directly_to_connect_to_serve_92))
                     SettingsToggle(tr(R.string.msg_ipv6_through_vpn_89), draft.ipv6, !locked) { applySettings(draft.copy(ipv6 = it)) }
-                    FieldCard(mtu, { mtu = it; number(it, "mtu") }, "MTU · 1280–9000", !locked, supporting = tr(R.string.mtu_hint))
+                    FieldCard(mtu, { mtu = it; number(it, "mtu") }, "MTU · 1280–9000", !locked, info = tr(R.string.mtu_hint))
                 }
                 tr(R.string.set_cat_subscription) -> {
                     if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104))
@@ -320,6 +323,8 @@ import org.mothvpn.core.SubscriptionSchedule
                     val loc = AppLanguage.context().resources.configuration.locales[0]
                     val today = stats.day(java.time.LocalDate.now())
                     SettingsCategory(tr(R.string.stats_title), tr(R.string.stats_today) + ": " + org.mothvpn.core.TrafficFormat.bytes(today.first + today.second, tr(R.string.notif_units).split("|"), loc), "stats") { section = tr(R.string.stats_title) }
+                    SettingsCategory(tr(R.string.appdata_title), tr(R.string.appdata_sum), "appdata") { section = tr(R.string.appdata_title) }
+                    SettingsCategory(tr(R.string.battery_title), tr(R.string.battery_sum), "battery") { section = tr(R.string.battery_title) }
                     SettingsCategory(tr(R.string.backup_title), tr(R.string.backup_sum), "backup") { section = tr(R.string.backup_title) }
                 }
                 tr(R.string.dev_for_developers) -> {
@@ -378,7 +383,7 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
         "connection" -> PowerSettingsNew; "checks" -> NetworkCheck; "routing" -> Route; "split" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.CallSplit
         "data" -> Storage; "dev" -> DeveloperMode
         "subscription" -> CardMembership; "stats" -> BarChart; "interface" -> Palette; "updates" -> SystemUpdate
-        "about" -> Info; "rules" -> AltRoute; "backup" -> SettingsBackupRestore; "changelog" -> History; "licenses" -> Description; "github" -> Code; else -> Code
+        "about" -> Info; "rules" -> AltRoute; "backup" -> SettingsBackupRestore; "appdata" -> DataUsage; "battery" -> BatteryStd; "changelog" -> History; "licenses" -> Description; "github" -> Code; else -> Code
     }
 }
 /** Split tunnelling in one line, or null when it is off. Selected apps the list no longer offers (no home-screen icon, uninstalled) are not counted. */
@@ -466,15 +471,21 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
     infoActionLabel: String? = null, infoAction: (() -> Unit)? = null, change: (Boolean) -> Unit) {
     // A card per setting; the whole card toggles the switch. A short subtitle fits on one line; longer text is behind the info button.
     Card(Modifier.pressScale(enabled = enabled).fillMaxWidth(), colors = ndCardColors()) {
-        Column(Modifier.fillMaxWidth().clickable(enabled = enabled) { change(!checked) }.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)) {
-            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-                // The small ⓘ sits right after the title; the switch is alone at the end.
-                TitleWithInfo(label, info, Modifier.weight(1f).padding(end = 8.dp), infoActionLabel = infoActionLabel, infoAction = infoAction)
-                MothSwitch(checked = checked, onCheckedChange = change, enabled = enabled)
-            }
-            if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(end = 4.dp, bottom = 4.dp))
+        ToggleRow(label, checked, enabled, subtitle, info, infoActionLabel, infoAction, change = change)
+    }
+}
+/** One switch row (the whole row toggles): the body of [SettingsToggle], also used for several switches in one card. */
+@Composable private fun ToggleRow(label: String, checked: Boolean, enabled: Boolean = true, subtitle: String? = null, info: String? = null,
+    infoActionLabel: String? = null, infoAction: (() -> Unit)? = null, style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleMedium,
+    change: (Boolean) -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(enabled = enabled) { change(!checked) }.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+            // The small ⓘ sits right after the title; the switch is alone at the end.
+            TitleWithInfo(label, info, Modifier.weight(1f).padding(end = 8.dp), style = style, infoActionLabel = infoActionLabel, infoAction = infoAction)
+            MothSwitch(checked = checked, onCheckedChange = change, enabled = enabled)
         }
+        if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(end = 4.dp, bottom = 4.dp))
     }
 }
 
@@ -516,7 +527,7 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
 object SettingsSections {
     private val ids = listOf(R.string.msg_connection_75, R.string.msg_checks_76, R.string.set_cat_routing, R.string.split_title, R.string.set_cat_subscription, R.string.stats_title, R.string.set_cat_data,
         R.string.msg_appearance_74, R.string.update_title, R.string.backup_title, R.string.msg_about_78, R.string.dev_for_developers, R.string.rules_title,
-        R.string.set_changelog, R.string.set_licenses)
+        R.string.set_changelog, R.string.set_licenses, R.string.appdata_title, R.string.battery_title)
     val saver: androidx.compose.runtime.saveable.Saver<androidx.compose.runtime.MutableState<String?>, Int> = androidx.compose.runtime.saveable.Saver(
         save = { state -> state.value?.let { title -> ids.firstOrNull { tr(it) == title } } ?: 0 },
         restore = { id -> mutableStateOf(ids.firstOrNull { it == id }?.let { tr(it) }) })

@@ -68,7 +68,7 @@ object TunnelStatus {
     /** Traffic is held by the kill switch: the user sees "Disconnect" and "Traffic blocked", not "Connect". Also when the network is gone with the kill switch on. */
     fun trafficBlocked(state: TunnelState, blocking: Boolean, offline: org.mothvpn.core.OfflineStatus.Kind = this.offline.value) = state == TunnelState.BLOCKED || (blocking && state == TunnelState.STARTING) ||
         (offline == org.mothvpn.core.OfflineStatus.Kind.BLOCKED && state in setOf(TunnelState.RUNNING, TunnelState.STARTING))
-    /** Connected without the kill switch while there is no network: "Reconnecting…". */
+    /** Connected without the kill switch while there is no network: a steady "No network" (Home, tile, widget, notification), not "Reconnecting…". */
     fun waitingForNetwork(state: TunnelState, offline: org.mothvpn.core.OfflineStatus.Kind = this.offline.value) = offline == org.mothvpn.core.OfflineStatus.Kind.WAITING && state == TunnelState.RUNNING
     /** The app is on screen: its live numbers ([stats]) keep updating even with every notification line turned off. */
     @Volatile internal var uiVisible = false; private set
@@ -154,7 +154,7 @@ class TunnelService : VpnService(), PlatformInterface {
             val on = intent.getBooleanExtra("on", false)
             killSwitchLive = on
             Logger.i("Tunnel", "kill switch ${if (on) "on" else "off"} (state=${TunnelStatus.state.value})")
-            // Toggled while there is no network: "Traffic blocked" <-> "Reconnecting…" everywhere.
+            // Toggled while there is no network: "Traffic blocked" <-> "No network" everywhere.
             if (TunnelStatus.offline.value != org.mothvpn.core.OfflineStatus.Kind.ONLINE) updateOffline(false)
             if (!on && TunnelStatus.state.value == TunnelState.BLOCKED) {
                 cancelRetry()
@@ -516,7 +516,7 @@ class TunnelService : VpnService(), PlatformInterface {
         if (TunnelStatus.state.value == TunnelState.RUNNING && offline != org.mothvpn.core.OfflineStatus.Kind.ONLINE) {
             // No network at all: say so instead of showing a stale speed line.
             if (offline == org.mothvpn.core.OfflineStatus.Kind.BLOCKED) builder.setContentTitle(tr(R.string.notif_blocked)).setContentText(tr(R.string.notif_blocked_text))
-            else { builder.setContentTitle(tr(R.string.tile_reconnecting)); if (name.isNotBlank()) builder.setContentText(name) }
+            else { builder.setContentTitle(tr(R.string.notif_offline)); if (name.isNotBlank()) builder.setContentText(name) }
             return builder.build()
         }
         when (TunnelStatus.state.value) {
@@ -1048,6 +1048,8 @@ class TunnelService : VpnService(), PlatformInterface {
     /** One internet check through the tunnel after a reset; a failure means stale connections: restart the core. */
     private fun verifyAfterSwitch(current: Long) {
         if (generation.get() != current || TunnelStatus.state.value != TunnelState.RUNNING) return
+        // The network went away again before the check: nothing to verify (a failure would restart the core for nothing).
+        if (TunnelStatus.offline.value != org.mothvpn.core.OfflineStatus.Kind.ONLINE) { Logger.i("Tunnel", "check after network switch skipped: no network"); return }
         val settings = activeSettings
         val ok = ProbePolicy.urls(settings).any { url -> generation.get() == current && runCatching { Diagnostics.checkTunnel(connectivity, url, minOf(settings.timeoutMs, 5000).toLong()) }.isSuccess }
         Logger.i("Tunnel", "check after network switch: ${if (ok) "ok" else "failed"}")
@@ -1058,6 +1060,8 @@ class TunnelService : VpnService(), PlatformInterface {
         val current = generation.get()
         executor.execute {
             if (generation.get() != current || TunnelStatus.state.value != TunnelState.RUNNING || stopped) return@execute
+            // No network at all: a restart could only fail; the session waits as it is and recovers when a network appears.
+            if (TunnelStatus.offline.value != org.mothvpn.core.OfflineStatus.Kind.ONLINE) { Logger.i("Tunnel", "core restart skipped: no network ($reason)"); return@execute }
             val id = TunnelStatus.activeProfile.value.ifBlank { targetId }
             if (id.isBlank()) return@execute
             Logger.i("Tunnel", "restarting the core on the same server ($reason)")

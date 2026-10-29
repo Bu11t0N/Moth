@@ -348,9 +348,11 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         // Reserved space for the status lines (title + one detail line): nothing above or below moves when they change.
         Column(Modifier.fillMaxWidth().height(statusHeight), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             // The status title and the detail line crossfade when they change (instantly with "Remove animations").
-            val title = if (blocked) tr(R.string.home_disconnect) else when (tunnel) { TunnelState.OFF -> if (pinging) tr(R.string.home_checking_servers) else tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.tile_reconnecting) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }
+            val title = if (blocked) tr(R.string.home_disconnect) else when (tunnel) { TunnelState.OFF -> if (pinging) tr(R.string.home_checking_servers) else tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.offline_title) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }
             val detail: Pair<String, Boolean>? = when {
                 blocked -> tr(R.string.msg_blocked) to true
+                // No Wi-Fi and no mobile data: a steady "No network" state (not "Reconnecting…"), no internet check line.
+                TunnelStatus.waitingForNetwork(tunnel, offline) -> tr(R.string.offline_detail) to false
                 tunnel == TunnelState.RUNNING -> (if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message)) to false
                 else -> null
             }
