@@ -83,7 +83,7 @@ import java.io.File
     LaunchedEffect(Unit) { val seen = AppUpdater.installAborted.value; AppUpdater.installAborted.collect { if (it > seen) { message = ""; on(org.mothvpn.core.UpdatePhase.Event.INSTALL_ABORTED) } } }
     val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
     var channelDialog by remember { mutableStateOf(false) }
-    // One quiet status line under the version: what is happening now, the result of the last check or an error.
+    // One quiet status line under the moth (the versions are in the card below): what is happening now, the result of the last check or an error.
     val status = when {
         phase is org.mothvpn.core.UpdatePhase.Downloading -> tr(R.string.update_downloading) + (progress?.let { " ${(it * 100).toInt().coerceIn(0, 100)} %" } ?: "")
         busy && release == null -> tr(R.string.update_checking)
@@ -96,7 +96,6 @@ import java.io.File
         Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             MothFlutter(busy = busy)
             Spacer(Modifier.height(12.dp))
-            Text(tr(R.string.app_name) + " " + BuildConfig.VERSION_NAME, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
             Text(status.ifEmpty { " " }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 4.dp, start = 16.dp, end = 16.dp).semantics { liveRegion = LiveRegionMode.Polite })
         }
@@ -130,8 +129,6 @@ import java.io.File
             NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_check)) }
         }
         DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
-        if (channel == UpdateChannel.BETA) Text(tr(R.string.update_channel_beta_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp))
     }
     if (channelDialog) ChoiceDialog(tr(R.string.update_channel), channels, channel, { channelDialog = false }) { value ->
         if (channel != value) { Logger.i("Settings", "update channel changed: ${channel.id} -> ${value.id}"); selectChannel(value.id) }

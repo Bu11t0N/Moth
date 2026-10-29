@@ -105,8 +105,8 @@ object LargeTitleTuning {
  * right; its size follows the height setting. Collapsing (the page scrolls up): the extra space shrinks and the same title shrinks and
  * moves into the start of the button row, where it ends at the compact size (headlineSmall). One title, morphing; nothing fades or swaps,
  * so accessibility and UI tests always see it once. A long title is ellipsized to fit the compact slot and scaled down to fit when expanded.
- * The space above and below the title is balanced (without buttons the empty button row is part of the space), and a hairline under the
- * header separates it from the page content, so the title does not read as the first item of the list.
+ * The space above and below the title is balanced (without buttons the empty button row is part of the space), and extra space under the
+ * header (no divider line) separates it from the page content, so the title does not read as the first item of the list.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun LargeTitleHeader(largeTitle: LargeTitle, title: String, modifier: Modifier = Modifier,
@@ -135,16 +135,13 @@ object LargeTitleTuning {
     val big = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium)
     val compact = MaterialTheme.typography.headlineSmall
     val ratio = with(density) { compact.fontSize.toPx() / big.fontSize.toPx() }
-    val divider = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
     Layout(content = {
         Text(title, style = big, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
         Row(verticalAlignment = Alignment.CenterVertically, content = actions)
-        androidx.compose.material3.HorizontalDivider(color = divider)
     }, modifier = modifier.fillMaxWidth().clipToBounds()) { measurables, constraints ->
         val width = constraints.maxWidth
         val fraction = maxOf(state.collapsedFraction.coerceIn(0f, 1f), off)
         val row = measurables[1].measure(constraints.copy(minWidth = 0, minHeight = 0))
-        val line = measurables[2].measure(Constraints.fixedWidth(width))
         val rowHeight = maxOf(48.dp.roundToPx(), row.height)
         val top = 12.dp.toPx(); val bottom = 8.dp.toPx()
         val gap = if (row.width > 0) 8.dp.roundToPx() else 0
@@ -153,7 +150,7 @@ object LargeTitleTuning {
         val text = measurables[0].measure(Constraints(maxWidth = (slot / ratio).toInt().coerceAtLeast(1)))
         val side = 8.dp.roundToPx()
         val extraNow = (extraPx + state.heightOffset).coerceIn(0f, extraPx)
-        val height = (top + extraNow + rowHeight + bottom).roundToInt() + line.height
+        val height = (top + extraNow + rowHeight + bottom).roundToInt() + 8.dp.roundToPx() // + the gap to the content
         // Expanded: centred in the free space (above the buttons, or the whole header when there are none), as big as the height setting
         // says but never wider than the screen or taller than that space. Collapsed: in the middle of the button row, compact.
         val band = if (row.width > 0) top + extraPx else top + extraPx + rowHeight + bottom
@@ -166,7 +163,6 @@ object LargeTitleTuning {
         layout(width, height) {
             text.placeWithLayer(x.roundToInt(), y.roundToInt()) { transformOrigin = TransformOrigin(0f, 0f); scaleX = scale; scaleY = scale }
             row.place(width - row.width, (top + extraNow + (rowHeight - row.height) / 2f).roundToInt())
-            line.place(0, height - line.height)
         }
     }
 }

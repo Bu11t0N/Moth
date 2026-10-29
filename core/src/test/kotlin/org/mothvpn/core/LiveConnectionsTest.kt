@@ -67,4 +67,16 @@ class LiveConnectionsTest {
         assertEquals(listOf("b", "d"), LiveConnections.recentlyClosed(list, 2).map { it.id })
         assertEquals(emptyList<String>(), LiveConnections.recentlyClosed(list, 0).map { it.id })
     }
+
+    @Test fun recentlyClosedSplitAndGrouped() {
+        fun item(id: String, app: String?, closed: Long) = LiveConnections.Item(id, "tcp", "", "", "1.2.3.4:443", "", "", 1, 0, 0, 0, 0, app, closed)
+        val list = listOf(item("a", "x", 10), item("b", "y", 50), item("c", "x", 30), item("d", "x", 40), item("e", null, 0))
+        val (natural, manual) = LiveConnections.recentlyClosedSplit(list, setOf("c", "b"))
+        assertEquals(listOf("d", "a"), natural.map { it.id })
+        assertEquals(listOf("b", "c"), manual.map { it.id })
+        assertEquals(listOf("d") to listOf("b"), LiveConnections.recentlyClosedSplit(list, setOf("c", "b"), 1).let { (n, m) -> n.map { it.id } to m.map { it.id } })
+        val groups = LiveConnections.groupedClosed(list.filter { it.closedAtMs > 0 }, LiveConnections.GroupBy.APP)
+        assertEquals(listOf("y", "x"), groups.map { it.key })
+        assertEquals(listOf("d", "c", "a"), groups[1].items.map { it.id })
+    }
 }

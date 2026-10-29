@@ -69,7 +69,6 @@
     <string name="msg_connection_75" formatted="false">"Connection"</string>
     <string name="msg_checks_76" formatted="false">"Checks"</string>
     <string name="msg_subscription_and_hwid_77" formatted="false">"Subscription and HWID"</string>
-    <string name="msg_about_78" formatted="false">"About"</string>
     <string name="msg_theme_79" formatted="false">"Theme"</string>
     <string name="msg_system_default_80" formatted="false">"System default"</string>
     <string name="msg_dark_81" formatted="false">"Dark"</string>
@@ -94,7 +93,6 @@
     <string name="msg_copy_hwid_107" formatted="false">"Copy HWID"</string>
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Send device model and Android version"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"Subscription User-Agent"</string>
-    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.21\nOpen source · GPL-3.0-or-later"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Use an HTTPS link without a username or password in the URL"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Subscription device limit reached. Contact the provider."</string>
     <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"The provider requires HWID. Enable it in settings."</string>
@@ -198,7 +196,6 @@
     <string name="update_channel">Update channel</string>
     <string name="update_channel_release">Release</string>
     <string name="update_channel_beta">Beta</string>
-    <string name="update_channel_beta_note">Beta also offers test builds, which may be unstable.</string>
     <string name="update_unknown_title">Allow installing updates</string>
     <string name="update_unknown_body">To update Moth, Android needs your permission to install apps from this source. Tap OK: the Android settings for Moth will open. Turn on “Allow from this source”, then return to Moth — the installation will continue automatically.</string>
     <string name="update_unknown_ok">OK</string>
@@ -300,7 +297,8 @@
     <string name="expiry_toggle_hint">A notification 3 days before and on the last day, if the provider sends the end date.</string>
     <string name="set_cat_routing">Routing</string>
     <string name="set_cat_data">Data</string>
-    <string name="set_sum_data">Statistics and backup</string>
+    <string name="set_head_main">General</string>
+    <string name="set_head_app">App</string>
     <string name="set_head_apps">Apps</string>
     <string name="set_head_rules">Rules</string>
     <string name="set_head_network">Network and DNS</string>
@@ -323,7 +321,6 @@
     <string name="set_split_bypass">Apps bypassing VPN: %d</string>
     <string name="set_sum_defaults">Default settings</string>
     <string name="set_sum_version">Installed %s</string>
-    <string name="set_sum_about">Version, updates, licenses and changelog</string>
     <string name="set_sum_dev">Log and crash log · level: %s</string>
     <string name="set_theme_light">Light theme</string>
     <string name="set_theme_dark">Dark theme</string>
@@ -611,7 +608,7 @@
     <string name="conn_failed_text">Moth could not read the list from the VPN core. Reconnect and open this page again.</string>
     <string name="conn_active">Active connections: %1$d</string>
     <string name="conn_close_all">Close all connections</string>
-    <string name="conn_close_all_text">Every open connection through the VPN is closed. Apps usually open new ones right away; the VPN stays on.</string>
+    <string name="conn_close_all_text">Every open connection through the VPN is closed. Apps usually open new ones right away.</string>
     <string name="conn_close_all_ok">Close all</string>
     <string name="conn_close">Close connection of %1$s</string>
     <string name="conn_sort_new">Newest</string>
@@ -622,15 +619,15 @@
     <string name="conn_proxy">VPN</string>
     <string name="conn_blocked">Blocked</string>
     <string name="conn_rate">%1$s/s</string>
-    <string name="conn_hint">Updated every second while this page is open. Domain names come from the connection itself when the app sends them; traffic is not decrypted. Closing a connection does not block the app: it can connect again. Apps are identified on Android 10 and newer. Connections are grouped by app: tap a group to see its connections, × closes all of them at once. Group by host to see where the traffic goes. Recently closed shows the last connections that ended while the VPN is on; it is kept only in memory and cleared when the VPN stops.</string>
     <string name="conn_group_app">By app</string>
     <string name="conn_group_host">By host</string>
     <string name="conn_group_none">All</string>
     <string name="conn_group_count">Connections: %1$d</string>
     <string name="conn_close_group">Close connections of %1$s</string>
     <string name="conn_closed_ago">closed %1$s ago</string>
+    <string name="conn_closed_by_you_ago">closed by you %1$s ago</string>
     <string name="conn_recent_title">Recently closed</string>
-    <string name="conn_recent_sum">Last %1$d while the VPN is on. Tap to show</string>
-    <string name="conn_recent_count">Shown: %1$d</string>
+    <string name="conn_recent_sum">Last %1$d while the VPN is on</string>
+    <string name="conn_recent_manual">Closed by you: %1$d</string>
     <string name="conn_recent_empty">No closed connections yet.</string>
 </resources>

@@ -69,7 +69,6 @@
     <string name="msg_connection_75" formatted="false">"Подключение"</string>
     <string name="msg_checks_76" formatted="false">"Проверки"</string>
     <string name="msg_subscription_and_hwid_77" formatted="false">"Подписка и HWID"</string>
-    <string name="msg_about_78" formatted="false">"О приложении"</string>
     <string name="msg_theme_79" formatted="false">"Тема"</string>
     <string name="msg_system_default_80" formatted="false">"Как в системе"</string>
     <string name="msg_dark_81" formatted="false">"Тёмная"</string>
@@ -94,7 +93,6 @@
     <string name="msg_copy_hwid_107" formatted="false">"Скопировать HWID"</string>
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Передавать модель и версию Android"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"User-Agent подписки"</string>
-    <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.21\nОткрытый исходный код · GPL-3.0-or-later"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Нужна HTTPS-ссылка без логина и пароля в адресе"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Достигнут лимит устройств подписки. Обратись к провайдеру."</string>
     <string name="msg_the_provider_requires_hwid_enable_it_in_setti_114" formatted="false">"Провайдер требует HWID. Включи его отправку в настройках."</string>
@@ -200,7 +198,6 @@
     <string name="update_channel">Канал обновлений</string>
     <string name="update_channel_release">Релиз</string>
     <string name="update_channel_beta">Бета</string>
-    <string name="update_channel_beta_note">В бете также предлагаются тестовые сборки, они могут работать нестабильно.</string>
     <string name="update_unknown_title">Разрешите установку обновлений</string>
     <string name="update_unknown_body">Чтобы обновить Мотылёк, Android должен разрешить установку приложений из этого источника. Нажмите «ОК»: откроются настройки Android для Мотылька. Включите «Разрешить установку из этого источника» и вернитесь в Мотылёк — установка продолжится автоматически.</string>
     <string name="update_unknown_ok">ОК</string>
@@ -304,7 +301,8 @@
     <string name="expiry_toggle_hint">Уведомление за 3 дня и в последний день, если провайдер передаёт дату окончания.</string>
     <string name="set_cat_routing">Маршрутизация</string>
     <string name="set_cat_data">Данные</string>
-    <string name="set_sum_data">Статистика и резервная копия</string>
+    <string name="set_head_main">Основные</string>
+    <string name="set_head_app">Приложение</string>
     <string name="set_head_apps">Приложения</string>
     <string name="set_head_rules">Правила</string>
     <string name="set_head_network">Сеть и DNS</string>
@@ -327,7 +325,6 @@
     <string name="set_split_bypass">Приложения в обход VPN: %d</string>
     <string name="set_sum_defaults">Настройки по умолчанию</string>
     <string name="set_sum_version">Установлена %s</string>
-    <string name="set_sum_about">Версия, обновления, лицензии и список изменений</string>
     <string name="set_sum_dev">Журнал и журнал сбоев · уровень: %s</string>
     <string name="set_theme_light">Светлая тема</string>
     <string name="set_theme_dark">Тёмная тема</string>
@@ -615,7 +612,7 @@
     <string name="conn_failed_text">Moth не смог получить список от ядра VPN. Переподключитесь и откройте страницу снова.</string>
     <string name="conn_active">Активных соединений: %1$d</string>
     <string name="conn_close_all">Закрыть все соединения</string>
-    <string name="conn_close_all_text">Все открытые соединения через VPN будут закрыты. Приложения обычно сразу открывают новые; VPN остаётся включённым.</string>
+    <string name="conn_close_all_text">Все открытые соединения через VPN будут закрыты. Приложения обычно сразу открывают новые.</string>
     <string name="conn_close_all_ok">Закрыть все</string>
     <string name="conn_close">Закрыть соединение %1$s</string>
     <string name="conn_sort_new">Новые</string>
@@ -626,15 +623,15 @@
     <string name="conn_proxy">Через VPN</string>
     <string name="conn_blocked">Заблокировано</string>
     <string name="conn_rate">%1$s/с</string>
-    <string name="conn_hint">Обновляется каждую секунду, пока страница открыта. Домен берётся из самого соединения, если приложение его передаёт; трафик не расшифровывается. Закрытие соединения не блокирует приложение: оно может подключиться снова. Приложения определяются на Android 10 и новее. Соединения сгруппированы по приложениям: нажмите на группу, чтобы увидеть её соединения, × сразу закрывает их все. Группировка по адресам показывает, куда идёт трафик. «Недавно закрытые» — последние соединения, завершившиеся, пока VPN включён; они хранятся только в памяти и исчезают при выключении VPN.</string>
     <string name="conn_group_app">По приложениям</string>
     <string name="conn_group_host">По адресам</string>
     <string name="conn_group_none">Все</string>
     <string name="conn_group_count">Соединений: %1$d</string>
     <string name="conn_close_group">Закрыть соединения: %1$s</string>
     <string name="conn_closed_ago">закрыто %1$s назад</string>
+    <string name="conn_closed_by_you_ago">закрыто вами %1$s назад</string>
     <string name="conn_recent_title">Недавно закрытые</string>
-    <string name="conn_recent_sum">Последние %1$d, пока VPN включён. Нажмите, чтобы показать</string>
-    <string name="conn_recent_count">Показано: %1$d</string>
+    <string name="conn_recent_sum">Последние %1$d, пока VPN включён</string>
+    <string name="conn_recent_manual">Закрыты вами: %1$d</string>
     <string name="conn_recent_empty">Закрытых соединений пока нет.</string>
 </resources>

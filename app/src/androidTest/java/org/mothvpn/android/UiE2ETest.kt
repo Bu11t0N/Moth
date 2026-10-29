@@ -219,7 +219,7 @@ class UiE2ETest {
         device.pressBack(); Thread.sleep(800)
         tab("Settings"); Thread.sleep(600)
         if (theme == "dark") {
-            // Ping method choice (Checks) and the developer list of subscription header names (About › For developers).
+            // Ping method choice (Checks) and the developer list of subscription header names (For developers, on the main list).
             // Down first, then up: back on a list left scrolled down (large title collapsed), an entry can sit above the screen.
             fun scrollTo(text: String) {
                 for (up in listOf(false, true)) repeat(10) {
@@ -231,10 +231,9 @@ class UiE2ETest {
             wait(By.text("Checks")).click(); Thread.sleep(800)
             scrollTo("Full latency"); wait(By.text("Full latency")); Thread.sleep(500)
             device.pressBack(); Thread.sleep(800)
-            scrollTo("About"); wait(By.text("About")).click(); Thread.sleep(800)
             scrollTo("For developers"); wait(By.text("For developers")).click(); Thread.sleep(800)
             wait(By.text("Subscription headers")).click(); wait(By.textStartsWith("HTTP headers:")); Thread.sleep(600)
-            device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500)
+            device.pressBack(); Thread.sleep(500); device.pressBack(); Thread.sleep(500)
             // Device info: a scrollable dialog whose fields hold the values that are sent (here the defaults) as real text.
             fun openDeviceInfo() {
                 scrollTo("Subscription"); wait(By.text("Subscription")).click(); Thread.sleep(800)
@@ -299,8 +298,11 @@ class UiE2ETest {
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         assertNotNull(device.wait(Until.findObject(By.text("Settings")), 20_000)); Thread.sleep(800)
         device.findObject(By.text("Settings")).click(); Thread.sleep(800)
-        device.wait(Until.findObject(By.text("Data")), 10_000).click()
-        device.wait(Until.findObject(By.text("Statistics")), 10_000).click()
+        // Statistics sits on the main list under the Data header (no Data folder since 0.8.0-beta.11).
+        assertNotNull(device.wait(Until.findObject(By.text("Routing")), 10_000)); Thread.sleep(600)
+        var stats = device.findObject(By.text("Statistics"))
+        repeat(5) { if (stats == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); stats = device.findObject(By.text("Statistics")) } }
+        assertNotNull("statistics entry", stats); stats!!.click()
         val chart = device.wait(Until.findObject(By.desc("Daily traffic")), 10_000)
         assertNotNull("chart not shown", chart)
         // The three totals at the top are labelled Day / Week / Month.
@@ -331,9 +333,8 @@ class UiE2ETest {
         assertNotNull(device.wait(Until.findObject(By.text("Settings")), 20_000)); Thread.sleep(800)
         device.findObject(By.text("Settings")).click()
         assertNotNull(device.wait(Until.findObject(By.text("Routing")), 10_000)); Thread.sleep(1000)
-        var about = device.findObject(By.text("About"))
-        repeat(5) { if (about == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); about = device.findObject(By.text("About")) } }
-        assertNotNull("about entry", about); about!!.click(); Thread.sleep(800)
+        // The main list's three sections; the App entries (no About folder) sit straight on it.
+        assertNotNull("General header", device.findObject(By.text("General")))
         var dev = device.findObject(By.text("For developers"))
         repeat(5) { if (dev == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); dev = device.findObject(By.text("For developers")) } }
         assertNotNull("developer menu entry", dev); dev!!.click()

@@ -22,6 +22,20 @@ object LiveConnections {
     fun recentlyClosed(items: List<Item>, limit: Int = RECENT_LIMIT): List<Item> =
         items.filter { it.closedAtMs > 0 }.sortedWith(compareByDescending<Item> { it.closedAtMs }.thenBy { it.id }).take(limit.coerceAtLeast(0))
 
+    /**
+     * Recently closed connections split in two: those that ended by themselves and those the user closed on the page ([manualIds]),
+     * each most recently closed first and at most [limit], so a burst of natural closes never pushes the user's own closes out.
+     */
+    fun recentlyClosedSplit(items: List<Item>, manualIds: Set<String>, limit: Int = RECENT_LIMIT): Pair<List<Item>, List<Item>> {
+        val (manual, natural) = items.filter { it.closedAtMs > 0 }.partition { it.id in manualIds }
+        return recentlyClosed(natural, limit) to recentlyClosed(manual, limit)
+    }
+
+    /** Closed connections grouped [by] like the active list: groups and their rows ordered by the newest close first. */
+    fun groupedClosed(items: List<Item>, by: GroupBy): List<Group> =
+        items.groupBy { key(it, by) }.map { (k, v) -> Group(k, v.sortedWith(compareByDescending<Item> { it.closedAtMs }.thenBy { it.id })) }
+            .sortedWith(compareByDescending<Group> { g -> g.items.maxOf { it.closedAtMs } }.thenBy { it.key })
+
     enum class Sort { NEWEST, TRAFFIC, SPEED }
 
     /** Port of "host:port" / "[v6]:port"; null when there is none. */

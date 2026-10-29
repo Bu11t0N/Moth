@@ -30,7 +30,7 @@ object VpnTraffic {
     private const val FILE = "vpn_app_traffic.json"
     private const val INTERVAL_NS = 5_000_000_000L
     private const val SAVE_MS = 60_000L
-    private const val CLOSED_APPS = 64
+    private const val CLOSED_APPS = 128
     private val ledger = VpnAppTraffic.Ledger()
     private val deltas = VpnAppTraffic.Deltas()
     private val owners = ConcurrentHashMap<String, Long>() // owner key -> (uid shl 32) or recorded time in the low bits
@@ -101,9 +101,19 @@ object VpnTraffic {
     }
 
     /** Stops counting (before the core closes) and saves what was counted. */
+    /** Connections the user closed on the Connections page (×, a group's ×, Close all), so Recently closed can tell them apart from
+     *  those that ended by themselves. Ids only, in memory, bounded; cleared when the VPN stops like the core's own closed list. */
+    private val userClosed = LinkedHashSet<String>()
+    fun markClosedByUser(ids: Collection<String>) = synchronized(lock) {
+        userClosed.addAll(ids)
+        val extra = userClosed.size - 512
+        if (extra > 0) { val it = userClosed.iterator(); repeat(extra) { _ -> it.next(); it.remove() } }
+    }
+    fun closedByUser(): Set<String> = synchronized(lock) { userClosed.toSet() }
+
     fun stop() {
         servingMutable.value = false
-        synchronized(lock) { closedApp.clear() }
+        synchronized(lock) { closedApp.clear(); userClosed.clear() }
         client?.let { runCatching { it.disconnect() } }; client = null
         runCatching { server?.setService(null) }
         save(force = true)

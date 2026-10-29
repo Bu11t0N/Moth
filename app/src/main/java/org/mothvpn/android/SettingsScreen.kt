@@ -28,7 +28,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import org.mothvpn.core.ClientSettings
-import org.mothvpn.core.VersionLabel
 import org.mothvpn.core.DnsServers
 import org.mothvpn.core.SubscriptionSchedule
 
@@ -53,14 +52,12 @@ import org.mothvpn.core.SubscriptionSchedule
     // pages, so they close with them; the usual page transition plays. (The first composition keeps a pending "open updates".)
     val firstRoot = remember { rootRequest }
     LaunchedEffect(rootRequest) { if (rootRequest != firstRoot) { logPage = 0; licenseAsset = ""; showHwid = false; error = ""; section = null } }
-    // The page a page returns to on Back: the folder its card sits in (Routing, Data, About; Updates is in About), else the main list.
+    // The page a page returns to on Back: the folder its card sits in (Routing), else the main list (the Data and App cards sit there too).
     fun parentSection(sec: String?): String? = when (sec) {
         tr(R.string.split_title), tr(R.string.rules_title) -> tr(R.string.set_cat_routing)
-        tr(R.string.stats_title), tr(R.string.backup_title), tr(R.string.appdata_title), tr(R.string.battery_title), tr(R.string.conn_title) -> tr(R.string.set_cat_data)
-        tr(R.string.update_title), tr(R.string.dev_for_developers) -> tr(R.string.msg_about_78)
         else -> null
     }
-    BackHandler(enabled = section != null) { if (logPage == 5) logPage = 4 else if (logPage == 3 || logPage == 4) { logPage = 0; section = tr(R.string.msg_about_78) } else if (logPage != 0) logPage = 0 else section = parentSection(section) }
+    BackHandler(enabled = section != null) { if (logPage == 5) logPage = 4 else if (logPage == 3 || logPage == 4) { logPage = 0; section = null } else if (logPage != 0) logPage = 0 else section = parentSection(section) }
     fun applySettings(next: ClientSettings) {
         draft = next
         try { save(next.validate()); error = "" }
@@ -79,21 +76,21 @@ import org.mothvpn.core.SubscriptionSchedule
     LaunchedEffect(section, logPage) { largeTitle.settleTo(collapsed = section == null && logPage == 0 && rootScroll.value > 0, animated = titleMotion) }
     Column(Modifier.fillMaxSize().nestedScroll(largeTitle.nestedScrollConnection).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         LargeTitleHeader(largeTitle, when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); 4 -> tr(R.string.set_licenses); 5 -> Licenses.entries.firstOrNull { it.asset == licenseAsset }?.let { tr(it.title) } ?: tr(R.string.set_licenses); else -> (section ?: tr(R.string.msg_settings_28)) })
-        // Settings pages: a page opened from a card (or the About entries) grows out of that card and shrinks back into it on Back
+        // Settings pages: a page opened from a card grows out of that card and shrinks back into it on Back
         // (container transform, shared bounds); the rest fades. Pages without a card (logs, a licence text) keep the short slide.
         fun containerKey(page: Pair<String?, Int>): String? = when {
             page.second == 3 -> "changelog"; page.second == 4 -> "licenses"; page.second != 0 -> null
             else -> mapOf(tr(R.string.msg_connection_75) to "connection", tr(R.string.msg_checks_76) to "checks", tr(R.string.set_cat_routing) to "routing",
                 tr(R.string.split_title) to "split", tr(R.string.rules_title) to "rules", tr(R.string.set_cat_subscription) to "subscription",
-                tr(R.string.msg_appearance_74) to "interface", tr(R.string.set_cat_data) to "data", tr(R.string.stats_title) to "stats",
-                tr(R.string.backup_title) to "backup", tr(R.string.appdata_title) to "appdata", tr(R.string.battery_title) to "battery", tr(R.string.conn_title) to "connections", tr(R.string.update_title) to "updates", tr(R.string.msg_about_78) to "about",
+                tr(R.string.msg_appearance_74) to "interface", tr(R.string.stats_title) to "stats",
+                tr(R.string.backup_title) to "backup", tr(R.string.appdata_title) to "appdata", tr(R.string.battery_title) to "battery", tr(R.string.conn_title) to "connections", tr(R.string.update_title) to "updates",
                 tr(R.string.dev_for_developers) to "dev")[page.first]
         }
-        // The page that shows the card a page opens from: the main list, a folder (Routing, Data) or About (updates, changelog, licences, developers).
+        // The page that shows the card a page opens from: the main list or the Routing folder.
         val containerPages = listOf(R.string.split_title to "split", R.string.rules_title to "rules", R.string.stats_title to "stats", R.string.backup_title to "backup", R.string.appdata_title to "appdata", R.string.battery_title to "battery", R.string.conn_title to "connections",
             R.string.update_title to "updates", R.string.dev_for_developers to "dev").associate { (id, key) -> key to tr(id) }
         fun parentPage(key: String): Pair<String?, Int> = when (key) {
-            "changelog", "licenses" -> tr(R.string.msg_about_78) to 0; else -> parentSection(containerPages[key]) to 0
+            "changelog", "licenses" -> null to 0; else -> parentSection(containerPages[key]) to 0
         }
         val motion = animationsOn()
         SharedTransitionLayout(Modifier.weight(1f).fillMaxWidth()) { CompositionLocalProvider(LocalSharedScope provides this) {
@@ -120,13 +117,33 @@ import org.mothvpn.core.SubscriptionSchedule
                     val method = when (draft.probeMode) { org.mothvpn.core.ProbePolicy.FULL -> tr(R.string.ping_full); org.mothvpn.core.ProbePolicy.TCP -> tr(R.string.ping_tcp); else -> tr(R.string.ping_latency) }
                     val checks = listOfNotNull((tr(R.string.set_short_health) + ": " + healthLabel(draft.healthIntervalSeconds)).takeIf { draft.healthEnabled }, method)
                     val routing = listOfNotNull(splitSummary(draft), DnsServers.presetOf(draft.dns)?.label ?: tr(R.string.dns_custom), tr(R.string.set_short_ru).takeIf { draft.directRu })
+                    SectionHeader(tr(R.string.set_head_main))
                     SettingsCategory(tr(R.string.msg_connection_75), onOff.joinToString(" · ").ifEmpty { tr(R.string.set_sum_defaults) }, "connection") { section = tr(R.string.msg_connection_75) }
                     SettingsCategory(tr(R.string.msg_checks_76), checks.joinToString(" · "), "checks") { section = tr(R.string.msg_checks_76) }
                     SettingsCategory(tr(R.string.set_cat_routing), routing.joinToString(" · "), "routing") { section = tr(R.string.set_cat_routing) }
                     SettingsCategory(tr(R.string.set_cat_subscription), subAuto, "subscription") { section = tr(R.string.set_cat_subscription) }
                     SettingsCategory(tr(R.string.msg_appearance_74), theme, "interface") { section = tr(R.string.msg_appearance_74) }
-                    SettingsCategory(tr(R.string.set_cat_data), tr(R.string.set_sum_data), "data") { section = tr(R.string.set_cat_data) }
-                    SettingsCategory(tr(R.string.msg_about_78), tr(R.string.set_sum_about), "about") { section = tr(R.string.msg_about_78) }
+                    // Data and App pages straight on the main list (no Data or About folder), each under its own header.
+                    SectionHeader(tr(R.string.set_cat_data))
+                    val ctxData = LocalContext.current
+                    val stats by TrafficRecorder.state.collectAsState()
+                    LaunchedEffect(Unit) { TrafficRecorder.load(ctxData) }
+                    val loc = AppLanguage.context().resources.configuration.locales[0]
+                    val today = stats.day(java.time.LocalDate.now())
+                    SettingsCategory(tr(R.string.stats_title), tr(R.string.stats_today) + ": " + org.mothvpn.core.TrafficFormat.bytes(today.first + today.second, tr(R.string.notif_units).split("|"), loc), "stats") { section = tr(R.string.stats_title) }
+                    SettingsCategory(tr(R.string.appdata_title), tr(R.string.appdata_sum), "appdata") { section = tr(R.string.appdata_title) }
+                    SettingsCategory(tr(R.string.battery_title), tr(R.string.battery_sum), "battery") { section = tr(R.string.battery_title) }
+                    SettingsCategory(tr(R.string.conn_title), tr(R.string.conn_sum), "connections") { section = tr(R.string.conn_title) }
+                    SettingsCategory(tr(R.string.backup_title), tr(R.string.backup_sum), "backup") { section = tr(R.string.backup_title) }
+                    SectionHeader(tr(R.string.set_head_app))
+                    // The developer card stays last.
+                    SettingsCategory(tr(R.string.update_title), tr(R.string.set_sum_version, BuildConfig.VERSION_NAME), "updates") { section = tr(R.string.update_title) }
+                    SettingsCategory(tr(R.string.set_changelog), "", "changelog") { section = tr(R.string.set_changelog); logPage = 3 }
+                    SettingsCategory(tr(R.string.set_licenses), tr(R.string.set_licenses_sum), "licenses") { section = tr(R.string.set_licenses); logPage = 4 }
+                    // Opens the browser, not a page: same card, no container transform, an "open in new" mark instead of the arrow.
+                    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+                    SettingsCategory(tr(R.string.about_github), "github.com/Bu11t0N/Moth", "github", external = true) { runCatching { uri.openUri("https://github.com/Bu11t0N/Moth") } }
+                    SettingsCategory(tr(R.string.dev_for_developers), tr(R.string.set_sum_dev, if (Logger.level == LogLevel.OFF) tr(R.string.dev_level_off) else Logger.level.name), "dev") { section = tr(R.string.dev_for_developers) }
                 }
                 tr(R.string.msg_connection_75) -> {
                     LiveApplyHint()
@@ -315,40 +332,12 @@ import org.mothvpn.core.SubscriptionSchedule
                         }
                     }
                 }
-                tr(R.string.set_cat_data) -> {
-                    val ctxData = LocalContext.current
-                    val stats by TrafficRecorder.state.collectAsState()
-                    LaunchedEffect(Unit) { TrafficRecorder.load(ctxData) }
-                    val loc = AppLanguage.context().resources.configuration.locales[0]
-                    val today = stats.day(java.time.LocalDate.now())
-                    SettingsCategory(tr(R.string.stats_title), tr(R.string.stats_today) + ": " + org.mothvpn.core.TrafficFormat.bytes(today.first + today.second, tr(R.string.notif_units).split("|"), loc), "stats") { section = tr(R.string.stats_title) }
-                    SettingsCategory(tr(R.string.appdata_title), tr(R.string.appdata_sum), "appdata") { section = tr(R.string.appdata_title) }
-                    SettingsCategory(tr(R.string.battery_title), tr(R.string.battery_sum), "battery") { section = tr(R.string.battery_title) }
-                    SettingsCategory(tr(R.string.conn_title), tr(R.string.conn_sum), "connections") { section = tr(R.string.conn_title) }
-                    SettingsCategory(tr(R.string.backup_title), tr(R.string.backup_sum), "backup") { section = tr(R.string.backup_title) }
-                }
                 tr(R.string.dev_for_developers) -> {
                     DeveloperSection({ logPage = 1 }, { logPage = 2 })
                     var headersDialog by remember { mutableStateOf(false) }
                     DialogRow(tr(R.string.dev_sub_headers), tr(R.string.dev_sub_headers_sum)) { headersDialog = true }
                     if (headersDialog) SubscriptionHeadersDialog { headersDialog = false }
                     SettingsToggle(tr(R.string.dev_edit_servers), draft.editServers, info = tr(R.string.dev_edit_servers_hint)) { applySettings(draft.copy(editServers = it)) }
-                }
-                tr(R.string.msg_about_78) -> {
-                    SettingCard {
-                        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(VersionLabel.about(tr(R.string.app_name), BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), style = MaterialTheme.typography.titleLarge)
-                            Text(tr(R.string.msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    // App updates live in About (not under Data); the developer card stays last.
-                    SettingsCategory(tr(R.string.update_title), tr(R.string.set_sum_version, BuildConfig.VERSION_NAME), "updates") { section = tr(R.string.update_title) }
-                    SettingsCategory(tr(R.string.set_changelog), "", "changelog") { section = tr(R.string.set_changelog); logPage = 3 }
-                    SettingsCategory(tr(R.string.set_licenses), tr(R.string.set_licenses_sum), "licenses") { section = tr(R.string.set_licenses); logPage = 4 }
-                    // Opens the browser, not a page: same card, no container transform, an "open in new" mark instead of the arrow.
-                    val uri = androidx.compose.ui.platform.LocalUriHandler.current
-                    SettingsCategory(tr(R.string.about_github), "github.com/Bu11t0N/Moth", "github", external = true) { runCatching { uri.openUri("https://github.com/Bu11t0N/Moth") } }
-                    SettingsCategory(tr(R.string.dev_for_developers), tr(R.string.set_sum_dev, if (Logger.level == LogLevel.OFF) tr(R.string.dev_level_off) else Logger.level.name), "dev") { section = tr(R.string.dev_for_developers) }
                 }
             }
             AnimatedVisibility(error.isNotEmpty()) { Text(error, color = MaterialTheme.colorScheme.error) }
@@ -525,8 +514,8 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
 /** The device info Moth sends by default (same values as the subscription headers) and what it sends with [settings]. */
 /** Settings pages by title (the page key used by [SettingsScreen]); saved by string resource id. */
 object SettingsSections {
-    private val ids = listOf(R.string.msg_connection_75, R.string.msg_checks_76, R.string.set_cat_routing, R.string.split_title, R.string.set_cat_subscription, R.string.stats_title, R.string.set_cat_data,
-        R.string.msg_appearance_74, R.string.update_title, R.string.backup_title, R.string.msg_about_78, R.string.dev_for_developers, R.string.rules_title,
+    private val ids = listOf(R.string.msg_connection_75, R.string.msg_checks_76, R.string.set_cat_routing, R.string.split_title, R.string.set_cat_subscription, R.string.stats_title,
+        R.string.msg_appearance_74, R.string.update_title, R.string.backup_title, R.string.dev_for_developers, R.string.rules_title,
         R.string.set_changelog, R.string.set_licenses, R.string.appdata_title, R.string.battery_title, R.string.conn_title)
     val saver: androidx.compose.runtime.saveable.Saver<androidx.compose.runtime.MutableState<String?>, Int> = androidx.compose.runtime.saveable.Saver(
         save = { state -> state.value?.let { title -> ids.firstOrNull { tr(it) == title } } ?: 0 },
