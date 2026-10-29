@@ -45,4 +45,41 @@ object LiveConnections {
         Sort.TRAFFIC -> items.sortedWith(compareByDescending<Item> { it.total }.thenBy { it.id })
         Sort.SPEED -> items.sortedWith(compareByDescending<Item> { it.up + it.down }.thenByDescending { it.total }.thenBy { it.id })
     }
+
+    /** How the page groups connections: by owner app (default), by target host, or a flat list. */
+    enum class GroupBy { APP, HOST, NONE }
+
+    /** Host part of what a connection goes to (domain when known, else the IP), for [GroupBy.HOST]. */
+    fun hostKey(item: Item): String = item.domain.ifBlank { host(item.destination) }.ifBlank { "?" }
+
+    /** Group key of [item]: the owner (package / "uid:N" / "" when not identified) or the host. */
+    fun key(item: Item, by: GroupBy): String = when (by) {
+        GroupBy.APP -> item.app.orEmpty()
+        GroupBy.HOST -> hostKey(item)
+        GroupBy.NONE -> item.id
+    }
+
+    /** Connections that share one [key]: [items] already sorted; sums for the group row. */
+    data class Group(val key: String, val items: List<Item>) {
+        val up get() = items.sumOf { it.up }
+        val down get() = items.sumOf { it.down }
+        val upTotal get() = items.sumOf { it.upTotal }
+        val downTotal get() = items.sumOf { it.downTotal }
+        val total get() = upTotal + downTotal
+        val newest get() = items.maxOf { it.createdAtMs }
+        val app get() = items.first().app
+    }
+
+    /**
+     * [items] grouped [by], groups ordered by the same [sort] as connections (newest = the group's newest connection, speed = summed rate,
+     * traffic = summed bytes), connections inside each group sorted by [sort] too. Ties fall back to the key, so the order stays stable.
+     */
+    fun grouped(items: List<Item>, by: GroupBy, sort: Sort): List<Group> {
+        val groups = items.groupBy { key(it, by) }.map { (k, v) -> Group(k, sorted(v, sort)) }
+        return when (sort) {
+            Sort.NEWEST -> groups.sortedWith(compareByDescending<Group> { it.newest }.thenBy { it.key })
+            Sort.TRAFFIC -> groups.sortedWith(compareByDescending<Group> { it.total }.thenBy { it.key })
+            Sort.SPEED -> groups.sortedWith(compareByDescending<Group> { it.up + it.down }.thenByDescending { it.total }.thenBy { it.key })
+        }
+    }
 }

@@ -567,8 +567,12 @@
     <string name="battery_session_value">%1$s из %2$s</string>
     <string name="battery_unavailable">Это устройство не сообщает расход батареи Moth.</string>
     <string name="battery_optimization">Оптимизация батареи</string>
-    <string name="battery_opt_off">Без ограничений: Android не остановит VPN ради экономии</string>
-    <string name="battery_opt_on">Оптимизируется: Android может остановить VPN в фоне</string>
+    <string name="battery_opt_off">Moth в списке Android «Без оптимизации»: Android не остановит VPN ради экономии батареи.</string>
+    <string name="battery_opt_on">Android может ограничивать Moth в фоне ради экономии батареи. Чтобы выключить, откройте настройки ниже и выберите для Moth «Не оптимизировать» (или «Без ограничений»).</string>
+    <string name="battery_opt_state">Состояние</string>
+    <string name="battery_opt_state_on">Оптимизируется</string>
+    <string name="battery_opt_state_off">Не оптимизируется</string>
+    <string name="battery_opt_xiaomi">У Xiaomi (HyperOS/MIUI) есть своя экономия батареи: «О приложении» › «Контроль активности» («Нет ограничений»). Это отдельная настройка: здесь показан список самого Android, и от неё он не меняется.</string>
     <string name="battery_opt_open">Настройки оптимизации батареи</string>
     <string name="battery_system">Расход батареи Android</string>
     <string name="appdata_title">Трафик приложений</string>
@@ -620,5 +624,11 @@
     <string name="conn_proxy">Через VPN</string>
     <string name="conn_blocked">Заблокировано</string>
     <string name="conn_rate">%1$s/с</string>
-    <string name="conn_hint">Обновляется каждую секунду, пока страница открыта. Домен берётся из самого соединения, если приложение его передаёт; трафик не расшифровывается. Закрытие соединения не блокирует приложение: оно может подключиться снова. Приложения определяются на Android 10 и новее.</string>
+    <string name="conn_hint">Обновляется каждую секунду, пока страница открыта. Домен берётся из самого соединения, если приложение его передаёт; трафик не расшифровывается. Закрытие соединения не блокирует приложение: оно может подключиться снова. Приложения определяются на Android 10 и новее. Соединения сгруппированы по приложениям: нажмите на группу, чтобы увидеть её соединения, × закрывает их все. Группировка по адресам показывает, куда идёт трафик.</string>
+    <string name="conn_group_app">По приложениям</string>
+    <string name="conn_group_host">По адресам</string>
+    <string name="conn_group_none">Все</string>
+    <string name="conn_group_count">Соединений: %1$d</string>
+    <string name="conn_close_group">Закрыть соединения: %1$s</string>
+    <string name="conn_close_group_text">Будет закрыто соединений: %1$d. Приложение обычно сразу открывает новые; VPN остаётся включённым.</string>
 </resources>

@@ -2,6 +2,11 @@ package org.mothvpn.android
 
 import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import android.app.AppOpsManager
 import android.app.usage.NetworkStats
 import android.app.usage.NetworkStatsManager
@@ -118,7 +123,8 @@ private fun mothBattery(context: Context): MothBattery? = runCatching {
     val session by produceState<Pair<Long, Long>?>(null, resumed, tick) {
         value = runCatching { Process.getElapsedCpuTime() to (SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime()) }.getOrNull()
     }
-    val ignoring = remember(resumed) { runCatching { context.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(context.packageName) }.getOrNull() }
+    // Re-read on every return to the page and every 5 s: the user changes it in Android's settings and comes back.
+    val ignoring = remember(resumed, tick) { runCatching { context.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(context.packageName) }.getOrNull() }
     val locale = AppLanguage.context().resources.configuration.locales[0]
     fun mah(mAms: Long) = String.format(locale, "%.1f mAh", UsageStatsMath.mAh(mAms))
     fun time(ms: Long) = TrafficFormat.duration(ms / 1000)
@@ -143,7 +149,14 @@ private fun mothBattery(context: Context): MothBattery? = runCatching {
                 InfoRow(tr(R.string.battery_session), String.format(locale, "%.1f %%", UsageStatsMath.percent(cpu, up)), tr(R.string.battery_session_value, time(cpu), time(up)))
             }
         }
-        ListCard(tr(R.string.battery_optimization), ignoring?.let { tr(if (it) R.string.battery_opt_off else R.string.battery_opt_on) }) {
+        ListCard(tr(R.string.battery_optimization)) {
+            // The real state from PowerManager.isIgnoringBatteryOptimizations (Android's own optimization list), read just now.
+            if (ignoring != null) {
+                val xiaomi = Build.MANUFACTURER.lowercase().let { it == "xiaomi" || it == "redmi" || it == "poco" }
+                InfoRow(tr(R.string.battery_opt_state), tr(if (ignoring) R.string.battery_opt_state_off else R.string.battery_opt_state_on),
+                    tr(if (ignoring) R.string.battery_opt_off else R.string.battery_opt_on) + if (xiaomi) "\n\n" + tr(R.string.battery_opt_xiaomi) else "")
+                RowDivider()
+            }
             InfoRow(tr(R.string.battery_opt_open), null, onClick = { open(context, Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) })
             RowDivider()
             InfoRow(tr(R.string.battery_system), null, onClick = { open(context, Intent(Intent.ACTION_POWER_USAGE_SUMMARY),
@@ -400,7 +413,10 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
         onDispose { c?.disconnect(); if (live === c) live = null }
     }
     var sort by rememberSaveable { mutableStateOf(org.mothvpn.core.LiveConnections.Sort.NEWEST) }
+    var groupBy by rememberSaveable { mutableStateOf(org.mothvpn.core.LiveConnections.GroupBy.APP) }
+    val expanded = remember { mutableStateListOf<String>() } // "GROUPBY:key" of open groups
     var confirmAll by remember { mutableStateOf(false) }
+    var confirmGroup by remember { mutableStateOf<Pair<String, List<String>>?>(null) } // title and the ids to close
     val closing = remember { mutableStateMapOf<String, Long>() } // id -> when its close was sent: hidden until the core drops it
     val locale = AppLanguage.context().resources.configuration.locales[0]
     val units = tr(R.string.notif_units).split("|")
@@ -428,13 +444,44 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                         FilterChip(selected = sort == s, onClick = { sort = s }, label = { Text(tr(label)) }, modifier = Modifier.pressScale())
                     }
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(org.mothvpn.core.LiveConnections.GroupBy.APP to R.string.conn_group_app, org.mothvpn.core.LiveConnections.GroupBy.HOST to R.string.conn_group_host,
+                        org.mothvpn.core.LiveConnections.GroupBy.NONE to R.string.conn_group_none).forEach { (g, label) ->
+                        FilterChip(selected = groupBy == g, onClick = { groupBy = g }, label = { Text(tr(label)) }, modifier = Modifier.pressScale())
+                    }
+                }
                 if (shown.isEmpty()) DataCard { Hint(tr(R.string.conn_empty)) }
                 else Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
                     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                        shown.take(200).forEachIndexed { i, c ->
-                            if (i > 0) RowDivider()
-                            val (label, pkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
-                            ConnectionRow(c, label, pkg, now, ::bytes) { if (live?.close(c.id) == true) closing[c.id] = System.currentTimeMillis() }
+                        fun close(c: org.mothvpn.core.LiveConnections.Item) { if (live?.close(c.id) == true) closing[c.id] = System.currentTimeMillis() }
+                        val byApp = groupBy == org.mothvpn.core.LiveConnections.GroupBy.APP
+                        // Groups (or single connections) shown; a group's rows count against the same limit so a huge list stays light.
+                        var budget = 200
+                        org.mothvpn.core.LiveConnections.grouped(shown, groupBy, sort).forEachIndexed { i, g ->
+                            if (budget > 0) key("${groupBy.name}:${g.key}") {
+                                if (i > 0) RowDivider()
+                                val (appLabel, pkg) = labels.getOrPut(g.app) { ownerLabel(context, g.app) }
+                                budget--
+                                if (g.items.size == 1) {
+                                    val c = g.items[0]
+                                    ConnectionRow(c, appLabel, pkg, now, ::bytes) { close(c) }
+                                } else {
+                                    val stateKey = "${groupBy.name}:${g.key}"
+                                    val open = stateKey in expanded
+                                    val title = if (byApp) appLabel else g.key
+                                    ConnectionGroupRow(g, title, if (byApp) pkg else null, byApp, open, ::bytes,
+                                        toggle = { if (open) expanded.remove(stateKey) else expanded.add(stateKey) },
+                                        onClose = { confirmGroup = title to g.items.map { it.id } })
+                                    if (open) g.items.take(budget.coerceAtLeast(0)).forEach { c ->
+                                        budget--
+                                        key(c.id) {
+                                            val (childLabel, childPkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
+                                            RowDivider()
+                                            ConnectionRow(c, if (byApp) null else childLabel, childPkg, now, ::bytes, nested = true) { close(c) }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -445,11 +492,58 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
     if (confirmAll) AlertDialog(onDismissRequest = { confirmAll = false }, title = { Text(tr(R.string.conn_close_all)) }, text = { Text(tr(R.string.conn_close_all_text)) },
         confirmButton = { TextButton(onClick = { confirmAll = false; live?.closeAll() }) { Text(tr(R.string.conn_close_all_ok)) } },
         dismissButton = { TextButton(onClick = { confirmAll = false }) { Text(tr(R.string.msg_cancel_32)) } })
+    confirmGroup?.let { (title, ids) ->
+        AlertDialog(onDismissRequest = { confirmGroup = null }, title = { Text(tr(R.string.conn_close_group, title)) }, text = { Text(tr(R.string.conn_close_group_text, ids.size)) },
+            confirmButton = { TextButton(onClick = {
+                confirmGroup = null
+                val at = System.currentTimeMillis()
+                ids.forEach { id -> if (live?.close(id) == true) closing[id] = at }
+            }) { Text(tr(R.string.conn_close_all_ok)) } },
+            dismissButton = { TextButton(onClick = { confirmGroup = null }) { Text(tr(R.string.msg_cancel_32)) } })
+    }
 }
 
-@Composable private fun ConnectionRow(c: org.mothvpn.core.LiveConnections.Item, label: String, pkg: String?, now: Long, bytes: (Long) -> String, onClose: () -> Unit) {
+/** A group of connections (one app or one host): count, summed totals and rate; tap to expand, × closes every connection in it. */
+@Composable private fun ConnectionGroupRow(g: org.mothvpn.core.LiveConnections.Group, title: String, pkg: String?, byApp: Boolean, open: Boolean, bytes: (Long) -> String,
+    toggle: () -> Unit, onClose: () -> Unit) {
     val context = LocalContext.current
-    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 0f else -90f, label = "chevron")
+    Row(Modifier.fillMaxWidth().clickable(onClick = toggle)
+        .semantics { contentDescription = tr(if (open) R.string.group_collapse else R.string.group_expand) + ": " + title }
+        .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        val icon by produceState<ImageBitmap?>(null, pkg) {
+            value = pkg?.let { p -> withContext(Dispatchers.IO) { runCatching { context.packageManager.getApplicationIcon(p).toBitmap(96, 96).asImageBitmap() }.getOrNull() } }
+        }
+        Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+            icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) }
+                ?: Icon(if (byApp) androidx.compose.material.icons.Icons.Outlined.Android else androidx.compose.material.icons.Icons.Outlined.Public,
+                    contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Column(Modifier.weight(1f).padding(start = 12.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(tr(R.string.conn_group_count, g.items.size), style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+            Text(tr(R.string.stats_updown, bytes(g.upTotal), bytes(g.downTotal)) + if (g.up + g.down > 0)
+                "  (" + tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(g.up + g.down, LIVE_INTERVAL_MS))) + ")" else "",
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        }
+        Icon(androidx.compose.material.icons.Icons.Rounded.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = turn })
+        IconButton(onClick = onClose, modifier = Modifier.pressScale()) {
+            Icon(androidx.compose.material.icons.Icons.Outlined.Close, contentDescription = tr(R.string.conn_close_group, title), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * One connection. [label]: the owner app shown as the headline; null inside an app group (the group row names the app), then the target
+ * is the headline. [nested]: a row inside an expanded group, indented under the group's icon.
+ */
+@Composable private fun ConnectionRow(c: org.mothvpn.core.LiveConnections.Item, label: String?, pkg: String?, now: Long, bytes: (Long) -> String,
+    nested: Boolean = false, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val target = org.mothvpn.core.LiveConnections.target(c.domain, c.destination)
+    Row(Modifier.fillMaxWidth().padding(start = if (nested) 60.dp else 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+      if (!nested || label != null) {
         val icon by produceState<ImageBitmap?>(null, pkg) {
             value = pkg?.let { p -> withContext(Dispatchers.IO) { runCatching { context.packageManager.getApplicationIcon(p).toBitmap(96, 96).asImageBitmap() }.getOrNull() } }
         }
@@ -457,9 +551,10 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
             icon?.let { Image(it, contentDescription = null, modifier = Modifier.fillMaxSize()) }
                 ?: Icon(androidx.compose.material.icons.Icons.Outlined.Android, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Column(Modifier.weight(1f).padding(start = 12.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(org.mothvpn.core.LiveConnections.target(c.domain, c.destination), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+      }
+        Column(Modifier.weight(1f).padding(start = if (nested && label == null) 0.dp else 12.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (label != null) Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(target, style = if (label != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val route = when (c.outbound) { "direct" -> tr(R.string.conn_direct); "block" -> tr(R.string.conn_blocked); "", "dns-out", "dns" -> null; else -> tr(R.string.conn_proxy) }
             val age = if (c.createdAtMs > 0) TrafficFormat.duration(((now - c.createdAtMs) / 1000).coerceAtLeast(0)) else null
             Text(listOfNotNull(org.mothvpn.core.LiveConnections.protocolLabel(c.network, c.protocol), route, age).joinToString(" · "),
@@ -469,7 +564,7 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
         IconButton(onClick = onClose, modifier = Modifier.pressScale()) {
-            Icon(androidx.compose.material.icons.Icons.Outlined.Close, contentDescription = tr(R.string.conn_close, label), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(androidx.compose.material.icons.Icons.Outlined.Close, contentDescription = tr(R.string.conn_close, label ?: target), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

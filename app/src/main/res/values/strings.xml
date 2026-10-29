@@ -563,8 +563,12 @@
     <string name="battery_session_value">%1$s of %2$s</string>
     <string name="battery_unavailable">This device does not report Moth\'s battery use.</string>
     <string name="battery_optimization">Battery optimization</string>
-    <string name="battery_opt_off">Not restricted: Android will not stop the VPN to save battery</string>
-    <string name="battery_opt_on">Optimized: Android may stop the VPN in the background</string>
+    <string name="battery_opt_off">Moth is on Android\'s list of apps without battery optimization: Android will not stop the VPN to save battery.</string>
+    <string name="battery_opt_on">Android may limit Moth in the background to save battery. To turn this off, open the settings below and choose \"Don\'t optimize\" (or \"Unrestricted\") for Moth.</string>
+    <string name="battery_opt_state">Status</string>
+    <string name="battery_opt_state_on">Optimized</string>
+    <string name="battery_opt_state_off">Not optimized</string>
+    <string name="battery_opt_xiaomi">Xiaomi (HyperOS/MIUI) has its own battery saver in App info › Battery saver (\"No restrictions\"). It is a separate setting: this status is Android\'s own list and does not change with it.</string>
     <string name="battery_opt_open">Battery optimization settings</string>
     <string name="battery_system">Android battery usage</string>
     <string name="appdata_title">App data usage</string>
@@ -616,5 +620,11 @@
     <string name="conn_proxy">VPN</string>
     <string name="conn_blocked">Blocked</string>
     <string name="conn_rate">%1$s/s</string>
-    <string name="conn_hint">Updated every second while this page is open. Domain names come from the connection itself when the app sends them; traffic is not decrypted. Closing a connection does not block the app: it can connect again. Apps are identified on Android 10 and newer.</string>
+    <string name="conn_hint">Updated every second while this page is open. Domain names come from the connection itself when the app sends them; traffic is not decrypted. Closing a connection does not block the app: it can connect again. Apps are identified on Android 10 and newer. Connections are grouped by app: tap a group to see its connections, × closes all of them. Group by host to see where the traffic goes.</string>
+    <string name="conn_group_app">By app</string>
+    <string name="conn_group_host">By host</string>
+    <string name="conn_group_none">All</string>
+    <string name="conn_group_count">Connections: %1$d</string>
+    <string name="conn_close_group">Close connections of %1$s</string>
+    <string name="conn_close_group_text">%1$d connections are closed. The app usually opens new ones right away; the VPN stays on.</string>
 </resources>
