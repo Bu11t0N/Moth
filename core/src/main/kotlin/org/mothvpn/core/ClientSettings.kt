@@ -370,4 +370,6 @@ object LargeTitleSize {
     fun extraDp(percent: Int, screenHeightDp: Int): Float = extraDp(percent.toFloat(), screenHeightDp)
     /** The same for a fractional percent (the slider moves smoothly between whole steps while dragged). */
     fun extraDp(percent: Float, screenHeightDp: Int): Float = (screenHeightDp * percent.coerceIn(MIN.toFloat(), MAX.toFloat()) / 100f).coerceIn(56f, 260f)
+    /** Size of the expanded title for a height [percent], relative to the default (20 %): 0.75 at 10 %, 1.25 at 30 %, so it grows with the header. */
+    fun textScale(percent: Float): Float = 1f + (percent.coerceIn(MIN.toFloat(), MAX.toFloat()) - DEFAULT) * 0.025f
 }

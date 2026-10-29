@@ -176,7 +176,7 @@ object TunnelConfig {
             .put("mtu", settings.mtu).put("auto_route", true).put("strict_route", settings.dnsLeakProtection).put("stack", "gvisor")))
         .put("outbounds", JSONArray())
         .also { SingBoxOutbounds.install(it, profile.outbound, settings, dpi); it.getJSONArray("outbounds").put(JSONObject().put("type", "direct").put("tag", "direct")) }
-        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy")
+        .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").apply { if (appGuard != null) put("find_process", true) }
             .put("default_domain_resolver", JSONObject().put("server", "bootstrap")).put("rules", JSONArray().apply {
             if (settings.directRu || CustomRouting.needsSniff(settings.routingRules)) put(JSONObject().put("action", "sniff"))
             put(JSONObject().put("port", 53).put("action", "hijack-dns"))

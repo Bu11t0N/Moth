@@ -268,6 +268,7 @@ class TunnelService : VpnService(), PlatformInterface {
             stage = "BoxService.start"
             box!!.start()
             Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
+            if (Build.VERSION.SDK_INT >= 29) VpnTraffic.start(this, box!!, ::trackedKind, ::trafficApp)
             closeBlock(); cancelRetry()
             emptyRounds = 0; remeasureNotBefore = 0
             if (!stopped) {
@@ -516,7 +517,7 @@ class TunnelService : VpnService(), PlatformInterface {
         if (TunnelStatus.state.value == TunnelState.RUNNING && offline != org.mothvpn.core.OfflineStatus.Kind.ONLINE) {
             // No network at all: say so instead of showing a stale speed line.
             if (offline == org.mothvpn.core.OfflineStatus.Kind.BLOCKED) builder.setContentTitle(tr(R.string.notif_blocked)).setContentText(tr(R.string.notif_blocked_text))
-            else { builder.setContentTitle(tr(R.string.notif_offline)); if (name.isNotBlank()) builder.setContentText(name) }
+            else { builder.setContentTitle(tr(R.string.offline_title)); if (name.isNotBlank()) builder.setContentText(name) }
             return builder.build()
         }
         when (TunnelStatus.state.value) {
@@ -636,6 +637,7 @@ class TunnelService : VpnService(), PlatformInterface {
         generation.incrementAndGet(); healthTask?.cancel(true); healthTask = null
         TunnelStatus.activeMutable.value = ""; TunnelStatus.activeServerMutable.value = null
         Diagnostics.healthMutable.value = HealthResult()
+        if (box != null) VpnTraffic.stop()
         runCatching { box?.close() }.onFailure { Logger.w("Core", "closing the core failed", it) }; box = null
         runCatching { tun?.close() }.onFailure { Logger.w("Tunnel", "closing the tun device failed", it) }; tun = null
         runCatching { xray?.close() }.onFailure { Logger.w("Core", "closing the xray core failed", it) }; xray = null
@@ -923,8 +925,10 @@ class TunnelService : VpnService(), PlatformInterface {
         return runCatching {
             connectivity.getConnectionOwnerUid(ipProtocol, java.net.InetSocketAddress(java.net.InetAddress.getByName(sourceAddress), sourcePort),
                 java.net.InetSocketAddress(java.net.InetAddress.getByName(destinationAddress), destinationPort))
-        }.getOrDefault(-1)
+        }.getOrDefault(-1).also { VpnTraffic.recordOwner(ipProtocol, sourceAddress, sourcePort, it) } // per-app traffic page
     }
+    /** App key of a uid for the per-app traffic page: its (first) package, or "uid:N" for system uids without one. */
+    private fun trafficApp(uid: Int): String = runCatching { packageManager.getPackagesForUid(uid)?.sorted()?.firstOrNull() }.getOrNull() ?: "uid:$uid"
     override fun packageNameByUid(uid: Int): String = packageManager.getPackagesForUid(uid)?.firstOrNull().orEmpty()
     override fun uidByPackageName(packageName: String): Int = packageManager.getApplicationInfo(packageName, 0).uid
     // ---- default network monitor ----

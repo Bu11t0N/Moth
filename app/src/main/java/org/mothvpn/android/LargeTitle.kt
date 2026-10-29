@@ -87,21 +87,26 @@ object LargeTitleTuning {
     var enabled by androidx.compose.runtime.mutableStateOf(true)
 }
 
-/** How much taller the header is when expanded: [LargeTitleTuning.percent] of the screen height, kept within 56–260 dp; animated, so a
- *  new value (the Default button, a restored backup) grows or shrinks the header smoothly instead of jumping. */
-@Composable private fun largeTitleExtra(): Float {
+/** How much taller the header is when expanded: [LargeTitleTuning.percent] of the screen height, kept within 56–260 dp, and the size of
+ *  the expanded title for that height ([org.mothvpn.core.LargeTitleSize.textScale]); animated, so a new value (the Default button, a
+ *  restored backup) grows or shrinks the header and its title smoothly instead of jumping. */
+@Composable private fun largeTitleExtra(): Pair<Float, Float> {
     val target = org.mothvpn.core.LargeTitleSize.extraDp(LargeTitleTuning.percent, LocalConfiguration.current.screenHeightDp)
     val motion = animationsOn()
-    val value by androidx.compose.animation.core.animateFloatAsState(target,
-        if (motion) androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow) else androidx.compose.animation.core.snap(), label = "largeTitleExtra")
-    return value
+    fun <T> spec(): androidx.compose.animation.core.AnimationSpec<T> =
+        if (motion) androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow) else androidx.compose.animation.core.snap()
+    val value by androidx.compose.animation.core.animateFloatAsState(target, spec(), label = "largeTitleExtra")
+    val scale by androidx.compose.animation.core.animateFloatAsState(org.mothvpn.core.LargeTitleSize.textScale(LargeTitleTuning.percent), spec(), label = "largeTitleText")
+    return value to scale
 }
 
 /**
- * The header. Expanded (top of the page): a big title centred in the extra space at the top, the buttons ([actions]) in the row under
- * it, at the right. Collapsing (the page scrolls up): the extra space shrinks and the same title shrinks and moves into the start of the
- * button row, where it ends at the compact size (headlineSmall). One title, morphing; nothing fades or swaps, so accessibility and UI
- * tests always see it once. A long title is ellipsized to fit the compact slot and scaled down to fit the width when expanded.
+ * The header. Expanded (top of the page): a big title centred in the free space, the buttons ([actions]) in the row under it, at the
+ * right; its size follows the height setting. Collapsing (the page scrolls up): the extra space shrinks and the same title shrinks and
+ * moves into the start of the button row, where it ends at the compact size (headlineSmall). One title, morphing; nothing fades or swaps,
+ * so accessibility and UI tests always see it once. A long title is ellipsized to fit the compact slot and scaled down to fit when expanded.
+ * The space above and below the title is balanced (without buttons the empty button row is part of the space), and a hairline under the
+ * header separates it from the page content, so the title does not read as the first item of the list.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun LargeTitleHeader(largeTitle: LargeTitle, title: String, modifier: Modifier = Modifier,
@@ -112,7 +117,8 @@ object LargeTitleTuning {
     val motion = animationsOn()
     val off by androidx.compose.animation.core.animateFloatAsState(if (LargeTitleTuning.enabled) 0f else 1f,
         if (motion) androidx.compose.animation.core.tween(Motion.SHORT) else androidx.compose.animation.core.snap(), label = "largeTitleOff")
-    val extraPx = with(density) { largeTitleExtra().dp.toPx() } * (1f - off)
+    val (extraDp, textScale) = largeTitleExtra()
+    val extraPx = with(density) { extraDp.dp.toPx() } * (1f - off)
     val state = largeTitle.behavior.state
     // A new height (the Interface slider, Default, large titles on/off) changes how far the header can fold. A collapsed header (the page
     // is scrolled) stays collapsed at the new limit; the new height shows when the page is back at its top. Without this, a taller
@@ -129,30 +135,38 @@ object LargeTitleTuning {
     val big = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium)
     val compact = MaterialTheme.typography.headlineSmall
     val ratio = with(density) { compact.fontSize.toPx() / big.fontSize.toPx() }
+    val divider = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
     Layout(content = {
         Text(title, style = big, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
         Row(verticalAlignment = Alignment.CenterVertically, content = actions)
+        androidx.compose.material3.HorizontalDivider(color = divider)
     }, modifier = modifier.fillMaxWidth().clipToBounds()) { measurables, constraints ->
         val width = constraints.maxWidth
         val fraction = maxOf(state.collapsedFraction.coerceIn(0f, 1f), off)
         val row = measurables[1].measure(constraints.copy(minWidth = 0, minHeight = 0))
+        val line = measurables[2].measure(Constraints.fixedWidth(width))
         val rowHeight = maxOf(48.dp.roundToPx(), row.height)
+        val top = 12.dp.toPx(); val bottom = 8.dp.toPx()
         val gap = if (row.width > 0) 8.dp.roundToPx() else 0
         // Measured at the big size, as wide as the compact slot allows once scaled down to the compact size.
         val slot = (width - row.width - gap).coerceAtLeast(1)
         val text = measurables[0].measure(Constraints(maxWidth = (slot / ratio).toInt().coerceAtLeast(1)))
         val side = 8.dp.roundToPx()
-        val expandedScale = minOf(1f, (width - 2 * side).coerceAtLeast(1) / text.width.coerceAtLeast(1).toFloat())
-        val scale = expandedScale + (ratio - expandedScale) * fraction
         val extraNow = (extraPx + state.heightOffset).coerceIn(0f, extraPx)
-        val height = (extraNow + rowHeight).roundToInt()
-        // Centre: in the middle of the full extra space when expanded, in the middle of the button row when collapsed.
+        val height = (top + extraNow + rowHeight + bottom).roundToInt() + line.height
+        // Expanded: centred in the free space (above the buttons, or the whole header when there are none), as big as the height setting
+        // says but never wider than the screen or taller than that space. Collapsed: in the middle of the button row, compact.
+        val band = if (row.width > 0) top + extraPx else top + extraPx + rowHeight + bottom
+        val expandedScale = minOf(textScale, (width - 2 * side).coerceAtLeast(1) / text.width.coerceAtLeast(1).toFloat(),
+            (band - 8.dp.toPx()).coerceAtLeast(1f) / text.height.coerceAtLeast(1)).coerceAtLeast(ratio)
+        val scale = expandedScale + (ratio - expandedScale) * fraction
         val x = (width - text.width * expandedScale) / 2f * (1f - fraction)
-        val centreY = extraPx / 2f + (rowHeight / 2f - extraPx / 2f) * fraction
+        val centreY = band / 2f + (top + rowHeight / 2f - band / 2f) * fraction
         val y = centreY - text.height * scale / 2f
         layout(width, height) {
             text.placeWithLayer(x.roundToInt(), y.roundToInt()) { transformOrigin = TransformOrigin(0f, 0f); scaleX = scale; scaleY = scale }
-            row.place(width - row.width, (extraNow + (rowHeight - row.height) / 2f).roundToInt())
+            row.place(width - row.width, (top + extraNow + (rowHeight - row.height) / 2f).roundToInt())
+            line.place(0, height - line.height)
         }
     }
 }

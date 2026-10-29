@@ -210,7 +210,7 @@ import org.mothvpn.core.SubscriptionSource
     Column(Modifier.fillMaxSize().nestedScroll(largeTitle.nestedScrollConnection).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Refresh and check live in each group header; the top bar has Add (+), update all subscriptions and check all servers on this page
         // (cancel while checks run) as direct buttons, no ⋮ menu.
-        LargeTitleHeader(largeTitle, tr(R.string.msg_servers_27), Modifier.padding(top = 12.dp, bottom = 4.dp)) {
+        LargeTitleHeader(largeTitle, tr(R.string.msg_servers_27)) {
             // Adding works while connected; only during checks, a connect/disconnect or another operation the + dims and a tap explains why (top notice).
             IconButton(onClick = { if (refreshLocked) show(tr(R.string.sub_wait_notice)) else add() },
                 modifier = Modifier.pressScale().then(Modifier.size(40.dp).graphicsLayer { alpha = if (refreshLocked) 0.45f else 1f }.semantics { contentDescription = tr(R.string.msg_add_subscription_16) })) {

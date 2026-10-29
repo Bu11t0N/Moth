@@ -18,4 +18,11 @@ class LargeTitleSizeTest {
         assertEquals(260f, LargeTitleSize.extraDp(30, 1200))
         assertEquals(260f, LargeTitleSize.extraDp(99, 1200))
     }
+    @Test fun titleTextGrowsWithTheHeight() {
+        assertEquals(0.75f, LargeTitleSize.textScale(10f), 0.001f)
+        assertEquals(1f, LargeTitleSize.textScale(20f), 0.001f)
+        assertEquals(1.25f, LargeTitleSize.textScale(30f), 0.001f)
+        assertEquals(1.25f, LargeTitleSize.textScale(90f), 0.001f)
+        assertTrue(LargeTitleSize.textScale(15f) < LargeTitleSize.textScale(25f))
+    }
 }

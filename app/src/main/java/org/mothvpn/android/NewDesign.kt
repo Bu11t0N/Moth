@@ -351,8 +351,8 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
             val title = if (blocked) tr(R.string.home_disconnect) else when (tunnel) { TunnelState.OFF -> if (pinging) tr(R.string.home_checking_servers) else tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.offline_title) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }
             val detail: Pair<String, Boolean>? = when {
                 blocked -> tr(R.string.msg_blocked) to true
-                // No Wi-Fi and no mobile data: a steady "No network" state (not "Reconnecting…"), no internet check line.
-                TunnelStatus.waitingForNetwork(tunnel, offline) -> tr(R.string.offline_detail) to false
+                // No Wi-Fi and no mobile data: a steady "No network" title only (not "Reconnecting…"), no detail and no internet check line.
+                TunnelStatus.waitingForNetwork(tunnel, offline) -> null
                 tunnel == TunnelState.RUNNING -> (if (health.checking) tr(R.string.msg_checking_internet_access_15) else localizedError(health.message)) to false
                 else -> null
             }

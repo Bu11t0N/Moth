@@ -78,8 +78,7 @@ import org.mothvpn.core.SubscriptionSchedule
     // A new page starts at its top: large title. Back on the main list, the header follows where the list was left.
     LaunchedEffect(section, logPage) { largeTitle.settleTo(collapsed = section == null && logPage == 0 && rootScroll.value > 0, animated = titleMotion) }
     Column(Modifier.fillMaxSize().nestedScroll(largeTitle.nestedScrollConnection).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        LargeTitleHeader(largeTitle, when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); 4 -> tr(R.string.set_licenses); 5 -> Licenses.entries.firstOrNull { it.asset == licenseAsset }?.let { tr(it.title) } ?: tr(R.string.set_licenses); else -> (section ?: tr(R.string.msg_settings_28)) },
-            Modifier.padding(top = 12.dp))
+        LargeTitleHeader(largeTitle, when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); 4 -> tr(R.string.set_licenses); 5 -> Licenses.entries.firstOrNull { it.asset == licenseAsset }?.let { tr(it.title) } ?: tr(R.string.set_licenses); else -> (section ?: tr(R.string.msg_settings_28)) })
         // Settings pages: a page opened from a card (or the About entries) grows out of that card and shrinks back into it on Back
         // (container transform, shared bounds); the rest fades. Pages without a card (logs, a licence text) keep the short slide.
         fun containerKey(page: Pair<String?, Int>): String? = when {
