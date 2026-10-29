@@ -88,16 +88,12 @@
     <string name="msg_interval_30_600_seconds_95" formatted="false">"Интервал · 30–600 секунд"</string>
     <string name="msg_timeout_3_30_seconds_96" formatted="false">"Тайм-аут, мс · 1000–60000"</string>
     <string name="msg_https_check_url_97" formatted="false">"HTTPS-адрес проверки"</string>
-    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Проверка идёт по HTTPS через сервер. Отказ этого адреса не доказывает недоступность всех сайтов."</string>
     <string name="msg_check_method_99" formatted="false">"Способ проверки"</string>
-    <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP не подтверждает работу VPN и не подходит для Hysteria/TUIC на UDP. HTTPS проверяет передачу трафика через сервер."</string>
     <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Завершите подключение и проверки, чтобы менять параметры подписки."</string>
     <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Передавать HWID провайдеру"</string>
-    <string name="msg_a_persistent_installation_identifier_without_106" formatted="false">"Постоянный идентификатор установки, без IMEI и серийного номера. Меняйте его, только если провайдер выдал конкретное значение."</string>
     <string name="msg_copy_hwid_107" formatted="false">"Скопировать HWID"</string>
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Передавать модель и версию Android"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"User-Agent подписки"</string>
-    <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Провайдер может выбирать формат подписки по User-Agent. HWID отправляется только исходному сайту подписки."</string>
     <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.21\nОткрытый исходный код · GPL-3.0-or-later"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Нужна HTTPS-ссылка без логина и пароля в адресе"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Достигнут лимит устройств подписки. Обратись к провайдеру."</string>
@@ -154,7 +150,6 @@
     <string name="msg_shadowsocks_plugins_are_not_supported_170" formatted="false">"Shadowsocks plugin не поддерживается"</string>
     <string name="msg_transport_type_is_not_supported_171" formatted="false">"Транспорт %1$s не поддерживается"</string>
     <string name="language">Язык</string>
-    <string name="add_tile">Добавить кнопку VPN в шторку</string>
     <string name="tile_off">Отключён</string>
     <string name="tile_on">Подключён</string>
     <string name="tile_starting">Подключаемся…</string>
@@ -217,7 +212,7 @@
     <string name="set_sort_name">По имени</string>
     <string name="set_sort_latency">По пингу</string>
     <string name="dev_detailed_icons">Показывать подробные значки</string>
-    <string name="dev_detailed_icons_hint">Вместо красного тире неудачные проверки серверов показывают маленький серый значок; нажмите на него, чтобы увидеть причину.</string>
+    <string name="dev_detailed_icons_hint">Вместо тире неудачные проверки серверов показывают маленький серый значок; нажмите на него, чтобы увидеть причину.</string>
     <string name="notif_connecting">Подключение…</string>
     <string name="notif_disconnecting">Отключение…</string>
     <string name="notif_checking">Проверяем серверы</string>
@@ -250,10 +245,8 @@
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
-    <string name="direct_ru_hint">Российские сайты (.ru, .su, .рф и список geosite category-ru) и российские IP-адреса (geoip:ru) открываются без VPN. Списки скачиваются у SagerNet и обновляются раз в неделю.</string>
     <string name="auto_select_wifi">Автовыбор на Wi‑Fi</string>
     <string name="auto_select_mobile">Автовыбор на мобильном интернете</string>
-    <string name="auto_select_hint">При подключении выбирается самый быстрый сервер (используются результаты проверки на этой же сети за последние 5 минут, иначе проверяются все серверы). Если проверка интернета не проходит 3 раза подряд, Мотылёк переключается на следующий по скорости сервер.</string>
     <string name="boot_connect">Запускать VPN при включении телефона</string>
     <string name="boot_connect_hint">После перезагрузки подключается к последнему серверу. Также поддерживается постоянный VPN Android (системные настройки VPN).</string>
     <string name="dns_server">DNS-сервер</string>
@@ -369,9 +362,9 @@
     <string name="sub_update_all">Обновить все подписки</string>
     <string name="msg_err_routing_rule">Неверное правило маршрутизации</string>
     <string name="rules_title">Правила маршрутизации</string>
-    <string name="rules_sum_none">Нет правил</string>
-    <string name="rules_sum_count">Правил: %1$d</string>
-    <string name="rules_hint">Правила проверяются сверху вниз до встроенных правил; срабатывает первое подходящее.</string>
+    <string name="rules_sum_none">Все правила выключены</string>
+    <string name="rules_sum_count">Включено правил: %1$d</string>
+    <string name="rules_hint">Правила проверяются сверху вниз, затем правила по умолчанию; срабатывает первое подходящее. Выключенное правило пропускается.</string>
     <string name="rules_add">Добавить правило</string>
     <string name="rules_edit">Изменить правило</string>
     <string name="rules_type">Тип</string>
@@ -394,7 +387,7 @@
     <string name="rules_delete">Удалить правило</string>
     <string name="rules_limit">Не больше 500 правил</string>
     <string name="rules_duplicate">Такое правило уже есть</string>
-    <string name="rules_empty">Правил пока нет. Трафик идёт по остальным настройкам маршрутизации.</string>
+    <string name="rules_empty">Своих правил пока нет.</string>
     <string name="home_disconnect">Отключить</string>
     <string name="backup_title">Резервная копия</string>
     <string name="backup_sum">Экспорт и восстановление подписок и настроек</string>
@@ -514,7 +507,7 @@
     <string name="ping_full">Полная задержка</string>
     <string name="ping_full_hint">Первый запрос вместе с подключением к серверу и всеми рукопожатиями.</string>
     <string name="ping_tcp">TCP</string>
-    <string name="ping_tcp_hint">Только проверяет, что порт сервера отвечает; трафик через сервер не идёт.</string>
+    <string name="ping_tcp_hint">Только проверяет, что порт сервера отвечает; трафик через сервер не идёт. Не подходит для Hysteria2 и TUIC (UDP).</string>
     <string name="dev_sub_headers">Заголовки подписки</string>
     <string name="dev_sub_headers_sum">Названия заголовков, которые прислал провайдер</string>
     <string name="dev_sub_headers_hint">Только названия, с последнего обновления каждой подписки. Значения и ссылки не сохраняются.</string>
@@ -527,7 +520,6 @@
     <string name="device_os_version">Версия системы · x-ver-os</string>
     <string name="device_model">Модель устройства · x-device-model</string>
     <string name="device_reset">Сбросить</string>
-    <string name="device_hint">Значения, которые передаются провайдеру. «Сбросить» вернёт настоящие значения этого телефона.</string>
     <string name="servers_check_all">Проверить все серверы</string>
     <string name="device_title">Данные устройства</string>
     <string name="check_needs_mobile">Чтобы проверить эти серверы, включите мобильные данные и отключите Wi-Fi</string>
@@ -538,9 +530,8 @@
     <string name="set_health_interval">Интервал проверки</string>
     <string name="set_minutes">%1$d мин</string>
     <string name="set_seconds">%1$d с</string>
-    <string name="set_health_hint">Плановая проверка пропускается, пока через VPN идёт трафик (туннель и так работает) или нет сети. После неудачной проверки следующие идут без пропусков.</string>
+    <string name="set_health_hint">Плановая проверка пропускается, пока через VPN идёт трафик или нет сети. После неудачной проверки следующие идут без пропусков.</string>
     <string name="auto_select_reuse">Не перемерять, если замер новее</string>
-    <string name="auto_select_reuse_hint">При смене Wi-Fi ↔ мобильная сеть автовыбор берёт результаты проверки серверов не старше этого срока и не измеряет все серверы заново.</string>
     <string name="set_head_notification">Уведомление</string>
     <string name="notif_line_speed">Скорость</string>
     <string name="notif_line_total">Общий трафик</string>
@@ -553,4 +544,10 @@
     <string name="dev_title_height">Высота большого заголовка</string>
     <string name="dev_title_height_value">%1$d%% экрана</string>
     <string name="dev_title_height_default">По умолчанию</string>
+    <string name="rules_default_head">Правила по умолчанию</string>
+    <string name="rules_default_ru_sum">.ru, .su, .рф, российские сайты и IP → Напрямую</string>
+    <string name="rules_delete_confirm">Удалить это правило?</string>
+    <string name="mtu_hint">Наибольший пакет в туннеле. Уменьшите, если сайты зависают.</string>
+    <string name="set_large_titles">Большие заголовки</string>
+    <string name="set_large_titles_sum">Крупный заголовок в «Настройках» и «Серверах»</string>
 </resources>

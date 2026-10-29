@@ -88,16 +88,12 @@
     <string name="msg_interval_30_600_seconds_95" formatted="false">"Interval · 30–600 seconds"</string>
     <string name="msg_timeout_3_30_seconds_96" formatted="false">"Timeout, ms · 1000–60000"</string>
     <string name="msg_https_check_url_97" formatted="false">"HTTPS check URL"</string>
-    <string name="msg_latency_includes_establishing_an_https_connec_98" formatted="false">"Checks use HTTPS through the server. A failed check does not mean every website is unavailable."</string>
     <string name="msg_check_method_99" formatted="false">"Check method"</string>
-    <string name="msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103" formatted="false">"TCP does not verify VPN traffic and cannot check UDP-based Hysteria/TUIC. HTTPS checks traffic through the server."</string>
     <string name="msg_disconnect_and_finish_checks_to_change_subscr_104" formatted="false">"Disconnect and finish checks to change subscription settings."</string>
     <string name="msg_send_hwid_to_the_provider_105" formatted="false">"Send HWID to the provider"</string>
-    <string name="msg_a_persistent_installation_identifier_without_106" formatted="false">"A persistent installation identifier, without IMEI or serial number. Change it only if the provider supplies a specific value."</string>
     <string name="msg_copy_hwid_107" formatted="false">"Copy HWID"</string>
     <string name="msg_send_device_model_and_android_version_108" formatted="false">"Send device model and Android version"</string>
     <string name="msg_subscription_user_agent_109" formatted="false">"Subscription User-Agent"</string>
-    <string name="msg_providers_may_select_the_subscription_format_110" formatted="false">"Providers may select the subscription format by User-Agent. HWID is sent only to the original subscription website."</string>
     <string name="msg_sing_box_1_11_15_xray_25_3_6_nopen_source_gpl_111" formatted="false">"sing-box 1.12.25 + Xray 26.10.21\nOpen source · GPL-3.0-or-later"</string>
     <string name="msg_use_an_https_link_without_a_username_or_passw_112" formatted="false">"Use an HTTPS link without a username or password in the URL"</string>
     <string name="msg_subscription_device_limit_reached_contact_the_113" formatted="false">"Subscription device limit reached. Contact the provider."</string>
@@ -154,7 +150,6 @@
     <string name="msg_shadowsocks_plugins_are_not_supported_170" formatted="false">"Shadowsocks plugins are not supported"</string>
     <string name="msg_transport_type_is_not_supported_171" formatted="false">"Transport %1$s is not supported"</string>
     <string name="language">Language</string>
-    <string name="add_tile">Add VPN button to Quick Settings</string>
     <string name="tile_off">Disconnected</string>
     <string name="tile_on">Connected</string>
     <string name="tile_starting">Connecting…</string>
@@ -215,7 +210,7 @@
     <string name="set_sort_name">By name</string>
     <string name="set_sort_latency">By ping</string>
     <string name="dev_detailed_icons">Show detailed icons</string>
-    <string name="dev_detailed_icons_hint">Instead of the red dash, failed server checks show a small gray icon; tap it to see the reason.</string>
+    <string name="dev_detailed_icons_hint">Instead of a dash, failed server checks show a small gray icon; tap it to see the reason.</string>
     <string name="notif_connecting">Connecting…</string>
     <string name="notif_disconnecting">Disconnecting…</string>
     <string name="notif_checking">Checking servers</string>
@@ -248,10 +243,8 @@
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
     <string name="direct_ru">Russian sites and IPs directly</string>
-    <string name="direct_ru_hint">Russian sites (.ru, .su, .рф and the geosite category-ru list) and Russian IP addresses (geoip:ru) open without the VPN. Lists are downloaded from SagerNet and updated weekly.</string>
     <string name="auto_select_wifi">Auto-select on Wi-Fi</string>
     <string name="auto_select_mobile">Auto-select on mobile data</string>
-    <string name="auto_select_hint">On connect, the fastest server is used (results of a check made on the same network in the last 5 minutes are reused, otherwise all servers are checked). If the internet check fails 3 times in a row, Moth switches to the next fastest server.</string>
     <string name="boot_connect">Start VPN when the phone turns on</string>
     <string name="boot_connect_hint">Connects to the last server after a restart. Android\'s Always-on VPN (system VPN settings) is also supported.</string>
     <string name="dns_server">DNS server</string>
@@ -365,9 +358,9 @@
     <string name="sub_update_all">Update all subscriptions</string>
     <string name="msg_err_routing_rule">Invalid routing rule</string>
     <string name="rules_title">Routing rules</string>
-    <string name="rules_sum_none">No rules</string>
-    <string name="rules_sum_count">Rules: %1$d</string>
-    <string name="rules_hint">Rules are checked from top to bottom before the built-in rules; the first matching rule wins.</string>
+    <string name="rules_sum_none">All rules off</string>
+    <string name="rules_sum_count">Rules on: %1$d</string>
+    <string name="rules_hint">Rules are checked from top to bottom, then the default rules; the first matching rule wins. A rule that is switched off is skipped.</string>
     <string name="rules_add">Add rule</string>
     <string name="rules_edit">Edit rule</string>
     <string name="rules_type">Type</string>
@@ -390,7 +383,7 @@
     <string name="rules_delete">Delete rule</string>
     <string name="rules_limit">No more than 500 rules</string>
     <string name="rules_duplicate">This rule already exists</string>
-    <string name="rules_empty">No rules yet. Traffic follows the other routing settings.</string>
+    <string name="rules_empty">No rules of your own yet.</string>
     <string name="home_disconnect">Disconnect</string>
     <string name="backup_title">Backup</string>
     <string name="backup_sum">Export or restore subscriptions and settings</string>
@@ -510,7 +503,7 @@
     <string name="ping_full">Full latency</string>
     <string name="ping_full_hint">First request, including connecting to the server and all handshakes.</string>
     <string name="ping_tcp">TCP</string>
-    <string name="ping_tcp_hint">Only checks that the server port answers; no traffic goes through.</string>
+    <string name="ping_tcp_hint">Only checks that the server port answers; no traffic goes through. Can\'t check Hysteria2 and TUIC (UDP).</string>
     <string name="dev_sub_headers">Subscription headers</string>
     <string name="dev_sub_headers_sum">Names of the headers the provider sent</string>
     <string name="dev_sub_headers_hint">Names only, from the last update of each subscription. Values and links are never stored.</string>
@@ -523,7 +516,6 @@
     <string name="device_os_version">System version · x-ver-os</string>
     <string name="device_model">Device model · x-device-model</string>
     <string name="device_reset">Reset to defaults</string>
-    <string name="device_hint">The values sent to your provider. Reset puts back this phone’s real values.</string>
     <string name="servers_check_all">Check all servers</string>
     <string name="device_title">Device info</string>
     <string name="check_needs_mobile">To check these servers, turn on mobile data and turn off Wi-Fi</string>
@@ -534,9 +526,8 @@
     <string name="set_health_interval">Check interval</string>
     <string name="set_minutes">%1$d min</string>
     <string name="set_seconds">%1$d s</string>
-    <string name="set_health_hint">A scheduled check is skipped while traffic flows through the VPN (the tunnel works anyway) or there is no network. After a failed check the next ones are never skipped.</string>
+    <string name="set_health_hint">A scheduled check is skipped while traffic flows through the VPN or there is no network. After a failed check the next ones are never skipped.</string>
     <string name="auto_select_reuse">Don\'t re-measure if the last check is newer than</string>
-    <string name="auto_select_reuse_hint">When switching between Wi-Fi and mobile data, auto-select uses server check results up to this age instead of measuring every server again.</string>
     <string name="set_head_notification">Notification</string>
     <string name="notif_line_speed">Speed</string>
     <string name="notif_line_total">Total traffic</string>
@@ -549,4 +540,10 @@
     <string name="dev_title_height">Large title height</string>
     <string name="dev_title_height_value">%1$d%% of the screen</string>
     <string name="dev_title_height_default">Default</string>
+    <string name="rules_default_head">Default rules</string>
+    <string name="rules_default_ru_sum">.ru, .su, .рф, Russian sites and IPs → Direct</string>
+    <string name="rules_delete_confirm">Delete this rule?</string>
+    <string name="mtu_hint">Largest packet in the tunnel. Lower it if some sites hang.</string>
+    <string name="set_large_titles">Large titles</string>
+    <string name="set_large_titles_sum">Big title at the top of Settings and Servers</string>
 </resources>

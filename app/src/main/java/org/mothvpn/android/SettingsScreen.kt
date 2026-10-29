@@ -111,7 +111,7 @@ import org.mothvpn.core.SubscriptionSchedule
             val sec = page.first; val lp = page.second
             CompositionLocalProvider(LocalPageScope provides this) {
             Box(Modifier.fillMaxSize().containerTransform(containerKey(page))) {
-        if (sec == tr(R.string.backup_title)) BackupPage(draft, locked, restore, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, !locked, { applySettings(draft.copy(routingRules = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.fillMaxSize()) else Column(Modifier.fillMaxSize().verticalScroll(if (sec == null) rootScroll else rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (sec == tr(R.string.backup_title)) BackupPage(draft, locked, restore, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, draft.directRu, !locked, { applySettings(draft.copy(routingRules = it)) }, { applySettings(draft.copy(directRu = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.fillMaxSize()) else Column(Modifier.fillMaxSize().verticalScroll(if (sec == null) rootScroll else rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (sec) {
                 null -> {
                     val onOff = listOfNotNull(when { draft.autoSelectWifi && draft.autoSelectMobile -> tr(R.string.set_short_auto); draft.autoSelectWifi -> tr(R.string.set_short_auto_wifi); draft.autoSelectMobile -> tr(R.string.set_short_auto_mobile); else -> null }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
@@ -133,13 +133,13 @@ import org.mothvpn.core.SubscriptionSchedule
                     LiveApplyHint()
                     val ctx = LocalContext.current
                     val openVpnSettings = { runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_VPN_SETTINGS)) }.onFailure { Logger.w("Settings", "system VPN settings unavailable", it) }; Unit }
-                    // Separate auto-select for Wi-Fi and mobile data; the one of the network in use applies. The auto-select explanation is
-                    // shown once, in the info of the reuse row below (not on both toggles).
+                    // Separate auto-select for Wi-Fi and mobile data; the one of the network in use applies.
                     SettingsToggle(tr(R.string.auto_select_wifi), draft.autoSelectWifi, !locked) { applySettings(draft.copy(autoSelectWifi = it)) }
                     SettingsToggle(tr(R.string.auto_select_mobile), draft.autoSelectMobile, !locked) { applySettings(draft.copy(autoSelectMobile = it)) }
                     var reuseDialog by remember { mutableStateOf(false) }
                     val reuseOptions = org.mothvpn.core.AutoSelectReuse.minutes.map { it to tr(R.string.set_minutes, it) }
-                    DialogRow(tr(R.string.auto_select_reuse), tr(R.string.set_minutes, draft.autoSelectReuseMinutes), enabled = !locked && draft.autoSelectAny, info = tr(R.string.auto_select_hint) + "\n\n" + tr(R.string.auto_select_reuse_hint)) { reuseDialog = true }
+                    // Always editable: the reuse also applies to a manual "Check all" after a network change, and it is ready before auto-select is turned on.
+                    DialogRow(tr(R.string.auto_select_reuse), tr(R.string.set_minutes, draft.autoSelectReuseMinutes), enabled = !locked) { reuseDialog = true }
                     if (reuseDialog) ChoiceDialog(tr(R.string.auto_select_reuse), reuseOptions, draft.autoSelectReuseMinutes, { reuseDialog = false }) { applySettings(draft.copy(autoSelectReuseMinutes = it)) }
                     // The long kill switch explanation lives in its info dialog, with the way to the system VPN settings (Always-on VPN).
                     SettingsToggle(tr(R.string.kill_switch), draft.killSwitch, subtitle = tr(R.string.kill_switch_short), info = tr(R.string.kill_switch_hint),
@@ -160,21 +160,23 @@ import org.mothvpn.core.SubscriptionSchedule
                 tr(R.string.msg_checks_76) -> {
                     LiveApplyHint()
                     SectionHeader(tr(R.string.set_head_health))
-                    SettingsToggle(tr(R.string.msg_check_the_active_tunnel_94), draft.healthEnabled, !locked, info = tr(R.string.set_health_hint)) { applySettings(draft.copy(healthEnabled = it)) }
                     var healthDialog by remember { mutableStateOf(false) }
                     val healthOptions = org.mothvpn.core.HealthSchedule.minutes.map { it * 60 to tr(R.string.set_minutes, it) }
                     val healthValue = healthOptions.firstOrNull { it.first == draft.healthIntervalSeconds }?.second ?: tr(R.string.set_seconds, draft.healthIntervalSeconds)
-                    DialogRow(tr(R.string.set_health_interval), healthValue, enabled = !locked && draft.healthEnabled) { healthDialog = true }
+                    // The interval belongs to the health check: it slides out of the switch while the check is on.
+                    WithNested(draft.healthEnabled, { SettingsToggle(tr(R.string.msg_check_the_active_tunnel_94), draft.healthEnabled, !locked, info = tr(R.string.set_health_hint)) { applySettings(draft.copy(healthEnabled = it)) } }) {
+                        DialogRow(tr(R.string.set_health_interval), healthValue, enabled = !locked) { healthDialog = true }
+                    }
                     if (healthDialog) ChoiceDialog(tr(R.string.set_health_interval), healthOptions, draft.healthIntervalSeconds, { healthDialog = false }) { applySettings(draft.copy(healthIntervalSeconds = it)) }
                     FieldCard(timeout, { timeout = it; number(it, "timeout") }, tr(R.string.msg_timeout_3_30_seconds_96), !locked)
                     SectionHeader(tr(R.string.set_head_probes))
-                    FieldCard(draft.probeUrl, { applySettings(draft.copy(probeUrl = it)) }, tr(R.string.msg_https_check_url_97), !locked, info = tr(R.string.msg_latency_includes_establishing_an_https_connec_98))
+                    FieldCard(draft.probeUrl, { applySettings(draft.copy(probeUrl = it)) }, tr(R.string.msg_https_check_url_97), !locked)
                     FieldCard(pingTimeout, { pingTimeout = it; number(it, "pingTimeout") }, tr(R.string.set_ping_timeout), !locked)
                     FieldCard(parallel, { parallel = it; number(it, "parallel") }, tr(R.string.set_ping_parallel), !locked)
                     // Latency (default): warm-up request, then the second request on the same connection; Full latency: the first request with
-                    // every handshake; TCP: only the server port. Each with a one-line explanation; the TCP caveat is behind the info button.
+                    // every handshake; TCP: only the server port. Each with a short explanation (TCP's says it cannot check Hysteria2/TUIC).
                     SettingCard {
-                        CardTitle(tr(R.string.msg_check_method_99), info = tr(R.string.msg_tcp_does_not_verify_vpn_traffic_and_cannot_ch_103))
+                        CardTitle(tr(R.string.msg_check_method_99))
                         listOf(Triple(org.mothvpn.core.ProbePolicy.LATENCY, tr(R.string.ping_latency), tr(R.string.ping_latency_hint)),
                             Triple(org.mothvpn.core.ProbePolicy.FULL, tr(R.string.ping_full), tr(R.string.ping_full_hint)),
                             Triple(org.mothvpn.core.ProbePolicy.TCP, tr(R.string.ping_tcp), tr(R.string.ping_tcp_hint))).forEach { (value, label, hint) ->
@@ -193,9 +195,8 @@ import org.mothvpn.core.SubscriptionSchedule
                     SectionHeader(tr(R.string.set_head_apps))
                     SettingsCategory(tr(R.string.split_title), splitSummary(draft) ?: tr(R.string.set_split_off), "split") { section = tr(R.string.split_title) }
                     SectionHeader(tr(R.string.set_head_rules))
-                    SettingsCategory(tr(R.string.rules_title), if (draft.routingRules.isEmpty()) tr(R.string.rules_sum_none) else tr(R.string.rules_sum_count, draft.routingRules.size), "rules") { section = tr(R.string.rules_title) }
+                    SettingsCategory(tr(R.string.rules_title), rulesSummary(draft), "rules") { section = tr(R.string.rules_title) }
                     SectionHeader(tr(R.string.set_head_network))
-                    SettingsToggle(tr(R.string.direct_ru), draft.directRu, !locked, info = tr(R.string.direct_ru_hint)) { applySettings(draft.copy(directRu = it)) }
                     var dnsDialog by remember { mutableStateOf(false) }
                     var customDns by remember { mutableStateOf(false) }
                     DialogRow(tr(R.string.dns_server), DnsServers.presetOf(draft.dns)?.label ?: (tr(R.string.dns_custom) + ": " + draft.dns), !locked) { dnsDialog = true }
@@ -212,7 +213,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsToggle(tr(R.string.dns_leak), draft.dnsLeakProtection, !locked) { applySettings(draft.copy(dnsLeakProtection = it)) }
                     FieldCard(draft.bootstrapDns, { applySettings(draft.copy(bootstrapDns = it)) }, tr(R.string.msg_server_bootstrap_dns_91), !locked, info = tr(R.string.msg_this_dns_is_used_directly_to_connect_to_serve_92))
                     SettingsToggle(tr(R.string.msg_ipv6_through_vpn_89), draft.ipv6, !locked) { applySettings(draft.copy(ipv6 = it)) }
-                    FieldCard(mtu, { mtu = it; number(it, "mtu") }, "MTU · 1280–9000", !locked)
+                    FieldCard(mtu, { mtu = it; number(it, "mtu") }, "MTU · 1280–9000", !locked, supporting = tr(R.string.mtu_hint))
                 }
                 tr(R.string.set_cat_subscription) -> {
                     if (locked) Text(tr(R.string.msg_disconnect_and_finish_checks_to_change_subscr_104))
@@ -226,7 +227,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     if (trafficDialog) ChoiceDialog(tr(R.string.traffic_warning_setting), trafficOptions, draft.trafficWarning, { trafficDialog = false }) { applySettings(draft.copy(trafficWarning = it)) }
                     SettingsToggle(tr(R.string.expiry_toggle), draft.expiryWarning, info = tr(R.string.expiry_toggle_hint)) { applySettings(draft.copy(expiryWarning = it)) }
                     SectionHeader(tr(R.string.set_head_provider))
-                    SettingsToggle(tr(R.string.msg_send_hwid_to_the_provider_105), draft.hwidEnabled, !locked, info = tr(R.string.msg_a_persistent_installation_identifier_without_106)) { applySettings(draft.copy(hwidEnabled = it)) }
+                    SettingsToggle(tr(R.string.msg_send_hwid_to_the_provider_105), draft.hwidEnabled, !locked) { applySettings(draft.copy(hwidEnabled = it)) }
                     // The HWID field and its copy button in one card.
                     SettingCard {
                         OutlinedTextField(draft.hwid, { applySettings(draft.copy(hwid = it)) }, enabled = !locked, label = { Text("HWID · x-hwid") }, singleLine = true,
@@ -235,18 +236,15 @@ import org.mothvpn.core.SubscriptionSchedule
                             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp))
                         TextButton(onClick = { clipboard.setText(AnnotatedString(draft.hwid)) }, modifier = Modifier.pressScale().align(Alignment.End).padding(end = 8.dp)) { Text(tr(R.string.msg_copy_hwid_107)) }
                     }
-                    SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it, deviceInfoSet = true)) }
-                    // The device info that is sent (system values or the user's own), edited in a scrollable dialog. Never logged.
-                    if (draft.deviceInfo) {
-                        var deviceDialog by remember { mutableStateOf(false) }
-                        val sent = DeviceDefaults.sent(draft)
-                        DialogRow(tr(R.string.device_title), sent.joinToString(" · "), enabled = !locked) { deviceDialog = true }
-                        if (deviceDialog) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
+                    // The device info that is sent (system values or the user's own), edited in a scrollable dialog, slides out of its switch. Never logged.
+                    var deviceDialog by remember { mutableStateOf(false) }
+                    WithNested(draft.deviceInfo, { SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it, deviceInfoSet = true)) } }) {
+                        DialogRow(tr(R.string.device_title), DeviceDefaults.sent(draft).joinToString(" · "), enabled = !locked) { deviceDialog = true }
                     }
+                    if (deviceDialog && draft.deviceInfo) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
                     // Subscription User-Agent: one row with the current choice; a sheet picks Moth, a client preset or the user's own value. Never logged.
                     var uaSheet by remember { mutableStateOf(false) }
-                    DialogRow(tr(R.string.msg_subscription_user_agent_109), org.mothvpn.core.UserAgents.title(draft.userAgent, BuildConfig.VERSION_NAME), enabled = !locked,
-                        info = tr(R.string.msg_providers_may_select_the_subscription_format_110)) { uaSheet = true }
+                    DialogRow(tr(R.string.msg_subscription_user_agent_109), org.mothvpn.core.UserAgents.title(draft.userAgent, BuildConfig.VERSION_NAME), enabled = !locked) { uaSheet = true }
                     if (uaSheet) UserAgentSheet(draft.userAgent, close = { uaSheet = false }) { applySettings(draft.copy(userAgent = it)); uaSheet = false }
                 }
                 tr(R.string.msg_appearance_74) -> {
@@ -266,7 +264,10 @@ import org.mothvpn.core.SubscriptionSchedule
                             }
                         } },
                         confirmButton = { TextButton(onClick = { languageDialog = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
-                    SettingCard {
+                    // Pure black (AMOLED) belongs to the dark theme: it slides out of the theme card while the dark theme is in use (Dark, or System
+                    // with the phone in dark mode) and folds away for the light theme.
+                    val darkInUse = draft.theme == "dark" || (draft.theme == "system" && androidx.compose.foundation.isSystemInDarkTheme())
+                    WithNested(darkInUse, { SettingCard {
                         CardTitle(tr(R.string.msg_theme_79))
                         listOf("system" to tr(R.string.msg_system_default_80), "dark" to tr(R.string.msg_dark_81), "light" to tr(R.string.msg_light_82)).forEach { (value, label) ->
                             Row(Modifier.pressScale().fillMaxWidth().heightIn(min = 48.dp).clickable { applySettings(draft.copy(theme = value)) }.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -274,9 +275,15 @@ import org.mothvpn.core.SubscriptionSchedule
                                 Text(label)
                             }
                         }
+                    } }) {
+                        SettingsToggle(tr(R.string.set_amoled), draft.amoled) { applySettings(draft.copy(amoled = it)) }
                     }
-                    // Pure black for the dark theme (unavailable while the light theme is chosen).
-                    SettingsToggle(tr(R.string.set_amoled), draft.amoled, enabled = draft.theme != "light") { applySettings(draft.copy(amoled = it)) }
+                    // Large collapsing titles (Settings, Servers) or the compact title bar; the height slider slides out of the switch while they are on.
+                    // Every large title follows the slider while it moves; saved when it is released.
+                    WithNested(draft.largeTitles, { SettingsToggle(tr(R.string.set_large_titles), draft.largeTitles, subtitle = tr(R.string.set_large_titles_sum)) {
+                        LargeTitleTuning.enabled = it; applySettings(draft.copy(largeTitles = it)) } }) {
+                        LargeTitleHeightCard(draft.largeTitlePercent) { applySettings(draft.copy(largeTitlePercent = it)) }
+                    }
                     SectionHeader(tr(R.string.set_head_server_list))
                     val sortModes = listOf(ServerOrder.SUBSCRIPTION to tr(R.string.set_sort_subscription), ServerOrder.LATENCY to tr(R.string.set_sort_latency), ServerOrder.NAME to tr(R.string.set_sort_name))
                     var sortDialog by remember { mutableStateOf(false) }
@@ -305,14 +312,6 @@ import org.mothvpn.core.SubscriptionSchedule
                             }
                         }
                     }
-                    if (android.os.Build.VERSION.SDK_INT >= 33) {
-                        val context = LocalContext.current
-                        ActionCard(tr(R.string.add_tile)) {
-                            context.getSystemService(android.app.StatusBarManager::class.java).requestAddTileService(
-                                android.content.ComponentName(context, VpnTileService::class.java), tr(R.string.app_name),
-                                android.graphics.drawable.Icon.createWithResource(context, R.drawable.ic_moth_tile), context.mainExecutor) { }
-                        }
-                    }
                 }
                 tr(R.string.set_cat_data) -> {
                     val ctxData = LocalContext.current
@@ -329,8 +328,6 @@ import org.mothvpn.core.SubscriptionSchedule
                     DialogRow(tr(R.string.dev_sub_headers), tr(R.string.dev_sub_headers_sum)) { headersDialog = true }
                     if (headersDialog) SubscriptionHeadersDialog { headersDialog = false }
                     SettingsToggle(tr(R.string.dev_edit_servers), draft.editServers, info = tr(R.string.dev_edit_servers_hint)) { applySettings(draft.copy(editServers = it)) }
-                    // Large title height: every large title follows the slider while it moves; saved when it is released.
-                    LargeTitleHeightCard(draft.largeTitlePercent) { applySettings(draft.copy(largeTitlePercent = it)) }
                 }
                 tr(R.string.msg_about_78) -> {
                     SettingCard {
@@ -431,38 +428,38 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
         } },
         confirmButton = { TextButton(onClick = { open = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.ok)) } })
 }
-/** A text setting in a card; [info] adds the info button at the end of the field. */
-@Composable private fun FieldCard(value: String, change: (String) -> Unit, label: String, enabled: Boolean, info: String? = null) {
+/** A text setting in a card; [info] adds the info button at the end of the field, [supporting] a one-line caption under it. */
+@Composable private fun FieldCard(value: String, change: (String) -> Unit, label: String, enabled: Boolean, info: String? = null, supporting: String? = null) {
     SettingCard {
         OutlinedTextField(value, change, enabled = enabled, label = { Text(label) }, singleLine = true,
+            supportingText = supporting?.let { { Text(it) } },
             trailingIcon = info?.let { { InfoButton(label, it) } }, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp))
     }
 }
-/** A card that does something (no value, no page), e.g. "Add VPN button to Quick Settings". */
-@Composable private fun ActionCard(title: String, action: () -> Unit) {
-    Card(Modifier.pressScale().fillMaxWidth().clickable(onClick = action), colors = ndCardColors()) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            Icon(androidx.compose.material.icons.Icons.Outlined.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
+/** The routing rules card: how many rules are on, the default "Russian sites and IPs directly" rule included. */
+@Composable private fun rulesSummary(s: org.mothvpn.core.ClientSettings): String {
+    val on = s.routingRules.count { it.enabled } + (if (s.directRu) 1 else 0)
+    return if (on == 0) tr(R.string.rules_sum_none) else tr(R.string.rules_sum_count, on)
 }
-/** Developer: the large title's extra height in percent of the screen (10–30 %), previewed live while dragging, saved on release. */
+/** Interface: the large title's extra height in percent of the screen (10–30 %). Every large title follows the slider smoothly while it
+ *  moves (fractional percent, no steps); the whole percent is saved on release, and is kept when the page is left mid-drag. */
 @Composable private fun LargeTitleHeightCard(saved: Int, save: (Int) -> Unit) {
     var value by remember(saved) { mutableFloatStateOf(saved.toFloat()) }
     val range = org.mothvpn.core.LargeTitleSize
-    // Leaving the page mid-drag (or without saving) shows the saved value again.
-    DisposableEffect(Unit) { onDispose { LargeTitleTuning.percent = range.normalize(saved) } }
+    fun commit() { val p = range.normalize(kotlin.math.round(value).toInt()); value = p.toFloat(); LargeTitleTuning.percent = value; if (p != saved) save(p) }
+    // Leaving the page while dragging keeps (saves) what is shown; it never jumps back to an older value.
+    val latestCommit by rememberUpdatedState(::commit)
+    DisposableEffect(Unit) { onDispose { latestCommit() } }
     SettingCard {
         CardTitle(tr(R.string.dev_title_height))
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(tr(R.string.dev_title_height_value, value.toInt()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            val notDefault = value.toInt() != range.DEFAULT
-            TextButton(enabled = notDefault, onClick = { value = range.DEFAULT.toFloat(); LargeTitleTuning.percent = range.DEFAULT; save(range.DEFAULT) },
+            Text(tr(R.string.dev_title_height_value, kotlin.math.round(value).toInt()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            val notDefault = kotlin.math.round(value).toInt() != range.DEFAULT
+            TextButton(enabled = notDefault, onClick = { value = range.DEFAULT.toFloat(); commit() },
                 modifier = Modifier.pressScale(enabled = notDefault)) { Text(tr(R.string.dev_title_height_default)) }
         }
-        Slider(value, { value = kotlin.math.round(it); LargeTitleTuning.percent = value.toInt() }, valueRange = range.MIN.toFloat()..range.MAX.toFloat(),
-            steps = range.MAX - range.MIN - 1, onValueChangeFinished = { save(value.toInt()) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+        Slider(value, { value = it; LargeTitleTuning.percent = it }, valueRange = range.MIN.toFloat()..range.MAX.toFloat(),
+            onValueChangeFinished = { commit() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
     }
 }
 @Composable private fun SettingsToggle(label: String, checked: Boolean, enabled: Boolean = true, subtitle: String? = null, info: String? = null,
@@ -549,7 +546,6 @@ object DeviceDefaults {
                     isError = !org.mothvpn.core.DeviceInfo.valid(field.value.trim(), DeviceDefaults.limits[i]) || field.value.isBlank(), modifier = Modifier.fillMaxWidth())
             }
             TextButton(enabled = fields.indices.any { fields[it].value != defaults[it] }, onClick = { fields.forEachIndexed { i, f -> f.value = defaults[i] } }, modifier = Modifier.pressScale(enabled = fields.indices.any { fields[it].value != defaults[it] })) { Text(tr(R.string.device_reset)) }
-            Text(tr(R.string.device_hint), style = MaterialTheme.typography.bodySmall)
         }
     }, confirmButton = { TextButton(enabled = valid, onClick = {
         val v = fields.mapIndexed { i, f -> f.value.trim().takeIf { it != defaults[i] }.orEmpty() }
