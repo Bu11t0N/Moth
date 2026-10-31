@@ -69,7 +69,7 @@ object ChangelogRepository {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         val sections = result?.sections
         when {
-            loading && sections == null -> Row(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.Center) { CircularProgressIndicator() }
+            loading && sections == null -> Row(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.Center) { MothLoading(size = 56.dp) }
             sections == null -> Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 NdButton(onClick = { version++ }, modifier = Modifier.pressScale()) { Text(tr(R.string.changelog_retry)) }
             }

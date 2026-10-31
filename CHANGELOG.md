@@ -2,6 +2,16 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0-beta.2
+
+Released 2026-11-01 (beta).
+
+### Changes
+
+- Updates page: the moth keeps its size while checking, and the checking status now slides in from the top.
+- Loading indicators are now a flapping moth instead of a spinning circle.
+- Clearer UDP noise explanation.
+
 ## 1.0.0-beta.1
 
 Released 2026-11-01 (beta).

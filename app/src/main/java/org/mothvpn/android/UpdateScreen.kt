@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -93,23 +94,46 @@ import java.io.File
         release != null -> tr(R.string.update_available, release!!.version)
         else -> ""
     }
-    // The moth fills the free space at the top, centred and as large as it fits. Everything else is one block pinned to the bottom: the
-    // status line, the version card, the channel row and the main button. When the progress row appears (checking, downloading) the block
-    // grows upwards smoothly and the moth gets a little smaller; the button never moves. The block scrolls only when it does not fit at all
-    // (small screen, big font).
+    // The moth fills the free space at the top, centred and as large as it fits. While checking or downloading, a small card with the status,
+    // the progress bar and Cancel slides down from the top edge of that space (into a strip kept free for it), so nothing below moves and
+    // the moth keeps its size. Everything else is one block pinned to the bottom: the result line, the version card, the channel row and the
+    // main button; the button never moves. The block scrolls only when it does not fit at all (small screen, big font).
     val scroll = rememberScrollState()
     val scrollable = scroll.maxValue > 0
     val motion = androidx.compose.animation.core.tween<androidx.compose.ui.unit.IntSize>(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+    val strip = 96.dp
     Column(modifier.fillMaxWidth()) {
-        // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            val side = minOf(maxWidth * 0.62f, maxHeight * 0.86f, 260.dp)
-            if (side >= 56.dp) MothFlutter(size = side, busy = busy)
+        Box(Modifier.weight(1f).fillMaxWidth().clipToBounds()) {
+            // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
+            BoxWithConstraints(Modifier.fillMaxSize().padding(top = strip), contentAlignment = Alignment.Center) {
+                val side = minOf(maxWidth * 0.62f, maxHeight * 0.9f, 260.dp)
+                if (side >= 56.dp) MothFlutter(size = side, busy = busy)
+            }
+            androidx.compose.animation.AnimatedVisibility(busy, modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+                enter = slideInVertically(androidx.compose.animation.core.tween(320)) { -it } + fadeIn(),
+                exit = slideOutVertically(androidx.compose.animation.core.tween(260)) { -it } + fadeOut()) {
+                Card(Modifier.fillMaxWidth().padding(top = 4.dp), colors = ndCardColors()) {
+                    Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 2.dp)) {
+                        Text(status.ifEmpty { tr(R.string.update_checking) }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(end = 12.dp).semantics { liveRegion = LiveRegionMode.Polite })
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f)) {
+                                progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
+                            }
+                            TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale().padding(start = 8.dp)) {
+                                Text(tr(R.string.update_cancel))
+                            }
+                        }
+                    }
+                }
+            }
         }
         Column(Modifier.fillMaxWidth().animateContentSize(motion).verticalScroll(scroll, overscrollEffect = if (scrollable) rememberOverscrollEffect() else null, enabled = scrollable),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(status.ifEmpty { " " }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp).semantics { liveRegion = LiveRegionMode.Polite })
+            // The result of the last check or an error; while busy the status is in the card at the top (the empty line keeps the height).
+            Text(if (busy) " " else status.ifEmpty { " " }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp).semantics { if (!busy) liveRegion = LiveRegionMode.Polite })
             Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME)
@@ -117,18 +141,6 @@ import java.io.File
                         Column {
                             HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                             VersionRow(tr(R.string.update_available_row), release?.version.orEmpty())
-                        }
-                    }
-                    AnimatedVisibility(busy, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-                        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.weight(1f)) {
-                                    progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
-                                }
-                                TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale().padding(start = 8.dp)) {
-                                    Text(tr(R.string.update_cancel))
-                                }
-                            }
                         }
                     }
                 }

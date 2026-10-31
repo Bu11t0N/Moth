@@ -203,6 +203,7 @@
     <string name="update_unknown_ok">ОК</string>
     <string name="ok">ОК</string>
     <string name="update_downloading">Скачиваем обновление…</string>
+    <string name="loading">Загрузка…</string>
     <string name="update_checking">Проверяем обновления…</string>
     <string name="update_installed_row">Установленная версия</string>
     <string name="update_available_row">Доступная версия</string>
@@ -448,7 +449,7 @@
     <string name="fragment_first_packets">"Первые пакеты соединения"</string>
     <string name="noise_title">"UDP-шум"</string>
     <string name="fragment_info">Делит начало TLS-соединения (ClientHello) на мелкие части, чтобы система глубокой проверки трафика (DPI) не смогла прочитать имя сайта и заблокировать его. Помогает, если VPN-серверы блокируются через DPI; подключение может стать чуть медленнее. «Мелкие части» дополнительно делят TLS-записи — для более строгих фильтров. «Первые пакеты» делят первые пакеты любого соединения.</string>
-    <string name="noise_info">Перед первым настоящим UDP-пакетом отправляет несколько случайных пакетов, чтобы начало соединения не было похоже на известный VPN-протокол. Помогает, если UDP-протоколы (Hysteria2, WireGuard, QUIC) замедляют или блокируют. Немного больше трафика.</string>
+    <string name="noise_info">Перед первым настоящим UDP-пакетом отправляет несколько случайных пакетов, чтобы начало соединения не было похоже на известный VPN-протокол. Помогает, если UDP-протоколы (Hysteria2, WireGuard, QUIC) замедляют или блокируют. Использует немного больше трафика.</string>
     <string name="mux_info">Передаёт несколько соединений внутри одного соединения с сервером. Новые соединения открываются быстрее, а снаружи видно меньше соединений, но медленная загрузка может тормозить остальные. Для серверов sing-box сервер должен поддерживать выбранный протокол (smux, yamux или h2mux); серверы Xray используют свой Mux.Cool. Не используется с XTLS Vision (flow) и XHTTP.</string>
     <string name="mux_title">"Мультиплексирование (mux)"</string>
     <string name="mux_off">"Выключено"</string>

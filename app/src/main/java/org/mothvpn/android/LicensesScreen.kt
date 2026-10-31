@@ -55,7 +55,7 @@ object Licenses {
         }
     }
     val l = lines
-    if (l == null) Box(modifier) { CircularProgressIndicator(Modifier.padding(24.dp)) }
+    if (l == null) Box(modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { MothLoading(Modifier.padding(24.dp), size = 56.dp) }
     else SelectionContainer(modifier) {
         LazyColumn(Modifier.fillMaxSize()) {
             items(l) { Text(it, fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 14.sp) }

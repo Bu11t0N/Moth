@@ -201,6 +201,7 @@
     <string name="update_unknown_ok">OK</string>
     <string name="ok">OK</string>
     <string name="update_downloading">Downloading update…</string>
+    <string name="loading">Loading…</string>
     <string name="update_checking">Checking for updates…</string>
     <string name="update_installed_row">Installed version</string>
     <string name="update_available_row">Available version</string>
@@ -444,7 +445,7 @@
     <string name="fragment_first_packets">"First packets of the connection"</string>
     <string name="noise_title">"UDP noise"</string>
     <string name="fragment_info">Splits the start of the TLS connection (ClientHello) into small pieces so that deep packet inspection (DPI) can\'t read the site name and block it. Helps where VPN servers are blocked by DPI; it can slightly slow down connecting. “Small pieces” also splits TLS records, for stricter filters. “First packets” splits the first packets of any connection.</string>
-    <string name="noise_info">Before the first real UDP packet, sends a few random packets so that the start of the connection doesn\'t look like a known VPN protocol. Helps where UDP protocols (Hysteria2, WireGuard, QUIC) are throttled or blocked. Slightly more traffic.</string>
+    <string name="noise_info">Before the first real UDP packet, sends a few random packets so that the start of the connection doesn\'t look like a known VPN protocol. Helps where UDP protocols (Hysteria2, WireGuard, QUIC) are throttled or blocked. Uses a little more traffic.</string>
     <string name="mux_info">Carries several connections inside one connection to the server. Opening new connections gets faster and fewer connections are visible from outside, but a slow download can hold up the others. For sing-box servers, the server must support the selected protocol (smux, yamux or h2mux); Xray servers use their own Mux.Cool. Not used with XTLS Vision (flow) or XHTTP.</string>
     <string name="mux_title">"Multiplexing (mux)"</string>
     <string name="mux_off">"Off"</string>

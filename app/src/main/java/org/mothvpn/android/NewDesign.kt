@@ -43,6 +43,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.input.pointer.pointerInput
@@ -234,7 +236,7 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
  * A tap adds a few quick flaps. Deliberately not a button: no click semantics, no ripple, no pressed state, no glow or background,
  * and hidden from accessibility (decorative). With animations off it stays still with the wings spread.
  */
-@Composable fun MothFlutter(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 148.dp, busy: Boolean = false) {
+@Composable fun MothFlutter(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 148.dp, busy: Boolean = false, tappable: Boolean = true) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val animations = remember { runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) > 0f }
     val open = remember { androidx.compose.animation.core.Animatable(1f) }
@@ -252,15 +254,25 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
     val dark = MaterialTheme.colorScheme.background.luminanceLow()
     val color = if (dark) Color(0xFFF2F2F2) else Color(0xFF111111)
     val vein = MaterialTheme.colorScheme.background
-    Canvas(modifier.size(size)
-        .pointerInput(animations) { if (animations) detectTapGestures(onTap = { taps++ }) }
+    // Always square: the moth keeps its proportions even when the parent offers less room than asked (it just gets smaller).
+    Canvas(modifier.size(size).aspectRatio(1f, matchHeightConstraintsFirst = true)
+        .then(if (tappable) Modifier.pointerInput(animations) { if (animations) detectTapGestures(onTap = { taps++ }) } else Modifier)
         .clearAndSetSemantics { }) { drawMoth(open.value, color, vein) }
+}
+
+/** The loading indicator of the app: the moth beating its wings fast, instead of a spinning circle. Not tappable; reads as "loading". */
+@Composable fun MothLoading(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp) {
+    val label = tr(R.string.loading)
+    Box(modifier.semantics(mergeDescendants = true) { contentDescription = label; progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate },
+        contentAlignment = Alignment.Center) { MothFlutter(size = size, busy = true, tappable = false) }
 }
 
 /** Moth in a 100×100 box (scaled to the canvas): four wings pivoting at the thorax, then the body, head and antennae on top. */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMoth(open: Float, color: Color, vein: Color) {
     val k = size.minDimension / 100f
-    fun P(x: Float, y: Float) = Offset(x * k, y * k)
+    // Centred in the canvas whatever its shape (the mirror for the left wings is around the centre too).
+    val ox = (size.width - 100f * k) / 2f; val oy = (size.height - 100f * k) / 2f
+    fun P(x: Float, y: Float) = Offset(ox + x * k, oy + y * k)
     val fore = androidx.compose.ui.graphics.Path().apply {
         moveTo(52f * k, 37f * k); cubicTo(62f * k, 27f * k, 80f * k, 21f * k, 96f * k, 23f * k)
         cubicTo(97f * k, 32f * k, 91f * k, 42f * k, 82f * k, 48f * k); cubicTo(72f * k, 53f * k, 62f * k, 53f * k, 53f * k, 49f * k); close()

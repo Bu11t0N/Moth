@@ -183,7 +183,7 @@ import org.mothvpn.core.SubscriptionSource
                         }
                         val detailed = settings.detailedIcons
                         when {
-                            r?.checking == true -> CircularProgressIndicator(Modifier.padding(start = 12.dp).size(20.dp), strokeWidth = 2.dp) // only actively probed rows; queued rows show nothing
+                            r?.checking == true -> MothLoading(Modifier.padding(start = 10.dp), size = 24.dp) // only actively probed rows; queued rows show nothing
                             r?.latencyMs != null -> {
                                 if (detailed && r.method == "TCP") DetailBadge(DetailIcon.TCP_OK, tr(R.string.msg_port_is_reachable_vpn_traffic_has_not_been_ch_65), "TCP")
                                 PingDot(r.latencyMs, false, Modifier.padding(start = 10.dp))
@@ -375,9 +375,10 @@ private enum class DetailIcon {
                 Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(24.dp))
             }
             if (checking) IconButton(onClick = cancel, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_cancel_checks_49) })) {
-                Box(contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onSurface)
-                    Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                // The flapping moth says "checking"; the small cross in the corner says a tap stops it.
+                Box(Modifier.size(32.dp)) {
+                    MothFlutter(Modifier.align(Alignment.Center), size = 28.dp, busy = true, tappable = false)
+                    Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null, modifier = Modifier.align(Alignment.BottomEnd).size(12.dp))
                 }
             } else IconButton(onClick = check, enabled = canCheck && !probing, modifier = Modifier.pressScale(enabled = canCheck && !probing).then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_check_servers_50) })) {
                 Icon(androidx.compose.material.icons.Icons.Rounded.NetworkCheck, contentDescription = null, modifier = Modifier.size(24.dp))
