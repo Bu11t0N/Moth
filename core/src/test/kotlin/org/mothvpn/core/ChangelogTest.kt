@@ -15,9 +15,11 @@ class ChangelogTest {
     @Test fun repositoryFilesParseAndMatch() {
         val enAll = Changelog.parse(File("../CHANGELOG.md").readText())
         val ruAll = Changelog.parse(File("../CHANGELOG.ru.md").readText())
-        assertEquals("1.0.0-beta.1", enAll[0].title); assertEquals(enAll[0].title, ruAll[0].title)
-        assertEquals(enAll[0].items.size, ruAll[0].items.size)
-        enAll.drop(1).let { en -> ruAll.drop(1).let { ru -> filesMatch(en, ru) } }
+        for (i in 0..1) {
+            assertEquals(listOf("1.0.0-beta.2", "1.0.0-beta.1")[i], enAll[i].title); assertEquals(enAll[i].title, ruAll[i].title)
+            assertEquals(enAll[i].items.size, ruAll[i].items.size)
+        }
+        enAll.drop(2).let { en -> ruAll.drop(2).let { ru -> filesMatch(en, ru) } }
     }
     private fun filesMatch(enAll: List<ChangelogSection>, ruAll: List<ChangelogSection>) {
         for (i in 0..6) {
