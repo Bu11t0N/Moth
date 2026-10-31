@@ -2,6 +2,25 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0-beta.1
+
+Released 2026-11-01 (beta).
+
+### Changes
+
+- AmneziaWG servers: wireguard:// links with AmneziaWG settings, .conf files and Amnezia vpn:// keys. Junk packets (Jc, Jmin, Jmax) and I1–I5 are supported; servers that need S1–S4 or custom H1–H4 are not yet.
+- Split tunneling moved to the main Settings page, under Connection.
+- Split tunneling: new "Elevated privileges" option that lists every app, including ones without an icon.
+- Device data can be sent to all subscriptions or only to the ones you pick.
+- Redesigned Updates page: a bigger moth in the middle and the controls at the bottom.
+- The app list on the Connections page shows traffic again.
+- An update is now marked with a dot on the Settings tab.
+- Auto-select on the Home screen shows that servers are being checked.
+- Softer notices at the top of the screen that follow the theme.
+- Calmer colours in data charts.
+- The VPN notification no longer jumps around in the notification list.
+- Fewer unneeded hints in settings.
+
 ## 0.8.0
 
 Released 2026-10-29.

@@ -72,7 +72,8 @@ class ProtocolsTest {
         val config = JSONObject(TunnelConfig.create(p))
         assertEquals("proxy", config.getJSONArray("endpoints").getJSONObject(0).getString("tag"))
         assertTrue((0 until config.getJSONArray("outbounds").length()).none { config.getJSONArray("outbounds").getJSONObject(it).optString("type") == "wireguard" })
-        assertEquals("AmneziaWG не поддерживается", assertFailsWith<IllegalArgumentException> { Subscriptions.parseLink(link.replace("#WG", "&jc=4&jmin=40#WG")) }.message)
+        assertEquals(AmneziaWg.PROTOCOL, Subscriptions.parseLink(link.replace("#WG", "&jc=4&jmin=40#WG")).protocol)
+        assertTrue(assertFailsWith<IllegalArgumentException> { Subscriptions.parseLink(link.replace("#WG", "&jc=4&jmin=40&s1=15#WG")) }.message!!.contains("S1–S4"))
         assertFailsWith<Exception> { Subscriptions.parseLink("wireguard://short@wg.example:1?publickey=${enc(wgPub)}&address=10.0.0.2") }
         val shared = ShareLinks.of(p.copy(link = ""))!!
         assertTrue(shared.startsWith("wireguard://"))

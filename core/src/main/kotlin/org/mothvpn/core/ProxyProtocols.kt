@@ -128,7 +128,6 @@ object ProxyProtocols {
     }
 
     // ---- WireGuard (sing-box endpoint) ----
-    private val amnezia = setOf("jc", "jmin", "jmax", "s1", "s2", "h1", "h2", "h3", "h4", "i1", "i2", "i3", "i4", "i5")
     fun wgKey(value: String?, what: String): String {
         val v = value?.trim().orEmpty()
         val bytes = runCatching { Base64.getDecoder().decode(v) }.getOrNull() ?: runCatching { Base64.getUrlDecoder().decode(v) }.getOrNull()
@@ -150,11 +149,14 @@ object ProxyProtocols {
     private fun wireguardLink(link: String): Profile {
         val u = URI(link.trim())
         val q = query(u.rawQuery)
-        require(q.keys.none { it in amnezia }) { "AmneziaWG не поддерживается" }
         val host = cleanHost(u.host)
         val port = checkPort(if (u.port == -1) 51820 else u.port)
         val privateKey = u.rawUserInfo?.takeIf { it.isNotEmpty() }?.let(::decode) ?: q["privatekey"] ?: q["private_key"] ?: q["pk"]
         val addresses = (q["address"] ?: q["ip"] ?: q["local_address"] ?: q["localaddress"] ?: error("WireGuard: нет адреса интерфейса")).split(',').filter { it.isNotBlank() }
+        // AmneziaWG parameters (jc, jmin, …): the Xray engine with junk packets, or a clear reason when the server needs more.
+        if (AmneziaWg.has(q)) return AmneziaWg.profile(host, port, privateKey, q["publickey"] ?: q["public_key"] ?: q["peer_pk"] ?: q["peer_public_key"] ?: q["peerpublickey"],
+            q["presharedkey"] ?: q["pre_shared_key"] ?: q["psk"], addresses, reserved(q["reserved"]), q["mtu"]?.toIntOrNull(), q.filterKeys { it in AmneziaWg.keys },
+            name(u.rawFragment, host), sha(link.trim().substringBefore('#')))
         return wireguard(host, port, privateKey, q["publickey"] ?: q["public_key"] ?: q["peer_pk"] ?: q["peer_public_key"] ?: q["peerpublickey"],
             q["presharedkey"] ?: q["pre_shared_key"] ?: q["psk"], addresses, reserved(q["reserved"]), q["mtu"]?.toIntOrNull(), name(u.rawFragment, host), sha(link.trim().substringBefore('#')))
     }

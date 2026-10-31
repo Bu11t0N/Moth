@@ -23,6 +23,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -192,12 +195,19 @@ class MainActivity : AppCompatActivity() {
                             listOf(tr(R.string.msg_home_26) to "home", tr(R.string.msg_servers_27) to "list", tr(R.string.msg_settings_28) to "settings").forEachIndexed { i, item ->
                                 NavigationBarItem(selected = tab == i, onClick = { val t = org.mothvpn.core.TabTap.tap(i, settingsRoot); tab = t.tab; settingsRoot = t.rootRequest }, label = { Text(item.first) }, modifier = Modifier.pressScale(), icon = {
                                     // Material icons that are clearly different (house, bulleted list, gear): outlined, filled when selected.
+                                    // An available update: a small dot at the bottom right of the Settings icon (no badge at the top of Home).
+                                    Box {
                                     NavIcon(tab == i, when (item.second) { "home" -> androidx.compose.material.icons.Icons.Outlined.Home
                                         "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.FormatListBulleted
                                         else -> androidx.compose.material.icons.Icons.Outlined.Settings },
                                         when (item.second) { "home" -> androidx.compose.material.icons.Icons.Filled.Home
                                         "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Filled.FormatListBulleted
                                         else -> androidx.compose.material.icons.Icons.Filled.Settings })
+                                    if (item.second == "settings" && updateAvailable) Box(Modifier.align(androidx.compose.ui.Alignment.BottomEnd).offset(x = 3.dp, y = 2.dp).size(9.dp)
+                                        .background(MaterialTheme.colorScheme.surface, androidx.compose.foundation.shape.CircleShape).padding(1.5.dp)
+                                        .background(MaterialTheme.colorScheme.onSurface, androidx.compose.foundation.shape.CircleShape)
+                                        .semantics { contentDescription = tr(R.string.update_available_dot) })
+                                    }
                                 })
                             }
                         }

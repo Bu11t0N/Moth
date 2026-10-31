@@ -57,6 +57,7 @@ object Subscriptions {
     fun parse(body: String, fetch: ((String) -> String)? = null): ImportResult {
         require(body.length <= 2 * 1024 * 1024) { "Список серверов слишком большой" }
         val text = body.trim().removePrefix("\uFEFF")
+        if (AmneziaWg.looksLikeConf(text)) return ImportResult(listOf(AmneziaWg.parseConf(text)), 0)
         if (SingBoxSubscriptions.looksLike(text)) return SingBoxSubscriptions.parse(text).tagged(ServerLabels.SOURCE_SINGBOX)
         if (XrayJsonSubscriptions.looksLike(text)) return XrayJsonSubscriptions.parse(text).tagged(ServerLabels.SOURCE_JSON)
         if (ClashSubscriptions.looksLike(text) || text.startsWith("{")) return ClashSubscriptions.parse(text, fetch)
@@ -76,13 +77,14 @@ object Subscriptions {
             }
         }
         val (profiles, duplicates) = dedupe(converted, "link")
-        require(profiles.isNotEmpty()) { "Нет поддерживаемых серверов. Нужны ссылки VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, SOCKS, HTTP, WireGuard или SSH, либо конфигурация Clash, Xray или sing-box." }
+        require(profiles.isNotEmpty()) { "Нет поддерживаемых серверов. Нужны ссылки VLESS, VMess, Trojan, Shadowsocks, Hysteria2, TUIC, SOCKS, HTTP, WireGuard, AmneziaWG или SSH, либо конфигурация Clash, Xray или sing-box." }
         return ImportResult(profiles, rejected, reasons, duplicates, comments, converted.size)
     }
     fun parseLink(link: String): Profile = parseLinkOnly(link).copy(link = link.trim())
     private fun parseLinkOnly(link: String): Profile {
         val scheme = link.substringBefore("://").lowercase()
         if (scheme in setOf("hy2", "hysteria2", "hysteria", "tuic")) return ExtraProtocols.parse(link)
+        if (scheme == "vpn") return AmneziaWg.vpnKey(link)
         if (scheme in setOf("http", "https")) require(ImportInput.proxyLink(link)) { "Ссылка не похожа на прокси-сервер" }
         if (scheme in ProxyProtocols.schemes) return ProxyProtocols.parse(link)
         if (scheme in setOf("vless", "trojan") && URI(link).rawQuery.orEmpty().split('&').any { it in setOf("type=xhttp", "type=splithttp") }) return ExtraProtocols.xhttp(link)

@@ -135,6 +135,9 @@ object VpnTraffic {
         var added = false
         synchronized(lock) {
             val ids = HashSet<String>()
+            // The core's message starts with an empty filtered view: without filterState the iterator returned nothing, so no app
+            // traffic was ever counted. All = active and recently closed connections (the closed ones carry their final totals).
+            connections.filterState(io.nekohasekai.libbox.Libbox.ConnectionStateAll.toInt())
             val it = connections.iterator()
             while (it.hasNext()) {
                 val c = it.next(); val id = c.id ?: continue

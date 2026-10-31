@@ -219,7 +219,7 @@
     <string name="notif_speed">Скорость: ↑ %1$s/с  ↓ %2$s/с</string>
     <string name="notif_total">Всего: ↑ %1$s  ↓ %2$s</string>
     <string name="notif_uptime">Время: %1$s</string>
-    <string name="update_available_arrow">Доступно обновление. Открыть «Обновления»</string>
+    <string name="update_available_dot">Доступно обновление</string>
     <string name="boot_channel">Запуск VPN</string>
     <string name="boot_permission_title">Мотылёк не подключился</string>
     <string name="boot_permission_text">Откройте приложение, чтобы разрешить VPN-подключение.</string>
@@ -243,6 +243,8 @@
     <string name="split_unlisted">Нет на рабочем столе: нажмите, чтобы убрать</string>
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
+    <string name="split_all_apps">Повышенные права</string>
+    <string name="split_all_apps_info">Показывает все установленные приложения, которые используют интернет, включая фоновые службы без значка на экране. Использует разрешение на просмотр всех приложений; список остаётся на телефоне.</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
     <string name="auto_select_wifi">Автовыбор на Wi‑Fi</string>
     <string name="auto_select_mobile">Автовыбор на мобильном интернете</string>
@@ -303,7 +305,6 @@
     <string name="set_cat_data">Данные</string>
     <string name="set_head_main">Основные</string>
     <string name="set_head_app">Приложение</string>
-    <string name="set_head_apps">Приложения</string>
     <string name="set_head_rules">Правила</string>
     <string name="set_head_network">Сеть и DNS</string>
     <string name="set_head_provider">Для провайдера</string>
@@ -446,9 +447,9 @@
     <string name="fragment_tlshello_small">"TLS ClientHello, мелкие части"</string>
     <string name="fragment_first_packets">"Первые пакеты соединения"</string>
     <string name="noise_title">"UDP-шум"</string>
-    <string name="fragment_info">Делит начало TLS-соединения (ClientHello) на мелкие части, чтобы система глубокой проверки трафика (DPI) не смогла прочитать имя сайта и заблокировать его. Помогает, если VPN-серверы блокируются через DPI; подключение может стать чуть медленнее. «Мелкие части» дополнительно делят TLS-записи — для более строгих фильтров. «Первые пакеты» делят первые пакеты любого соединения. Если всё работает, оставьте выключенным.</string>
-    <string name="noise_info">Перед первым настоящим UDP-пакетом отправляет несколько случайных пакетов, чтобы начало соединения не было похоже на известный VPN-протокол. Помогает, если UDP-протоколы (Hysteria2, WireGuard, QUIC) замедляют или блокируют. Немного больше трафика; если всё работает, оставьте выключенным.</string>
-    <string name="mux_info">Передаёт несколько соединений внутри одного соединения с сервером. Новые соединения открываются быстрее, а снаружи видно меньше соединений, но медленная загрузка может тормозить остальные. Для серверов sing-box сервер должен поддерживать выбранный протокол (smux, yamux или h2mux); серверы Xray используют свой Mux.Cool. Не используется с XTLS Vision (flow) и XHTTP. Если не уверены, оставьте выключенным.</string>
+    <string name="fragment_info">Делит начало TLS-соединения (ClientHello) на мелкие части, чтобы система глубокой проверки трафика (DPI) не смогла прочитать имя сайта и заблокировать его. Помогает, если VPN-серверы блокируются через DPI; подключение может стать чуть медленнее. «Мелкие части» дополнительно делят TLS-записи — для более строгих фильтров. «Первые пакеты» делят первые пакеты любого соединения.</string>
+    <string name="noise_info">Перед первым настоящим UDP-пакетом отправляет несколько случайных пакетов, чтобы начало соединения не было похоже на известный VPN-протокол. Помогает, если UDP-протоколы (Hysteria2, WireGuard, QUIC) замедляют или блокируют. Немного больше трафика.</string>
+    <string name="mux_info">Передаёт несколько соединений внутри одного соединения с сервером. Новые соединения открываются быстрее, а снаружи видно меньше соединений, но медленная загрузка может тормозить остальные. Для серверов sing-box сервер должен поддерживать выбранный протокол (smux, yamux или h2mux); серверы Xray используют свой Mux.Cool. Не используется с XTLS Vision (flow) и XHTTP.</string>
     <string name="mux_title">"Мультиплексирование (mux)"</string>
     <string name="mux_off">"Выключено"</string>
     <string name="deeplink_sub_title">"Добавить подписку?"</string>
@@ -523,6 +524,12 @@
     <string name="device_reset">Сбросить</string>
     <string name="servers_check_all">Проверить все серверы</string>
     <string name="device_title">Данные устройства</string>
+    <string name="device_targets">Кому отправлять данные устройства</string>
+    <string name="device_targets_all">Всем подпискам</string>
+    <string name="device_targets_selected">Выбранным подпискам</string>
+    <string name="device_targets_selected_n">Выбрано: %1$d</string>
+    <string name="device_targets_none">Подписок пока нет</string>
+    <string name="device_targets_info">Какие подписки получают HWID и данные устройства при обновлении. В режиме «Выбранным подпискам» новая ссылка их не получает, пока вы не отметите её здесь.</string>
     <string name="check_needs_mobile">Чтобы проверить эти серверы, включите мобильные данные и отключите Wi-Fi</string>
     <string name="check_needs_wifi">Чтобы проверить эти серверы, подключитесь к Wi-Fi</string>
     <string name="ua_custom">Свой</string>

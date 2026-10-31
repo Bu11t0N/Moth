@@ -54,7 +54,7 @@ import org.mothvpn.core.SubscriptionSchedule
     LaunchedEffect(rootRequest) { if (rootRequest != firstRoot) { logPage = 0; licenseAsset = ""; showHwid = false; error = ""; section = null } }
     // The page a page returns to on Back: the folder its card sits in (Routing), else the main list (the Data and App cards sit there too).
     fun parentSection(sec: String?): String? = when (sec) {
-        tr(R.string.split_title), tr(R.string.rules_title) -> tr(R.string.set_cat_routing)
+        tr(R.string.rules_title) -> tr(R.string.set_cat_routing)
         else -> null
     }
     BackHandler(enabled = section != null) { if (logPage == 5) logPage = 4 else if (logPage == 3 || logPage == 4) { logPage = 0; section = null } else if (logPage != 0) logPage = 0 else section = parentSection(section) }
@@ -86,7 +86,7 @@ import org.mothvpn.core.SubscriptionSchedule
                 tr(R.string.backup_title) to "backup", tr(R.string.appdata_title) to "appdata", tr(R.string.battery_title) to "battery", tr(R.string.conn_title) to "connections", tr(R.string.update_title) to "updates",
                 tr(R.string.dev_for_developers) to "dev")[page.first]
         }
-        // The page that shows the card a page opens from: the main list or the Routing folder.
+        // The page that shows the card a page opens from: the main list or the Routing folder (rules).
         val containerPages = listOf(R.string.split_title to "split", R.string.rules_title to "rules", R.string.stats_title to "stats", R.string.backup_title to "backup", R.string.appdata_title to "appdata", R.string.battery_title to "battery", R.string.conn_title to "connections",
             R.string.update_title to "updates", R.string.dev_for_developers to "dev").associate { (id, key) -> key to tr(id) }
         fun parentPage(key: String): Pair<String?, Int> = when (key) {
@@ -116,9 +116,11 @@ import org.mothvpn.core.SubscriptionSchedule
                     val subAuto = if (draft.subUpdateHours == 0) tr(R.string.set_sum_sub_off) else tr(R.string.set_sum_sub_hours, draft.subUpdateHours)
                     val method = when (draft.probeMode) { org.mothvpn.core.ProbePolicy.FULL -> tr(R.string.ping_full); org.mothvpn.core.ProbePolicy.TCP -> tr(R.string.ping_tcp); else -> tr(R.string.ping_latency) }
                     val checks = listOfNotNull((tr(R.string.set_short_health) + ": " + healthLabel(draft.healthIntervalSeconds)).takeIf { draft.healthEnabled }, method)
-                    val routing = listOfNotNull(splitSummary(draft), DnsServers.presetOf(draft.dns)?.label ?: tr(R.string.dns_custom), tr(R.string.set_short_ru).takeIf { draft.directRu })
+                    val routing = listOfNotNull(DnsServers.presetOf(draft.dns)?.label ?: tr(R.string.dns_custom), tr(R.string.set_short_ru).takeIf { draft.directRu })
                     SectionHeader(tr(R.string.set_head_main))
                     SettingsCategory(tr(R.string.msg_connection_75), onOff.joinToString(" · ").ifEmpty { tr(R.string.set_sum_defaults) }, "connection") { section = tr(R.string.msg_connection_75) }
+                    // Split tunneling sits on the main list right under Connection (not inside Routing).
+                    SettingsCategory(tr(R.string.split_title), splitSummary(draft) ?: tr(R.string.set_split_off), "split") { section = tr(R.string.split_title) }
                     SettingsCategory(tr(R.string.msg_checks_76), checks.joinToString(" · "), "checks") { section = tr(R.string.msg_checks_76) }
                     SettingsCategory(tr(R.string.set_cat_routing), routing.joinToString(" · "), "routing") { section = tr(R.string.set_cat_routing) }
                     SettingsCategory(tr(R.string.set_cat_subscription), subAuto, "subscription") { section = tr(R.string.set_cat_subscription) }
@@ -211,8 +213,6 @@ import org.mothvpn.core.SubscriptionSchedule
                 }
                 tr(R.string.set_cat_routing) -> {
                     LiveApplyHint()
-                    SectionHeader(tr(R.string.set_head_apps))
-                    SettingsCategory(tr(R.string.split_title), splitSummary(draft) ?: tr(R.string.set_split_off), "split") { section = tr(R.string.split_title) }
                     SectionHeader(tr(R.string.set_head_rules))
                     SettingsCategory(tr(R.string.rules_title), rulesSummary(draft), "rules") { section = tr(R.string.rules_title) }
                     SectionHeader(tr(R.string.set_head_network))
@@ -230,7 +230,7 @@ import org.mothvpn.core.SubscriptionSchedule
                             dismissButton = { TextButton(onClick = { customDns = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
                     }
                     SettingsToggle(tr(R.string.dns_leak), draft.dnsLeakProtection, !locked) { applySettings(draft.copy(dnsLeakProtection = it)) }
-                    FieldCard(draft.bootstrapDns, { applySettings(draft.copy(bootstrapDns = it)) }, tr(R.string.msg_server_bootstrap_dns_91), !locked, info = tr(R.string.msg_this_dns_is_used_directly_to_connect_to_serve_92))
+                    FieldCard(draft.bootstrapDns, { applySettings(draft.copy(bootstrapDns = it)) }, tr(R.string.msg_server_bootstrap_dns_91), !locked)
                     SettingsToggle(tr(R.string.msg_ipv6_through_vpn_89), draft.ipv6, !locked) { applySettings(draft.copy(ipv6 = it)) }
                     FieldCard(mtu, { mtu = it; number(it, "mtu") }, "MTU · 1280–9000", !locked, info = tr(R.string.mtu_hint))
                 }
@@ -261,6 +261,11 @@ import org.mothvpn.core.SubscriptionSchedule
                         DialogRow(tr(R.string.device_title), DeviceDefaults.sent(draft).joinToString(" · "), enabled = !locked) { deviceDialog = true }
                     }
                     if (deviceDialog && draft.deviceInfo) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
+                    // Which subscriptions get the HWID and device data: all (default, as before 1.0) or only the ticked ones.
+                    var targetsDialog by remember { mutableStateOf(false) }
+                    DialogRow(tr(R.string.device_targets), if (draft.deviceDataSelected) tr(R.string.device_targets_selected_n, draft.deviceDataSubs.size) else tr(R.string.device_targets_all),
+                        enabled = !locked && draft.hwidEnabled, info = tr(R.string.device_targets_info)) { targetsDialog = true }
+                    if (targetsDialog) DeviceDataTargetsDialog(draft, { targetsDialog = false }) { applySettings(it) }
                     // Subscription User-Agent: one row with the current choice; a sheet picks Moth, a client preset or the user's own value. Never logged.
                     var uaSheet by remember { mutableStateOf(false) }
                     DialogRow(tr(R.string.msg_subscription_user_agent_109), org.mothvpn.core.UserAgents.title(draft.userAgent, BuildConfig.VERSION_NAME), enabled = !locked) { uaSheet = true }
@@ -378,7 +383,7 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
 /** Split tunnelling in one line, or null when it is off. Selected apps the list no longer offers (no home-screen icon, uninstalled) are not counted. */
 @Composable private fun splitSummary(draft: ClientSettings): String? {
     val context = LocalContext.current
-    val listed by produceState<Set<String>?>(null, draft.splitApps) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { splitListedPackages(context) }.getOrNull() } }
+    val listed by produceState<Set<String>?>(null, draft.splitApps, draft.splitAllApps) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { splitListedPackages(context, draft.splitAllApps) }.getOrNull() } }
     val count = listed?.let { l -> draft.splitApps.count { it in l } } ?: draft.splitApps.size
     return when { count == 0 -> null; draft.splitMode == "only" -> tr(R.string.set_split_only, count); else -> tr(R.string.set_split_bypass, count) }
 }
@@ -476,6 +481,37 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
         if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(end = 4.dp, bottom = 4.dp))
     }
+}
+
+/** Subscription settings: send the HWID and device data to every subscription or only to the ticked ones (saved at once). */
+@Composable fun DeviceDataTargetsDialog(draft: ClientSettings, close: () -> Unit, apply: (ClientSettings) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sources by produceState<List<Pair<String, String>>?>(null) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { SubscriptionStore(context).loadBook()?.sources.orEmpty().filter { !it.local }.map { it.id to it.title() } }.getOrDefault(emptyList())
+        }
+    }
+    AlertDialog(onDismissRequest = close, title = { Text(tr(R.string.device_targets)) }, text = {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            listOf(false to tr(R.string.device_targets_all), true to tr(R.string.device_targets_selected)).forEach { (selected, label) ->
+                Row(Modifier.pressScale().fillMaxWidth().clickable { apply(draft.copy(deviceDataSelected = selected)) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(draft.deviceDataSelected == selected, { apply(draft.copy(deviceDataSelected = selected)) }); Text(label)
+                }
+            }
+            if (draft.deviceDataSelected) {
+                val list = sources
+                if (list == null) LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp))
+                else if (list.isEmpty()) Text(tr(R.string.device_targets_none), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 12.dp, top = 8.dp))
+                list?.forEach { (id, title) ->
+                    val checked = id in draft.deviceDataSubs
+                    fun toggle() { apply(draft.copy(deviceDataSubs = if (checked) draft.deviceDataSubs - id else (draft.deviceDataSubs + id).distinct())) }
+                    Row(Modifier.pressScale().fillMaxWidth().clickable { toggle() }.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked, { toggle() }); Text(title.ifBlank { id }, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+    }, confirmButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.sub_link_close)) } })
 }
 
 /** Developer: per subscription, the NAMES of the response headers and body fields from its last update (never values or links). */

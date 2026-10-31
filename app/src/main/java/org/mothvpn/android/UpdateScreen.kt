@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -84,7 +85,7 @@ import java.io.File
     LaunchedEffect(Unit) { val seen = AppUpdater.installAborted.value; AppUpdater.installAborted.collect { if (it > seen) { message = ""; on(org.mothvpn.core.UpdatePhase.Event.INSTALL_ABORTED) } } }
     val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
     var channelDialog by remember { mutableStateOf(false) }
-    // One quiet status line under the moth (the versions are in the card below): what is happening now, the result of the last check or an error.
+    // One quiet status line above the version card: what is happening now, the result of the last check or an error.
     val status = when {
         phase is org.mothvpn.core.UpdatePhase.Downloading -> tr(R.string.update_downloading) + (progress?.let { " ${(it * 100).toInt().coerceIn(0, 100)} %" } ?: "")
         busy && release == null -> tr(R.string.update_checking)
@@ -92,29 +93,33 @@ import java.io.File
         release != null -> tr(R.string.update_available, release!!.version)
         else -> ""
     }
-    // The moth, the status and the version card take the space above (and scroll only when they really do not fit: small screen, big font;
-    // otherwise no drag, no empty overscroll stretch and no nested scroll that would fold the large title). The channel row and the main
-    // button are pinned to the bottom, so the button stays in place while the status, the progress or the card above change.
+    // The moth fills the free space at the top, centred and as large as it fits. Everything else is one block pinned to the bottom: the
+    // status line, the version card, the channel row and the main button. When the progress row appears (checking, downloading) the block
+    // grows upwards smoothly and the moth gets a little smaller; the button never moves. The block scrolls only when it does not fit at all
+    // (small screen, big font).
     val scroll = rememberScrollState()
     val scrollable = scroll.maxValue > 0
+    val motion = androidx.compose.animation.core.tween<androidx.compose.ui.unit.IntSize>(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)
     Column(modifier.fillMaxWidth()) {
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll, overscrollEffect = if (scrollable) rememberOverscrollEffect() else null, enabled = scrollable),
+        // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val side = minOf(maxWidth * 0.62f, maxHeight * 0.86f, 260.dp)
+            if (side >= 56.dp) MothFlutter(size = side, busy = busy)
+        }
+        Column(Modifier.fillMaxWidth().animateContentSize(motion).verticalScroll(scroll, overscrollEffect = if (scrollable) rememberOverscrollEffect() else null, enabled = scrollable),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
-            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                MothFlutter(busy = busy)
-                Spacer(Modifier.height(12.dp))
-                Text(status.ifEmpty { " " }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 4.dp, start = 16.dp, end = 16.dp).semantics { liveRegion = LiveRegionMode.Polite })
-            }
+            Text(status.ifEmpty { " " }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp).semantics { liveRegion = LiveRegionMode.Polite })
             Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME)
-                    release?.let {
-                        HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        VersionRow(tr(R.string.update_available_row), it.version)
+                    AnimatedVisibility(release != null, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                        Column {
+                            HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            VersionRow(tr(R.string.update_available_row), release?.version.orEmpty())
+                        }
                     }
-                    if (busy) {
+                    AnimatedVisibility(busy, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                         Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(Modifier.weight(1f)) {
@@ -128,8 +133,6 @@ import java.io.File
                     }
                 }
             }
-        }
-        Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
             // One main action at the very bottom: install a found update, otherwise check again ("check again" goes above it when an update is found).
             val available = release

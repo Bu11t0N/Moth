@@ -23,7 +23,7 @@ object ServerLabels {
     private val protocolNames = mapOf(
         "vless" to "VLESS", "vmess" to "VMess", "trojan" to "Trojan", "shadowsocks" to "Shadowsocks", "ss" to "Shadowsocks",
         "hysteria2" to "Hysteria2", "hy2" to "Hysteria2", "hysteria" to "Hysteria", "tuic" to "TUIC", "anytls" to "AnyTLS",
-        "wireguard" to "WireGuard", "ssh" to "SSH", "socks" to "SOCKS5", "http" to "HTTP", "https" to "HTTPS", "xray" to "Xray")
+        "wireguard" to "WireGuard", "amneziawg" to "AmneziaWG", "ssh" to "SSH", "socks" to "SOCKS5", "http" to "HTTP", "https" to "HTTPS", "xray" to "Xray")
     private val transportNames = mapOf("tcp" to "TCP", "raw" to "TCP", "ws" to "WS", "grpc" to "gRPC", "xhttp" to "XHTTP",
         "splithttp" to "XHTTP", "httpupgrade" to "HTTPUpgrade", "http" to "HTTP/2", "h2" to "HTTP/2", "quic" to "QUIC", "kcp" to "mKCP")
     /** Protocols whose subtitle names a transport and security layer. */
@@ -33,7 +33,7 @@ object ServerLabels {
     fun tone(protocol: String): ProtocolTone = when (protocol.lowercase()) {
         "vless" -> ProtocolTone.VLESS; "vmess" -> ProtocolTone.VMESS; "trojan" -> ProtocolTone.TROJAN
         "shadowsocks", "ss" -> ProtocolTone.SHADOWSOCKS; "hysteria2", "hy2", "hysteria", "tuic" -> ProtocolTone.HYSTERIA
-        "anytls" -> ProtocolTone.ANYTLS; "wireguard" -> ProtocolTone.WIREGUARD; else -> ProtocolTone.OTHER
+        "anytls" -> ProtocolTone.ANYTLS; "wireguard", "amneziawg" -> ProtocolTone.WIREGUARD; else -> ProtocolTone.OTHER
     }
     private fun protocolPart(p: String) = LabelPart(protocolName(p), LabelPart.Kind.PROTOCOL, tone(p))
     private fun sourceName(s: String) = when (s) { SOURCE_JSON -> "JSON"; SOURCE_CLASH -> "Clash"; SOURCE_SINGBOX -> "sing-box"; else -> null }
@@ -78,6 +78,7 @@ object ServerLabels {
         val s = o.optJSONObject("streamSettings")
         val security = s?.optString("security")?.lowercase().orEmpty()
         if (protocol == "http" && security == "tls") protocol = "https"
+        if (AmneziaWg.isAmnezia(o)) protocol = AmneziaWg.PROTOCOL
         if (protocol !in layered) return listOf(protocolPart(protocol))
         val network = s?.optString("network")?.lowercase()?.ifBlank { null } ?: "tcp"
         return listOfNotNull(protocolPart(protocol), transportPart(network), securityPart(security))

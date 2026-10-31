@@ -131,9 +131,11 @@ object ClashSubscriptions {
             "socks5" -> { require(v("tls") != "true") { "SOCKS5 поверх TLS не поддерживается" }; ProxyProtocols.socks(server, port, v("username"), v("password"), name, "") }
             "http" -> ProxyProtocols.http(server, port, v("username"), v("password"), v("tls") == "true", v("sni").ifBlank { v("servername") }.ifBlank { null }, name, "")
             "wireguard" -> {
-                require(p["amnezia-wg-option"] == null) { "AmneziaWG не поддерживается" }
                 val reserved = when (val r = p["reserved"]) { is List<*> -> r.map { it.toString().toInt() }; null -> null
                     else -> java.util.Base64.getDecoder().decode(r.toString()).map { it.toInt() and 0xff } }
+                val awg = (p["amnezia-wg-option"] as? Map<*, *>)?.entries?.associate { it.key.toString().lowercase() to it.value.toString() }
+                if (awg != null) return AmneziaWg.profile(server, port, v("private-key"), v("public-key"), v("pre-shared-key").ifBlank { null },
+                    listOf(v("ip"), v("ipv6")).filter { it.isNotBlank() }, reserved, v("mtu").toIntOrNull(), awg.filterKeys { it in AmneziaWg.keys }, name, "")
                 ProxyProtocols.wireguard(server, port, v("private-key"), v("public-key"), v("pre-shared-key").ifBlank { null },
                     listOf(v("ip"), v("ipv6")).filter { it.isNotBlank() }, reserved, v("mtu").toIntOrNull(), name, "")
             }
