@@ -2,6 +2,15 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0-beta.6
+
+Released 2026-11-02 (beta).
+
+### Changes
+
+- Split tunneling: app checkboxes no longer disappear while you scroll the list; the "Show system apps" and "Elevated privileges" options hide instead.
+- First run: a short tour of the main features (connecting, auto-select, split tunneling, updates), then one page with the permissions Moth needs: VPN, notifications, battery optimization and how to keep Moth from being closed (on HyperOS/MIUI: the lock in Recents, Battery saver "No restrictions", Autostart). Everything can be skipped.
+
 ## 1.0.0-beta.5
 
 Released 2026-11-01 (beta).
