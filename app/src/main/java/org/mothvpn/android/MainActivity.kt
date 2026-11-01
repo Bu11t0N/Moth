@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
     private fun show(next: SubscriptionBook?) { book = next?.takeIf { it.sources.isNotEmpty() }; saved = next?.record(); lifecycleScope.launch(Dispatchers.IO) { runCatching { MothWidget.update(applicationContext) } } }
     private var updateAvailable by mutableStateOf(false)
     private var openUpdates by mutableStateOf(false)
-    /** The first-run screen is shown (first launch without subscriptions, or opened again from the developer page). */
+    /** The first-run flow is shown (first launch without subscriptions, or opened again from the developer page). */
     private var onboarding by mutableStateOf(false)
     private var busy by mutableStateOf(false)
     /** Subscriptions being downloaded again right now: their refresh buttons show the flapping moth (no progress strip). */
@@ -223,7 +223,7 @@ class MainActivity : AppCompatActivity() {
                         OnboardingScreen(
                             add = { link -> finishOnboarding("add"); tab = 1; if (ImportInput.classify(link) is ImportInput.Kind.Invalid) message = tr(R.string.import_invalid) else import(link, "onboarding") },
                             scan = { finishOnboarding("scan"); tab = 1; scanQr() },
-                            skip = { finishOnboarding("skip") })
+                            skip = { how -> finishOnboarding(how) }, hasSubscription = book != null)
                     }
                     deepLink?.let { action ->
                         AlertDialog(onDismissRequest = { deepLink = null; Logger.i("DeepLink", "import cancelled") },

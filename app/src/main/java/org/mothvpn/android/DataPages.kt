@@ -45,7 +45,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /** Bumps a counter every time the screen comes back (e.g. from Android's settings), so a page re-reads permissions and numbers. */
-@Composable private fun resumeCount(): Int {
+@Composable internal fun resumeCount(): Int {
     var count by remember { mutableIntStateOf(0) }
     val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(owner) {

@@ -342,12 +342,21 @@ class UiE2ETest {
         device.pressBack(); Thread.sleep(500)
     }
 
-    /** First run without subscriptions: the first-run screen once; "Not now" closes it for good; the developer page shows it again. */
+    /**
+     * First run without subscriptions: the tour (Next / Back / Skip), then the permissions page (nothing granted here, Continue),
+     * then the subscription page; "Not now" closes the flow for good; the developer page shows it again.
+     */
     @Test fun firstRunScreen() {
         Onboarding.reset(context)
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         wait(By.text("Welcome to Moth"), 20_000); Thread.sleep(600)
+        wait(By.text("Next")).click(); wait(By.text("The best server, automatically"), 5_000); Thread.sleep(600)
+        device.pressBack(); wait(By.text("Welcome to Moth"), 5_000); Thread.sleep(600)
+        wait(By.text("Skip")).click(); wait(By.text("Permissions"), 5_000); Thread.sleep(600)
+        assertNotNull("VPN permission row", device.findObject(By.text("VPN connection")))
+        wait(By.text("Continue")).click(); wait(By.text("Add your servers"), 5_000); Thread.sleep(600)
         assertNotNull("link field", device.findObject(By.clazz("android.widget.EditText")))
+        assertTrue("not done before the flow ends", !Onboarding.done(context))
         wait(By.text("Not now")).click(); Thread.sleep(800)
         assertTrue("first-run screen closed", device.findObject(By.text("Welcome to Moth")) == null)
         eventually(5_000, "first run marked done") { Onboarding.done(context) }
@@ -361,7 +370,7 @@ class UiE2ETest {
         wait(By.text("First-run screen"), 10_000).click()
         wait(By.text("Welcome to Moth"), 10_000); Thread.sleep(600)
         device.pressBack(); Thread.sleep(800)
-        assertTrue("closed with Back", device.findObject(By.text("Welcome to Moth")) == null)
+        assertTrue("closed with Back on the first page", device.findObject(By.text("Welcome to Moth")) == null)
         assertTrue("still done", Onboarding.done(context))
     }
 }
