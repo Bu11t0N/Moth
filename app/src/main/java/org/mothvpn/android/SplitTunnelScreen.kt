@@ -87,14 +87,27 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
     val modes = listOf("bypass" to tr(R.string.split_mode_bypass), "only" to tr(R.string.split_mode_only))
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         DialogRow(tr(R.string.split_mode), (modes.firstOrNull { it.first == settings.splitMode } ?: modes.first()).second, enabled) { modeDialog = true }
-        OutlinedTextField(search, { search = it }, label = { Text(tr(R.string.split_search)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.pressScale().fillMaxWidth().clickable { showSystem = !showSystem }) {
-            Checkbox(showSystem, { showSystem = it }); Text(tr(R.string.split_show_system))
-        }
-        // "Elevated privileges": list every installed app (QUERY_ALL_PACKAGES), also those without a launcher icon.
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.pressScale(enabled = enabled).fillMaxWidth().clickable(enabled = enabled) { apply(settings.copy(splitAllApps = !settings.splitAllApps)) }) {
-            Checkbox(settings.splitAllApps, { apply(settings.copy(splitAllApps = it)) }, enabled = enabled)
-            TitleWithInfo(tr(R.string.split_all_apps), tr(R.string.split_all_apps_info), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        // While the app list scrolls, the "Show system apps" and "Elevated privileges" rows step aside (more room for the apps); they come
+        // back 400 ms after it settles. The per-app selection checkboxes in the list never hide.
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        var hideOptions by remember { mutableStateOf(false) }
+        LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress) hideOptions = true else { kotlinx.coroutines.delay(400); hideOptions = false } }
+        // One wrapper without spacing (the rows carry their own top gap), so nothing is left between the search field and the list when hidden.
+        Column(Modifier.fillMaxWidth()) {
+            OutlinedTextField(search, { search = it }, label = { Text(tr(R.string.split_search)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            androidx.compose.animation.AnimatedVisibility(!hideOptions, enter = androidx.compose.animation.expandVertically(expandFrom = Alignment.Top) + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.shrinkVertically(shrinkTowards = Alignment.Top) + androidx.compose.animation.fadeOut()) {
+                Column(Modifier.fillMaxWidth().padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.pressScale().fillMaxWidth().clickable { showSystem = !showSystem }) {
+                        Checkbox(showSystem, { showSystem = it }); Text(tr(R.string.split_show_system))
+                    }
+                    // "Elevated privileges": list every installed app (QUERY_ALL_PACKAGES), also those without a launcher icon.
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.pressScale(enabled = enabled).fillMaxWidth().clickable(enabled = enabled) { apply(settings.copy(splitAllApps = !settings.splitAllApps)) }) {
+                        Checkbox(settings.splitAllApps, { apply(settings.copy(splitAllApps = it)) }, enabled = enabled)
+                        TitleWithInfo(tr(R.string.split_all_apps), tr(R.string.split_all_apps_info), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
         }
         // Selected apps on top. The order is a snapshot so rows don't jump under the finger: it is refreshed when the page opens, when the
         // search or the system-apps box changes.
@@ -104,10 +117,8 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
         if (list == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         else {
             val shown = list.filter { (showSystem || !it.system || it.packageName in settings.splitApps) && (search.isBlank() || it.label.contains(search, true) || it.packageName.contains(search, true)) }
-            // While the list scrolls the checkboxes step aside (more room for the names); they come back once it settles.
-            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-            var hideBoxes by remember { mutableStateOf(false) }
-            LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress) hideBoxes = true else { kotlinx.coroutines.delay(400); hideBoxes = false } }
+            // The selection checkbox is always shown, bound to the saved selection (settings.splitApps) and keyed by package name, so a row
+            // keeps its checkmark while the list scrolls. (1.0.0-beta.3..5 wrongly hid these instead of the two option rows above.)
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState) {
                 items(shown, key = { it.packageName }) { app ->
                     val checked = app.packageName in settings.splitApps
@@ -121,10 +132,7 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
                             Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(if (app.unlisted) tr(R.string.split_unlisted) else app.packageName, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        androidx.compose.animation.AnimatedVisibility(!hideBoxes, enter = androidx.compose.animation.expandHorizontally(expandFrom = Alignment.Start) + androidx.compose.animation.fadeIn(),
-                            exit = androidx.compose.animation.shrinkHorizontally(shrinkTowards = Alignment.Start) + androidx.compose.animation.fadeOut()) {
-                            Checkbox(checked, { toggle() }, enabled = enabled)
-                        }
+                        Checkbox(checked, { toggle() }, enabled = enabled)
                     }
                 }
             }
