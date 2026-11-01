@@ -2,6 +2,16 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0-beta.5
+
+Released 2026-11-01 (beta).
+
+### Changes
+
+- Updates page: the moth keeps one size in every state (checking, update found, downloading) and the page no longer scrolls. The found version is shown only in the card at the bottom.
+- Updates page: errors are shown in full in the notice at the top instead of a cut-off line under the moth.
+- Servers: updating a subscription no longer shows a progress bar at the top; the moth flaps on its refresh button instead, like when servers are checked.
+
 ## 1.0.0-beta.4
 
 Released 2026-11-01 (beta).

@@ -64,7 +64,8 @@ import org.mothvpn.core.SubscriptionSource
 @Composable fun ServersScreen(saved: SavedSubscription?, book: SubscriptionBook?, settings: ClientSettings, network: AccessNetwork, busy: Boolean,
     add: () -> Unit, refresh: () -> Unit, refreshOne: (String) -> Unit, edit: (String, String, String) -> Unit, remove: (String) -> Unit, select: (String, String) -> Unit, probe: (String, List<String>) -> Unit,
     probeGroup: (String, List<String>) -> Unit = { _, _ -> }, cancel: () -> Unit, preferences: (ClientSettings) -> Unit,
-    editServer: (String, String) -> Unit = { _, _ -> }, selecting: Boolean = false) {
+    editServer: (String, String) -> Unit = { _, _ -> }, selecting: Boolean = false,
+    refreshing: Set<String> = emptySet(), refreshingAll: Boolean = false) {
     // Probe results arrive in bursts; apply at most one update per 250 ms so the list does not recompose constantly.
     var results by remember { mutableStateOf(Diagnostics.results.value) }
     LaunchedEffect(Unit) { Diagnostics.results.collect { results = it; delay(250) } }
@@ -159,7 +160,7 @@ import org.mothvpn.core.SubscriptionSource
                 val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true }
                 // This group's servers in the order shown (favorites: the favorite servers).
                 val ids = group.profiles.map { it.id }
-                NewGroupHeader(source, group.profiles.size, folded || unfolds[groupKey]?.opening == false, checking, probing, canRefresh = source != null && !source.local && !refreshLocked, canCheck = canCheck && ids.isNotEmpty(),
+                NewGroupHeader(source, group.profiles.size, folded || unfolds[groupKey]?.opening == false, checking, probing, updating = source != null && source.id in refreshing, canRefresh = source != null && !source.local && !refreshLocked, canCheck = canCheck && ids.isNotEmpty(),
                     toggle = { toggleGroup(groupKey, group.profiles.size) }, refresh = { source?.let { refreshOne(it.id) } }, check = { checkOn(k) { probeGroup(k, ids) } }, cancel = cancel,
                     actions = { if (source != null) actionsFor = source.id })
             } }
@@ -217,10 +218,11 @@ import org.mothvpn.core.SubscriptionSource
                 Icon(androidx.compose.material.icons.Icons.Rounded.Add, contentDescription = null)
             }
             val remote = book?.sources?.count { !it.local } ?: 0
+            val updatingTop = refreshingAll || (remote == 1 && refreshing.isNotEmpty())
             if (saved != null && remote > 0) IconButton(onClick = { if (refreshLocked) show(tr(R.string.sub_wait_notice)) else refresh() },
-                modifier = Modifier.pressScale().then(Modifier.size(40.dp).graphicsLayer { alpha = if (refreshLocked) 0.45f else 1f }
+                modifier = Modifier.pressScale().then(Modifier.size(40.dp).graphicsLayer { alpha = if (refreshLocked && !updatingTop) 0.45f else 1f }
                     .semantics { contentDescription = if (remote > 1) tr(R.string.sub_update_all) else tr(R.string.msg_update_subscription_48) })) {
-                Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = null)
+                RefreshGlyph(updatingTop, 28.dp)
             }
             if (saved != null) {
                 if (probing) IconButton(onClick = { cancel() }, modifier = Modifier.pressScale().then(Modifier.size(40.dp).semantics { contentDescription = tr(R.string.msg_cancel_checks_49) })) {
@@ -244,8 +246,8 @@ import org.mothvpn.core.SubscriptionSource
             FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text(tr(R.string.msg_hide_unavailable_56)) }, modifier = Modifier.pressScale())
         }
         OutlinedTextField(search, { search = it }, singleLine = true, placeholder = { Text(tr(R.string.msg_search_servers_57)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
-        // Switching servers and checking them show no progress bar (the selection highlight and the per-server results are enough).
-        if (busy && !selecting && !probing) LinearProgressIndicator(Modifier.fillMaxWidth())
+        // Switching servers, checking them and updating a subscription show no progress bar (updating: the moth on the refresh button) (the selection highlight and the per-server results are enough).
+        if (busy && !selecting && !probing && refreshing.isEmpty() && !refreshingAll) LinearProgressIndicator(Modifier.fillMaxWidth())
         // Swipe between the Wi-Fi and mobile data pages; the pill switch follows the pager.
         run {
         LaunchedEffect(pager.currentPage) { kind = if (pager.currentPage == 0) "wifi" else "mobile" }
@@ -352,8 +354,16 @@ private enum class DetailIcon {
     }
 }
 
+/** The refresh icon, or while that subscription is being updated the flapping moth (like a server check), without a progress strip. */
+@Composable private fun RefreshGlyph(updating: Boolean, mothSize: androidx.compose.ui.unit.Dp) {
+    androidx.compose.animation.Crossfade(updating, label = "refreshMoth") { on ->
+        if (on) MothFlutter(size = mothSize, busy = true, tappable = false)
+        else Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(24.dp))
+    }
+}
+
 /** Section title in the server list: a subscription (name, traffic and end date, actions button) or the favorites. */
-@Composable private fun NewGroupHeader(source: SubscriptionSource?, count: Int, collapsed: Boolean, checking: Boolean, probing: Boolean, canRefresh: Boolean, canCheck: Boolean,
+@Composable private fun NewGroupHeader(source: SubscriptionSource?, count: Int, collapsed: Boolean, checking: Boolean, probing: Boolean, updating: Boolean, canRefresh: Boolean, canCheck: Boolean,
     toggle: () -> Unit, refresh: () -> Unit, check: () -> Unit, cancel: () -> Unit, actions: () -> Unit) {
     val title = source?.title() ?: tr(R.string.fav_group)
     val turn by androidx.compose.animation.core.animateFloatAsState(if (collapsed) -90f else 0f, label = "chevron")
@@ -372,7 +382,7 @@ private enum class DetailIcon {
                 }
             }
             if (source != null && !source.local) IconButton(onClick = refresh, enabled = canRefresh, modifier = Modifier.pressScale(enabled = canRefresh).then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_update_subscription_48) })) {
-                Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(24.dp))
+                RefreshGlyph(updating, 28.dp)
             }
             if (checking) IconButton(onClick = cancel, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.msg_cancel_checks_49) })) {
                 // The flapping moth says "checking"; the small cross in the corner says a tap stops it.

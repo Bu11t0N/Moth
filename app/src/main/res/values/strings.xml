@@ -182,7 +182,6 @@
     <string name="update_title">Updates</string>
     <string name="update_check">Check for updates</string>
     <string name="update_latest">You have the latest stable version.</string>
-    <string name="update_available">Available version: %1$s</string>
     <string name="update_install">Install update</string>
     <string name="update_cancel">Cancel</string>
     <string name="update_failed">Could not check, download or install the update. Check your connection and try again.</string>

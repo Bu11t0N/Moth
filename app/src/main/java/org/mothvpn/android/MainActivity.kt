@@ -67,6 +67,10 @@ class MainActivity : AppCompatActivity() {
     /** The first-run screen is shown (first launch without subscriptions, or opened again from the developer page). */
     private var onboarding by mutableStateOf(false)
     private var busy by mutableStateOf(false)
+    /** Subscriptions being downloaded again right now: their refresh buttons show the flapping moth (no progress strip). */
+    private var refreshing by mutableStateOf<Set<String>>(emptySet())
+    /** "Update all subscriptions" is running: the top-bar refresh button shows the flapping moth. */
+    private var refreshingAll by mutableStateOf(false)
     /** True while [select] saves a server choice (busy for that short moment); the Servers page shows no progress bar for it. */
     private var selecting by mutableStateOf(false)
     /** Import offered by a link that opened the app; shown in a confirmation dialog, never logged. */
@@ -184,7 +188,8 @@ class MainActivity : AppCompatActivity() {
                                     edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
                                     select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order, only = checkSnapshot(kind)) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
                                     cancel = { cancelChecks() },
-                                    preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) }, selecting = selecting)
+                                    preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) }, selecting = selecting,
+                                    refreshing = refreshing, refreshingAll = refreshingAll)
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
@@ -312,7 +317,8 @@ class MainActivity : AppCompatActivity() {
     /** [sourceId]: refresh or edit that subscription; null adds a new one. [name]: a name chosen by the user (never logged). */
     private fun import(url: String, trigger: String = "add", sourceId: String? = null, name: String? = null, expectedUrl: String? = null) {
         if (busy) { Logger.w("Import", "ignored: another operation is in progress (trigger=$trigger)"); return }
-        busy = true // progress: the bar on the Servers tab, no status text
+        busy = true // progress: the bar on the Servers tab (a refresh: the moth on that subscription's refresh button), no status text
+        if (sourceId != null && trigger == "refresh") refreshing = refreshing + sourceId
         val started = System.currentTimeMillis()
         Logger.i("Import", "subscription ${if (trigger == "refresh") "refresh" else "download"} started (trigger=$trigger, host=${LogFacts.hostTag(url)})")
         lifecycleScope.launch {
@@ -346,7 +352,7 @@ class MainActivity : AppCompatActivity() {
                 // Logger redacts links and addresses from the exception text.
                 Logger.e("Import", "subscription import failed (trigger=$trigger, host=${LogFacts.hostTag(url)}, ${System.currentTimeMillis() - started} ms)", e)
                 message = importError(e)
-            } finally { busy = false }
+            } finally { busy = false; if (sourceId != null) refreshing = refreshing - sourceId }
         }
     }
     private fun importError(e: Exception) = when (e) {
@@ -361,15 +367,16 @@ class MainActivity : AppCompatActivity() {
         if (busy) return
         val sources = book?.sources.orEmpty().filter { !it.local }
         if (sources.isEmpty()) return
-        busy = true // progress: the bar on the Servers tab, no status text
+        busy = true; refreshingAll = true // progress: the moth on the refresh buttons (the one at the top and the subscription being updated)
         lifecycleScope.launch {
             var error: String? = null
-            for (source in sources) {
+            try { for (source in sources) {
+                refreshing = setOf(source.id)
                 try { show(withContext(Dispatchers.IO) { SubscriptionRefresh.run(this@MainActivity, source.id, source.url, null, settings, "refresh").book }) }
                 catch (e: CancellationException) { throw e }
                 catch (e: Exception) { Logger.e("Import", "subscription refresh failed (host=${LogFacts.hostTag(source.url)})", e); error = importError(e) } // no subscription name: shown messages are also logged
-            }
-            error?.let { message = it }; busy = false
+            } } finally { refreshing = emptySet(); refreshingAll = false; busy = false }
+            error?.let { message = it }
         }
     }
     /** Renames a subscription and, when the link changed, downloads it again from the new link (same entry, same position). */

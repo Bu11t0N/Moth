@@ -184,7 +184,6 @@
     <string name="update_title">Обновления</string>
     <string name="update_check">Проверить обновления</string>
     <string name="update_latest">Установлена последняя стабильная версия.</string>
-    <string name="update_available">Доступна версия: %1$s</string>
     <string name="update_install">Установить обновление</string>
     <string name="update_cancel">Отмена</string>
     <string name="update_failed">Не удалось проверить, скачать или установить обновление. Проверьте соединение и повторите попытку.</string>

@@ -6,9 +6,6 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
-import androidx.compose.foundation.rememberOverscrollEffect
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,25 +35,28 @@ import java.io.File
     fun on(event: org.mothvpn.core.UpdatePhase.Event, value: Float? = null) { phase = phase.on(event, value) }
     var message by remember { mutableStateOf("") }
     var job by remember { mutableStateOf<Job?>(null) }
+    // Errors go to the app-wide top notice (full text, never cut under the moth); the line under the moth keeps only short statuses.
+    val notices = LocalNotice.current
+    fun fail(text: String) { message = ""; notices.show(text, NoticeState.ERROR_MS) }
     var warning by remember { mutableStateOf<File?>(null) }
     var waiting by remember { mutableStateOf<Pair<AppRelease, File>?>(null) }
     fun install(file: File) {
         Logger.i("Update", "install requested: ${file.length()} bytes")
-        try { AppUpdater.install(context, file) } catch (e: Exception) { Logger.w("Update", "install failed", e); message = tr(R.string.update_failed) }
+        try { AppUpdater.install(context, file) } catch (e: Exception) { Logger.w("Update", "install failed", e); fail(tr(R.string.update_failed)) }
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         val granted = context.packageManager.canRequestPackageInstalls()
         Logger.i("Update", "install-unknown-apps permission ${if (granted) "granted" else "not granted"}")
         val pending = waiting; waiting = null
         if (granted && pending != null) { message = tr(R.string.update_permission_ready); install(pending.second) }
-        else { message = tr(R.string.update_permission_needed); on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }
+        else { fail(tr(R.string.update_permission_needed)); on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }
     }
     fun action(block: suspend () -> Unit) {
         job = scope.launch {
             on(org.mothvpn.core.UpdatePhase.Event.CHECK); message = ""
             try { block() }
             catch (e: CancellationException) { Logger.i("Update", "update action cancelled"); message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED); throw e }
-            catch (e: Exception) { Logger.w("Update", "update action failed", e); message = tr(R.string.update_failed); on(org.mothvpn.core.UpdatePhase.Event.FAILED) }
+            catch (e: Exception) { Logger.w("Update", "update action failed", e); fail(tr(R.string.update_failed)); on(org.mothvpn.core.UpdatePhase.Event.FAILED) }
             finally { if (phase.busy) on(org.mothvpn.core.UpdatePhase.Event.DONE) }
         }
     }
@@ -86,33 +86,43 @@ import java.io.File
     LaunchedEffect(Unit) { val seen = AppUpdater.installAborted.value; AppUpdater.installAborted.collect { if (it > seen) { message = ""; on(org.mothvpn.core.UpdatePhase.Event.INSTALL_ABORTED) } } }
     val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
     var channelDialog by remember { mutableStateOf(false) }
-    // One quiet status line above the version card: what is happening now, the result of the last check or an error.
+    // One quiet status line under the moth: what is happening now or the result of the last check. A found update is not repeated
+    // there (its version is in the card below); errors are shown by the top notice.
     val status = when {
         phase is org.mothvpn.core.UpdatePhase.Downloading -> tr(R.string.update_downloading) + (progress?.let { " ${(it * 100).toInt().coerceIn(0, 100)} %" } ?: "")
         busy && release == null -> tr(R.string.update_checking)
         message.isNotEmpty() -> message
-        release != null -> tr(R.string.update_available, release!!.version)
         else -> ""
     }
-    // The moth fills the free space at the top, centred and as large as it fits, with the status line right under it (what is happening
-    // now, the result of the last check or an error) and, while checking or downloading, a small Cancel. No progress bar: the moth beats
-    // its wings faster while busy and the download shows its percent in the status. The controls are one block at the bottom with some air
-    // above it: the version card, the channel row and the main button; the button never moves. The block scrolls only when it does not fit.
-    val scroll = rememberScrollState()
-    val scrollable = scroll.maxValue > 0
+    // The page never scrolls and the moth has one size in every state (idle, checking, update found, downloading): its area is sized
+    // once from the page height minus the room the bottom block needs in its tallest state (version card with two rows, channel row,
+    // "check again" and the main button), so the moth neither shrinks nor moves when that block grows. Under the moth: the status
+    // line and, while checking or downloading, a small Cancel. The bottom block is pinned to the bottom; the main button never moves.
     val motion = androidx.compose.animation.core.tween<androidx.compose.ui.unit.IntSize>(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-    val below = 88.dp // status line + Cancel under the moth
-    Column(modifier.fillMaxWidth()) {
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
-            val side = minOf(maxWidth * 0.82f, (maxHeight - below) * 0.95f, 340.dp)
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val type = MaterialTheme.typography
+    // Text heights follow the font size; the rest is fixed dp (see the layout below).
+    val sp = { u: androidx.compose.ui.unit.TextUnit -> with(density) { u.toDp() } }
+    val statusHeight = 12.dp + sp(type.bodyLarge.lineHeight) * 2
+    val below = statusHeight + 44.dp // status (two lines) + Cancel under the moth
+    val cardRow = maxOf(52.dp, 20.dp + sp(type.titleMedium.lineHeight))
+    val reserve = 24.dp + (8.dp + cardRow * 2 + 1.dp) + 12.dp + (32.dp + sp(type.bodyLarge.lineHeight) + sp(type.bodySmall.lineHeight)) +
+        12.dp + 48.dp + 12.dp + 52.dp + 8.dp
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+    val top = (maxHeight - reserve).coerceAtLeast(0.dp)
+    val side = minOf(maxWidth * 0.82f, (top - below) * 0.95f, 340.dp)
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+        Box(Modifier.weight(1f, fill = false).height(top).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
                 if (side >= 56.dp) MothFlutter(size = side, busy = busy)
-                Text(status.ifEmpty { " " }, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-                    maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp).semantics { liveRegion = LiveRegionMode.Polite })
+                // Fixed height (two lines), so a status appearing or changing never moves the moth; statuses are short, errors use the top notice.
+                Box(Modifier.fillMaxWidth().height(statusHeight).padding(start = 16.dp, end = 16.dp, top = 12.dp), contentAlignment = Alignment.TopCenter) {
+                    Text(status, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().wrapContentHeight(Alignment.Top, unbounded = true).semantics { liveRegion = LiveRegionMode.Polite })
+                }
                 // Cancel keeps its place (invisible when idle), so the moth and the status never jump.
-                Box(Modifier.heightIn(min = 44.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.height(44.dp), contentAlignment = Alignment.Center) {
                     androidx.compose.animation.AnimatedVisibility(busy, enter = fadeIn(), exit = fadeOut()) {
                         TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale()) {
                             Text(tr(R.string.update_cancel))
@@ -121,8 +131,7 @@ import java.io.File
                 }
             }
         }
-        Column(Modifier.fillMaxWidth().padding(top = 24.dp).animateContentSize(motion).verticalScroll(scroll, overscrollEffect = if (scrollable) rememberOverscrollEffect() else null, enabled = scrollable),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxWidth().padding(top = 24.dp).animateContentSize(motion), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME)
@@ -144,6 +153,7 @@ import java.io.File
                 NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_check)) }
             }
         }
+    }
     }
     if (channelDialog) ChoiceDialog(tr(R.string.update_channel), channels, channel, { channelDialog = false }) { value ->
         if (channel != value) { Logger.i("Settings", "update channel changed: ${channel.id} -> ${value.id}"); selectChannel(value.id) }
