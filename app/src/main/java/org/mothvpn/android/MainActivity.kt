@@ -64,6 +64,8 @@ class MainActivity : AppCompatActivity() {
     private fun show(next: SubscriptionBook?) { book = next?.takeIf { it.sources.isNotEmpty() }; saved = next?.record(); lifecycleScope.launch(Dispatchers.IO) { runCatching { MothWidget.update(applicationContext) } } }
     private var updateAvailable by mutableStateOf(false)
     private var openUpdates by mutableStateOf(false)
+    /** The first-run screen is shown (first launch without subscriptions, or opened again from the developer page). */
+    private var onboarding by mutableStateOf(false)
     private var busy by mutableStateOf(false)
     /** True while [select] saves a server choice (busy for that short moment); the Servers page shows no progress bar for it. */
     private var selecting by mutableStateOf(false)
@@ -118,6 +120,9 @@ class MainActivity : AppCompatActivity() {
             runCatching { withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).load() } }.onSuccess { settings = it; Logger.i("Store", "settings loaded: channel=${UpdateChannel.effective(it.updateChannel, BuildConfig.VERSION_NAME).id} theme=${it.theme}") }
                 .onFailure { Logger.e("Store", "reading settings failed", it); message = tr(R.string.msg_could_not_read_settings_24) }
             busy = false
+            // First run: no subscription yet and the first-run screen never finished. An install that already has subscriptions
+            // (an update from an older version) is marked done without showing it.
+            if (!Onboarding.done(this@MainActivity)) { if (book == null) { onboarding = true; Logger.i("Onboarding", "first run: shown") } else Onboarding.markDone(this@MainActivity) }
             SubscriptionUpdates.schedule(this@MainActivity, settings.subUpdateHours)
             runCatching { ExpiryReminder.schedule(this@MainActivity) }.onFailure { Logger.w("Expiry", "scheduling failed", it) }
             launch { VpnLauncher.changed.collect { if (it > 0) runCatching { withContext(Dispatchers.IO) { store.loadBook() } }.onSuccess { b -> if (b != null) show(b) } } }
@@ -183,7 +188,7 @@ class MainActivity : AppCompatActivity() {
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
-                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) }, rootRequest = settingsRoot)
+                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) }, rootRequest = settingsRoot, updateAvailable = updateAvailable, showOnboarding = { onboarding = true; Logger.i("Onboarding", "shown from the developer page") })
                                 }
                             }
                             }
@@ -195,7 +200,7 @@ class MainActivity : AppCompatActivity() {
                             listOf(tr(R.string.msg_home_26) to "home", tr(R.string.msg_servers_27) to "list", tr(R.string.msg_settings_28) to "settings").forEachIndexed { i, item ->
                                 NavigationBarItem(selected = tab == i, onClick = { val t = org.mothvpn.core.TabTap.tap(i, settingsRoot); tab = t.tab; settingsRoot = t.rootRequest }, label = { Text(item.first) }, modifier = Modifier.pressScale(), icon = {
                                     // Material icons that are clearly different (house, bulleted list, gear): outlined, filled when selected.
-                                    // An available update: a small dot at the bottom right of the Settings icon (no badge at the top of Home).
+                                    // An available update: a small dot at the top right of the Settings icon (no badge at the top of Home).
                                     Box {
                                     NavIcon(tab == i, when (item.second) { "home" -> androidx.compose.material.icons.Icons.Outlined.Home
                                         "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.FormatListBulleted
@@ -203,14 +208,17 @@ class MainActivity : AppCompatActivity() {
                                         when (item.second) { "home" -> androidx.compose.material.icons.Icons.Filled.Home
                                         "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Filled.FormatListBulleted
                                         else -> androidx.compose.material.icons.Icons.Filled.Settings })
-                                    if (item.second == "settings" && updateAvailable) Box(Modifier.align(androidx.compose.ui.Alignment.BottomEnd).offset(x = 3.dp, y = 2.dp).size(9.dp)
-                                        .background(MaterialTheme.colorScheme.surface, androidx.compose.foundation.shape.CircleShape).padding(1.5.dp)
-                                        .background(MaterialTheme.colorScheme.onSurface, androidx.compose.foundation.shape.CircleShape)
-                                        .semantics { contentDescription = tr(R.string.update_available_dot) })
+                                    if (item.second == "settings" && updateAvailable) UpdateDot(Modifier.align(androidx.compose.ui.Alignment.TopEnd).offset(x = 3.dp, y = (-2).dp))
                                     }
                                 })
                             }
                         }
+                    }
+                    androidx.compose.animation.AnimatedVisibility(onboarding, enter = fadeIn(tween(250)), exit = fadeOut(tween(200))) {
+                        OnboardingScreen(
+                            add = { link -> finishOnboarding("add"); tab = 1; if (ImportInput.classify(link) is ImportInput.Kind.Invalid) message = tr(R.string.import_invalid) else import(link, "onboarding") },
+                            scan = { finishOnboarding("scan"); tab = 1; scanQr() },
+                            skip = { finishOnboarding("skip") })
                     }
                     deepLink?.let { action ->
                         AlertDialog(onDismissRequest = { deepLink = null; Logger.i("DeepLink", "import cancelled") },
@@ -254,6 +262,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    private fun finishOnboarding(how: String) { onboarding = false; Onboarding.markDone(this); Logger.i("Onboarding", "closed: $how") }
     /** Silent launch-time update check using the saved channel; a failure is only logged and shows nothing. */
     private fun checkForUpdate() {
         val channel = UpdateChannel.effective(settings.updateChannel, BuildConfig.VERSION_NAME)

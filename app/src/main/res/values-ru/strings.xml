@@ -665,4 +665,10 @@
     <string name="set_short_lan">Раздача</string>
     <string name="msg_err_lan_port">Неверный порт прокси</string>
     <string name="lan_copy">Копировать</string>
+    <string name="onboard_title">Добро пожаловать в Moth</string>
+    <string name="onboard_text">Для начала добавьте ссылку на подписку от вашего VPN-провайдера. Moth загрузит из неё серверы.</string>
+    <string name="onboard_add">Добавить подписку</string>
+    <string name="onboard_skip">Не сейчас</string>
+    <string name="dev_onboarding">Экран первого запуска</string>
+    <string name="dev_onboarding_sum">Показать снова (ничего не удаляется)</string>
 </resources>

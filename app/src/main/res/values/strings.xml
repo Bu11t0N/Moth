@@ -661,4 +661,10 @@
     <string name="set_short_lan">Sharing</string>
     <string name="msg_err_lan_port">Invalid proxy port</string>
     <string name="lan_copy">Copy</string>
+    <string name="onboard_title">Welcome to Moth</string>
+    <string name="onboard_text">To get started, add the subscription link from your VPN provider. Moth will download your servers from it.</string>
+    <string name="onboard_add">Add subscription</string>
+    <string name="onboard_skip">Not now</string>
+    <string name="dev_onboarding">First-run screen</string>
+    <string name="dev_onboarding_sum">Show it again (nothing is deleted)</string>
 </resources>

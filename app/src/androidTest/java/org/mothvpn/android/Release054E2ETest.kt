@@ -61,7 +61,7 @@ class Release054E2ETest {
     }
     private fun reset() {
         stopVpn()
-        SubscriptionStore(context).clear()
+        SubscriptionStore(context).clear(); Onboarding.markDone(context)
         SettingsStore(context).save(ClientSettings(hwid = hwid))
     }
     @Before fun before() { System.setProperty("http.keepAlive", "false"); reset() }

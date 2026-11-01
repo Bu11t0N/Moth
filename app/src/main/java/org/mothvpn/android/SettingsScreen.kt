@@ -32,7 +32,8 @@ import org.mothvpn.core.DnsServers
 import org.mothvpn.core.SubscriptionSchedule
 
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}, restore: (org.mothvpn.core.Backup.Content) -> Unit = {}, rootRequest: Int = 0) {
+@Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}, restore: (org.mothvpn.core.Backup.Content) -> Unit = {}, rootRequest: Int = 0,
+    updateAvailable: Boolean = false, showOnboarding: () -> Unit = {}) {
     var draft by remember(initial) { mutableStateOf(initial) }
     // The open page survives the activity being recreated (process death, theme or language change) like the selected tab does, so
     // coming back shows the same page. Saved as a string resource id, not the title, so a language change still finds the page.
@@ -140,7 +141,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsCategory(tr(R.string.backup_title), tr(R.string.backup_sum), "backup") { section = tr(R.string.backup_title) }
                     SectionHeader(tr(R.string.set_head_app))
                     // The developer card stays last.
-                    SettingsCategory(tr(R.string.update_title), tr(R.string.set_sum_version, BuildConfig.VERSION_NAME), "updates") { section = tr(R.string.update_title) }
+                    SettingsCategory(tr(R.string.update_title), tr(R.string.set_sum_version, BuildConfig.VERSION_NAME), "updates", dot = updateAvailable) { section = tr(R.string.update_title) }
                     SettingsCategory(tr(R.string.set_changelog), "", "changelog") { section = tr(R.string.set_changelog); logPage = 3 }
                     SettingsCategory(tr(R.string.set_licenses), tr(R.string.set_licenses_sum), "licenses") { section = tr(R.string.set_licenses); logPage = 4 }
                     // Opens the browser, not a page: same card, no container transform, an "open in new" mark instead of the arrow.
@@ -346,6 +347,7 @@ import org.mothvpn.core.SubscriptionSchedule
                 }
                 tr(R.string.dev_for_developers) -> {
                     DeveloperSection({ logPage = 1 }, { logPage = 2 })
+                    DialogRow(tr(R.string.dev_onboarding), tr(R.string.dev_onboarding_sum)) { showOnboarding() }
                     var headersDialog by remember { mutableStateOf(false) }
                     DialogRow(tr(R.string.dev_sub_headers), tr(R.string.dev_sub_headers_sum)) { headersDialog = true }
                     if (headersDialog) SubscriptionHeadersDialog { headersDialog = false }
@@ -362,13 +364,14 @@ import org.mothvpn.core.SubscriptionSchedule
     }
 }
 
-@Composable private fun SettingsCategory(title: String, subtitle: String, icon: String, external: Boolean = false, open: () -> Unit) {
+@Composable private fun SettingsCategory(title: String, subtitle: String, icon: String, external: Boolean = false, dot: Boolean = false, open: () -> Unit) {
     // The card is the start/end of its page's container transform (key = icon name) and shrinks slightly while pressed.
     // [external]: a link that opens the browser: no container transform, and an "open in new" mark instead of the arrow.
     Card(Modifier.containerTransform(if (external) null else icon).pressScale().fillMaxWidth().clickable(onClick = open), colors = ndCardColors()) {
         Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             // A monochrome icon in a grey rounded-square tile (no colours, no circle).
-            IconTile(categoryIcon(icon))
+            // [dot]: an available update, the same dot as on the Settings tab, at the top right of the icon tile.
+            Box { IconTile(categoryIcon(icon)); if (dot) UpdateDot(Modifier.align(androidx.compose.ui.Alignment.TopEnd).offset(x = 3.dp, y = (-3).dp), ring = NdTone.card()) }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 if (subtitle.isNotEmpty()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -76,7 +76,7 @@ class Release061E2ETest {
     }
     private fun reset() {
         stopVpn()
-        SubscriptionStore(context).clear()
+        SubscriptionStore(context).clear(); Onboarding.markDone(context)
         SettingsStore(context).save(ClientSettings(hwid = hwid))
     }
     @Before fun before() { System.setProperty("http.keepAlive", "false"); reset() }
@@ -87,7 +87,7 @@ class Release061E2ETest {
     private fun use(url: String, name: String): Profile {
         // The previous test's VPN may still be tearing down: wait for the direct network before downloading.
         eventually(60_000, "direct network before $url") { off() && fetch("/ip", 4000)?.let { it !in tunneled } == true }
-        SubscriptionStore(context).clear(); add(url)
+        SubscriptionStore(context).clear(); Onboarding.markDone(context); add(url)
         val store = SubscriptionStore(context)
         val profile = store.load()!!.profiles.first { it.name == name }
         store.save(store.load()!!.copy(selected = profile.id, wifiSelected = profile.id, mobileSelected = profile.id))

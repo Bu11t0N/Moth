@@ -54,7 +54,7 @@ class UiE2ETest {
     private fun stopVpn() {
         if (!off()) { context.startService(Intent(context, TunnelService::class.java).setAction("STOP")); eventually(30_000, "VPN off") { off() } }
     }
-    private fun reset() { stopVpn(); SubscriptionStore(context).clear(); SettingsStore(context).save(ClientSettings(hwid = hwid)) }
+    private fun reset() { stopVpn(); SubscriptionStore(context).clear(); Onboarding.markDone(context); SettingsStore(context).save(ClientSettings(hwid = hwid)) }
     @Before fun before() { System.setProperty("http.keepAlive", "false"); reset() }
     @After fun after() { runCatching { device.pressHome() }; reset() }
 
@@ -340,5 +340,28 @@ class UiE2ETest {
         assertNotNull("developer menu entry", dev); dev!!.click()
         assertNotNull(device.wait(Until.findObject(By.text("Crash log")), 10_000)); Thread.sleep(1000)
         device.pressBack(); Thread.sleep(500)
+    }
+
+    /** First run without subscriptions: the first-run screen once; "Not now" closes it for good; the developer page shows it again. */
+    @Test fun firstRunScreen() {
+        Onboarding.reset(context)
+        context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        wait(By.text("Welcome to Moth"), 20_000); Thread.sleep(600)
+        assertNotNull("link field", device.findObject(By.clazz("android.widget.EditText")))
+        wait(By.text("Not now")).click(); Thread.sleep(800)
+        assertTrue("first-run screen closed", device.findObject(By.text("Welcome to Moth")) == null)
+        eventually(5_000, "first run marked done") { Onboarding.done(context) }
+        context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        wait(By.text("Settings"), 20_000); Thread.sleep(2000)
+        assertTrue("shown only once", device.findObject(By.text("Welcome to Moth")) == null)
+        wait(By.text("Settings")).click(); wait(By.text("Routing"), 10_000); Thread.sleep(800)
+        var dev = device.findObject(By.text("For developers"))
+        repeat(6) { if (dev == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); dev = device.findObject(By.text("For developers")) } }
+        assertNotNull("developer menu entry", dev); dev!!.click()
+        wait(By.text("First-run screen"), 10_000).click()
+        wait(By.text("Welcome to Moth"), 10_000); Thread.sleep(600)
+        device.pressBack(); Thread.sleep(800)
+        assertTrue("closed with Back", device.findObject(By.text("Welcome to Moth")) == null)
+        assertTrue("still done", Onboarding.done(context))
     }
 }

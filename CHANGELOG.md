@@ -2,6 +2,15 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0-beta.4
+
+Released 2026-11-01 (beta).
+
+### Changes
+
+- New first-run screen: on the first launch Moth asks for your subscription link (paste it or scan a QR code). It is shown only once; "For developers" has a button to open it again.
+- The update dot now sits at the top right of the Settings tab icon, and the same dot marks the Updates icon in Settings.
+
 ## 1.0.0-beta.3
 
 Released 2026-11-01 (beta).
