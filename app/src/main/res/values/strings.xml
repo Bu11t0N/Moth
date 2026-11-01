@@ -243,7 +243,7 @@
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
     <string name="split_all_apps">Elevated privileges</string>
-    <string name="split_all_apps_info">Lists every installed app that uses the internet, including background services without a home-screen icon. Uses the permission to see all installed apps; the list stays on the phone.</string>
+    <string name="split_all_apps_info">Lists every installed app that uses the internet, including background services without a home-screen icon. Uses the permission to see all installed apps.</string>
     <string name="direct_ru">Russian sites and IPs directly</string>
     <string name="auto_select_wifi">Auto-select on Wi-Fi</string>
     <string name="auto_select_mobile">Auto-select on mobile data</string>
@@ -641,4 +641,24 @@
     <string name="conn_recent_sum">Last %1$d while the VPN is on</string>
     <string name="conn_recent_manual">Closed by you: %1$d</string>
     <string name="conn_recent_empty">No closed connections yet.</string>
+    <string name="probe_preset_label">Quick pick:</string>
+    <string name="probe_preset_google">Google</string>
+    <string name="probe_preset_cloudflare">Cloudflare</string>
+    <string name="probe_preset_apple">Apple</string>
+    <string name="lan_head">Sharing with other devices</string>
+    <string name="lan_title">Proxy for other devices</string>
+    <string name="lan_short">Hotspot, tethering or the same Wi-Fi</string>
+    <string name="lan_info">Moth opens a proxy on the phone (HTTP and SOCKS5 on one port) while the VPN is connected. A laptop, TV or another phone connected to this phone\'s hotspot (or USB/Bluetooth tethering, or the same Wi-Fi) can use it, and its traffic then goes through the VPN like the phone\'s own: the same server, routing rules and DNS.\n\nThere is no password: while it is on, any device on these networks can use it. Only local (private) addresses are served; apps on this phone cannot use it, so split tunneling stays as set. Turn it off when you do not need it.</string>
+    <string name="lan_port">Port (1024–65535)</string>
+    <string name="lan_addresses">Address for the other device</string>
+    <string name="lan_no_address">No local network yet: turn on the hotspot (or connect to Wi-Fi) and the address appears here.</string>
+    <string name="lan_protocol">Protocol: HTTP or SOCKS5, same port</string>
+    <string name="lan_howto_title">How to connect another device</string>
+    <string name="lan_howto">1. Turn on the hotspot on this phone and connect the other device to it (or put both on the same Wi-Fi).\n2. On the other device open the Wi-Fi network settings → Proxy → Manual.\n3. Host: the address above (before the colon); port: the number after it.\n4. Save. The browser and most apps now go through the VPN.\n\nApps with their own proxy settings (Telegram, browsers, a PC) can use SOCKS5 with the same address and port: it also carries UDP, and with \"remote DNS\" (socks5h) names are resolved through the VPN.</string>
+    <string name="lan_state_running">Running on port %1$d</string>
+    <string name="lan_state_waiting">Starts with the VPN</string>
+    <string name="lan_state_busy">Port %1$d is used by another app: the VPN runs without the proxy. Choose another port.</string>
+    <string name="set_short_lan">Sharing</string>
+    <string name="msg_err_lan_port">Invalid proxy port</string>
+    <string name="lan_copy">Copy</string>
 </resources>

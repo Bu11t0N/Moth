@@ -167,7 +167,9 @@ object TunnelConfig {
      * can be resolved (Android 10+): connections from apps that split tunneling keeps out of the VPN but that still reach the tunnel
      * interface directly (binding to tun0) are rejected, so they cannot use the server.
      */
-    fun create(profile: Profile, settings: ClientSettings = ClientSettings(), ruleSets: Map<String, String> = emptyMap(), dpi: LocalHop? = null, appGuard: String? = null): String = JSONObject()
+    /** [lan]: the port of the sharing proxy ([LanProxy]) when it is on and free; [ownAddresses]: the phone's own addresses it refuses. */
+    fun create(profile: Profile, settings: ClientSettings = ClientSettings(), ruleSets: Map<String, String> = emptyMap(), dpi: LocalHop? = null, appGuard: String? = null,
+               lan: Int? = null, ownAddresses: Collection<String> = emptyList()): String = JSONObject()
         .put("log", JSONObject().put("disabled", true))
         .put("dns", JSONObject().put("servers", JSONArray()
             .put(SingDns.server("remote", settings.dns, "proxy", "bootstrap"))
@@ -175,14 +177,16 @@ object TunnelConfig {
             .put(SingDns.system()))
             .put("final", "remote").put("strategy", if (settings.ipv6) "prefer_ipv4" else "ipv4_only"))
         .put("inbounds", JSONArray().put(JSONObject().put("type", "tun").put("tag", "tun-in").put("address", JSONArray(listOf("172.19.0.1/30", "fdfe:dcba:9876::1/126")))
-            .put("mtu", settings.mtu).put("auto_route", true).put("strict_route", settings.dnsLeakProtection).put("stack", "gvisor")))
+            .put("mtu", settings.mtu).put("auto_route", true).put("strict_route", settings.dnsLeakProtection).put("stack", "gvisor"))
+            .apply { if (lan != null) put(LanProxy.inbound(lan)) })
         .put("outbounds", JSONArray())
         .also { SingBoxOutbounds.install(it, profile.outbound, settings, dpi); it.getJSONArray("outbounds").put(JSONObject().put("type", "direct").put("tag", "direct")) }
         .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").apply { if (appGuard != null) put("find_process", true) }
             .put("default_domain_resolver", JSONObject().put("server", "bootstrap")).put("rules", JSONArray().apply {
+            if (lan != null) LanProxy.rules(ownAddresses).forEach { put(it) }
             if (settings.directRu || CustomRouting.needsSniff(settings.routingRules)) put(JSONObject().put("action", "sniff"))
             put(JSONObject().put("port", 53).put("action", "hijack-dns"))
-            appGuard?.let { self -> appGuardRules(settings, self).forEach { put(it) } }
+            appGuard?.let { self -> appGuardRules(settings, self, lanShared = lan != null).forEach { put(it) } }
             if (!settings.ipv6) put(JSONObject().put("ip_version", 6).put("action", "reject"))
             // User rules come before the built-in "Russian sites directly" rules.
             CustomRouting.singBox(settings.routingRules).forEach { put(it) }
@@ -197,10 +201,17 @@ object TunnelConfig {
         })
         .toString()
     /** Reject rules for apps outside the VPN (by package; DNS is hijacked before, so system lookups keep working). */
-    fun appGuardRules(settings: ClientSettings, self: String): List<JSONObject> {
+    /** [lanShared]: the "only selected apps" rule is limited to the tunnel inbound, otherwise it would refuse every sharing client
+     *  (they have no app); apps on the phone are kept off the sharing proxy by [LanProxy.rules] instead. */
+    fun appGuardRules(settings: ClientSettings, self: String, lanShared: Boolean = false): List<JSONObject> {
         val plan = SplitTunnel.plan(settings.splitMode, settings.splitApps, self)
         return listOfNotNull(
             plan.disallowed.takeIf { it.isNotEmpty() }?.let { JSONObject().put("package_name", JSONArray(it)).put("action", "reject") },
-            plan.allowed.takeIf { it.isNotEmpty() }?.let { JSONObject().put("package_name", JSONArray(it)).put("invert", true).put("action", "reject") })
+            plan.allowed.takeIf { it.isNotEmpty() }?.let {
+                val notAllowed = JSONObject().put("package_name", JSONArray(it)).put("invert", true)
+                if (!lanShared) notAllowed.put("action", "reject")
+                else JSONObject().put("type", "logical").put("mode", "and")
+                    .put("rules", JSONArray().put(JSONObject().put("inbound", JSONArray().put("tun-in"))).put(notAllowed)).put("action", "reject")
+            })
     }
 }

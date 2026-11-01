@@ -244,8 +244,8 @@ import org.mothvpn.core.SubscriptionSource
             FilterChip(selected = settings.hideUnavailable, onClick = { preferences(settings.copy(hideUnavailable = !settings.hideUnavailable)) }, label = { Text(tr(R.string.msg_hide_unavailable_56)) }, modifier = Modifier.pressScale())
         }
         OutlinedTextField(search, { search = it }, singleLine = true, placeholder = { Text(tr(R.string.msg_search_servers_57)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
-        // Switching servers shows no progress bar (the selection highlight is enough).
-        if ((busy && !selecting) || probing) LinearProgressIndicator(Modifier.fillMaxWidth())
+        // Switching servers and checking them show no progress bar (the selection highlight and the per-server results are enough).
+        if (busy && !selecting && !probing) LinearProgressIndicator(Modifier.fillMaxWidth())
         // Swipe between the Wi-Fi and mobile data pages; the pill switch follows the pager.
         run {
         LaunchedEffect(pager.currentPage) { kind = if (pager.currentPage == 0) "wifi" else "mobile" }

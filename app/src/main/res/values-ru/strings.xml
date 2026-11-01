@@ -245,7 +245,7 @@
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
     <string name="split_all_apps">Повышенные права</string>
-    <string name="split_all_apps_info">Показывает все установленные приложения, которые используют интернет, включая фоновые службы без значка на экране. Использует разрешение на просмотр всех приложений; список остаётся на телефоне.</string>
+    <string name="split_all_apps_info">Показывает все установленные приложения, которые используют интернет, включая фоновые службы без значка на экране. Использует разрешение на просмотр всех приложений.</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
     <string name="auto_select_wifi">Автовыбор на Wi‑Fi</string>
     <string name="auto_select_mobile">Автовыбор на мобильном интернете</string>
@@ -645,4 +645,24 @@
     <string name="conn_recent_sum">Последние %1$d, пока VPN включён</string>
     <string name="conn_recent_manual">Закрыты вами: %1$d</string>
     <string name="conn_recent_empty">Закрытых соединений пока нет.</string>
+    <string name="probe_preset_label">Быстрый выбор:</string>
+    <string name="probe_preset_google">Google</string>
+    <string name="probe_preset_cloudflare">Cloudflare</string>
+    <string name="probe_preset_apple">Apple</string>
+    <string name="lan_head">Раздача другим устройствам</string>
+    <string name="lan_title">Прокси для других устройств</string>
+    <string name="lan_short">Точка доступа, модем или та же Wi-Fi</string>
+    <string name="lan_info">Пока VPN подключён, Moth открывает на телефоне прокси (HTTP и SOCKS5 на одном порту). Ноутбук, телевизор или другой телефон, подключённый к точке доступа этого телефона (или к USB/Bluetooth-модему, или к той же Wi-Fi), может им пользоваться, и его трафик идёт через VPN так же, как трафик телефона: тот же сервер, правила маршрутизации и DNS.\n\nПароля нет: пока функция включена, ею может пользоваться любое устройство в этих сетях. Обслуживаются только локальные (частные) адреса; приложения на самом телефоне её использовать не могут, поэтому раздельный туннель работает как настроен. Выключайте, когда не нужно.</string>
+    <string name="lan_port">Порт (1024–65535)</string>
+    <string name="lan_addresses">Адрес для другого устройства</string>
+    <string name="lan_no_address">Локальной сети пока нет: включите точку доступа (или подключитесь к Wi-Fi), и адрес появится здесь.</string>
+    <string name="lan_protocol">Протокол: HTTP или SOCKS5, порт тот же</string>
+    <string name="lan_howto_title">Как подключить другое устройство</string>
+    <string name="lan_howto">1. Включите точку доступа на этом телефоне и подключите к ней другое устройство (или подключите оба к одной Wi-Fi).\n2. На другом устройстве откройте настройки этой Wi-Fi-сети → Прокси → Вручную.\n3. Хост: адрес выше (до двоеточия); порт: число после него.\n4. Сохраните. Браузер и большинство приложений пойдут через VPN.\n\nПриложения со своими настройками прокси (Telegram, браузеры, компьютер) могут использовать SOCKS5 с тем же адресом и портом: он передаёт и UDP, а с «удалённым DNS» (socks5h) имена определяются через VPN.</string>
+    <string name="lan_state_running">Работает на порту %1$d</string>
+    <string name="lan_state_waiting">Запустится вместе с VPN</string>
+    <string name="lan_state_busy">Порт %1$d занят другим приложением: VPN работает без прокси. Выберите другой порт.</string>
+    <string name="set_short_lan">Раздача</string>
+    <string name="msg_err_lan_port">Неверный порт прокси</string>
+    <string name="lan_copy">Копировать</string>
 </resources>

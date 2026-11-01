@@ -45,6 +45,7 @@ import org.mothvpn.core.SubscriptionSchedule
     var timeout by remember(initial) { mutableStateOf(initial.timeoutMs.toString()) }
     var pingTimeout by remember(initial) { mutableStateOf(initial.probeTimeoutMs.toString()) }
     var parallel by remember(initial) { mutableStateOf(initial.probeParallel.toString()) }
+    var lanPort by remember(initial) { mutableStateOf(initial.lanProxyPort.toString()) }
     var showHwid by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
@@ -66,7 +67,7 @@ import org.mothvpn.core.SubscriptionSchedule
     fun number(text: String, field: String) {
         val n = text.toIntOrNull()
         if (n == null) { Logger.w("Settings", "not a number for $field"); error = tr(R.string.msg_enter_a_whole_number_72); return }
-        applySettings(when (field) { "mtu" -> draft.copy(mtu = n); "timeout" -> draft.copy(timeoutMs = n); "pingTimeout" -> draft.copy(probeTimeoutMs = n); "parallel" -> draft.copy(probeParallel = n); else -> draft })
+        applySettings(when (field) { "mtu" -> draft.copy(mtu = n); "timeout" -> draft.copy(timeoutMs = n); "pingTimeout" -> draft.copy(probeTimeoutMs = n); "parallel" -> draft.copy(probeParallel = n); "lanPort" -> draft.copy(lanProxyPort = n); else -> draft })
     }
     // Large title (Telegram-style): big while a page is at its top, shrinks to the compact title as the page scrolls; see LargeTitle.kt.
     val largeTitle = rememberLargeTitle()
@@ -111,7 +112,7 @@ import org.mothvpn.core.SubscriptionSchedule
             when (sec) {
                 null -> {
                     val onOff = listOfNotNull(when { draft.autoSelectWifi && draft.autoSelectMobile -> tr(R.string.set_short_auto); draft.autoSelectWifi -> tr(R.string.set_short_auto_wifi); draft.autoSelectMobile -> tr(R.string.set_short_auto_mobile); else -> null }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
-                        tr(R.string.set_short_boot).takeIf { draft.bootConnect })
+                        tr(R.string.set_short_boot).takeIf { draft.bootConnect }, tr(R.string.set_short_lan).takeIf { draft.lanProxy })
                     val theme = when (draft.theme) { "dark" -> tr(R.string.set_theme_dark); "light" -> tr(R.string.set_theme_light); else -> tr(R.string.set_theme_auto) }
                     val subAuto = if (draft.subUpdateHours == 0) tr(R.string.set_sum_sub_off) else tr(R.string.set_sum_sub_hours, draft.subUpdateHours)
                     val method = when (draft.probeMode) { org.mothvpn.core.ProbePolicy.FULL -> tr(R.string.ping_full); org.mothvpn.core.ProbePolicy.TCP -> tr(R.string.ping_tcp); else -> tr(R.string.ping_latency) }
@@ -119,10 +120,10 @@ import org.mothvpn.core.SubscriptionSchedule
                     val routing = listOfNotNull(DnsServers.presetOf(draft.dns)?.label ?: tr(R.string.dns_custom), tr(R.string.set_short_ru).takeIf { draft.directRu })
                     SectionHeader(tr(R.string.set_head_main))
                     SettingsCategory(tr(R.string.msg_connection_75), onOff.joinToString(" · ").ifEmpty { tr(R.string.set_sum_defaults) }, "connection") { section = tr(R.string.msg_connection_75) }
-                    // Split tunneling sits on the main list right under Connection (not inside Routing).
-                    SettingsCategory(tr(R.string.split_title), splitSummary(draft) ?: tr(R.string.set_split_off), "split") { section = tr(R.string.split_title) }
                     SettingsCategory(tr(R.string.msg_checks_76), checks.joinToString(" · "), "checks") { section = tr(R.string.msg_checks_76) }
                     SettingsCategory(tr(R.string.set_cat_routing), routing.joinToString(" · "), "routing") { section = tr(R.string.set_cat_routing) }
+                    // Split tunneling sits on the main list right under Routing (its own card, not inside the Routing page).
+                    SettingsCategory(tr(R.string.split_title), splitSummary(draft) ?: tr(R.string.set_split_off), "split") { section = tr(R.string.split_title) }
                     SettingsCategory(tr(R.string.set_cat_subscription), subAuto, "subscription") { section = tr(R.string.set_cat_subscription) }
                     SettingsCategory(tr(R.string.msg_appearance_74), theme, "interface") { section = tr(R.string.msg_appearance_74) }
                     // Data and App pages straight on the main list (no Data or About folder), each under its own header.
@@ -177,6 +178,12 @@ import org.mothvpn.core.SubscriptionSchedule
                     val muxOptions = listOf("off" to tr(R.string.mux_off), "smux" to "smux", "yamux" to "yamux", "h2mux" to "h2mux")
                     DialogRow(tr(R.string.mux_title), muxOptions.firstOrNull { it.first == draft.mux }?.second ?: draft.mux, !locked, info = tr(R.string.mux_info)) { muxDialog = true }
                     if (muxDialog) ChoiceDialog(tr(R.string.mux_title), muxOptions, draft.mux, { muxDialog = false }) { applySettings(draft.copy(mux = it)) }
+                    // Sharing: a proxy for devices on the phone's hotspot / tethering / Wi-Fi (sing-box "mixed" inbound, see LanProxy).
+                    SectionHeader(tr(R.string.lan_head))
+                    WithNested(draft.lanProxy, { SettingsToggle(tr(R.string.lan_title), draft.lanProxy, !locked, subtitle = tr(R.string.lan_short), info = tr(R.string.lan_info)) { applySettings(draft.copy(lanProxy = it)) } }) {
+                        FieldCard(lanPort, { lanPort = it.filter(Char::isDigit).take(5); number(lanPort, "lanPort") }, tr(R.string.lan_port), !locked)
+                        LanShareCard(draft.lanProxyPort)
+                    }
                 }
                 tr(R.string.msg_checks_76) -> {
                     LiveApplyHint()
@@ -191,7 +198,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     if (healthDialog) ChoiceDialog(tr(R.string.set_health_interval), healthOptions, draft.healthIntervalSeconds, { healthDialog = false }) { applySettings(draft.copy(healthIntervalSeconds = it)) }
                     FieldCard(timeout, { timeout = it; number(it, "timeout") }, tr(R.string.msg_timeout_3_30_seconds_96), !locked)
                     SectionHeader(tr(R.string.set_head_probes))
-                    FieldCard(draft.probeUrl, { applySettings(draft.copy(probeUrl = it)) }, tr(R.string.msg_https_check_url_97), !locked)
+                    ProbeUrlCard(draft.probeUrl, !locked) { applySettings(draft.copy(probeUrl = it)) }
                     FieldCard(pingTimeout, { pingTimeout = it; number(it, "pingTimeout") }, tr(R.string.set_ping_timeout), !locked)
                     FieldCard(parallel, { parallel = it; number(it, "parallel") }, tr(R.string.set_ping_parallel), !locked)
                     // Latency (default): warm-up request, then the second request on the same connection; Full latency: the first request with
@@ -433,6 +440,54 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
         OutlinedTextField(value, change, enabled = enabled, label = { Text(label) }, singleLine = true,
             supportingText = supporting?.let { { Text(it) } },
             trailingIcon = info?.let { { InfoButton(label, it) } }, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp))
+    }
+}
+/** The HTTPS check URL with three ready addresses under it (each answers 204 or 200, which the check accepts). */
+@Composable private fun ProbeUrlCard(value: String, enabled: Boolean, change: (String) -> Unit) {
+    val presets = listOf(R.string.probe_preset_google to "https://www.gstatic.com/generate_204", R.string.probe_preset_cloudflare to "https://cp.cloudflare.com/generate_204",
+        R.string.probe_preset_apple to "https://captive.apple.com/hotspot-detect.html")
+    SettingCard {
+        OutlinedTextField(value, change, enabled = enabled, label = { Text(tr(R.string.msg_https_check_url_97)) }, singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp))
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            presets.forEach { (label, url) ->
+                FilterChip(selected = value.trim() == url, onClick = { if (value.trim() != url) change(url) }, enabled = enabled, label = { Text(tr(label), maxLines = 1) },
+                    modifier = Modifier.pressScale(enabled = enabled))
+            }
+        }
+    }
+}
+/** Sharing proxy: its state, the address(es) to enter on the other device and the how-to. */
+@Composable private fun LanShareCard(port: Int) {
+    val state by LanShare.state.collectAsState()
+    // The phone's addresses change when the hotspot or Wi-Fi goes on or off: re-read every few seconds while the card is shown.
+    val endpoints by produceState(emptyList<Pair<String, String>>(), port) {
+        while (true) {
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { org.mothvpn.core.LanProxy.endpoints(LanShare.interfaces(), port) }
+            kotlinx.coroutines.delay(3000)
+        }
+    }
+    val clipboard = LocalClipboardManager.current
+    SettingCard {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            val status = when (val st = state) {
+                is LanShare.State.Running -> if (st.port == port) tr(R.string.lan_state_running, st.port) else tr(R.string.lan_state_waiting)
+                is LanShare.State.PortBusy -> tr(R.string.lan_state_busy, st.port)
+                LanShare.State.Off -> tr(R.string.lan_state_waiting)
+            }
+            Text(status, style = MaterialTheme.typography.bodyMedium, color = if (state is LanShare.State.PortBusy) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            Text(tr(R.string.lan_addresses), style = MaterialTheme.typography.titleSmall)
+            if (endpoints.isEmpty()) Text(tr(R.string.lan_no_address), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            endpoints.forEach { (_, address) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(address, style = MaterialTheme.typography.titleMedium.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace), modifier = Modifier.weight(1f))
+                    TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(address)) }, modifier = Modifier.pressScale()) { Text(tr(R.string.lan_copy)) }
+                }
+            }
+            Text(tr(R.string.lan_protocol), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(tr(R.string.lan_howto_title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp))
+            Text(tr(R.string.lan_howto), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 /** The routing rules card: how many rules are on, the default "Russian sites and IPs directly" rule included. */

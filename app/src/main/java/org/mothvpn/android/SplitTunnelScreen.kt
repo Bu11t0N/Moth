@@ -104,7 +104,11 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
         if (list == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         else {
             val shown = list.filter { (showSystem || !it.system || it.packageName in settings.splitApps) && (search.isBlank() || it.label.contains(search, true) || it.packageName.contains(search, true)) }
-            LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+            // While the list scrolls the checkboxes step aside (more room for the names); they come back once it settles.
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            var hideBoxes by remember { mutableStateOf(false) }
+            LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress) hideBoxes = true else { kotlinx.coroutines.delay(400); hideBoxes = false } }
+            LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState) {
                 items(shown, key = { it.packageName }) { app ->
                     val checked = app.packageName in settings.splitApps
                     fun toggle() { apply(settings.copy(splitApps = if (checked) settings.splitApps - app.packageName else (settings.splitApps + app.packageName).distinct().sorted())) }
@@ -117,7 +121,10 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
                             Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(if (app.unlisted) tr(R.string.split_unlisted) else app.packageName, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        Checkbox(checked, { toggle() }, enabled = enabled)
+                        androidx.compose.animation.AnimatedVisibility(!hideBoxes, enter = androidx.compose.animation.expandHorizontally(expandFrom = Alignment.Start) + androidx.compose.animation.fadeIn(),
+                            exit = androidx.compose.animation.shrinkHorizontally(shrinkTowards = Alignment.Start) + androidx.compose.animation.fadeOut()) {
+                            Checkbox(checked, { toggle() }, enabled = enabled)
+                        }
                     }
                 }
             }

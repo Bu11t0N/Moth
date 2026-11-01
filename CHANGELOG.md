@@ -2,6 +2,19 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0-beta.3
+
+Released 2026-11-01 (beta).
+
+### Changes
+
+- New: share the VPN with other devices. Turn on "Proxy for other devices" (Settings → Connection) and a laptop, TV or another phone on this phone's hotspot or Wi-Fi can use the VPN through a proxy (HTTP and SOCKS5 on one port). The page shows the address to enter and how to set it up.
+- HTTPS check URL: Google, Cloudflare and Apple buttons under the field fill in a ready address.
+- Updates page: a bigger moth, the status (such as "You have the latest version") right under it, no progress bar while checking, and more room above the controls.
+- Servers: no progress bar at the top while servers are checked.
+- Split tunneling: the checkboxes step aside while the app list scrolls, so names have more room.
+- Split tunneling moved under Routing on the main Settings page.
+
 ## 1.0.0-beta.2
 
 Released 2026-11-01 (beta).

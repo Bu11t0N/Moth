@@ -263,7 +263,10 @@ class TunnelService : VpnService(), PlatformInterface {
                 Logger.d("Tunnel", "dpi helper started (fragment=${settings.fragment} noise=${settings.noise})")
             }
             stage = "build config"
-            val config = TunnelConfig.create(profile, settings, ruleSets, dpi, appGuard = if (Build.VERSION.SDK_INT >= 29) packageName else null)
+            // Sharing proxy: only when its port is free, so a taken port never stops the VPN itself (Settings shows it).
+            val lan = settings.lanProxyPort.takeIf { settings.lanProxy }?.let { port -> if (LanShare.portFree(port)) port else { Logger.w("Tunnel", "sharing proxy: port busy, starting without it"); LanShare.set(LanShare.State.PortBusy(port)); null } }
+            val config = TunnelConfig.create(profile, settings, ruleSets, dpi, appGuard = if (Build.VERSION.SDK_INT >= 29) packageName else null,
+                lan = lan, ownAddresses = if (lan != null) LanShare.ownAddresses() else emptyList())
             stage = "Libbox.checkConfig"
             Libbox.checkConfig(config)
             stage = "Libbox.newService"
@@ -271,6 +274,7 @@ class TunnelService : VpnService(), PlatformInterface {
             stage = "BoxService.start"
             box!!.start()
             Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
+            if (lan != null) { LanShare.set(LanShare.State.Running(lan)); Logger.i("Tunnel", "sharing proxy on") } else if (!settings.lanProxy) LanShare.set(LanShare.State.Off)
             VpnTraffic.start(this, box!!, ::trackedKind, ::trafficApp, count = Build.VERSION.SDK_INT >= 29)
             closeBlock(); cancelRetry()
             emptyRounds = 0; remeasureNotBefore = 0
@@ -657,6 +661,7 @@ class TunnelService : VpnService(), PlatformInterface {
         stopStats()
         generation.incrementAndGet(); healthTask?.cancel(true); healthTask = null
         TunnelStatus.activeMutable.value = ""; TunnelStatus.activeServerMutable.value = null
+        LanShare.set(LanShare.State.Off)
         Diagnostics.healthMutable.value = HealthResult()
         if (box != null) VpnTraffic.stop()
         runCatching { box?.close() }.onFailure { Logger.w("Core", "closing the core failed", it) }; box = null
