@@ -192,12 +192,13 @@ import org.mothvpn.core.SubscriptionSchedule
                     var healthDialog by remember { mutableStateOf(false) }
                     val healthOptions = org.mothvpn.core.HealthSchedule.minutes.map { it * 60 to tr(R.string.set_minutes, it) }
                     val healthValue = healthOptions.firstOrNull { it.first == draft.healthIntervalSeconds }?.second ?: tr(R.string.set_seconds, draft.healthIntervalSeconds)
-                    // The interval belongs to the health check: it slides out of the switch while the check is on.
+                    // The interval and the timeout belong to the health check: they slide out of the switch while the check is on and are
+                    // hidden while it is off.
                     WithNested(draft.healthEnabled, { SettingsToggle(tr(R.string.msg_check_the_active_tunnel_94), draft.healthEnabled, !locked, info = tr(R.string.set_health_hint)) { applySettings(draft.copy(healthEnabled = it)) } }) {
                         DialogRow(tr(R.string.set_health_interval), healthValue, enabled = !locked) { healthDialog = true }
+                        FieldCard(timeout, { timeout = it; number(it, "timeout") }, tr(R.string.msg_timeout_3_30_seconds_96), !locked)
                     }
                     if (healthDialog) ChoiceDialog(tr(R.string.set_health_interval), healthOptions, draft.healthIntervalSeconds, { healthDialog = false }) { applySettings(draft.copy(healthIntervalSeconds = it)) }
-                    FieldCard(timeout, { timeout = it; number(it, "timeout") }, tr(R.string.msg_timeout_3_30_seconds_96), !locked)
                     SectionHeader(tr(R.string.set_head_probes))
                     ProbeUrlCard(draft.probeUrl, !locked) { applySettings(draft.copy(probeUrl = it)) }
                     FieldCard(pingTimeout, { pingTimeout = it; number(it, "pingTimeout") }, tr(R.string.set_ping_timeout), !locked)
