@@ -110,9 +110,11 @@ import java.io.File
         12.dp + 48.dp + 12.dp + 52.dp + 8.dp
     BoxWithConstraints(modifier.fillMaxWidth()) {
     val top = (maxHeight - reserve).coerceAtLeast(0.dp)
-    // The moth fills the room above the status block (larger than before); one size in every state, never squashed (requiredSize: a
-    // tighter parent clips it a little instead of shrinking or flattening it).
-    val side = minOf(maxWidth * 0.9f, top - below - 8.dp, 380.dp)
+    // The moth fills the room above the status block; one size in every state, never squashed (requiredSize: a tighter parent clips it
+    // instead of shrinking or flattening it). The drawing only uses the middle ~2/3 of its square canvas (antennae at 17 %, hindwings end
+    // at 80 %), so the square may be taller than the room: the empty bands overhang (clipped at the top, transparent over the status
+    // line) and the moth itself is about a third larger than when the whole square had to fit.
+    val side = minOf(maxWidth * 0.96f, (top - below - 8.dp) / 0.72f, 460.dp)
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
         Box(Modifier.weight(1f, fill = false).height(top).fillMaxWidth().clipToBounds()) {
             // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.

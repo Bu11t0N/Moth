@@ -676,7 +676,6 @@
     <string name="onboard_skip">Не сейчас</string>
     <string name="dev_onboarding">Экран первого запуска</string>
     <string name="dev_onboarding_sum">Показать обучение и разрешения снова (ничего не удаляется)</string>
-    <string name="onboard_t_connect">Нажмите на мотылька на Главной, чтобы подключиться, и ещё раз — чтобы отключиться. Сервер выбирается на панели под ним или на вкладке «Серверы».</string>
     <string name="onboard_t_servers_title">Лучший сервер — автоматически</string>
     <string name="onboard_t_servers">Moth сам проверит серверы и подключится к самому быстрому — отдельно для Wi‑Fi и мобильного интернета. Включить или выключить можно ниже или позже в Настройки › Подключение › Автовыбор.</string>
     <string name="onboard_t_split">Выберите, какие приложения идут через VPN, а какие в обход. Можно сейчас или позже в Настройки › Раздельное туннелирование.</string>
@@ -688,7 +687,6 @@
     <string name="onboard_next">Далее</string>
     <string name="onboard_skip_tutorial">Пропустить</string>
     <string name="onboard_continue">Продолжить</string>
-    <string name="onboard_done">Готово</string>
     <string name="onboard_perm_title">Разрешения</string>
     <string name="onboard_perm_text">Разрешите сейчас, чтобы Moth работал без сбоев. Всё необязательно — изменить можно позже.</string>
     <string name="onboard_perm_vpn">VPN-подключение</string>

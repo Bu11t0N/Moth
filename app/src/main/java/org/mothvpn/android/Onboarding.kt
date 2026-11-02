@@ -24,6 +24,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -96,7 +97,7 @@ import org.mothvpn.core.ClientSettings
  * auto-select page has the real auto-select switch, the split tunneling page opens the real split tunneling page over the tour), then the
  * permissions page as the last pager page (VPN, notifications on Android 13+,
  * battery optimization, keeping Moth alive in the background; every request is optional and a denial only shows a hint) → the
- * "add your first subscription" page (left out when a subscription already exists, e.g. when reopened from the developer page).
+ * subscription link page (paste, scan or type a link, or "Not now"); always shown, also when reopened from the developer page.
  */
 object Onboarding {
     private const val PREFS = "onboarding"
@@ -113,9 +114,10 @@ object Onboarding {
     fun xiaomi(): Boolean = Build.MANUFACTURER.lowercase().let { it == "xiaomi" || it == "redmi" || it == "poco" }
 }
 
-private class TutorialPage(val icon: ImageVector?, val title: Int, val text: Int)
+/** One tour page: picture (null: the moth), title and text (null: the title only, as on the welcome page). */
+private class TutorialPage(val icon: ImageVector?, val title: Int, val text: Int?)
 private val tutorial = listOf(
-    TutorialPage(null, R.string.onboard_title, R.string.onboard_t_connect),
+    TutorialPage(null, R.string.onboard_title, null),
     TutorialPage(Icons.Outlined.Speed, R.string.onboard_t_servers_title, R.string.onboard_t_servers),
     TutorialPage(Icons.AutoMirrored.Outlined.CallSplit, R.string.split_title, R.string.onboard_t_split))
 private const val PAGE_AUTO = 1
@@ -123,10 +125,10 @@ private const val PAGE_SPLIT = 2
 
 /**
  * [add]: the link typed or pasted; [scan]: open the QR scanner; [skip]: close the flow without adding ([how] says from where, for the
- * log). [hasSubscription]: the subscription page is left out and the permissions page finishes the flow. [settings]/[save]: the app's
+ * log). [settings]/[save]: the app's
  * settings (the auto-select switch and the split tunneling page change the same values as Settings, saved at once).
  */
-@Composable fun OnboardingScreen(add: (String) -> Unit, scan: () -> Unit, skip: (how: String) -> Unit, hasSubscription: Boolean = false,
+@Composable fun OnboardingScreen(add: (String) -> Unit, scan: () -> Unit, skip: (how: String) -> Unit,
     settings: ClientSettings = ClientSettings(), save: (ClientSettings) -> Unit = {}) {
     // Stage: 0 the pager (tour pages + permissions as its last page, all reachable by swiping), 1 subscription.
     var stage by rememberSaveable { mutableIntStateOf(0) }
@@ -147,8 +149,8 @@ private const val PAGE_SPLIT = 2
         }) { s ->
             Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding(), contentAlignment = Alignment.Center) {
                 when (s) {
-                    0 -> TutorialStep(pager, settings, save, done = hasSubscription,
-                        next = { if (pager.currentPage < Onboarding.TUTORIAL) page(pager.currentPage + 1) else if (hasSubscription) skip("done") else go(1) },
+                    0 -> TutorialStep(pager, settings, save,
+                        next = { if (pager.currentPage < Onboarding.TUTORIAL) page(pager.currentPage + 1) else go(1) },
                         skipAll = { Logger.i("Onboarding", "tutorial skipped at page ${pager.currentPage + 1}"); page(Onboarding.TUTORIAL) },
                         openSplit = { Logger.i("Onboarding", "split tunneling opened from the tour"); splitOpen = true })
                     else -> SubscriptionStep(add, scan) { skip("skip") }
@@ -215,7 +217,7 @@ private const val PAGE_SPLIT = 2
 
 /** The feature tour: the pages swipe left/right (the main way through); Skip at the top, page dots and Next at the bottom stay put. */
 @Composable private fun TutorialStep(pager: androidx.compose.foundation.pager.PagerState, settings: ClientSettings, save: (ClientSettings) -> Unit,
-    done: Boolean, next: () -> Unit, skipAll: () -> Unit, openSplit: () -> Unit) {
+    next: () -> Unit, skipAll: () -> Unit, openSplit: () -> Unit) {
     val position = { pager.currentPage + pager.currentPageOffsetFraction }
     val onPermissions = pager.currentPage == Onboarding.TUTORIAL
     Column(Modifier.widthIn(max = 480.dp).fillMaxSize().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -227,19 +229,31 @@ private const val PAGE_SPLIT = 2
         HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), key = { it }) { i ->
             if (i == Onboarding.TUTORIAL) { Box(Modifier.fillMaxSize().padding(horizontal = 24.dp)) { PermissionsPage() }; return@HorizontalPager }
             val p = tutorial[i]
-            Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                StepBody(Modifier.weight(1f)) {
-                    if (p.icon == null) MothFlutter(size = 148.dp, tappable = true)
-                    else IconTile(p.icon, size = 96.dp)
-                    Text(tr(p.title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-                    Text(tr(p.text), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            // Every tour page has the same fixed layout from the top (gap, picture slot, title, text) and nothing on it scrolls, so the
+            // picture sits at the same height on every page and only moves sideways with its page, as one piece. (The old centred,
+            // vertically scrollable body put the icons at different heights and let a slightly diagonal swipe scroll them up and down.)
+            BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
+            val art = if (maxHeight < 440.dp) 96.dp else 148.dp
+            val lead = ((maxHeight - art - 260.dp) / 2).coerceIn(8.dp, 120.dp)
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(Modifier.height(lead))
+                Box(Modifier.size(art), contentAlignment = Alignment.Center) {
+                    if (p.icon == null) MothFlutter(size = art, tappable = true) else IconTile(p.icon, size = art * 0.65f)
+                }
+                Spacer(Modifier.height(16.dp))
+                Text(tr(p.title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+                // Long text on a small screen or with a large font: only the text scrolls (inside its own box), never the picture.
+                p.text?.let { text ->
+                    Box(Modifier.weight(1f, fill = false).padding(top = 16.dp).verticalScroll(rememberScrollState())) {
+                        Text(tr(text), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    }
                 }
                 when (i) {
                     // One switch for auto-select on both Wi-Fi and mobile data (Settings › Connection keeps the two separate).
                     PAGE_AUTO -> {
                         val on = settings.autoSelectWifi || settings.autoSelectMobile
                         val toggle = { v: Boolean -> Logger.i("Onboarding", "auto-select ${if (v) "on" else "off"} from the tour"); save(settings.copy(autoSelectWifi = v, autoSelectMobile = v)) }
-                        Card(Modifier.fillMaxWidth().padding(top = 12.dp).pressScale(), colors = ndCardColors()) {
+                        Card(Modifier.fillMaxWidth().padding(top = 24.dp).pressScale(), colors = ndCardColors()) {
                             Row(Modifier.fillMaxWidth().clickable { toggle(!on) }.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp).heightIn(min = 48.dp),
                                 verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f).padding(end = 8.dp)) {
@@ -252,18 +266,19 @@ private const val PAGE_SPLIT = 2
                     }
                     PAGE_SPLIT -> {
                         val count = settings.splitApps.size
-                        OutlinedButton(onClick = openSplit, modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp).pressScale()) {
+                        OutlinedButton(onClick = openSplit, modifier = Modifier.fillMaxWidth().padding(top = 24.dp).height(52.dp).pressScale()) {
                             Text(if (count == 0) tr(R.string.onboard_split_open) else tr(R.string.onboard_split_open_count, count))
                         }
                     }
                 }
+            }
             }
         }
         Column(Modifier.fillMaxWidth().padding(top = 12.dp).padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             PageDots(pager.currentPage, Onboarding.PAGES, position)
             Spacer(Modifier.height(12.dp))
             NdButton(onClick = next, modifier = Modifier.fillMaxWidth().height(52.dp).pressScale()) {
-                Text(tr(if (!onPermissions) R.string.onboard_next else if (done) R.string.onboard_done else R.string.onboard_continue)) }
+                Text(tr(if (!onPermissions) R.string.onboard_next else R.string.onboard_continue)) }
         }
     }
 }

@@ -350,6 +350,7 @@ class UiE2ETest {
         Onboarding.reset(context)
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         wait(By.text("Welcome to Moth"), 20_000); Thread.sleep(600)
+        assertTrue("welcome page shows only its title", device.findObject(By.textContains("Tap the moth")) == null)
         // The tour pages swipe left/right.
         device.swipe(device.displayWidth * 4 / 5, device.displayHeight / 2, device.displayWidth / 5, device.displayHeight / 2, 20)
         wait(By.text("The best server, automatically"), 5_000); Thread.sleep(600)

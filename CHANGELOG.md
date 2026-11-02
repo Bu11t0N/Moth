@@ -2,6 +2,17 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0-beta.9
+
+Released 2026-11-02 (beta).
+
+### Changes
+
+- Updates: the moth is much bigger and still keeps one size in every state.
+- First run: the welcome page shows only its title.
+- First run: the icons on the tour pages no longer float while you swipe; each page moves as one piece.
+- First run: the step asking for your subscription link is back after the permissions page.
+
 ## 1.0.0-beta.8
 
 Released 2026-11-02 (beta).

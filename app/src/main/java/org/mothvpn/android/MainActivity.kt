@@ -223,7 +223,7 @@ class MainActivity : AppCompatActivity() {
                         OnboardingScreen(
                             add = { link -> finishOnboarding("add"); tab = 1; if (ImportInput.classify(link) is ImportInput.Kind.Invalid) message = tr(R.string.import_invalid) else import(link, "onboarding") },
                             scan = { finishOnboarding("scan"); tab = 1; scanQr() },
-                            skip = { how -> finishOnboarding(how) }, hasSubscription = book != null,
+                            skip = { how -> finishOnboarding(how) },
                             settings = settings, save = { saveSettings(it) })
                     }
                     deepLink?.let { action ->

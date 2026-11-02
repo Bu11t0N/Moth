@@ -672,7 +672,6 @@
     <string name="onboard_skip">Not now</string>
     <string name="dev_onboarding">First-run screen</string>
     <string name="dev_onboarding_sum">Show the tour and permissions again (nothing is deleted)</string>
-    <string name="onboard_t_connect">Tap the moth on Home to connect, tap it again to disconnect. Pick a server on the bar below it or on the Servers tab.</string>
     <string name="onboard_t_servers_title">The best server, automatically</string>
     <string name="onboard_t_servers">Moth can check the servers and connect to the fastest one, separately for Wi-Fi and mobile data. Turn it on or off below, or later in Settings › Connection › Auto-select.</string>
     <string name="onboard_t_split">Choose which apps go through the VPN, or which bypass it. You can do it now or later in Settings › Split tunneling.</string>
@@ -684,7 +683,6 @@
     <string name="onboard_next">Next</string>
     <string name="onboard_skip_tutorial">Skip</string>
     <string name="onboard_continue">Continue</string>
-    <string name="onboard_done">Done</string>
     <string name="onboard_perm_title">Permissions</string>
     <string name="onboard_perm_text">Allow these now so Moth works smoothly. Everything is optional: you can change it later.</string>
     <string name="onboard_perm_vpn">VPN connection</string>
