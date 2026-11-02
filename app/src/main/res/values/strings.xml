@@ -668,9 +668,13 @@
     <string name="dev_onboarding_sum">Show the tour and permissions again (nothing is deleted)</string>
     <string name="onboard_t_connect">Tap the moth on Home to connect, tap it again to disconnect. Pick a server on the bar below it or on the Servers tab.</string>
     <string name="onboard_t_servers_title">The best server, automatically</string>
-    <string name="onboard_t_servers">Moth can check the servers and pick the fastest one for Wi-Fi and for mobile data: Settings › Connection › Auto-select. The kill switch there blocks traffic if reconnecting fails.</string>
-    <string name="onboard_t_split">Choose which apps go through the VPN, or which bypass it: Settings › Split tunneling.</string>
-    <string name="onboard_t_updates">A dot on the Settings icon means a new version is ready. Install it in Settings › Updates; choose Release or Beta there.</string>
+    <string name="onboard_t_servers">Moth can check the servers and connect to the fastest one, separately for Wi-Fi and mobile data. Turn it on or off below, or later in Settings › Connection › Auto-select.</string>
+    <string name="onboard_t_split">Choose which apps go through the VPN, or which bypass it. You can do it now or later in Settings › Split tunneling.</string>
+    <string name="onboard_auto_switch">Auto-select the best server</string>
+    <string name="onboard_auto_switch_sum">On Wi-Fi and mobile data</string>
+    <string name="onboard_split_open">Choose apps</string>
+    <string name="onboard_split_open_count">Choose apps · selected: %1$d</string>
+    <string name="onboard_back">Back</string>
     <string name="onboard_next">Next</string>
     <string name="onboard_skip_tutorial">Skip</string>
     <string name="onboard_continue">Continue</string>

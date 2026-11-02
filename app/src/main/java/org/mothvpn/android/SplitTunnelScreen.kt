@@ -14,6 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
@@ -72,7 +76,6 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
     var apps by remember { mutableStateOf<List<AppEntry>?>(null) }
     var search by remember { mutableStateOf("") }
     var showSystem by remember { mutableStateOf(false) }
-    var modeDialog by remember { mutableStateOf(false) }
     LaunchedEffect(settings.splitAllApps) {
         apps = null
         apps = withContext(Dispatchers.IO) {
@@ -86,12 +89,28 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
     }
     val modes = listOf("bypass" to tr(R.string.split_mode_bypass), "only" to tr(R.string.split_mode_only))
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        DialogRow(tr(R.string.split_mode), (modes.firstOrNull { it.first == settings.splitMode } ?: modes.first()).second, enabled) { modeDialog = true }
-        // While the app list scrolls, the "Show system apps" and "Elevated privileges" rows step aside (more room for the apps); they come
-        // back 400 ms after it settles. The per-app selection checkboxes in the list never hide.
+        // The mode is chosen right on the page: two stacked cards, bypass (the default) first; the active one is shown only by its fill
+        // and outline (the selected-server style), no check mark or radio button.
+        Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val current = modes.firstOrNull { it.first == settings.splitMode }?.first ?: modes.first().first
+            modes.forEach { (value, label) ->
+                val chosen = current == value
+                Card(onClick = { if (!chosen) apply(settings.copy(splitMode = value)) }, enabled = enabled,
+                    modifier = Modifier.pressScale(enabled = enabled).fillMaxWidth().semantics { selected = chosen; role = androidx.compose.ui.semantics.Role.RadioButton },
+                    colors = CardDefaults.cardColors(containerColor = if (chosen) NewDesignRow.selectedColor() else NdTone.card(),
+                        disabledContainerColor = if (chosen) NewDesignRow.selectedColor() else NdTone.card()),
+                    border = NewDesignRow.selectedBorder(chosen)) {
+                    Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 12.dp), contentAlignment = Alignment.CenterStart) {
+                        Text(label, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        }
+        // The "Show system apps" and "Elevated privileges" rows step aside once the app list is scrolled down (more room for the apps) and
+        // come back only at its very top. The per-app selection checkboxes in the list never hide.
         val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-        var hideOptions by remember { mutableStateOf(false) }
-        LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress) hideOptions = true else { kotlinx.coroutines.delay(400); hideOptions = false } }
+        // The two option rows show only while the list is at its very top (first item, offset 0); scrolled down at all → hidden.
+        val hideOptions by remember { androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
         // One wrapper without spacing (the rows carry their own top gap), so nothing is left between the search field and the list when hidden.
         Column(Modifier.fillMaxWidth()) {
             OutlinedTextField(search, { search = it }, label = { Text(tr(R.string.split_search)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -138,7 +157,6 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
             }
         }
     }
-    if (modeDialog) ChoiceDialog(tr(R.string.split_mode), modes, settings.splitMode, { modeDialog = false }) { apply(settings.copy(splitMode = it)) }
 }
 
 /** Settings row that opens a dialog (same look as the language and sort rows). */

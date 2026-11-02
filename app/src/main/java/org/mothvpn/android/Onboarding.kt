@@ -18,6 +18,10 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +29,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -37,16 +42,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.outlined.BatteryStd
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -54,10 +60,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -72,13 +82,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
+import org.mothvpn.core.ClientSettings
 
 /**
  * The first-run flow. Shown once: on the first launch with no saved subscription. The "done" mark is a plain flag of its own (not part
  * of the settings or backups); an existing install that already has subscriptions is marked done silently. The developer page can show
  * the flow again without touching the flag or any data.
  *
- * Steps: [TUTORIAL] short feature pages (Skip jumps to the permissions) → the permissions page (VPN, notifications on Android 13+,
+ * Steps: [TUTORIAL] short feature pages in a pager (swipe left/right or Next; Skip jumps to the permissions; the auto-select page has
+ * the real auto-select switch, the split tunneling page opens the real split tunneling page over the tour) → the permissions page (VPN, notifications on Android 13+,
  * battery optimization, keeping Moth alive in the background; every request is optional and a denial only shows a hint) → the
  * "add your first subscription" page (left out when a subscription already exists, e.g. when reopened from the developer page).
  */
@@ -86,7 +99,7 @@ object Onboarding {
     private const val PREFS = "onboarding"
     private const val DONE = "done"
     /** The feature pages before the permissions page. */
-    const val TUTORIAL = 4
+    const val TUTORIAL = 3
     fun done(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(DONE, false)
     fun markDone(context: Context) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(DONE, true).apply() }
     /** Tests only: the next launch without subscriptions shows the first-run flow again. */
@@ -99,31 +112,59 @@ private class TutorialPage(val icon: ImageVector?, val title: Int, val text: Int
 private val tutorial = listOf(
     TutorialPage(null, R.string.onboard_title, R.string.onboard_t_connect),
     TutorialPage(Icons.Outlined.Speed, R.string.onboard_t_servers_title, R.string.onboard_t_servers),
-    TutorialPage(Icons.AutoMirrored.Outlined.CallSplit, R.string.split_title, R.string.onboard_t_split),
-    TutorialPage(Icons.Outlined.SystemUpdate, R.string.update_title, R.string.onboard_t_updates))
+    TutorialPage(Icons.AutoMirrored.Outlined.CallSplit, R.string.split_title, R.string.onboard_t_split))
+private const val PAGE_AUTO = 1
+private const val PAGE_SPLIT = 2
 
 /**
  * [add]: the link typed or pasted; [scan]: open the QR scanner; [skip]: close the flow without adding ([how] says from where, for the
- * log). [hasSubscription]: the subscription page is left out and the permissions page finishes the flow.
+ * log). [hasSubscription]: the subscription page is left out and the permissions page finishes the flow. [settings]/[save]: the app's
+ * settings (the auto-select switch and the split tunneling page change the same values as Settings, saved at once).
  */
-@Composable fun OnboardingScreen(add: (String) -> Unit, scan: () -> Unit, skip: (how: String) -> Unit, hasSubscription: Boolean = false) {
-    val last = if (hasSubscription) Onboarding.TUTORIAL else Onboarding.TUTORIAL + 1
-    var step by rememberSaveable { mutableIntStateOf(0) }
-    fun go(to: Int) { Logger.d("Onboarding", "step $step → $to"); step = to }
-    BackHandler { if (step == 0) skip("back") else go(step - 1) }
+@Composable fun OnboardingScreen(add: (String) -> Unit, scan: () -> Unit, skip: (how: String) -> Unit, hasSubscription: Boolean = false,
+    settings: ClientSettings = ClientSettings(), save: (ClientSettings) -> Unit = {}) {
+    // Stage: 0 the tour (pager), 1 permissions, 2 subscription.
+    val last = if (hasSubscription) 1 else 2
+    var stage by rememberSaveable { mutableIntStateOf(0) }
+    var splitOpen by rememberSaveable { mutableStateOf(false) }
+    val pager = rememberPagerState { Onboarding.TUTORIAL }
+    val scope = rememberCoroutineScope()
     val anim = animationsOn()
+    fun go(to: Int) { Logger.d("Onboarding", "stage $stage → $to"); stage = to }
+    fun page(to: Int) { scope.launch { if (anim) pager.animateScrollToPage(to) else pager.scrollToPage(to) } }
+    BackHandler(enabled = !splitOpen) { when { stage > 0 -> go(stage - 1); pager.currentPage > 0 -> page(pager.currentPage - 1); else -> skip("back") } }
+    LaunchedEffect(pager) { snapshotFlow { pager.currentPage }.collect { Logger.d("Onboarding", "tour page ${it + 1}") } }
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-        AnimatedContent(step, label = "onboarding", transitionSpec = {
+        AnimatedContent(stage, label = "onboarding", transitionSpec = {
             if (!anim) fadeIn(Motion.tweenOr(false)) togetherWith fadeOut(Motion.tweenOr(false))
             else { val dir = if (targetState > initialState) 1 else -1
                 (slideInHorizontally(Motion.tweenOr(true, Motion.MEDIUM)) { it * dir / 4 } + fadeIn(Motion.tweenOr(true, Motion.MEDIUM))) togetherWith
                     (slideOutHorizontally(Motion.tweenOr(true, Motion.MEDIUM)) { -it * dir / 4 } + fadeOut(Motion.tweenOr(true))) }
         }) { s ->
             Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding(), contentAlignment = Alignment.Center) {
-                when {
-                    s < Onboarding.TUTORIAL -> TutorialStep(s, next = { go(s + 1) }, skipAll = { Logger.i("Onboarding", "tutorial skipped at page ${s + 1}"); go(Onboarding.TUTORIAL) })
-                    s == Onboarding.TUTORIAL -> PermissionsStep(done = hasSubscription, next = { if (s == last) skip("done") else go(s + 1) })
+                when (s) {
+                    0 -> TutorialStep(pager, settings, save,
+                        next = { if (pager.currentPage < Onboarding.TUTORIAL - 1) page(pager.currentPage + 1) else go(1) },
+                        skipAll = { Logger.i("Onboarding", "tutorial skipped at page ${pager.currentPage + 1}"); go(1) },
+                        openSplit = { Logger.i("Onboarding", "split tunneling opened from the tour"); splitOpen = true })
+                    1 -> PermissionsStep(done = hasSubscription, next = { if (last == 1) skip("done") else go(2) })
                     else -> SubscriptionStep(add, scan) { skip("skip") }
+                }
+            }
+        }
+        // The real split tunneling page over the tour; Back (or the arrow) returns to the split tunneling tour page.
+        AnimatedVisibility(splitOpen, enter = fadeIn(Motion.tweenOr(anim)) + slideInHorizontally(Motion.tweenOr(anim)) { if (anim) it / 8 else 0 },
+            exit = fadeOut(Motion.tweenOr(anim)) + slideOutHorizontally(Motion.tweenOr(anim)) { if (anim) it / 8 else 0 }) {
+            BackHandler { splitOpen = false }
+            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+                Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
+                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { splitOpen = false }, modifier = Modifier.pressScale()) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = tr(R.string.onboard_back)) }
+                        Text(tr(R.string.split_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp))
+                    }
+                    val tunnel by TunnelStatus.state.collectAsState()
+                    SplitTunnelPage(settings, tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING), save, Modifier.weight(1f).fillMaxWidth().padding(bottom = 8.dp))
                 }
             }
         }
@@ -134,11 +175,14 @@ private val tutorial = listOf(
 @Composable private fun StepFrame(top: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit = {}, buttons: @Composable () -> Unit, content: @Composable () -> Unit) {
     Column(Modifier.widthIn(max = 480.dp).fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().height(48.dp)) { top() }
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)) { content() }
-        }
+        StepBody(Modifier.weight(1f), content)
         Column(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) { buttons() }
+    }
+}
+@Composable private fun StepBody(modifier: Modifier, content: @Composable () -> Unit) {
+    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)) { content() }
     }
 }
 
@@ -152,18 +196,52 @@ private val tutorial = listOf(
     }
 }
 
-@Composable private fun TutorialStep(page: Int, next: () -> Unit, skipAll: () -> Unit) {
-    val p = tutorial[page]
-    StepFrame(top = { TextButton(onClick = skipAll, modifier = Modifier.align(Alignment.CenterEnd).pressScale()) { Text(tr(R.string.onboard_skip_tutorial)) } },
-        buttons = {
-            PageDots(page, Onboarding.TUTORIAL + 1)
+/** The feature tour: the pages swipe left/right (the main way through); Skip at the top, page dots and Next at the bottom stay put. */
+@Composable private fun TutorialStep(pager: androidx.compose.foundation.pager.PagerState, settings: ClientSettings, save: (ClientSettings) -> Unit,
+    next: () -> Unit, skipAll: () -> Unit, openSplit: () -> Unit) {
+    Column(Modifier.widthIn(max = 480.dp).fillMaxSize().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 24.dp)) {
+            TextButton(onClick = skipAll, modifier = Modifier.align(Alignment.CenterEnd).pressScale()) { Text(tr(R.string.onboard_skip_tutorial)) }
+        }
+        HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), key = { it }) { i ->
+            val p = tutorial[i]
+            Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                StepBody(Modifier.weight(1f)) {
+                    if (p.icon == null) MothFlutter(size = 148.dp, tappable = true)
+                    else IconTile(p.icon, size = 96.dp)
+                    Text(tr(p.title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+                    Text(tr(p.text), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
+                when (i) {
+                    // One switch for auto-select on both Wi-Fi and mobile data (Settings › Connection keeps the two separate).
+                    PAGE_AUTO -> {
+                        val on = settings.autoSelectWifi || settings.autoSelectMobile
+                        val toggle = { v: Boolean -> Logger.i("Onboarding", "auto-select ${if (v) "on" else "off"} from the tour"); save(settings.copy(autoSelectWifi = v, autoSelectMobile = v)) }
+                        Card(Modifier.fillMaxWidth().padding(top = 12.dp).pressScale(), colors = ndCardColors()) {
+                            Row(Modifier.fillMaxWidth().clickable { toggle(!on) }.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp).heightIn(min = 48.dp),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(tr(R.string.onboard_auto_switch), style = MaterialTheme.typography.titleMedium)
+                                    Text(tr(R.string.onboard_auto_switch_sum), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                MothSwitch(checked = on, onCheckedChange = { toggle(it) })
+                            }
+                        }
+                    }
+                    PAGE_SPLIT -> {
+                        val count = settings.splitApps.size
+                        OutlinedButton(onClick = openSplit, modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp).pressScale()) {
+                            Text(if (count == 0) tr(R.string.onboard_split_open) else tr(R.string.onboard_split_open_count, count))
+                        }
+                    }
+                }
+            }
+        }
+        Column(Modifier.fillMaxWidth().padding(top = 12.dp).padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            PageDots(pager.currentPage, Onboarding.TUTORIAL + 1)
             Spacer(Modifier.height(12.dp))
             NdButton(onClick = next, modifier = Modifier.fillMaxWidth().height(52.dp).pressScale()) { Text(tr(R.string.onboard_next)) }
-        }) {
-        if (p.icon == null) MothFlutter(size = 148.dp, tappable = true)
-        else IconTile(p.icon, size = 96.dp)
-        Text(tr(p.title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-        Text(tr(p.text), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        }
     }
 }
 

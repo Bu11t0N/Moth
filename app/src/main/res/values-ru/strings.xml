@@ -672,9 +672,13 @@
     <string name="dev_onboarding_sum">Показать обучение и разрешения снова (ничего не удаляется)</string>
     <string name="onboard_t_connect">Нажмите на мотылька на Главной, чтобы подключиться, и ещё раз — чтобы отключиться. Сервер выбирается на панели под ним или на вкладке «Серверы».</string>
     <string name="onboard_t_servers_title">Лучший сервер — автоматически</string>
-    <string name="onboard_t_servers">Moth сам проверит серверы и выберет самый быстрый — отдельно для Wi‑Fi и мобильного интернета: Настройки › Подключение › Автовыбор. Там же Kill switch: блокирует трафик, если переподключиться не удалось.</string>
-    <string name="onboard_t_split">Выберите, какие приложения идут через VPN, а какие в обход: Настройки › Раздельное туннелирование.</string>
-    <string name="onboard_t_updates">Точка на значке «Настройки» — вышла новая версия. Установить её можно в Настройки › Обновления; там же выбирается канал: Релиз или Бета.</string>
+    <string name="onboard_t_servers">Moth сам проверит серверы и подключится к самому быстрому — отдельно для Wi‑Fi и мобильного интернета. Включить или выключить можно ниже или позже в Настройки › Подключение › Автовыбор.</string>
+    <string name="onboard_t_split">Выберите, какие приложения идут через VPN, а какие в обход. Можно сейчас или позже в Настройки › Раздельное туннелирование.</string>
+    <string name="onboard_auto_switch">Автовыбор лучшего сервера</string>
+    <string name="onboard_auto_switch_sum">На Wi‑Fi и мобильном интернете</string>
+    <string name="onboard_split_open">Выбрать приложения</string>
+    <string name="onboard_split_open_count">Выбрать приложения · выбрано: %1$d</string>
+    <string name="onboard_back">Назад</string>
     <string name="onboard_next">Далее</string>
     <string name="onboard_skip_tutorial">Пропустить</string>
     <string name="onboard_continue">Продолжить</string>
