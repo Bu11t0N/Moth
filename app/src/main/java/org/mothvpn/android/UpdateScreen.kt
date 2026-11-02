@@ -5,14 +5,13 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.rememberOverscrollEffect
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -36,25 +35,28 @@ import java.io.File
     fun on(event: org.mothvpn.core.UpdatePhase.Event, value: Float? = null) { phase = phase.on(event, value) }
     var message by remember { mutableStateOf("") }
     var job by remember { mutableStateOf<Job?>(null) }
+    // Errors go to the app-wide top notice (full text, never cut under the moth); the line under the moth keeps only short statuses.
+    val notices = LocalNotice.current
+    fun fail(text: String) { message = ""; notices.show(text, NoticeState.ERROR_MS) }
     var warning by remember { mutableStateOf<File?>(null) }
     var waiting by remember { mutableStateOf<Pair<AppRelease, File>?>(null) }
     fun install(file: File) {
         Logger.i("Update", "install requested: ${file.length()} bytes")
-        try { AppUpdater.install(context, file) } catch (e: Exception) { Logger.w("Update", "install failed", e); message = tr(R.string.update_failed) }
+        try { AppUpdater.install(context, file) } catch (e: Exception) { Logger.w("Update", "install failed", e); fail(tr(R.string.update_failed)) }
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         val granted = context.packageManager.canRequestPackageInstalls()
         Logger.i("Update", "install-unknown-apps permission ${if (granted) "granted" else "not granted"}")
         val pending = waiting; waiting = null
         if (granted && pending != null) { message = tr(R.string.update_permission_ready); install(pending.second) }
-        else { message = tr(R.string.update_permission_needed); on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }
+        else { fail(tr(R.string.update_permission_needed)); on(org.mothvpn.core.UpdatePhase.Event.DIALOG_DISMISSED) }
     }
     fun action(block: suspend () -> Unit) {
         job = scope.launch {
             on(org.mothvpn.core.UpdatePhase.Event.CHECK); message = ""
             try { block() }
             catch (e: CancellationException) { Logger.i("Update", "update action cancelled"); message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED); throw e }
-            catch (e: Exception) { Logger.w("Update", "update action failed", e); message = tr(R.string.update_failed); on(org.mothvpn.core.UpdatePhase.Event.FAILED) }
+            catch (e: Exception) { Logger.w("Update", "update action failed", e); fail(tr(R.string.update_failed)); on(org.mothvpn.core.UpdatePhase.Event.FAILED) }
             finally { if (phase.busy) on(org.mothvpn.core.UpdatePhase.Event.DONE) }
         }
     }
@@ -84,62 +86,83 @@ import java.io.File
     LaunchedEffect(Unit) { val seen = AppUpdater.installAborted.value; AppUpdater.installAborted.collect { if (it > seen) { message = ""; on(org.mothvpn.core.UpdatePhase.Event.INSTALL_ABORTED) } } }
     val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
     var channelDialog by remember { mutableStateOf(false) }
-    // One quiet status line under the moth (the versions are in the card below): what is happening now, the result of the last check or an error.
+    // One quiet status line under the moth: what is happening now or the result of the last check. A found update is not repeated
+    // there (its version is in the card below); errors are shown by the top notice.
     val status = when {
         phase is org.mothvpn.core.UpdatePhase.Downloading -> tr(R.string.update_downloading) + (progress?.let { " ${(it * 100).toInt().coerceIn(0, 100)} %" } ?: "")
         busy && release == null -> tr(R.string.update_checking)
         message.isNotEmpty() -> message
-        release != null -> tr(R.string.update_available, release!!.version)
         else -> ""
     }
-    // The moth, the status and the version card take the space above (and scroll only when they really do not fit: small screen, big font;
-    // otherwise no drag, no empty overscroll stretch and no nested scroll that would fold the large title). The channel row and the main
-    // button are pinned to the bottom, so the button stays in place while the status, the progress or the card above change.
-    val scroll = rememberScrollState()
-    val scrollable = scroll.maxValue > 0
-    Column(modifier.fillMaxWidth()) {
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll, overscrollEffect = if (scrollable) rememberOverscrollEffect() else null, enabled = scrollable),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    // The page never scrolls and the moth has one size in every state (idle, checking, update found, downloading): its area is sized
+    // once from the page height minus the room the bottom block needs (one version row, channel row and the main button; that block
+    // never grows), so the moth neither shrinks nor moves. Low under the moth, just above the version card: the status line and one
+    // small action slot (Cancel while checking or downloading, "Check again" when an update was found). The main button never moves.
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val type = MaterialTheme.typography
+    // Text heights follow the font size; the rest is fixed dp (see the layout below).
+    val sp = { u: androidx.compose.ui.unit.TextUnit -> with(density) { u.toDp() } }
+    val statusHeight = 12.dp + sp(type.bodyLarge.lineHeight) * 2
+    val below = statusHeight + 44.dp // status (two lines) + the action slot under the moth
+    val cardRow = maxOf(52.dp, 20.dp + sp(type.titleMedium.lineHeight))
+    val reserve = 8.dp + (8.dp + cardRow) + 12.dp + (32.dp + sp(type.bodyLarge.lineHeight) + sp(type.bodySmall.lineHeight)) +
+        12.dp + 52.dp + 8.dp
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+    val top = (maxHeight - reserve).coerceAtLeast(0.dp)
+    // The drawing uses only part of its square canvas: antennae at 17 %, hindwings end at ~80 % (63 % of the height), spread wings
+    // from 4 % to 96 % (92 % of the width). The square is sized so that the drawn moth itself fills the room above the status block
+    // (and almost the page width); the empty margins of the square overhang (clipped at the top, transparent over the status line).
+    // requiredSize + exact = one size in every state, never squashed or shrunk back to the parent.
+    val room = (top - below - 4.dp).coerceAtLeast(0.dp)
+    val side = minOf(maxWidth * 0.98f / 0.92f, room / 0.63f, 560.dp)
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+        Box(Modifier.weight(1f, fill = false).height(top).fillMaxWidth().clipToBounds()) {
             // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
-            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                MothFlutter(busy = busy)
-                Spacer(Modifier.height(12.dp))
-                Text(status.ifEmpty { " " }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 4.dp, start = 16.dp, end = 16.dp).semantics { liveRegion = LiveRegionMode.Polite })
+            // Centred on the drawing (its middle is at 48.5 % of the square, not 50 %).
+            Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
+                if (side >= 48.dp) MothFlutter(Modifier.requiredSize(side).offset(y = side * 0.015f), size = side, busy = busy, exact = true)
             }
-            Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
-                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME)
-                    release?.let {
-                        HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        VersionRow(tr(R.string.update_available_row), it.version)
-                    }
-                    if (busy) {
-                        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.weight(1f)) {
-                                    progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) } ?: LinearProgressIndicator(Modifier.fillMaxWidth())
-                                }
-                                TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale().padding(start = 8.dp)) {
-                                    Text(tr(R.string.update_cancel))
-                                }
+            // The status line and the action slot sit low, at the bottom of the moth area (just above the version card).
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                // Fixed height (two lines), so a status appearing or changing never moves the moth; statuses are short, errors use the top notice.
+                Box(Modifier.fillMaxWidth().height(statusHeight).padding(start = 16.dp, end = 16.dp, top = 12.dp), contentAlignment = Alignment.TopCenter) {
+                    Text(status, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().wrapContentHeight(Alignment.Top, unbounded = true).semantics { liveRegion = LiveRegionMode.Polite })
+                }
+                // One small action with a fixed place (empty when idle without an update), so the moth and the status never jump.
+                Box(Modifier.height(44.dp), contentAlignment = Alignment.Center) {
+                    androidx.compose.animation.AnimatedContent(when { busy -> 1; release != null -> 2; else -> 0 }, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "updateAction") { slot ->
+                        when (slot) {
+                            1 -> TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale()) {
+                                Text(tr(R.string.update_cancel))
                             }
+                            2 -> TextButton(onClick = { check() }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_check)) }
+                            else -> Spacer(Modifier.size(1.dp))
                         }
                     }
                 }
             }
         }
-        Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
-            // One main action at the very bottom: install a found update, otherwise check again ("check again" goes above it when an update is found).
+        Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // One version row, no extra row or window: the installed version, replaced by the available one when an update is found.
             val available = release
+            Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    androidx.compose.animation.AnimatedContent(available?.version, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "versionRow") { version ->
+                        if (version == null) VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME)
+                        else VersionRow(tr(R.string.update_available_row), version, highlight = true)
+                    }
+                }
+            }
+            DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
+            // One main action at the very bottom: install a found update, otherwise check ("check again" is in the slot under the moth then).
             if (available != null) {
-                TextButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).fillMaxWidth()) { Text(tr(R.string.update_check)) }
                 NdButton(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_install)) }
             } else {
                 NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_check)) }
             }
         }
+    }
     }
     if (channelDialog) ChoiceDialog(tr(R.string.update_channel), channels, channel, { channelDialog = false }) { value ->
         if (channel != value) { Logger.i("Settings", "update channel changed: ${channel.id} -> ${value.id}"); selectChannel(value.id) }
@@ -157,9 +180,9 @@ import java.io.File
 }
 
 /** A row of the version card: the label on the left, the version on the right (same look as the Data pages' rows). */
-@Composable private fun VersionRow(label: String, value: String) {
+@Composable private fun VersionRow(label: String, value: String, highlight: Boolean = false) {
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(end = 12.dp))
-        Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+        Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1, color = if (highlight) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Unspecified)
     }
 }

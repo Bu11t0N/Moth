@@ -69,8 +69,10 @@ object SubscriptionRefresh {
     data class Result(val book: SubscriptionBook, val sourceId: String, val rejected: Int)
     fun run(context: Context, sourceId: String?, url: String, name: String?, settings: org.mothvpn.core.ClientSettings, trigger: String, expectedUrl: String = url.trim()): Result {
         val link = url.trim()
-        val response = SubscriptionDownload.fetchDetails(link, settings)
-        val parsed = Subscriptions.parse(response.body) { provider -> SubscriptionDownload.fetchDetails(provider, settings).body }
+        // The subscription this download is for (an existing one with the same link counts): device data may go only to selected ones.
+        val known = sourceId ?: runCatching { SubscriptionStore(context).loadBook()?.refreshTarget(null, link, expectedUrl)?.id }.getOrNull()
+        val response = SubscriptionDownload.fetchDetails(link, settings, known)
+        val parsed = Subscriptions.parse(response.body) { provider -> SubscriptionDownload.fetchDetails(provider, settings, known).body }
         Logger.i("Import", "${parsed.summary()}, comment lines skipped ${parsed.comments}, kept ${parsed.profiles.size} (trigger=$trigger)")
         parsed.duplicates.forEach { Logger.d("Import", "dropped: $it") }
         parsed.reasons.forEach { Logger.w("Import", "skipped: $it") }

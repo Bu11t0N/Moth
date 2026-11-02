@@ -2,6 +2,24 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0
+
+Released 2026-11-02.
+
+### Changes
+
+- New first-run screen: a short swipeable tour (connecting, auto-select, split tunneling), one page with the permissions Moth needs and how to keep it from being closed (including HyperOS/MIUI tips), then your subscription link — paste it or scan a QR code. Everything can be skipped.
+- Share the VPN with other devices: turn on "Proxy for other devices" (Settings → Connection) and a laptop, TV or another phone on this phone's hotspot or Wi-Fi can use the VPN (HTTP and SOCKS5 on one port). Each address is labeled with its network.
+- AmneziaWG servers: wireguard:// links with AmneziaWG settings, .conf files and Amnezia vpn:// keys. Junk packets (Jc, Jmin, Jmax) and I1–I5 are supported; servers that need S1–S4 or custom H1–H4 are not yet.
+- Split tunneling moved to the main Settings page under Routing, with two mode cards instead of a dialog and a new "Elevated privileges" option that lists every app.
+- Redesigned Updates page: a large moth that keeps one size, one version row that shows the found update, and errors shown in full at the top.
+- An available update is marked with a dot on the Settings tab and on the Updates icon.
+- Loading indicators are now a flapping moth, and no more progress bars at the top of Servers.
+- Device data can be sent to all subscriptions or only to the ones you pick.
+- HTTPS check URL: Google, Cloudflare and Apple buttons fill in a ready address.
+- The Connections page shows app traffic again, and the VPN notification no longer jumps around.
+- Smaller tweaks: softer notices in the theme colours, calmer chart colours, clearer UDP noise explanation, fewer unneeded hints, and the tunnel check timeout is hidden while the check is off.
+
 ## 0.8.0
 
 Released 2026-10-29.

@@ -23,6 +23,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -61,7 +64,13 @@ class MainActivity : AppCompatActivity() {
     private fun show(next: SubscriptionBook?) { book = next?.takeIf { it.sources.isNotEmpty() }; saved = next?.record(); lifecycleScope.launch(Dispatchers.IO) { runCatching { MothWidget.update(applicationContext) } } }
     private var updateAvailable by mutableStateOf(false)
     private var openUpdates by mutableStateOf(false)
+    /** The first-run flow is shown (first launch without subscriptions, or opened again from the developer page). */
+    private var onboarding by mutableStateOf(false)
     private var busy by mutableStateOf(false)
+    /** Subscriptions being downloaded again right now: their refresh buttons show the flapping moth (no progress strip). */
+    private var refreshing by mutableStateOf<Set<String>>(emptySet())
+    /** "Update all subscriptions" is running: the top-bar refresh button shows the flapping moth. */
+    private var refreshingAll by mutableStateOf(false)
     /** True while [select] saves a server choice (busy for that short moment); the Servers page shows no progress bar for it. */
     private var selecting by mutableStateOf(false)
     /** Import offered by a link that opened the app; shown in a confirmation dialog, never logged. */
@@ -115,6 +124,9 @@ class MainActivity : AppCompatActivity() {
             runCatching { withContext(Dispatchers.IO) { SettingsStore(this@MainActivity).load() } }.onSuccess { settings = it; Logger.i("Store", "settings loaded: channel=${UpdateChannel.effective(it.updateChannel, BuildConfig.VERSION_NAME).id} theme=${it.theme}") }
                 .onFailure { Logger.e("Store", "reading settings failed", it); message = tr(R.string.msg_could_not_read_settings_24) }
             busy = false
+            // First run: no subscription yet and the first-run screen never finished. An install that already has subscriptions
+            // (an update from an older version) is marked done without showing it.
+            if (!Onboarding.done(this@MainActivity)) { if (book == null) { onboarding = true; Logger.i("Onboarding", "first run: shown") } else Onboarding.markDone(this@MainActivity) }
             SubscriptionUpdates.schedule(this@MainActivity, settings.subUpdateHours)
             runCatching { ExpiryReminder.schedule(this@MainActivity) }.onFailure { Logger.w("Expiry", "scheduling failed", it) }
             launch { VpnLauncher.changed.collect { if (it > 0) runCatching { withContext(Dispatchers.IO) { store.loadBook() } }.onSuccess { b -> if (b != null) show(b) } } }
@@ -176,11 +188,12 @@ class MainActivity : AppCompatActivity() {
                                     edit = { id, name, link -> editSubscription(id, name, link) }, remove = { id -> removeSubscription(id) },
                                     select = { id, kind -> select(id, kind) }, probe = { kind, order -> diagnose(kind, order, only = checkSnapshot(kind)) }, probeGroup = { kind, ids -> diagnose(kind, ids, only = ids) },
                                     cancel = { cancelChecks() },
-                                    preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) }, selecting = selecting)
+                                    preferences = { saveSettings(it) }, editServer = { id, outbound -> editServer(id, outbound) }, selecting = selecting,
+                                    refreshing = refreshing, refreshingAll = refreshingAll)
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
-                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) }, rootRequest = settingsRoot)
+                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) }, rootRequest = settingsRoot, updateAvailable = updateAvailable, showOnboarding = { onboarding = true; Logger.i("Onboarding", "shown from the developer page") })
                                 }
                             }
                             }
@@ -192,15 +205,26 @@ class MainActivity : AppCompatActivity() {
                             listOf(tr(R.string.msg_home_26) to "home", tr(R.string.msg_servers_27) to "list", tr(R.string.msg_settings_28) to "settings").forEachIndexed { i, item ->
                                 NavigationBarItem(selected = tab == i, onClick = { val t = org.mothvpn.core.TabTap.tap(i, settingsRoot); tab = t.tab; settingsRoot = t.rootRequest }, label = { Text(item.first) }, modifier = Modifier.pressScale(), icon = {
                                     // Material icons that are clearly different (house, bulleted list, gear): outlined, filled when selected.
+                                    // An available update: a small dot at the top right of the Settings icon (no badge at the top of Home).
+                                    Box {
                                     NavIcon(tab == i, when (item.second) { "home" -> androidx.compose.material.icons.Icons.Outlined.Home
                                         "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Outlined.FormatListBulleted
                                         else -> androidx.compose.material.icons.Icons.Outlined.Settings },
                                         when (item.second) { "home" -> androidx.compose.material.icons.Icons.Filled.Home
                                         "list" -> androidx.compose.material.icons.Icons.AutoMirrored.Filled.FormatListBulleted
                                         else -> androidx.compose.material.icons.Icons.Filled.Settings })
+                                    if (item.second == "settings" && updateAvailable) UpdateDot(Modifier.align(androidx.compose.ui.Alignment.TopEnd).offset(x = 3.dp, y = (-2).dp))
+                                    }
                                 })
                             }
                         }
+                    }
+                    androidx.compose.animation.AnimatedVisibility(onboarding, enter = fadeIn(tween(250)), exit = fadeOut(tween(200))) {
+                        OnboardingScreen(
+                            add = { link -> finishOnboarding("add"); tab = 1; if (ImportInput.classify(link) is ImportInput.Kind.Invalid) message = tr(R.string.import_invalid) else import(link, "onboarding") },
+                            scan = { finishOnboarding("scan"); tab = 1; scanQr() },
+                            skip = { how -> finishOnboarding(how) },
+                            settings = settings, save = { saveSettings(it) })
                     }
                     deepLink?.let { action ->
                         AlertDialog(onDismissRequest = { deepLink = null; Logger.i("DeepLink", "import cancelled") },
@@ -244,6 +268,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    private fun finishOnboarding(how: String) { onboarding = false; Onboarding.markDone(this); Logger.i("Onboarding", "closed: $how") }
     /** Silent launch-time update check using the saved channel; a failure is only logged and shows nothing. */
     private fun checkForUpdate() {
         val channel = UpdateChannel.effective(settings.updateChannel, BuildConfig.VERSION_NAME)
@@ -293,7 +318,8 @@ class MainActivity : AppCompatActivity() {
     /** [sourceId]: refresh or edit that subscription; null adds a new one. [name]: a name chosen by the user (never logged). */
     private fun import(url: String, trigger: String = "add", sourceId: String? = null, name: String? = null, expectedUrl: String? = null) {
         if (busy) { Logger.w("Import", "ignored: another operation is in progress (trigger=$trigger)"); return }
-        busy = true // progress: the bar on the Servers tab, no status text
+        busy = true // progress: the bar on the Servers tab (a refresh: the moth on that subscription's refresh button), no status text
+        if (sourceId != null && trigger == "refresh") refreshing = refreshing + sourceId
         val started = System.currentTimeMillis()
         Logger.i("Import", "subscription ${if (trigger == "refresh") "refresh" else "download"} started (trigger=$trigger, host=${LogFacts.hostTag(url)})")
         lifecycleScope.launch {
@@ -327,7 +353,7 @@ class MainActivity : AppCompatActivity() {
                 // Logger redacts links and addresses from the exception text.
                 Logger.e("Import", "subscription import failed (trigger=$trigger, host=${LogFacts.hostTag(url)}, ${System.currentTimeMillis() - started} ms)", e)
                 message = importError(e)
-            } finally { busy = false }
+            } finally { busy = false; if (sourceId != null) refreshing = refreshing - sourceId }
         }
     }
     private fun importError(e: Exception) = when (e) {
@@ -342,15 +368,16 @@ class MainActivity : AppCompatActivity() {
         if (busy) return
         val sources = book?.sources.orEmpty().filter { !it.local }
         if (sources.isEmpty()) return
-        busy = true // progress: the bar on the Servers tab, no status text
+        busy = true; refreshingAll = true // progress: the moth on the refresh buttons (the one at the top and the subscription being updated)
         lifecycleScope.launch {
             var error: String? = null
-            for (source in sources) {
+            try { for (source in sources) {
+                refreshing = setOf(source.id)
                 try { show(withContext(Dispatchers.IO) { SubscriptionRefresh.run(this@MainActivity, source.id, source.url, null, settings, "refresh").book }) }
                 catch (e: CancellationException) { throw e }
                 catch (e: Exception) { Logger.e("Import", "subscription refresh failed (host=${LogFacts.hostTag(source.url)})", e); error = importError(e) } // no subscription name: shown messages are also logged
-            }
-            error?.let { message = it }; busy = false
+            } } finally { refreshing = emptySet(); refreshingAll = false; busy = false }
+            error?.let { message = it }
         }
     }
     /** Renames a subscription and, when the link changed, downloads it again from the new link (same entry, same position). */

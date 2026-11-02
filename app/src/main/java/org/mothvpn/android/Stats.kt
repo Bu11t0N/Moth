@@ -1,5 +1,6 @@
 package org.mothvpn.android
 
+import androidx.compose.ui.graphics.luminance
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -109,13 +110,25 @@ object TrafficRecorder {
                 }
                 TrafficChart(series, selected, { selected = if (selected == it) null else it }, units, locale)
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Legend(MaterialTheme.colorScheme.primary, tr(R.string.stats_received))
-                    Legend(MaterialTheme.colorScheme.tertiary, tr(R.string.stats_sent))
+                    val (rxColor, txColor) = chartColors()
+                    Legend(rxColor, tr(R.string.stats_received))
+                    Legend(txColor, tr(R.string.stats_sent))
                 }
             }
         }
         Text(tr(R.string.stats_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+/**
+ * Received / sent colours of the chart and its legend. The monochrome scheme's primary and tertiary greys were almost the same
+ * (C9 vs BD on dark), so the two now sit far apart in lightness: received is the strong tone, sent a clearly lighter (light theme)
+ * or darker (dark / pure black) mid grey that still stands out from the faint empty bars.
+ */
+@Composable internal fun chartColors(): Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> {
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    return if (dark) androidx.compose.ui.graphics.Color(0xFFEDEDED) to androidx.compose.ui.graphics.Color(0xFF7A7A7A)
+    else androidx.compose.ui.graphics.Color(0xFF262626) to androidx.compose.ui.graphics.Color(0xFFA3A3A3)
 }
 
 @Composable private fun Legend(color: androidx.compose.ui.graphics.Color, label: String) {
@@ -144,8 +157,7 @@ object TrafficRecorder {
     val grow = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(series.size) { grow.snapTo(0f); grow.animateTo(1f, androidx.compose.animation.core.tween(600, easing = androidx.compose.animation.core.FastOutSlowInEasing)) }
     val scale by androidx.compose.animation.core.animateFloatAsState(top.toFloat(), androidx.compose.animation.core.tween(400), label = "scale")
-    val rx = MaterialTheme.colorScheme.primary
-    val tx = MaterialTheme.colorScheme.tertiary
+    val (rx, tx) = chartColors()
     val faint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
     val grid = MaterialTheme.colorScheme.outlineVariant
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant

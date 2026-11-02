@@ -65,6 +65,9 @@ object TunnelStatus {
     /** Auto-select found no candidate because the keyword server filter hides every server (it then keeps the selected server). */
     internal val filterHidesAllMutable = MutableStateFlow(false)
     val filterHidesAll = filterHidesAllMutable.asStateFlow()
+    /** Auto-select is measuring the servers before connecting (state STARTING): Home and the notification say "Checking servers", not "Connecting". */
+    internal val autoSelectingMutable = MutableStateFlow(false)
+    val autoSelecting = autoSelectingMutable.asStateFlow()
     /** Traffic is held by the kill switch: the user sees "Disconnect" and "Traffic blocked", not "Connect". Also when the network is gone with the kill switch on. */
     fun trafficBlocked(state: TunnelState, blocking: Boolean, offline: org.mothvpn.core.OfflineStatus.Kind = this.offline.value) = state == TunnelState.BLOCKED || (blocking && state == TunnelState.STARTING) ||
         (offline == org.mothvpn.core.OfflineStatus.Kind.BLOCKED && state in setOf(TunnelState.RUNNING, TunnelState.STARTING))
@@ -221,10 +224,10 @@ class TunnelService : VpnService(), PlatformInterface {
             val settings = SettingsStore(this).load(); activeSettings = settings
             val subscription = SubscriptionStore(this).load() ?: error("Missing subscription")
             when (Reselect.startPlan(tunnelUp, settings.autoSelectFor(NetworkTracker.read(connectivity).kind), pickBest, subscription.profiles.size)) {
-                Reselect.StartPlan.MEASURE_THEN_CONNECT -> if (!stopped) { stage = "auto select"; id = pickFastest(subscription, settings, networkSwitch) ?: id }
+                Reselect.StartPlan.MEASURE_THEN_CONNECT -> if (!stopped) { stage = "auto select"; id = measuring { pickFastest(subscription, settings, networkSwitch) } ?: id }
                 Reselect.StartPlan.MEASURE_WHILE_UP -> {
                     stage = "auto select (tunnel up)"
-                    val best = if (stopped) null else pickFastest(subscription, settings, networkSwitch)
+                    val best = if (stopped) null else measuring { pickFastest(subscription, settings, networkSwitch) }
                     if (best == null) { keepRunning("auto select: no server answered"); return }
                     id = best
                 }
@@ -260,7 +263,10 @@ class TunnelService : VpnService(), PlatformInterface {
                 Logger.d("Tunnel", "dpi helper started (fragment=${settings.fragment} noise=${settings.noise})")
             }
             stage = "build config"
-            val config = TunnelConfig.create(profile, settings, ruleSets, dpi, appGuard = if (Build.VERSION.SDK_INT >= 29) packageName else null)
+            // Sharing proxy: only when its port is free, so a taken port never stops the VPN itself (Settings shows it).
+            val lan = settings.lanProxyPort.takeIf { settings.lanProxy }?.let { port -> if (LanShare.portFree(port)) port else { Logger.w("Tunnel", "sharing proxy: port busy, starting without it"); LanShare.set(LanShare.State.PortBusy(port)); null } }
+            val config = TunnelConfig.create(profile, settings, ruleSets, dpi, appGuard = if (Build.VERSION.SDK_INT >= 29) packageName else null,
+                lan = lan, ownAddresses = if (lan != null) LanShare.ownAddresses() else emptyList())
             stage = "Libbox.checkConfig"
             Libbox.checkConfig(config)
             stage = "Libbox.newService"
@@ -268,6 +274,7 @@ class TunnelService : VpnService(), PlatformInterface {
             stage = "BoxService.start"
             box!!.start()
             Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
+            if (lan != null) { LanShare.set(LanShare.State.Running(lan)); Logger.i("Tunnel", "sharing proxy on") } else if (!settings.lanProxy) LanShare.set(LanShare.State.Off)
             VpnTraffic.start(this, box!!, ::trackedKind, ::trafficApp, count = Build.VERSION.SDK_INT >= 29)
             closeBlock(); cancelRetry()
             emptyRounds = 0; remeasureNotBefore = 0
@@ -294,6 +301,12 @@ class TunnelService : VpnService(), PlatformInterface {
             TunnelStatus.mutable.value = TunnelState.ERROR
             finish()
         }
+    }
+    /** Runs the auto-select measurement with [TunnelStatus.autoSelecting] set (the notification follows at once). */
+    private fun <T> measuring(block: () -> T): T {
+        TunnelStatus.autoSelectingMutable.value = true
+        runCatching { if (TunnelStatus.state.value == TunnelState.STARTING) getSystemService(NotificationManager::class.java).notify(1, buildNotification()) }
+        try { return block() } finally { TunnelStatus.autoSelectingMutable.value = false }
     }
     /** Measures every server with the regular probe (same method as the Servers screen) and returns the fastest one; also saves it as the selection. */
     /**
@@ -489,7 +502,15 @@ class TunnelService : VpnService(), PlatformInterface {
     @Volatile private var serverName = ""
     /** Posts (or re-posts) the foreground notification for the current state. The app name comes only from the system app-name line. */
     private fun foreground() = startForeground(1, buildNotification())
+    /**
+     * One fixed timestamp for every update of the ongoing notification (set at the first post, cleared when it is removed).
+     * Notification.Builder stamps "when" with the current time by default, and the shade ranks notifications of the same importance by
+     * that time, so a 1 Hz update made Moth swap places with any other updating notification (e.g. a Play Store download). Same id (1),
+     * same channel, updated in place (never cancelled and re-posted) and only-alert-once.
+     */
+    @Volatile private var notificationWhen = 0L
     private val CHANNEL = "vpn_status"
+    private val NOTIFICATION_GROUP = "moth_vpn_status"
     private fun buildNotification(): Notification {
         val manager = getSystemService(NotificationManager::class.java)
         // Kept as high in the shade as Android allows: the old "vpn" channel was LOW, which puts the notification in the bottom "Silent"
@@ -508,6 +529,8 @@ class TunnelService : VpnService(), PlatformInterface {
         val name = serverName
         val builder = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_moth_notification)
             .setContentIntent(open).setOngoing(true).setShowWhen(false).setOnlyAlertOnce(true)
+            .setWhen(notificationWhen.takeIf { it > 0 } ?: System.currentTimeMillis().also { notificationWhen = it })
+            .setGroup(NOTIFICATION_GROUP).setSortKey("0")
             // No setColor / setColorized: a hard-set grey made the moth icon grey even where the system tints notifications
             // (Material You, API 31+). Without them the system applies its own (dynamic) colour to the white-on-transparent moth.
             .setCategory(Notification.CATEGORY_SERVICE).setLocalOnly(true)
@@ -527,7 +550,8 @@ class TunnelService : VpnService(), PlatformInterface {
                 builder.setContentTitle(name.ifBlank { tr(R.string.msg_vpn_connection_125) })
                 lastDetails?.let { builder.setContentText(it.collapsed).setStyle(Notification.BigTextStyle().bigText(it.expanded)) }
             }
-            TunnelState.STARTING -> { builder.setContentTitle(tr(R.string.notif_connecting)); if (name.isNotBlank()) builder.setContentText(name) }
+            TunnelState.STARTING -> if (TunnelStatus.autoSelecting.value) builder.setContentTitle(tr(R.string.notif_checking))
+                else { builder.setContentTitle(tr(R.string.notif_connecting)); if (name.isNotBlank()) builder.setContentText(name) }
             TunnelState.STOPPING -> builder.setContentTitle(tr(R.string.notif_disconnecting))
             TunnelState.BLOCKED -> builder.setContentTitle(tr(R.string.notif_blocked)).setContentText(tr(R.string.notif_blocked_text))
             else -> builder.setContentTitle(tr(R.string.notif_checking))
@@ -629,6 +653,7 @@ class TunnelService : VpnService(), PlatformInterface {
         TunnelStatus.offlineMutable.value = org.mothvpn.core.OfflineStatus.Kind.ONLINE
         if (Diagnostics.running.value) { runCatching { foreground() }; return }
         runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+        notificationWhen = 0L
         stopSelf(lastStartId)
     }
     private fun closeTunnel() {
@@ -636,6 +661,7 @@ class TunnelService : VpnService(), PlatformInterface {
         stopStats()
         generation.incrementAndGet(); healthTask?.cancel(true); healthTask = null
         TunnelStatus.activeMutable.value = ""; TunnelStatus.activeServerMutable.value = null
+        LanShare.set(LanShare.State.Off)
         Diagnostics.healthMutable.value = HealthResult()
         if (box != null) VpnTraffic.stop()
         runCatching { box?.close() }.onFailure { Logger.w("Core", "closing the core failed", it) }; box = null

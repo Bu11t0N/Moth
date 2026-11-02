@@ -73,8 +73,20 @@ data class ClientSettings(
     /** Interface: extra height of the expanded large title, in percent of the screen height ([LargeTitleSize.percents]). */
     val largeTitlePercent: Int = LargeTitleSize.DEFAULT,
     /** Interface: large collapsing titles (Settings, Servers); off = the compact title bar only. */
-    val largeTitles: Boolean = true
+    val largeTitles: Boolean = true,
+    /** Split tunneling, "Elevated privileges": list every installed app that can use the network (QUERY_ALL_PACKAGES), also apps
+     *  without a launcher icon. Off (default): only apps with a home-screen icon, as before 1.0. Only the list changes, not the tunnel. */
+    val splitAllApps: Boolean = false,
+    /** Device data (HWID and x-device-*): false (default, as before 1.0) = sent to every subscription; true = only to [deviceDataSubs]. */
+    val deviceDataSelected: Boolean = false,
+    /** Subscription ids that get the device data when [deviceDataSelected] is on. A new link (no id yet) gets none in that mode. */
+    val deviceDataSubs: List<String> = emptyList(),
+    /** Sharing: a proxy (HTTP and SOCKS5 on one port, [lanProxyPort]) for other devices on the phone's networks, e.g. when the phone
+     *  shares its connection (hotspot / tethering). Their traffic goes through the VPN. Off by default; see [LanProxy]. */
+    val lanProxy: Boolean = false, val lanProxyPort: Int = LanProxy.DEFAULT_PORT
 ) {
+    /** Whether the subscription [sourceId] (null: a new link) may receive the HWID / device headers. */
+    fun sendsDeviceData(sourceId: String?): Boolean = !deviceDataSelected || (sourceId != null && sourceId in deviceDataSubs)
     val notifyAny get() = notifySpeed || notifyTotal || notifyUptime
     /** The custom device info cleared (system values are sent again). */
     fun withDefaultDeviceInfo() = copy(deviceOs = "", deviceOsVersion = "", deviceModel = "")
@@ -97,7 +109,8 @@ data class ClientSettings(
             directRu != next.directRu || routingRules != next.routingRules || splitMode != next.splitMode || splitApps != next.splitApps ||
             fragment != next.fragment || noise != next.noise || mux != next.mux ||
             healthEnabled != next.healthEnabled || healthIntervalSeconds != next.healthIntervalSeconds || timeoutMs != next.timeoutMs ||
-            probeUrl != next.probeUrl || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP)
+            probeUrl != next.probeUrl || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP) ||
+            lanProxy != next.lanProxy || lanProxyPort != next.lanProxyPort
 
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
@@ -124,6 +137,8 @@ data class ClientSettings(
         require(fragment in DpiTricks.fragmentPresets.keys) { "Неверный режим фрагментации" }
         require(mux in DpiTricks.muxModes) { "Неверный режим мультиплексирования" }
         require(wifiFilter.valid() && mobileFilter.valid()) { "Неверный фильтр серверов" }
+        require(LanProxy.validPort(lanProxyPort)) { "Неверный порт прокси" }
+        require(deviceDataSubs.size <= 500 && deviceDataSubs.all { validSourceId(it) }) { "Неверный список подписок" }
         listOf(probeUrl, bootstrapDns).forEach { value ->
             val u = URI(value)
             require(u.scheme == "https" && !u.host.isNullOrBlank() && u.rawUserInfo == null && u.fragment == null) { "Нужен корректный HTTPS-адрес" }
@@ -148,12 +163,16 @@ data class ClientSettings(
         .put("settingsVersion", SETTINGS_VERSION).put("healthCheckSeconds", healthIntervalSeconds).put("healthIntervalSeconds", healthIntervalSeconds.coerceAtMost(600))
         .put("notifySpeed", notifySpeed).put("notifyTotal", notifyTotal).put("notifyUptime", notifyUptime).put("autoSelectReuseMinutes", autoSelectReuseMinutes)
         .put("largeTitlePercent", largeTitlePercent).put("largeTitles", largeTitles)
+        .put("splitAllApps", splitAllApps).put("deviceDataSelected", deviceDataSelected).put("deviceDataSubs", org.json.JSONArray(deviceDataSubs))
+        .put("lanProxy", lanProxy).put("lanProxyPort", lanProxyPort)
     companion object {
         /** 2 (0.7.6): files without it were written by older builds and still carry their defaults (60 s check, 5000 ms ping timeout). */
         const val SETTINGS_VERSION = 2
         const val PROBE_TIMEOUT_DEFAULT = 3000
         /** "Moth" or a value written by any earlier build, beta suffixes included ("Moth/0.5.0-beta.3"); custom values do not match. */
         private val autoUserAgent = Regex("Moth(/[0-9][0-9A-Za-z.+-]*)?")
+        private val sourceIdPattern = Regex("[A-Za-z0-9_-]{1,64}")
+        fun validSourceId(id: String) = sourceIdPattern.matches(id)
         fun from(j: JSONObject) = ClientSettings(j.optString("theme", "system"), j.optInt("mtu", 1400), j.optBoolean("ipv6", true),
             DnsServers.migrate(j.optString("dns", "https://1.1.1.1/dns-query")), j.optString("probeUrl", "https://www.gstatic.com/generate_204"),
             (if (j.has("timeoutMs")) j.getInt("timeoutMs") else j.optInt("timeoutSeconds", 10) * 1000).coerceIn(1000, 60000), j.optBoolean("healthEnabled", true),
@@ -200,6 +219,10 @@ data class ClientSettings(
             notifySpeed = j.optBoolean("notifySpeed", true), notifyTotal = j.optBoolean("notifyTotal", true), notifyUptime = j.optBoolean("notifyUptime", false),
             autoSelectReuseMinutes = AutoSelectReuse.normalize(j.optInt("autoSelectReuseMinutes", AutoSelectReuse.DEFAULT)),
             largeTitlePercent = LargeTitleSize.normalize(j.optInt("largeTitlePercent", LargeTitleSize.DEFAULT)), largeTitles = j.optBoolean("largeTitles", true),
+            splitAllApps = j.optBoolean("splitAllApps", false), deviceDataSelected = j.optBoolean("deviceDataSelected", false),
+            deviceDataSubs = j.optJSONArray("deviceDataSubs")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter(::validSourceId).distinct().take(500) }.orEmpty(),
+            lanProxy = j.optBoolean("lanProxy", false),
+            lanProxyPort = j.optInt("lanProxyPort", LanProxy.DEFAULT_PORT).takeIf(LanProxy::validPort) ?: LanProxy.DEFAULT_PORT,
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()
     }
 }
@@ -211,11 +234,12 @@ object DeviceInfo {
 }
 
 object SubscriptionHeaders {
-    fun create(settings: ClientSettings, original: URI, destination: URI, osVersion: String, model: String): Map<String, String> {
+    /** [sourceId]: the subscription being downloaded (null: a new link); with "selected subscriptions" only those get the device data. */
+    fun create(settings: ClientSettings, original: URI, destination: URI, osVersion: String, model: String, sourceId: String? = null): Map<String, String> {
         val headers = mutableMapOf("User-Agent" to settings.userAgent, "Accept" to "text/plain, application/yaml, application/json, application/octet-stream")
         val sameOrigin = original.scheme == destination.scheme && original.host.equals(destination.host, true) &&
             (if (original.port == -1) 443 else original.port) == (if (destination.port == -1) 443 else destination.port)
-        if (settings.hwidEnabled && sameOrigin) {
+        if (settings.hwidEnabled && sameOrigin && settings.sendsDeviceData(sourceId)) {
             headers["x-hwid"] = settings.hwid
             if (settings.deviceInfo) {
                 // Custom values (Settings → Subscription) replace the system ones; empty fields keep the system value.

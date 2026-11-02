@@ -43,6 +43,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.input.pointer.pointerInput
@@ -234,7 +236,7 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
  * A tap adds a few quick flaps. Deliberately not a button: no click semantics, no ripple, no pressed state, no glow or background,
  * and hidden from accessibility (decorative). With animations off it stays still with the wings spread.
  */
-@Composable fun MothFlutter(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 148.dp, busy: Boolean = false) {
+@Composable fun MothFlutter(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 148.dp, busy: Boolean = false, tappable: Boolean = true, exact: Boolean = false) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val animations = remember { runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) > 0f }
     val open = remember { androidx.compose.animation.core.Animatable(1f) }
@@ -252,15 +254,26 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
     val dark = MaterialTheme.colorScheme.background.luminanceLow()
     val color = if (dark) Color(0xFFF2F2F2) else Color(0xFF111111)
     val vein = MaterialTheme.colorScheme.background
-    Canvas(modifier.size(size)
-        .pointerInput(animations) { if (animations) detectTapGestures(onTap = { taps++ }) }
+    // Always square: the moth keeps its proportions even when the parent offers less room than asked (it just gets smaller).
+    // exact: exactly [size] whatever the parent offers (the Updates page lets the empty margins of the square overhang).
+    Canvas((if (exact) modifier.requiredSize(size) else modifier.size(size).aspectRatio(1f, matchHeightConstraintsFirst = true))
+        .then(if (tappable) Modifier.pointerInput(animations) { if (animations) detectTapGestures(onTap = { taps++ }) } else Modifier)
         .clearAndSetSemantics { }) { drawMoth(open.value, color, vein) }
+}
+
+/** The loading indicator of the app: the moth beating its wings fast, instead of a spinning circle. Not tappable; reads as "loading". */
+@Composable fun MothLoading(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp) {
+    val label = tr(R.string.loading)
+    Box(modifier.semantics(mergeDescendants = true) { contentDescription = label; progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate },
+        contentAlignment = Alignment.Center) { MothFlutter(size = size, busy = true, tappable = false) }
 }
 
 /** Moth in a 100×100 box (scaled to the canvas): four wings pivoting at the thorax, then the body, head and antennae on top. */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMoth(open: Float, color: Color, vein: Color) {
     val k = size.minDimension / 100f
-    fun P(x: Float, y: Float) = Offset(x * k, y * k)
+    // Centred in the canvas whatever its shape (the mirror for the left wings is around the centre too).
+    val ox = (size.width - 100f * k) / 2f; val oy = (size.height - 100f * k) / 2f
+    fun P(x: Float, y: Float) = Offset(ox + x * k, oy + y * k)
     val fore = androidx.compose.ui.graphics.Path().apply {
         moveTo(52f * k, 37f * k); cubicTo(62f * k, 27f * k, 80f * k, 21f * k, 96f * k, 23f * k)
         cubicTo(97f * k, 32f * k, 91f * k, 42f * k, 82f * k, 48f * k); cubicTo(72f * k, 53f * k, 62f * k, 53f * k, 53f * k, 49f * k); close()
@@ -311,6 +324,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val tunnel by TunnelStatus.state.collectAsState()
     val health by Diagnostics.health.collectAsState()
     val probing by Diagnostics.running.collectAsState()
+    val autoSelecting by TunnelStatus.autoSelecting.collectAsState()
     val active by TunnelStatus.activeProfile.collectAsState()
     val results by Diagnostics.results.collectAsState()
     val activeServer by TunnelStatus.activeServer.collectAsState()
@@ -353,7 +367,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val areaMin = statusHeight + statusGap + mothMin + (if (saved == null) 56.dp + statusGap else 0.dp)
     androidx.compose.ui.layout.Layout(contents = listOf(
         { Column(Modifier.fillMaxWidth()) {
-        // Fixed-height header: the update badge sits in its own reserved slot, so the title never moves.
+        // Fixed-height header: the title never moves.
         Box(Modifier.fillMaxWidth().padding(top = if (compact) 4.dp else 12.dp).height(headerHeight)) {
             val name = tr(R.string.app_name)
             val about = VersionLabel.about(name, BuildConfig.VERSION_NAME)
@@ -362,9 +376,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                 Text(about.removePrefix(name).trim(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
                     modifier = Modifier.padding(start = 10.dp, bottom = 6.dp))
             }
-            if (updateAvailable) IconButton(onClick = openUpdates, modifier = Modifier.pressScale().then(Modifier.align(Alignment.CenterEnd).size(48.dp).semantics { contentDescription = tr(R.string.update_available_arrow) })) {
-                BadgedBox(badge = { Badge(containerColor = MaterialTheme.colorScheme.onSurface) }) { MothIcon("update", Modifier.size(26.dp)) }
-            }
+            // No update badge here any more: an available update is a dot on the Settings tab (MainActivity's navigation bar).
         }
         } },
         { BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
@@ -378,7 +390,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         // Reserved space for the status lines (title + one detail line): nothing above or below moves when they change.
         Column(Modifier.fillMaxWidth().height(statusHeight), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             // The status title and the detail line crossfade when they change (instantly with "Remove animations").
-            val title = if (blocked) tr(R.string.home_disconnect) else when (tunnel) { TunnelState.OFF -> if (pinging) tr(R.string.home_checking_servers) else tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.offline_title) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }
+            val title = if (blocked) tr(R.string.home_disconnect) else when (tunnel) { TunnelState.OFF -> if (pinging) tr(R.string.home_checking_servers) else tr(R.string.msg_connect_10); TunnelState.RUNNING -> if (TunnelStatus.waitingForNetwork(tunnel, offline)) tr(R.string.offline_title) else tr(R.string.msg_vpn_is_on_11); TunnelState.STARTING -> if (autoSelecting) tr(R.string.home_checking_servers) else tr(R.string.msg_connecting_12); TunnelState.STOPPING -> tr(R.string.msg_disconnecting_13); TunnelState.ERROR -> tr(R.string.msg_could_not_connect_14); TunnelState.BLOCKED -> tr(R.string.msg_blocked) }
             val detail: Pair<String, Boolean>? = when {
                 blocked -> tr(R.string.msg_blocked) to true
                 // No Wi-Fi and no mobile data: a steady "No network" title only (not "Reconnecting…"), no detail and no internet check line.
@@ -848,7 +860,7 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
 }
 
 /**
- * In-app notice at the top of the screen (not an Android notification): monochrome inverse surface, shown for 2 seconds or until
+ * In-app notice at the top of the screen (not an Android notification): a soft theme-aware surface with a thin outline, shown for 2 seconds or until
  * tapped or swiped away (errors stay longer, [NoticeState.durationMs]). [seq] restarts the timer for a repeated message. With
  * "Remove animations" it appears and disappears at once.
  */
@@ -880,7 +892,10 @@ val LocalNotice = androidx.compose.runtime.staticCompositionLocalOf { NoticeStat
         enter = if (animations) androidx.compose.animation.slideInVertically(androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
             visibilityThreshold = androidx.compose.ui.unit.IntOffset.VisibilityThreshold)) { -it } + androidx.compose.animation.fadeIn(tween(220)) else androidx.compose.animation.EnterTransition.None,
         exit = if (animations) androidx.compose.animation.slideOutVertically(tween(180)) { -it } + androidx.compose.animation.fadeOut(tween(180)) else androidx.compose.animation.ExitTransition.None) {
-        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.inverseSurface, contentColor = MaterialTheme.colorScheme.inverseOnSurface, shadowElevation = 6.dp,
+        // Theme-aware, soft: the highest surface container of the current scheme (light, dark or pure black) with a thin outline,
+        // instead of the inverse surface (a white slab on dark / AMOLED, a black one on light).
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerHighest, contentColor = MaterialTheme.colorScheme.onSurface,
+            shadowElevation = 3.dp, border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
             modifier = Modifier.pressScale().fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                 .graphicsLayer { translationX = drag.value; alpha = 1f - (kotlin.math.abs(drag.value) / (size.width.coerceAtLeast(1f))).coerceIn(0f, 0.8f) }
                 .pointerInput(seq) {
@@ -894,7 +909,7 @@ val LocalNotice = androidx.compose.runtime.staticCompositionLocalOf { NoticeStat
                 .clickable(onClick = dismiss)
                 .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite; contentDescription = shown }) {
             Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(androidx.compose.material.icons.Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(androidx.compose.material.icons.Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 Text(shown, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 12.dp))
             }
         }

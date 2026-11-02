@@ -110,7 +110,7 @@ object LargeTitleTuning {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun LargeTitleHeader(largeTitle: LargeTitle, title: String, modifier: Modifier = Modifier,
-    actions: @Composable RowScope.() -> Unit = {}) {
+    navigation: (@Composable () -> Unit)? = null, actions: @Composable RowScope.() -> Unit = {}) {
     val density = LocalDensity.current
     // Large titles off (Settings › Interface): no extra space and the title stays at the compact size, like a plain top bar. The switch
     // animates between the two (the extra space folds away while the title shrinks into its compact place).
@@ -138,6 +138,8 @@ object LargeTitleTuning {
     Layout(content = {
         Text(title, style = big, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
         Row(verticalAlignment = Alignment.CenterVertically, content = actions)
+        // [navigation] (a back arrow on pages shown outside Settings): at the start of the button row; the compact title ends after it.
+        if (navigation != null) Box(contentAlignment = Alignment.Center) { navigation() }
     }, modifier = modifier.fillMaxWidth().clipToBounds()) { measurables, constraints ->
         val width = constraints.maxWidth
         val fraction = maxOf(state.collapsedFraction.coerceIn(0f, 1f), off)
@@ -145,24 +147,27 @@ object LargeTitleTuning {
         val rowHeight = maxOf(48.dp.roundToPx(), row.height)
         val top = 12.dp.toPx(); val bottom = 8.dp.toPx()
         val gap = if (row.width > 0) 8.dp.roundToPx() else 0
+        val nav = measurables.getOrNull(2)?.measure(constraints.copy(minWidth = 0, minHeight = 0))
+        val navWidth = nav?.let { it.width + 4.dp.roundToPx() } ?: 0
         // Measured at the big size, as wide as the compact slot allows once scaled down to the compact size.
-        val slot = (width - row.width - gap).coerceAtLeast(1)
+        val slot = (width - row.width - gap - navWidth).coerceAtLeast(1)
         val text = measurables[0].measure(Constraints(maxWidth = (slot / ratio).toInt().coerceAtLeast(1)))
         val side = 8.dp.roundToPx()
         val extraNow = (extraPx + state.heightOffset).coerceIn(0f, extraPx)
         val height = (top + extraNow + rowHeight + bottom).roundToInt() + 8.dp.roundToPx() // + the gap to the content
         // Expanded: centred in the free space (above the buttons, or the whole header when there are none), as big as the height setting
         // says but never wider than the screen or taller than that space. Collapsed: in the middle of the button row, compact.
-        val band = if (row.width > 0) top + extraPx else top + extraPx + rowHeight + bottom
+        val band = if (row.width > 0 || nav != null) top + extraPx else top + extraPx + rowHeight + bottom
         val expandedScale = minOf(textScale, (width - 2 * side).coerceAtLeast(1) / text.width.coerceAtLeast(1).toFloat(),
             (band - 8.dp.toPx()).coerceAtLeast(1f) / text.height.coerceAtLeast(1)).coerceAtLeast(ratio)
         val scale = expandedScale + (ratio - expandedScale) * fraction
-        val x = (width - text.width * expandedScale) / 2f * (1f - fraction)
+        val x = (width - text.width * expandedScale) / 2f * (1f - fraction) + navWidth * fraction
         val centreY = band / 2f + (top + rowHeight / 2f - band / 2f) * fraction
         val y = centreY - text.height * scale / 2f
         layout(width, height) {
             text.placeWithLayer(x.roundToInt(), y.roundToInt()) { transformOrigin = TransformOrigin(0f, 0f); scaleX = scale; scaleY = scale }
             row.place(width - row.width, (top + extraNow + (rowHeight - row.height) / 2f).roundToInt())
+            nav?.place(0, (top + extraNow + (rowHeight - nav.height) / 2f).roundToInt())
         }
     }
 }

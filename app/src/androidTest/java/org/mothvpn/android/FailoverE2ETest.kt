@@ -58,7 +58,7 @@ class FailoverE2ETest {
     }
     private fun reset() {
         stopVpn()
-        SubscriptionStore(context).clear()
+        SubscriptionStore(context).clear(); Onboarding.markDone(context)
         SettingsStore(context).save(ClientSettings(hwid = hwid))
     }
     /** Both failover servers running again (the request goes directly or through a live server). */

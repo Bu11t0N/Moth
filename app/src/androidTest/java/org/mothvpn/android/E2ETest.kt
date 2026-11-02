@@ -88,6 +88,7 @@ class E2ETest {
         assertNotNull("echo server unreachable from the emulator", direct)
         assertFalse("direct path must not look tunneled", direct in sources.values)
 
+        Onboarding.markDone(context) // the first-run screen has its own test (UiE2ETest.firstRunScreen)
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         // 1. Import the HTTPS subscription (the test CA is trusted in debug builds only).
         wait(By.text("Add subscription")).click()

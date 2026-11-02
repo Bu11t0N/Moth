@@ -76,7 +76,8 @@ object SubscriptionDownload {
     data class Response(val body: String, val name: String, val expires: Long, val used: Long, val total: Long, val links: org.mothvpn.core.ProviderLinks = org.mothvpn.core.ProviderLinks(),
         val names: ResponseHeaderNames.Names = ResponseHeaderNames.Names(emptyList(), emptyList()))
     fun fetch(address: String, settings: ClientSettings = ClientSettings()): String = fetchDetails(address, settings).body
-    fun fetchDetails(address: String, settings: ClientSettings = ClientSettings()): Response {
+    /** [sourceId]: the subscription being downloaded (null: a new link), for "device data only to selected subscriptions". */
+    fun fetchDetails(address: String, settings: ClientSettings = ClientSettings(), sourceId: String? = null): Response {
         var url = URL(address.trim())
         val original = url.toURI()
         repeat(6) {
@@ -85,7 +86,7 @@ object SubscriptionDownload {
             connection.connectTimeout = 15000
             connection.readTimeout = 20000
             connection.instanceFollowRedirects = false
-            SubscriptionHeaders.create(settings.withAppVersion(BuildConfig.VERSION_NAME), original, url.toURI(), Build.VERSION.RELEASE, "${Build.MANUFACTURER} ${Build.MODEL}")
+            SubscriptionHeaders.create(settings.withAppVersion(BuildConfig.VERSION_NAME), original, url.toURI(), Build.VERSION.RELEASE, "${Build.MANUFACTURER} ${Build.MODEL}", sourceId)
                 .forEach { (key, value) -> connection.setRequestProperty(key, value) }
             try {
                 val response = connection.responseCode
