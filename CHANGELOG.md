@@ -2,6 +2,16 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0-beta.10
+
+Released 2026-11-02 (beta).
+
+### Changes
+
+- Updates: the moth is much larger and fills the top of the page.
+- Updates: a found update no longer opens an extra "Available version" row; the version row shows the new version instead.
+- Updates: when an update is found, "Check for updates" sits under the moth, where Cancel appears.
+
 ## 1.0.0-beta.9
 
 Released 2026-11-02 (beta).

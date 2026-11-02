@@ -236,7 +236,7 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
  * A tap adds a few quick flaps. Deliberately not a button: no click semantics, no ripple, no pressed state, no glow or background,
  * and hidden from accessibility (decorative). With animations off it stays still with the wings spread.
  */
-@Composable fun MothFlutter(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 148.dp, busy: Boolean = false, tappable: Boolean = true) {
+@Composable fun MothFlutter(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 148.dp, busy: Boolean = false, tappable: Boolean = true, exact: Boolean = false) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val animations = remember { runCatching { android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f) > 0f }
     val open = remember { androidx.compose.animation.core.Animatable(1f) }
@@ -255,7 +255,8 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
     val color = if (dark) Color(0xFFF2F2F2) else Color(0xFF111111)
     val vein = MaterialTheme.colorScheme.background
     // Always square: the moth keeps its proportions even when the parent offers less room than asked (it just gets smaller).
-    Canvas(modifier.size(size).aspectRatio(1f, matchHeightConstraintsFirst = true)
+    // exact: exactly [size] whatever the parent offers (the Updates page lets the empty margins of the square overhang).
+    Canvas((if (exact) modifier.requiredSize(size) else modifier.size(size).aspectRatio(1f, matchHeightConstraintsFirst = true))
         .then(if (tappable) Modifier.pointerInput(animations) { if (animations) detectTapGestures(onTap = { taps++ }) } else Modifier)
         .clearAndSetSemantics { }) { drawMoth(open.value, color, vein) }
 }
