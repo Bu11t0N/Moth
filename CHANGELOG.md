@@ -2,118 +2,23 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
-## 1.0.0-beta.10
+## 1.0.0
 
-Released 2026-11-02 (beta).
-
-### Changes
-
-- Updates: the moth is much larger and fills the top of the page.
-- Updates: a found update no longer opens an extra "Available version" row; the version row shows the new version instead.
-- Updates: when an update is found, "Check for updates" sits under the moth, where Cancel appears.
-
-## 1.0.0-beta.9
-
-Released 2026-11-02 (beta).
+Released 2026-11-02.
 
 ### Changes
 
-- Updates: the moth is much bigger and still keeps one size in every state.
-- First run: the welcome page shows only its title.
-- First run: the icons on the tour pages no longer float while you swipe; each page moves as one piece.
-- First run: the step asking for your subscription link is back after the permissions page.
-
-## 1.0.0-beta.8
-
-Released 2026-11-02 (beta).
-
-### Changes
-
-- First run: all pages, including the permissions page, can be reached by swiping, and the page dots fade smoothly as you swipe.
-- First run: split tunneling opened from the tour now has the same header and spacing as in Settings.
-- Split tunneling: the two mode cards have icons.
-- Updates: the moth is bigger and keeps one size in every state; the status text and the Cancel button sit lower.
-
-## 1.0.0-beta.7
-
-Released 2026-11-02 (beta).
-
-### Changes
-
-- First run: the tour pages now swipe left and right; you can turn auto-select on or off right on its page and open split tunneling from the tour to pick apps; the Updates page is gone.
-- Split tunneling: the mode is chosen with two cards on the page instead of a dialog, the active one highlighted; "Show system apps" and "Elevated privileges" appear only at the very top of the list.
-- Sharing with other devices: each proxy address is now labeled with its network (Wi-Fi, mobile network, this phone's hotspot, USB/Bluetooth tethering), so the Wi-Fi and mobile addresses are no longer shown side by side unlabeled.
-- Settings › Checks: the tunnel check timeout is hidden while the tunnel check is off.
-
-## 1.0.0-beta.6
-
-Released 2026-11-02 (beta).
-
-### Changes
-
-- Split tunneling: app checkboxes no longer disappear while you scroll the list; the "Show system apps" and "Elevated privileges" options hide instead.
-- First run: a short tour of the main features (connecting, auto-select, split tunneling, updates), then one page with the permissions Moth needs: VPN, notifications, battery optimization and how to keep Moth from being closed (on HyperOS/MIUI: the lock in Recents, Battery saver "No restrictions", Autostart). Everything can be skipped.
-
-## 1.0.0-beta.5
-
-Released 2026-11-01 (beta).
-
-### Changes
-
-- Updates page: the moth keeps one size in every state (checking, update found, downloading) and the page no longer scrolls. The found version is shown only in the card at the bottom.
-- Updates page: errors are shown in full in the notice at the top instead of a cut-off line under the moth.
-- Servers: updating a subscription no longer shows a progress bar at the top; the moth flaps on its refresh button instead, like when servers are checked.
-
-## 1.0.0-beta.4
-
-Released 2026-11-01 (beta).
-
-### Changes
-
-- New first-run screen: on the first launch Moth asks for your subscription link (paste it or scan a QR code). It is shown only once; "For developers" has a button to open it again.
-- The update dot now sits at the top right of the Settings tab icon, and the same dot marks the Updates icon in Settings.
-
-## 1.0.0-beta.3
-
-Released 2026-11-01 (beta).
-
-### Changes
-
-- New: share the VPN with other devices. Turn on "Proxy for other devices" (Settings → Connection) and a laptop, TV or another phone on this phone's hotspot or Wi-Fi can use the VPN through a proxy (HTTP and SOCKS5 on one port). The page shows the address to enter and how to set it up.
-- HTTPS check URL: Google, Cloudflare and Apple buttons under the field fill in a ready address.
-- Updates page: a bigger moth, the status (such as "You have the latest version") right under it, no progress bar while checking, and more room above the controls.
-- Servers: no progress bar at the top while servers are checked.
-- Split tunneling: the checkboxes step aside while the app list scrolls, so names have more room.
-- Split tunneling moved under Routing on the main Settings page.
-
-## 1.0.0-beta.2
-
-Released 2026-11-01 (beta).
-
-### Changes
-
-- Updates page: the moth keeps its size while checking, and the checking status now slides in from the top.
-- Loading indicators are now a flapping moth instead of a spinning circle.
-- Clearer UDP noise explanation.
-
-## 1.0.0-beta.1
-
-Released 2026-11-01 (beta).
-
-### Changes
-
+- New first-run screen: a short swipeable tour (connecting, auto-select, split tunneling), one page with the permissions Moth needs and how to keep it from being closed (including HyperOS/MIUI tips), then your subscription link — paste it or scan a QR code. Everything can be skipped.
+- Share the VPN with other devices: turn on "Proxy for other devices" (Settings → Connection) and a laptop, TV or another phone on this phone's hotspot or Wi-Fi can use the VPN (HTTP and SOCKS5 on one port). Each address is labeled with its network.
 - AmneziaWG servers: wireguard:// links with AmneziaWG settings, .conf files and Amnezia vpn:// keys. Junk packets (Jc, Jmin, Jmax) and I1–I5 are supported; servers that need S1–S4 or custom H1–H4 are not yet.
-- Split tunneling moved to the main Settings page, under Connection.
-- Split tunneling: new "Elevated privileges" option that lists every app, including ones without an icon.
+- Split tunneling moved to the main Settings page under Routing, with two mode cards instead of a dialog and a new "Elevated privileges" option that lists every app.
+- Redesigned Updates page: a large moth that keeps one size, one version row that shows the found update, and errors shown in full at the top.
+- An available update is marked with a dot on the Settings tab and on the Updates icon.
+- Loading indicators are now a flapping moth, and no more progress bars at the top of Servers.
 - Device data can be sent to all subscriptions or only to the ones you pick.
-- Redesigned Updates page: a bigger moth in the middle and the controls at the bottom.
-- The app list on the Connections page shows traffic again.
-- An update is now marked with a dot on the Settings tab.
-- Auto-select on the Home screen shows that servers are being checked.
-- Softer notices at the top of the screen that follow the theme.
-- Calmer colours in data charts.
-- The VPN notification no longer jumps around in the notification list.
-- Fewer unneeded hints in settings.
+- HTTPS check URL: Google, Cloudflare and Apple buttons fill in a ready address.
+- The Connections page shows app traffic again, and the VPN notification no longer jumps around.
+- Smaller tweaks: softer notices in the theme colours, calmer chart colours, clearer UDP noise explanation, fewer unneeded hints, and the tunnel check timeout is hidden while the check is off.
 
 ## 0.8.0
 
