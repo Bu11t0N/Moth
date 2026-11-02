@@ -2,6 +2,17 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0-beta.8
+
+Released 2026-11-02 (beta).
+
+### Changes
+
+- First run: all pages, including the permissions page, can be reached by swiping, and the page dots fade smoothly as you swipe.
+- First run: split tunneling opened from the tour now has the same header and spacing as in Settings.
+- Split tunneling: the two mode cards have icons.
+- Updates: the moth is bigger and keeps one size in every state; the status text and the Cancel button sit lower.
+
 ## 1.0.0-beta.7
 
 Released 2026-11-02 (beta).

@@ -343,7 +343,7 @@ class UiE2ETest {
     }
 
     /**
-     * First run without subscriptions: the tour (Next / Back / Skip), then the permissions page (nothing granted here, Continue),
+     * First run without subscriptions: the tour (Next / Back / Skip / swipe), then the permissions page (the pager's last page) (nothing granted here, Continue),
      * then the subscription page; "Not now" closes the flow for good; the developer page shows it again.
      */
     @Test fun firstRunScreen() {
@@ -362,6 +362,11 @@ class UiE2ETest {
         wait(By.text("Choose apps")).click(); wait(By.text("Selected apps bypass the VPN"), 5_000); Thread.sleep(600)
         device.pressBack(); wait(By.text("Choose apps"), 5_000); Thread.sleep(600)
         assertTrue("no Updates page in the tour", device.findObject(By.text("Updates")) == null)
+        // The fourth page (permissions) is reachable by swiping too; Back returns to the split tunneling page.
+        device.swipe(device.displayWidth * 4 / 5, device.displayHeight / 2, device.displayWidth / 5, device.displayHeight / 2, 20)
+        wait(By.text("Permissions"), 5_000); Thread.sleep(600)
+        assertNotNull("VPN permission row after a swipe", device.findObject(By.text("VPN connection")))
+        device.pressBack(); wait(By.text("Choose apps"), 5_000); Thread.sleep(600)
         device.pressBack(); wait(By.text("The best server, automatically"), 5_000); Thread.sleep(600)
         device.pressBack(); wait(By.text("Welcome to Moth"), 5_000); Thread.sleep(600)
         wait(By.text("Skip")).click(); wait(By.text("Permissions"), 5_000); Thread.sleep(600)

@@ -96,8 +96,8 @@ import java.io.File
     }
     // The page never scrolls and the moth has one size in every state (idle, checking, update found, downloading): its area is sized
     // once from the page height minus the room the bottom block needs in its tallest state (version card with two rows, channel row,
-    // "check again" and the main button), so the moth neither shrinks nor moves when that block grows. Under the moth: the status
-    // line and, while checking or downloading, a small Cancel. The bottom block is pinned to the bottom; the main button never moves.
+    // "check again" and the main button), so the moth neither shrinks nor moves when that block grows. Low under the moth, just above the version card: the
+    // status line and, while checking or downloading, a small Cancel. The bottom block is pinned to the bottom; the main button never moves.
     val motion = androidx.compose.animation.core.tween<androidx.compose.ui.unit.IntSize>(320, easing = androidx.compose.animation.core.FastOutSlowInEasing)
     val density = androidx.compose.ui.platform.LocalDensity.current
     val type = MaterialTheme.typography
@@ -106,16 +106,21 @@ import java.io.File
     val statusHeight = 12.dp + sp(type.bodyLarge.lineHeight) * 2
     val below = statusHeight + 44.dp // status (two lines) + Cancel under the moth
     val cardRow = maxOf(52.dp, 20.dp + sp(type.titleMedium.lineHeight))
-    val reserve = 24.dp + (8.dp + cardRow * 2 + 1.dp) + 12.dp + (32.dp + sp(type.bodyLarge.lineHeight) + sp(type.bodySmall.lineHeight)) +
+    val reserve = 8.dp + (8.dp + cardRow * 2 + 1.dp) + 12.dp + (32.dp + sp(type.bodyLarge.lineHeight) + sp(type.bodySmall.lineHeight)) +
         12.dp + 48.dp + 12.dp + 52.dp + 8.dp
     BoxWithConstraints(modifier.fillMaxWidth()) {
     val top = (maxHeight - reserve).coerceAtLeast(0.dp)
-    val side = minOf(maxWidth * 0.82f, (top - below) * 0.95f, 340.dp)
+    // The moth fills the room above the status block (larger than before); one size in every state, never squashed (requiredSize: a
+    // tighter parent clips it a little instead of shrinking or flattening it).
+    val side = minOf(maxWidth * 0.9f, top - below - 8.dp, 380.dp)
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-        Box(Modifier.weight(1f, fill = false).height(top).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
-                if (side >= 56.dp) MothFlutter(size = side, busy = busy)
+        Box(Modifier.weight(1f, fill = false).height(top).fillMaxWidth().clipToBounds()) {
+            // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
+            Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
+                if (side >= 48.dp) MothFlutter(Modifier.requiredSize(side), size = side, busy = busy)
+            }
+            // The status line and Cancel sit low, at the bottom of the moth area (just above the version card), not right under the wings.
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 // Fixed height (two lines), so a status appearing or changing never moves the moth; statuses are short, errors use the top notice.
                 Box(Modifier.fillMaxWidth().height(statusHeight).padding(start = 16.dp, end = 16.dp, top = 12.dp), contentAlignment = Alignment.TopCenter) {
                     Text(status, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
@@ -131,7 +136,7 @@ import java.io.File
                 }
             }
         }
-        Column(Modifier.fillMaxWidth().padding(top = 24.dp).animateContentSize(motion), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxWidth().padding(top = 8.dp).animateContentSize(motion), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME)

@@ -7,6 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.RemoveModerator
+import androidx.compose.material.icons.outlined.VpnLock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -87,7 +90,9 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
             }.onFailure { Logger.w("Split", "listing apps failed", it) }.getOrDefault(emptyList())
         }
     }
+    // Each mode card has its icon: a crossed-out shield for "selected apps bypass the VPN", a locked VPN mark for "only selected apps use the VPN".
     val modes = listOf("bypass" to tr(R.string.split_mode_bypass), "only" to tr(R.string.split_mode_only))
+    val modeIcons = mapOf("bypass" to Icons.Outlined.RemoveModerator, "only" to Icons.Outlined.VpnLock)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // The mode is chosen right on the page: two stacked cards, bypass (the default) first; the active one is shown only by its fill
         // and outline (the selected-server style), no check mark or radio button.
@@ -100,8 +105,11 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
                     colors = CardDefaults.cardColors(containerColor = if (chosen) NewDesignRow.selectedColor() else NdTone.card(),
                         disabledContainerColor = if (chosen) NewDesignRow.selectedColor() else NdTone.card()),
                     border = NewDesignRow.selectedBorder(chosen)) {
-                    Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 12.dp), contentAlignment = Alignment.CenterStart) {
-                        Text(label, style = MaterialTheme.typography.bodyLarge)
+                    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        modeIcons[value]?.let { Icon(it, contentDescription = null, modifier = Modifier.size(24.dp),
+                            tint = if (chosen) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant) }
+                        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     }
                 }
             }

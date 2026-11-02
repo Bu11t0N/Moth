@@ -72,7 +72,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -90,8 +92,9 @@ import org.mothvpn.core.ClientSettings
  * of the settings or backups); an existing install that already has subscriptions is marked done silently. The developer page can show
  * the flow again without touching the flag or any data.
  *
- * Steps: [TUTORIAL] short feature pages in a pager (swipe left/right or Next; Skip jumps to the permissions; the auto-select page has
- * the real auto-select switch, the split tunneling page opens the real split tunneling page over the tour) → the permissions page (VPN, notifications on Android 13+,
+ * Steps: one pager of [PAGES] pages, swiped left/right or with Next: [TUTORIAL] short feature pages (Skip jumps to the permissions; the
+ * auto-select page has the real auto-select switch, the split tunneling page opens the real split tunneling page over the tour), then the
+ * permissions page as the last pager page (VPN, notifications on Android 13+,
  * battery optimization, keeping Moth alive in the background; every request is optional and a denial only shows a hint) → the
  * "add your first subscription" page (left out when a subscription already exists, e.g. when reopened from the developer page).
  */
@@ -100,6 +103,8 @@ object Onboarding {
     private const val DONE = "done"
     /** The feature pages before the permissions page. */
     const val TUTORIAL = 3
+    /** All pager pages: the feature pages and the permissions page (the dots count these). */
+    const val PAGES = TUTORIAL + 1
     fun done(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(DONE, false)
     fun markDone(context: Context) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(DONE, true).apply() }
     /** Tests only: the next launch without subscriptions shows the first-run flow again. */
@@ -123,11 +128,10 @@ private const val PAGE_SPLIT = 2
  */
 @Composable fun OnboardingScreen(add: (String) -> Unit, scan: () -> Unit, skip: (how: String) -> Unit, hasSubscription: Boolean = false,
     settings: ClientSettings = ClientSettings(), save: (ClientSettings) -> Unit = {}) {
-    // Stage: 0 the tour (pager), 1 permissions, 2 subscription.
-    val last = if (hasSubscription) 1 else 2
+    // Stage: 0 the pager (tour pages + permissions as its last page, all reachable by swiping), 1 subscription.
     var stage by rememberSaveable { mutableIntStateOf(0) }
     var splitOpen by rememberSaveable { mutableStateOf(false) }
-    val pager = rememberPagerState { Onboarding.TUTORIAL }
+    val pager = rememberPagerState { Onboarding.PAGES }
     val scope = rememberCoroutineScope()
     val anim = animationsOn()
     fun go(to: Int) { Logger.d("Onboarding", "stage $stage → $to"); stage = to }
@@ -143,11 +147,10 @@ private const val PAGE_SPLIT = 2
         }) { s ->
             Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding(), contentAlignment = Alignment.Center) {
                 when (s) {
-                    0 -> TutorialStep(pager, settings, save,
-                        next = { if (pager.currentPage < Onboarding.TUTORIAL - 1) page(pager.currentPage + 1) else go(1) },
-                        skipAll = { Logger.i("Onboarding", "tutorial skipped at page ${pager.currentPage + 1}"); go(1) },
+                    0 -> TutorialStep(pager, settings, save, done = hasSubscription,
+                        next = { if (pager.currentPage < Onboarding.TUTORIAL) page(pager.currentPage + 1) else if (hasSubscription) skip("done") else go(1) },
+                        skipAll = { Logger.i("Onboarding", "tutorial skipped at page ${pager.currentPage + 1}"); page(Onboarding.TUTORIAL) },
                         openSplit = { Logger.i("Onboarding", "split tunneling opened from the tour"); splitOpen = true })
-                    1 -> PermissionsStep(done = hasSubscription, next = { if (last == 1) skip("done") else go(2) })
                     else -> SubscriptionStep(add, scan) { skip("skip") }
                 }
             }
@@ -157,12 +160,15 @@ private const val PAGE_SPLIT = 2
             exit = fadeOut(Motion.tweenOr(anim)) + slideOutHorizontally(Motion.tweenOr(anim)) { if (anim) it / 8 else 0 }) {
             BackHandler { splitOpen = false }
             Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
-                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+                // The same header and spacing as Settings › Split tunneling (the large title follows Settings › Interface), so the page
+                // starts at the same height from both places; the back arrow sits at the start of the header's button row.
+                val largeTitle = rememberLargeTitle()
+                Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().nestedScroll(largeTitle.nestedScrollConnection).padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LargeTitleHeader(largeTitle, tr(R.string.split_title), navigation = {
                         IconButton(onClick = { splitOpen = false }, modifier = Modifier.pressScale()) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = tr(R.string.onboard_back)) }
-                        Text(tr(R.string.split_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp))
-                    }
+                    })
                     val tunnel by TunnelStatus.state.collectAsState()
                     SplitTunnelPage(settings, tunnel !in setOf(TunnelState.STARTING, TunnelState.STOPPING), save, Modifier.weight(1f).fillMaxWidth().padding(bottom = 8.dp))
                 }
@@ -186,24 +192,40 @@ private const val PAGE_SPLIT = 2
     }
 }
 
-/** Page dots: the current page filled, the others faint. */
-@Composable private fun PageDots(current: Int, count: Int) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.semantics { contentDescription = "${current + 1} / $count" }) {
+/**
+ * Page dots: the current page filled, the others faint. They follow the finger: while a page is dragged, the dot being left fades out
+ * and shrinks and the next one fades in and grows ([position] is the page plus the drag fraction), so a swipe cross-fades the dots.
+ */
+@Composable private fun PageDots(current: Int, count: Int, position: () -> Float = { current.toFloat() }) {
+    val color = MaterialTheme.colorScheme.onSurface
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.semantics { contentDescription = "${current + 1} / $count" }) {
         repeat(count) { i ->
-            Box(Modifier.size(if (i == current) 10.dp else 8.dp).background(
-                MaterialTheme.colorScheme.onSurface.copy(alpha = if (i == current) 0.9f else 0.25f), CircleShape))
+            Box(Modifier.size(10.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(10.dp).graphicsLayer {
+                    val near = 1f - kotlin.math.abs(position() - i).coerceIn(0f, 1f)
+                    alpha = 0.25f + 0.65f * near
+                    val scale = 0.8f + 0.2f * near
+                    scaleX = scale; scaleY = scale
+                }.background(color, CircleShape))
+            }
         }
     }
 }
 
 /** The feature tour: the pages swipe left/right (the main way through); Skip at the top, page dots and Next at the bottom stay put. */
 @Composable private fun TutorialStep(pager: androidx.compose.foundation.pager.PagerState, settings: ClientSettings, save: (ClientSettings) -> Unit,
-    next: () -> Unit, skipAll: () -> Unit, openSplit: () -> Unit) {
+    done: Boolean, next: () -> Unit, skipAll: () -> Unit, openSplit: () -> Unit) {
+    val position = { pager.currentPage + pager.currentPageOffsetFraction }
+    val onPermissions = pager.currentPage == Onboarding.TUTORIAL
     Column(Modifier.widthIn(max = 480.dp).fillMaxSize().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 24.dp)) {
-            TextButton(onClick = skipAll, modifier = Modifier.align(Alignment.CenterEnd).pressScale()) { Text(tr(R.string.onboard_skip_tutorial)) }
+            // Skip fades out while the permissions page comes in (nothing left to skip there).
+            TextButton(onClick = skipAll, enabled = !onPermissions, modifier = Modifier.align(Alignment.CenterEnd).graphicsLayer {
+                alpha = (Onboarding.TUTORIAL - position()).coerceIn(0f, 1f) }.pressScale()) { Text(tr(R.string.onboard_skip_tutorial)) }
         }
         HorizontalPager(pager, Modifier.weight(1f).fillMaxWidth(), key = { it }) { i ->
+            if (i == Onboarding.TUTORIAL) { Box(Modifier.fillMaxSize().padding(horizontal = 24.dp)) { PermissionsPage() }; return@HorizontalPager }
             val p = tutorial[i]
             Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 StepBody(Modifier.weight(1f)) {
@@ -238,9 +260,10 @@ private const val PAGE_SPLIT = 2
             }
         }
         Column(Modifier.fillMaxWidth().padding(top = 12.dp).padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            PageDots(pager.currentPage, Onboarding.TUTORIAL + 1)
+            PageDots(pager.currentPage, Onboarding.PAGES, position)
             Spacer(Modifier.height(12.dp))
-            NdButton(onClick = next, modifier = Modifier.fillMaxWidth().height(52.dp).pressScale()) { Text(tr(R.string.onboard_next)) }
+            NdButton(onClick = next, modifier = Modifier.fillMaxWidth().height(52.dp).pressScale()) {
+                Text(tr(if (!onPermissions) R.string.onboard_next else if (done) R.string.onboard_done else R.string.onboard_continue)) }
         }
     }
 }
@@ -256,7 +279,7 @@ private fun openSettings(context: Context, vararg intents: Intent) {
  * no new permission) and keeping Moth in the background (the lock in Recents and, on Xiaomi, App info › Battery saver). States are
  * read again whenever the user comes back from Android's screens.
  */
-@Composable private fun PermissionsStep(done: Boolean, next: () -> Unit) {
+@Composable private fun PermissionsPage() {
     val context = LocalContext.current
     val resumed = resumeCount()
     var asked by remember { mutableIntStateOf(0) }
@@ -275,11 +298,7 @@ private fun openSettings(context: Context, vararg intents: Intent) {
     }
     val appInfo = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.fromParts("package", context.packageName, null))
     val xiaomi = Onboarding.xiaomi()
-    StepFrame(buttons = {
-        PageDots(Onboarding.TUTORIAL, Onboarding.TUTORIAL + 1)
-        Spacer(Modifier.height(12.dp))
-        NdButton(onClick = next, modifier = Modifier.fillMaxWidth().height(52.dp).pressScale()) { Text(tr(if (done) R.string.onboard_done else R.string.onboard_continue)) }
-    }) {
+    StepBody(Modifier.fillMaxSize()) {
         Text(tr(R.string.onboard_perm_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
         Text(tr(R.string.onboard_perm_text), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         PermissionCard(Icons.Outlined.VpnKey, tr(R.string.onboard_perm_vpn), tr(if (vpnDenied && !vpnOk) R.string.onboard_perm_vpn_denied else R.string.onboard_perm_vpn_text), vpnOk,
