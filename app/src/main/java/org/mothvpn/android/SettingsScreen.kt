@@ -465,7 +465,7 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
 @Composable private fun LanShareCard(port: Int) {
     val state by LanShare.state.collectAsState()
     // The phone's addresses change when the hotspot or Wi-Fi goes on or off: re-read every few seconds while the card is shown.
-    val endpoints by produceState(emptyList<Pair<String, String>>(), port) {
+    val endpoints by produceState(emptyList<org.mothvpn.core.LanProxy.Endpoint>(), port) {
         while (true) {
             value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { org.mothvpn.core.LanProxy.endpoints(LanShare.interfaces(), port) }
             kotlinx.coroutines.delay(3000)
@@ -482,9 +482,21 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
             Text(status, style = MaterialTheme.typography.bodyMedium, color = if (state is LanShare.State.PortBusy) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
             Text(tr(R.string.lan_addresses), style = MaterialTheme.typography.titleSmall)
             if (endpoints.isEmpty()) Text(tr(R.string.lan_no_address), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            endpoints.forEach { (_, address) ->
+            // Each address is labeled with its network (Wi-Fi, mobile, hotspot, tethering): both used to appear side by side unlabeled.
+            endpoints.forEach { e ->
+                val address = e.address
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(address, style = MaterialTheme.typography.titleMedium.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace), modifier = Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text(tr(when (e.kind) {
+                            org.mothvpn.core.LanProxy.Kind.HOTSPOT -> R.string.lan_kind_hotspot
+                            org.mothvpn.core.LanProxy.Kind.TETHERING -> R.string.lan_kind_tethering
+                            org.mothvpn.core.LanProxy.Kind.WIFI -> R.string.lan_kind_wifi
+                            org.mothvpn.core.LanProxy.Kind.MOBILE -> R.string.lan_kind_mobile
+                            org.mothvpn.core.LanProxy.Kind.OTHER -> R.string.lan_kind_other
+                        }, e.iface), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(address, style = MaterialTheme.typography.titleMedium.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace))
+                        if (e.kind == org.mothvpn.core.LanProxy.Kind.MOBILE) Text(tr(R.string.lan_kind_mobile_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(address)) }, modifier = Modifier.pressScale()) { Text(tr(R.string.lan_copy)) }
                 }
             }

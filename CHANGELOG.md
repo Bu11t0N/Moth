@@ -10,6 +10,7 @@ Released 2026-11-02 (beta).
 
 - First run: the tour pages now swipe left and right; you can turn auto-select on or off right on its page and open split tunneling from the tour to pick apps; the Updates page is gone.
 - Split tunneling: the mode is chosen with two cards on the page instead of a dialog, the active one highlighted; "Show system apps" and "Elevated privileges" appear only at the very top of the list.
+- Sharing with other devices: each proxy address is now labeled with its network (Wi-Fi, mobile network, this phone's hotspot, USB/Bluetooth tethering), so the Wi-Fi and mobile addresses are no longer shown side by side unlabeled.
 - Settings › Checks: the tunnel check timeout is hidden while the tunnel check is off.
 
 ## 1.0.0-beta.6

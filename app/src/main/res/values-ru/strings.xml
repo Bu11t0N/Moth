@@ -663,6 +663,12 @@
     <string name="lan_state_busy">Порт %1$d занят другим приложением: VPN работает без прокси. Выберите другой порт.</string>
     <string name="set_short_lan">Раздача</string>
     <string name="msg_err_lan_port">Неверный порт прокси</string>
+    <string name="lan_kind_wifi">Wi-Fi (%1$s)</string>
+    <string name="lan_kind_mobile">Мобильная сеть (%1$s)</string>
+    <string name="lan_kind_mobile_hint">Обычно недоступен с других устройств: используйте адрес Wi-Fi или точки доступа.</string>
+    <string name="lan_kind_hotspot">Точка доступа этого телефона (%1$s)</string>
+    <string name="lan_kind_tethering">USB/Bluetooth-модем (%1$s)</string>
+    <string name="lan_kind_other">Другая сеть (%1$s)</string>
     <string name="lan_copy">Копировать</string>
     <string name="onboard_title">Добро пожаловать в Moth</string>
     <string name="onboard_text">Для начала добавьте ссылку на подписку от вашего VPN-провайдера. Moth загрузит из неё серверы.</string>

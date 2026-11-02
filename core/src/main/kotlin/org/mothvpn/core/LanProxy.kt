@@ -41,14 +41,31 @@ object LanProxy {
         }
     }
 
-    /** Addresses to show in Settings ("host:port"): private IPv4 addresses of the phone's interfaces, hotspot / tethering first. */
-    fun endpoints(interfaces: List<Pair<String, String>>, port: Int): List<Pair<String, String>> = interfaces
+    /** Which network an address of the phone belongs to, so Settings can label each one (Wi-Fi and mobile were shown unlabeled). */
+    enum class Kind { HOTSPOT, TETHERING, WIFI, MOBILE, OTHER }
+
+    /** One address to show: [kind] and the interface it came from, [address] as "host:port". */
+    data class Endpoint(val kind: Kind, val iface: String, val address: String)
+
+    /** Addresses to show in Settings: private IPv4 addresses of the phone's interfaces, labeled by [kind]; hotspot / tethering first,
+     *  then Wi-Fi, then the mobile network (usually not reachable from other devices), then anything else. */
+    fun endpoints(interfaces: List<Pair<String, String>>, port: Int): List<Endpoint> = interfaces
         .filter { (name, ip) -> !name.startsWith("tun") && !name.startsWith("lo") && privateV4(ip) }
-        .sortedBy { (name, _) -> if (sharingInterface(name)) 0 else 1 }
-        .map { (name, ip) -> name to "$ip:$port" }.distinctBy { it.second }
+        .map { (name, ip) -> Endpoint(kind(name), name, "$ip:$port") }
+        .sortedBy { it.kind.ordinal }.distinctBy { it.address }
+
+    /** The network of an Android interface name: hotspot (ap0, swlan0, wlan1 …), USB/Bluetooth tethering, Wi-Fi (wlan0), mobile data
+     *  (rmnet*, ccmni*, clat v4-*, …) or other. */
+    fun kind(name: String): Kind = when {
+        listOf("ap", "swlan", "softap", "wlan1", "wigig").any { name.startsWith(it) } -> Kind.HOTSPOT
+        listOf("rndis", "usb", "ncm", "bt-pan", "bt_pan").any { name.startsWith(it) } -> Kind.TETHERING
+        name.startsWith("wlan") || name.startsWith("wifi") -> Kind.WIFI
+        listOf("rmnet", "ccmni", "pdp", "seth", "v4-", "clat", "wwan", "qmi", "ccemni", "rev_rmnet", "radio").any { name.startsWith(it) } -> Kind.MOBILE
+        else -> Kind.OTHER
+    }
 
     /** Interface names Android uses for the hotspot and tethering (ap0, swlan0, wlan1, rndis0, usb0, ncm0, bt-pan …). */
-    fun sharingInterface(name: String) = listOf("ap", "swlan", "softap", "rndis", "usb", "ncm", "bt-pan", "bt_pan", "wlan1", "wigig").any { name.startsWith(it) }
+    fun sharingInterface(name: String) = kind(name).let { it == Kind.HOTSPOT || it == Kind.TETHERING }
 
     fun privateV4(ip: String): Boolean {
         val p = ip.split('.').mapNotNull { it.toIntOrNull() }

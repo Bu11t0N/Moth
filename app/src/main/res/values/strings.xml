@@ -659,6 +659,12 @@
     <string name="lan_state_busy">Port %1$d is used by another app: the VPN runs without the proxy. Choose another port.</string>
     <string name="set_short_lan">Sharing</string>
     <string name="msg_err_lan_port">Invalid proxy port</string>
+    <string name="lan_kind_wifi">Wi-Fi (%1$s)</string>
+    <string name="lan_kind_mobile">Mobile network (%1$s)</string>
+    <string name="lan_kind_mobile_hint">Usually not reachable from other devices: use the Wi-Fi or hotspot address.</string>
+    <string name="lan_kind_hotspot">Hotspot of this phone (%1$s)</string>
+    <string name="lan_kind_tethering">USB / Bluetooth tethering (%1$s)</string>
+    <string name="lan_kind_other">Other network (%1$s)</string>
     <string name="lan_copy">Copy</string>
     <string name="onboard_title">Welcome to Moth</string>
     <string name="onboard_text">To get started, add the subscription link from your VPN provider. Moth will download your servers from it.</string>
