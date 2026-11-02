@@ -2,6 +2,16 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.0-beta.7
+
+Released 2026-11-02 (beta).
+
+### Changes
+
+- First run: the tour pages now swipe left and right; you can turn auto-select on or off right on its page and open split tunneling from the tour to pick apps; the Updates page is gone.
+- Split tunneling: the mode is chosen with two cards on the page instead of a dialog, the active one highlighted; "Show system apps" and "Elevated privileges" appear only at the very top of the list.
+- Settings › Checks: the tunnel check timeout is hidden while the tunnel check is off.
+
 ## 1.0.0-beta.6
 
 Released 2026-11-02 (beta).
