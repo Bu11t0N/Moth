@@ -86,7 +86,7 @@ class Release101E2ETest {
         val store = SubscriptionStore(context)
         val working = store.load()!!.profiles.first { it.name == "E2E VLESS" }
         val wg = Subscriptions.parse(SubscriptionDownload.fetch("https://$host:8443/sub3")).profiles.first { it.protocol == "wireguard" }
-        val unresolved = wg.copy(outbound = org.json.JSONObject(wg.outbound).put("server", "offline-start.invalid").toString())
+        val unresolved = wg.copy(outbound = org.json.JSONObject(wg.outbound).apply { getJSONArray("peers").getJSONObject(0).put("address", "offline-start.invalid") }.toString())
         val source = SubscriptionSource("dns-fixture", "Fixture", SubscriptionRecord.LOCAL_URL, listOf(unresolved))
         store.saveBook(SubscriptionBook(listOf(source), unresolved.id))
         context.startForegroundService(Intent(context, TunnelService::class.java).setAction("START").putExtra("profile", unresolved.id))
