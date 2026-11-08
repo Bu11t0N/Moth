@@ -112,6 +112,7 @@ class Release101E2ETest {
         val via = TunnelDownloads.requireSession()
         fun credentials(hostname: String, port: Int, type: java.net.Authenticator.RequestorType) = java.net.Authenticator.requestPasswordAuthentication(
             hostname, java.net.InetAddress.getByName("127.0.0.1"), port, "http", "fixture", "Basic", java.net.URL("https://$host:8443/ip"), type)
+        assertNotNull("Android reverse-resolves the local proxy hostname", credentials("localhost", via.port, java.net.Authenticator.RequestorType.PROXY))
         assertNull("no proxy secret sent to the origin", credentials("127.0.0.1", via.port, java.net.Authenticator.RequestorType.SERVER))
         assertNull("no proxy secret sent to another port", credentials("127.0.0.1", via.port + 1, java.net.Authenticator.RequestorType.PROXY))
         assertNull("no proxy secret sent to another host", credentials("example.com", via.port, java.net.Authenticator.RequestorType.PROXY))

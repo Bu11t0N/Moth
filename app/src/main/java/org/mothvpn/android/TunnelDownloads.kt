@@ -16,7 +16,7 @@ object TunnelDownloads {
         Authenticator.setDefault(object : Authenticator() {
             override fun getPasswordAuthentication(): PasswordAuthentication? {
                 val active = session ?: return null
-                if (!ready() || requestorType != RequestorType.PROXY || requestingHost != "127.0.0.1" || requestingPort != active.port || !requestingScheme.equals("basic", true)) return null
+                if (!ready() || requestorType != RequestorType.PROXY || requestingSite?.hostAddress != "127.0.0.1" || requestingHost !in setOf("127.0.0.1", "localhost") || requestingPort != active.port || !requestingScheme.equals("basic", true)) return null
                 return PasswordAuthentication(SubscriptionTunnel.USER, active.password.toCharArray())
             }
         })
