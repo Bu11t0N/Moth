@@ -96,7 +96,7 @@ class MothWidget : AppWidgetProvider() {
         val subscription = runCatching { SubscriptionStore(context).load() }.onFailure { Logger.e("Widget", "reading the saved subscription failed", it) }.getOrNull()
         val network = NetworkTracker.read(context.getSystemService(ConnectivityManager::class.java))
         val profile = subscription?.profiles?.firstOrNull { it.id == subscription.selection(network.kind) }
-        if (profile == null || !network.available || VpnService.prepare(context) != null) {
+        if (profile == null || VpnService.prepare(context) != null) {
             Logger.i("Widget", "opening the app instead of connecting: server=${profile != null} network=${network.available}")
             openApp(context); return
         }

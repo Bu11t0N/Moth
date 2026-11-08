@@ -372,6 +372,20 @@ class UiE2ETest {
         assertNull("device selection hidden while HWID is off", device.findObject(By.text("Send device data to")))
         assertNull("device details hidden while HWID is off", device.findObject(By.text("Device info")))
         assertNull("HWID copy hidden while HWID is off", device.findObject(By.text("Copy HWID")))
+        // VPN-only refresh is independent of device-data consent and selected separately for each subscription.
+        device.pressBack(); Thread.sleep(500); wait(By.text("Subscription")).click(); Thread.sleep(500)
+        find("Update only through VPN").click(); wait(By.text("Fixture one")); Thread.sleep(500)
+        assertEquals(2, device.findObjects(By.checkable(true)).size)
+        assertTrue("VPN-only defaults off per subscription", device.findObjects(By.checkable(true)).none { it.isChecked })
+        wait(By.text("Fixture one")).click()
+        eventually(5000, "only the first subscription is VPN-only") {
+            val settings = SettingsStore(context).load()
+            settings.updatesViaVpn("fixture-one") && !settings.updatesViaVpn("fixture-two")
+        }
+        device.pressBack(); Thread.sleep(300)
+        find("Update only through VPN").click(); wait(By.text("Fixture one")); Thread.sleep(500)
+        assertEquals("selection survives reopening", 1, device.findObjects(By.checkable(true)).count { it.isChecked })
+        device.pressBack()
     }
 
     /**

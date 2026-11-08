@@ -282,7 +282,7 @@ class TunnelService : VpnService(), PlatformInterface {
             stage = "build config"
             // Sharing proxy: only when its port is free, so a taken port never stops the VPN itself (Settings shows it).
             val lan = settings.lanProxyPort.takeIf { settings.lanProxy }?.let { port -> if (LanShare.portFree(port)) port else { Logger.w("Tunnel", "sharing proxy: port busy, starting without it"); LanShare.set(LanShare.State.PortBusy(port)); null } }
-            val subscriptionTunnel = if (settings.subVpnOnly) org.mothvpn.core.SubscriptionTunnel(freePort(), UUID.randomUUID().toString()) else null
+            val subscriptionTunnel = org.mothvpn.core.SubscriptionTunnel(freePort(), UUID.randomUUID().toString())
             val config = TunnelConfig.create(profile, settings, ruleSets, dpi, appGuard = if (Build.VERSION.SDK_INT >= 29) packageName else null,
                 lan = lan, ownAddresses = if (lan != null) LanShare.ownAddresses() else emptyList(), subscriptionTunnel = subscriptionTunnel)
             stage = "Libbox.checkConfig"

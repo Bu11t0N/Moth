@@ -249,7 +249,9 @@ import org.mothvpn.core.SubscriptionSchedule
                     val subOptions = SubscriptionSchedule.intervals.map { it to if (it == 0) tr(R.string.sub_auto_off) else tr(R.string.sub_auto_hours, it) }
                     DialogRow(tr(R.string.sub_auto), subOptions.first { it.first == draft.subUpdateHours }.second) { subDialog = true }
                     if (subDialog) ChoiceDialog(tr(R.string.sub_auto), subOptions, draft.subUpdateHours, { subDialog = false }) { applySettings(draft.copy(subUpdateHours = it)) }
-                    SettingsToggle(tr(R.string.sub_vpn_only), draft.subVpnOnly) { applySettings(draft.copy(subVpnOnly = it)) }
+                    var vpnTargetsDialog by remember { mutableStateOf(false) }
+                    DialogRow(tr(R.string.sub_vpn_only), "", enabled = !locked) { vpnTargetsDialog = true }
+                    if (vpnTargetsDialog) SubscriptionVpnTargetsDialog(draft, { vpnTargetsDialog = false }) { applySettings(it) }
                     var trafficDialog by remember { mutableStateOf(false) }
                     val trafficOptions = org.mothvpn.core.TrafficWarning.thresholds.map { it to if (it == 0) tr(R.string.sub_auto_off) else "$it%" }
                     DialogRow(tr(R.string.traffic_warning_setting), trafficOptions.first { it.first == draft.trafficWarning }.second) { trafficDialog = true }
@@ -582,6 +584,30 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
                     val selected = if (draft.deviceDataSelected) draft.deviceDataSubs else list.map { it.first }
                     apply(draft.copy(deviceDataSelected = true, deviceDataSubs = if (checked) selected - id else (selected + id).distinct()))
                 }
+                Row(Modifier.pressScale().fillMaxWidth().clickable { toggle() }, verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked, { toggle() }); Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }, confirmButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.sub_link_close)) } })
+}
+
+/** Per-subscription VPN-only updates, using the same immediate checkbox list as device-data recipients. */
+@Composable fun SubscriptionVpnTargetsDialog(draft: ClientSettings, close: () -> Unit, apply: (ClientSettings) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sources by produceState<List<Pair<String, String>>?>(null) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { SubscriptionStore(context).loadBook()?.sources.orEmpty().filter { !it.local }.map { it.id to it.title() } }.getOrDefault(emptyList())
+        }
+    }
+    AlertDialog(onDismissRequest = close, title = { Text(tr(R.string.sub_vpn_only)) }, text = {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            val list = sources
+            if (list == null) LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp))
+            else if (list.isEmpty()) Text(tr(R.string.device_targets_none), style = MaterialTheme.typography.bodySmall)
+            list?.forEach { (id, title) ->
+                val checked = draft.updatesViaVpn(id)
+                fun toggle() { apply(draft.copy(subVpnOnlySubs = if (checked) draft.subVpnOnlySubs - id else (draft.subVpnOnlySubs + id).distinct())) }
                 Row(Modifier.pressScale().fillMaxWidth().clickable { toggle() }, verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked, { toggle() }); Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }

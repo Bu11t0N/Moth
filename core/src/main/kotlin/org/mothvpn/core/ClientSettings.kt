@@ -85,10 +85,12 @@ data class ClientSettings(
      *  shares its connection (hotspot / tethering). Their traffic goes through the VPN. Off by default; see [LanProxy]. */
     val lanProxy: Boolean = false, val lanProxyPort: Int = LanProxy.DEFAULT_PORT,
     /** Subscription section: refresh only through an authenticated loopback inbound forced to the active server. */
-    val subVpnOnly: Boolean = false
+    val subVpnOnlySubs: List<String> = emptyList()
 ) {
     /** Whether the subscription [sourceId] (null: a new link) may receive the HWID / device headers. */
     fun sendsDeviceData(sourceId: String?): Boolean = !deviceDataSelected || (sourceId != null && sourceId in deviceDataSubs)
+    /** Per-subscription VPN-only refresh. New subscriptions default to unrestricted refresh. */
+    fun updatesViaVpn(sourceId: String?): Boolean = sourceId != null && sourceId in subVpnOnlySubs
     val notifyAny get() = notifySpeed || notifyTotal || notifyUptime
     /** The custom device info cleared (system values are sent again). */
     fun withDefaultDeviceInfo() = copy(deviceOs = "", deviceOsVersion = "", deviceModel = "")
@@ -112,7 +114,7 @@ data class ClientSettings(
             fragment != next.fragment || noise != next.noise || mux != next.mux ||
             healthEnabled != next.healthEnabled || healthIntervalSeconds != next.healthIntervalSeconds || timeoutMs != next.timeoutMs ||
             probeUrl != next.probeUrl || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP) ||
-            lanProxy != next.lanProxy || lanProxyPort != next.lanProxyPort || subVpnOnly != next.subVpnOnly
+            lanProxy != next.lanProxy || lanProxyPort != next.lanProxyPort
 
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
@@ -141,6 +143,7 @@ data class ClientSettings(
         require(wifiFilter.valid() && mobileFilter.valid()) { "Неверный фильтр серверов" }
         require(LanProxy.validPort(lanProxyPort)) { "Неверный порт прокси" }
         require(deviceDataSubs.size <= 500 && deviceDataSubs.all { validSourceId(it) }) { "Неверный список подписок" }
+        require(subVpnOnlySubs.size <= 500 && subVpnOnlySubs.all { validSourceId(it) }) { "Неверный список подписок" }
         listOf(probeUrl, bootstrapDns).forEach { value ->
             val u = URI(value)
             require(u.scheme == "https" && !u.host.isNullOrBlank() && u.rawUserInfo == null && u.fragment == null) { "Нужен корректный HTTPS-адрес" }
@@ -166,7 +169,7 @@ data class ClientSettings(
         .put("notifySpeed", notifySpeed).put("notifyTotal", notifyTotal).put("notifyUptime", notifyUptime).put("autoSelectReuseMinutes", autoSelectReuseMinutes)
         .put("largeTitlePercent", largeTitlePercent).put("largeTitles", largeTitles)
         .put("splitAllApps", splitAllApps).put("deviceDataSelected", deviceDataSelected).put("deviceDataSubs", org.json.JSONArray(deviceDataSubs))
-        .put("lanProxy", lanProxy).put("lanProxyPort", lanProxyPort).put("subVpnOnly", subVpnOnly)
+        .put("lanProxy", lanProxy).put("lanProxyPort", lanProxyPort).put("subVpnOnlySubs", org.json.JSONArray(subVpnOnlySubs))
     companion object {
         /** 2 (0.7.6): files without it were written by older builds and still carry their defaults (60 s check, 5000 ms ping timeout). */
         const val SETTINGS_VERSION = 2
@@ -223,7 +226,7 @@ data class ClientSettings(
             largeTitlePercent = LargeTitleSize.normalize(j.optInt("largeTitlePercent", LargeTitleSize.DEFAULT)), largeTitles = j.optBoolean("largeTitles", true),
             splitAllApps = j.optBoolean("splitAllApps", false), deviceDataSelected = j.optBoolean("deviceDataSelected", false),
             deviceDataSubs = j.optJSONArray("deviceDataSubs")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter(::validSourceId).distinct().take(500) }.orEmpty(),
-            subVpnOnly = j.optBoolean("subVpnOnly", false),
+            subVpnOnlySubs = j.optJSONArray("subVpnOnlySubs")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter(::validSourceId).distinct().take(500) }.orEmpty(),
             lanProxy = j.optBoolean("lanProxy", false),
             lanProxyPort = j.optInt("lanProxyPort", LanProxy.DEFAULT_PORT).takeIf(LanProxy::validPort) ?: LanProxy.DEFAULT_PORT,
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()

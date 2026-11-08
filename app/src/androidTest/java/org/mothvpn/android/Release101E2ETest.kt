@@ -84,21 +84,29 @@ class Release101E2ETest {
     @Test fun subscriptionRefreshIsForcedThroughVpnDespiteDirectRouting() {
         val id = fixture()
         // A user bypass rule sends the fixture host directly; subscription refresh must still use the server.
-        val s = ClientSettings(healthEnabled = false, subVpnOnly = true, routingRules = listOf(RoutingRule(CustomRouting.CIDR, "$host/32", CustomRouting.DIRECT)))
+        val sourceId = SubscriptionStore(context).loadBook()!!.sources.first().id
+        val s = ClientSettings(healthEnabled = false, subVpnOnlySubs = listOf(sourceId), routingRules = listOf(RoutingRule(CustomRouting.CIDR, "$host/32", CustomRouting.DIRECT)))
         SettingsStore(context).save(s)
         context.startForegroundService(Intent(context, TunnelService::class.java).setAction("START").putExtra("profile", id))
         eventually("running VPN") { TunnelDownloads.ready() }
-        assertEquals("127.0.0.11", SubscriptionDownload.fetchDetails("https://$host:8443/ip", s).body.trim())
+        assertEquals("127.0.0.11", SubscriptionDownload.fetchDetails("https://$host:8443/ip", s, sourceId).body.trim())
+        assertNotEquals("new/unselected subscriptions keep normal routing", "127.0.0.11", SubscriptionDownload.fetchDetails("https://$host:8443/ip", s, "other-sub").body.trim())
         val via = TunnelDownloads.requireSession()
+        fun credentials(hostname: String, port: Int, type: java.net.Authenticator.RequestorType) = java.net.Authenticator.requestPasswordAuthentication(
+            hostname, java.net.InetAddress.getByName("127.0.0.1"), port, "http", "fixture", "Basic", java.net.URL("https://$host:8443/ip"), type)
+        assertNull("no proxy secret sent to the origin", credentials("127.0.0.1", via.port, java.net.Authenticator.RequestorType.SERVER))
+        assertNull("no proxy secret sent to another port", credentials("127.0.0.1", via.port + 1, java.net.Authenticator.RequestorType.PROXY))
+        assertNull("no proxy secret sent to another host", credentials("example.com", via.port, java.net.Authenticator.RequestorType.PROXY))
         // A wrong per-session secret must be refused, never allowed to fall back directly.
         val wrong = via.copy(password = "wrong-synthetic-password")
         TunnelDownloads.session = wrong
         try {
-            assertTrue("bad proxy auth must fail closed", runCatching { SubscriptionDownload.fetchDetails("https://$host:8443/ip", s) }.isFailure)
+            assertTrue("bad proxy auth must fail closed", runCatching { SubscriptionDownload.fetchDetails("https://$host:8443/ip", s, sourceId) }.isFailure)
         } finally { TunnelDownloads.session = via }
         SubscriptionRefresh.run(context, SubscriptionStore(context).loadBook()!!.sources.first().id, "https://$host:8443/sub", null, s, "e2e")
         stop()
-        assertThrows(TunnelDownloads.VpnRequired::class.java) { SubscriptionDownload.fetchDetails("https://$host:8443/ip", s) }
+        assertThrows(TunnelDownloads.VpnRequired::class.java) { SubscriptionDownload.fetchDetails("https://$host:8443/ip", s, sourceId) }
+        assertTrue("unselected source can still refresh without VPN", SubscriptionDownload.fetchDetails("https://$host:8443/ip", s, "other-sub").body.isNotBlank())
         assertThrows(TunnelDownloads.VpnRequired::class.java) { TunnelDownloads.open(java.net.URL("https://$host:8443/ip"), via) }
     }
 }

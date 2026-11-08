@@ -78,7 +78,7 @@ object SubscriptionDownload {
     fun fetch(address: String, settings: ClientSettings = ClientSettings()): String = fetchDetails(address, settings).body
     /** [sourceId]: the subscription being downloaded (null: a new link), for "device data only to selected subscriptions". */
     fun fetchDetails(address: String, settings: ClientSettings = ClientSettings(), sourceId: String? = null): Response {
-        val via = if (settings.subVpnOnly) TunnelDownloads.requireSession() else null
+        val via = if (settings.updatesViaVpn(sourceId)) TunnelDownloads.requireSession() else null
         var url = URL(address.trim())
         val original = url.toURI()
         repeat(6) {

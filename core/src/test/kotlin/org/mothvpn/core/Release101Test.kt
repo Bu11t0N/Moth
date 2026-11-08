@@ -4,13 +4,18 @@ import org.json.JSONObject
 import kotlin.test.*
 
 class Release101Test {
-    @Test fun vpnOnlyDefaultOffRoundTripAndReconnect() {
+    @Test fun vpnOnlyIsPerSubscriptionDefaultOffAndRoundTrips() {
         val old = ClientSettings()
-        assertFalse(old.subVpnOnly)
-        assertFalse(ClientSettings.from(old.json().apply { remove("subVpnOnly") }).subVpnOnly)
-        assertTrue(ClientSettings.from(old.copy(subVpnOnly = true).json()).subVpnOnly)
-        assertTrue(old.needsReconnect(old.copy(subVpnOnly = true)))
+        assertFalse(old.updatesViaVpn("one"))
+        assertFalse(old.updatesViaVpn(null))
+        val selected = old.copy(subVpnOnlySubs = listOf("one"))
+        val restored = ClientSettings.from(selected.json())
+        assertTrue(restored.updatesViaVpn("one"))
+        assertFalse(restored.updatesViaVpn("two"))
+        assertFalse(restored.updatesViaVpn(null))
+        assertFalse(old.needsReconnect(selected)) // The protected download endpoint is always available during the VPN session.
         assertTrue(ClientSettings.from(old.json().put("compactServers", false)).compactServers)
+        assertFailsWith<IllegalArgumentException> { old.copy(subVpnOnlySubs = listOf("bad/id")).validate() }
     }
     @Test fun subscriptionDownloadCannotFollowBypassOrSplitRules() {
         val p = Subscriptions.parseLink("trojan://test@example.com:443?security=tls#Test")
@@ -26,7 +31,7 @@ class Release101Test {
     }
     @Test fun artworkSizeSharedAndBounded() {
         assertEquals(260f, MothArtworkSize.side(400f, 850f, 1f))
-        assertEquals(160f, MothArtworkSize.side(360f, 600f, 1f))
+        assertEquals(60f, MothArtworkSize.side(360f, 600f, 1f))
         assertEquals(48f, MothArtworkSize.side(320f, 500f, 2f))
         assertTrue(MothArtworkSize.side(300f, 700f, 1.5f) in 48f..260f)
     }

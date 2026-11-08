@@ -370,7 +370,6 @@ class MainActivity : AppCompatActivity() {
         if (busy) return
         val sources = book?.sources.orEmpty().filter { !it.local }
         if (sources.isEmpty()) return
-        if (settings.subVpnOnly && !TunnelDownloads.ready()) { notices.show(tr(R.string.sub_vpn_required)); return }
         busy = true; refreshingAll = true // progress: the moth on the refresh buttons (the one at the top and the subscription being updated)
         lifecycleScope.launch {
             var error: String? = null
@@ -378,6 +377,7 @@ class MainActivity : AppCompatActivity() {
                 refreshing = setOf(source.id)
                 try { show(withContext(Dispatchers.IO) { SubscriptionRefresh.run(this@MainActivity, source.id, source.url, null, settings, "refresh").book }) }
                 catch (e: CancellationException) { throw e }
+                catch (e: TunnelDownloads.VpnRequired) { notices.show(tr(R.string.sub_vpn_required)) }
                 catch (e: Exception) { Logger.e("Import", "subscription refresh failed (host=${LogFacts.hostTag(source.url)})", e); error = importError(e) } // no subscription name: shown messages are also logged
             } } finally { refreshing = emptySet(); refreshingAll = false; busy = false }
             error?.let { message = it }
