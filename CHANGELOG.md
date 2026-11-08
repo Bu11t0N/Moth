@@ -9,7 +9,7 @@ Released 2026-11-08.
 ### Changes
 
 - The VPN starts even without a network and reconnects when it returns.
-- "Update only through VPN" can be turned on for each subscription separately.
+- New: each subscription can be set to update only through the VPN.
 - Simpler choice of which subscriptions get device data: just tick them.
 - The server list is always compact.
 - Clearer proxy for other devices: each address in its own block with a hint, and short setup steps.
