@@ -110,12 +110,13 @@ class Release101E2ETest {
         assertEquals("127.0.0.11", SubscriptionDownload.fetchDetails("https://$host:8443/ip", s, sourceId).body.trim())
         assertNotEquals("new/unselected subscriptions keep normal routing", "127.0.0.11", SubscriptionDownload.fetchDetails("https://$host:8443/ip", s, "other-sub").body.trim())
         val via = TunnelDownloads.requireSession()
-        fun credentials(hostname: String, port: Int, type: java.net.Authenticator.RequestorType) = java.net.Authenticator.requestPasswordAuthentication(
-            hostname, java.net.InetAddress.getByName("127.0.0.1"), port, "http", "fixture", "Basic", java.net.URL("https://$host:8443/ip"), type)
-        assertNotNull("Android reverse-resolves the local proxy hostname", credentials("localhost", via.port, java.net.Authenticator.RequestorType.PROXY))
-        assertNull("no proxy secret sent to the origin", credentials("127.0.0.1", via.port, java.net.Authenticator.RequestorType.SERVER))
-        assertNull("no proxy secret sent to another port", credentials("127.0.0.1", via.port + 1, java.net.Authenticator.RequestorType.PROXY))
-        assertNull("no proxy secret sent to another host", credentials("example.com", via.port, java.net.Authenticator.RequestorType.PROXY))
+        fun credentials(hostname: String, port: Int, protocol: String = "SOCKS5", type: java.net.Authenticator.RequestorType = java.net.Authenticator.RequestorType.SERVER) = java.net.Authenticator.requestPasswordAuthentication(
+            hostname, java.net.InetAddress.getByName("127.0.0.1"), port, protocol, "fixture", null, null, type)
+        assertNotNull("Android SOCKS5 callback is scoped to the local proxy", credentials("localhost", via.port))
+        assertNull("no proxy secret sent to the origin", credentials("127.0.0.1", via.port, "https"))
+        assertNull("no proxy secret sent to HTTP authentication", credentials("127.0.0.1", via.port, "http", java.net.Authenticator.RequestorType.PROXY))
+        assertNull("no proxy secret sent to another port", credentials("127.0.0.1", via.port + 1))
+        assertNull("no proxy secret sent to another host", credentials("example.com", via.port))
         // A wrong per-session secret must be refused, never allowed to fall back directly.
         val wrong = via.copy(password = "wrong-synthetic-password")
         TunnelDownloads.session = wrong

@@ -12,11 +12,11 @@ import javax.net.ssl.HttpsURLConnection
 object TunnelDownloads {
     init {
         // This application owns its Authenticator. Never supply the session secret to an origin,
-        // remote proxy or a stale local session. Android's HTTPS implementation uses this for CONNECT.
+        // remote proxy or a stale local session. Android's SOCKS5 implementation uses this before any TLS request.
         Authenticator.setDefault(object : Authenticator() {
             override fun getPasswordAuthentication(): PasswordAuthentication? {
                 val active = session ?: return null
-                if (!ready() || requestorType != RequestorType.PROXY || requestingSite?.hostAddress != "127.0.0.1" || requestingHost !in setOf("127.0.0.1", "localhost") || requestingPort != active.port || !requestingScheme.equals("basic", true)) return null
+                if (!ready() || requestingSite?.hostAddress != "127.0.0.1" || requestingHost !in setOf("127.0.0.1", "localhost") || requestingPort != active.port || !requestingProtocol.equals("SOCKS5", true)) return null
                 return PasswordAuthentication(SubscriptionTunnel.USER, active.password.toCharArray())
             }
         })
@@ -26,7 +26,7 @@ object TunnelDownloads {
     fun requireSession(): SubscriptionTunnel = session?.takeIf { ready() } ?: throw VpnRequired()
     fun open(url: URL, via: SubscriptionTunnel): HttpsURLConnection {
         if (!ready() || session !== via) throw VpnRequired()
-        return url.openConnection(Proxy(Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", via.port))) as HttpsURLConnection
+        return url.openConnection(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", via.port))) as HttpsURLConnection
     }
     class VpnRequired : IllegalStateException(tr(R.string.sub_vpn_required))
 }
