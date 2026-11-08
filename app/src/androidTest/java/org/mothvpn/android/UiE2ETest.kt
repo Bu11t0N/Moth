@@ -346,11 +346,11 @@ class UiE2ETest {
     @Test fun lanProxyAddressBlocksAndShortInstructions() {
         context.startActivity(Intent(context, LanShareTestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
         val first = wait(By.text("192.168.43.1:10808")).visibleBounds
-        val label = wait(By.text("Phone hotspot")).visibleBounds
-        val hint = wait(By.text("For devices connected to this phone’s hotspot")).visibleBounds
+        val hint = wait(By.text("For devices connected to this device’s hotspot")).visibleBounds
         val second = wait(By.text("192.168.1.2:10808")).visibleBounds
-        assertTrue("address is distinct above its secondary label", first.bottom < label.top)
-        assertTrue("network hint is separated from its label", label.bottom < hint.top)
+        assertTrue("address is distinct above its hint", first.bottom < hint.top)
+        assertNull("no separate network-type line", device.findObject(By.text("Device hotspot")))
+        assertNull("no waiting status line", device.findObject(By.text("Starts with the VPN")))
         val dp = context.resources.displayMetrics.density
         assertTrue("address entries have generous padding and a clear gap", second.top - hint.bottom >= (32 * dp).toInt())
         assertNull("obsolete protocol line removed", device.findObject(By.textStartsWith("Protocol:")))
@@ -365,8 +365,8 @@ class UiE2ETest {
             runCatching { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.8f) }
         }
         val instructions = wait(By.textStartsWith("1. Turn on the hotspot")).text
-        assertTrue(instructions.contains("3. Host address: the address above before the colon\nPort: the number after the colon"))
-        assertTrue("nothing follows step four", instructions.endsWith("4. Save the entered settings"))
+        assertTrue(instructions.contains("Manual.\nHost address: the address above before the colon\nPort: the number after the colon\n3. Save"))
+        assertTrue("nothing follows step three", instructions.endsWith("3. Save the entered settings"))
         assertFalse(instructions.contains("socks5h"))
         device.pressBack()
     }

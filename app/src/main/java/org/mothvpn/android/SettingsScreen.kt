@@ -480,15 +480,16 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
     val clipboard = LocalClipboardManager.current
     SettingCard {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // No "starts with the VPN" line: only a running proxy on this port or a busy port is reported.
             val status = when (val st = state) {
-                is LanShare.State.Running -> if (st.port == port) tr(R.string.lan_state_running, st.port) else tr(R.string.lan_state_waiting)
+                is LanShare.State.Running -> if (st.port == port) tr(R.string.lan_state_running, st.port) else null
                 is LanShare.State.PortBusy -> tr(R.string.lan_state_busy, st.port)
-                LanShare.State.Off -> tr(R.string.lan_state_waiting)
+                LanShare.State.Off -> null
             }
-            Text(status, style = MaterialTheme.typography.bodyMedium, color = if (state is LanShare.State.PortBusy) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            if (status != null) Text(status, style = MaterialTheme.typography.bodyMedium, color = if (state is LanShare.State.PortBusy) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
             Text(tr(R.string.lan_addresses), style = MaterialTheme.typography.titleSmall)
             if (endpoints.isEmpty()) Text(tr(R.string.lan_no_address), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            // Each address is labeled with its network (Wi-Fi, mobile, hotspot, tethering): both used to appear side by side unlabeled.
+            // Each address carries one "For devices…" hint saying who should use it (no separate network-type line duplicating it).
             endpoints.forEach { e ->
                 val address = e.address
                 Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, color = NdTone.raised(),
@@ -496,15 +497,6 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
                 Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 14.dp, bottom = 14.dp), verticalAlignment = Alignment.Top) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(address, style = MaterialTheme.typography.titleMedium.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
-                        Text(tr(when (e.kind) {
-                            org.mothvpn.core.LanProxy.Kind.HOTSPOT -> R.string.lan_kind_hotspot
-                            org.mothvpn.core.LanProxy.Kind.TETHERING -> R.string.lan_kind_tethering
-                            org.mothvpn.core.LanProxy.Kind.BLUETOOTH -> R.string.lan_kind_bluetooth
-                            org.mothvpn.core.LanProxy.Kind.ETHERNET -> R.string.lan_kind_ethernet
-                            org.mothvpn.core.LanProxy.Kind.WIFI -> R.string.lan_kind_wifi
-                            org.mothvpn.core.LanProxy.Kind.MOBILE -> R.string.lan_kind_mobile
-                            org.mothvpn.core.LanProxy.Kind.OTHER -> R.string.lan_kind_other
-                        }, e.iface), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(tr(when (e.kind) {
                             org.mothvpn.core.LanProxy.Kind.HOTSPOT -> R.string.lan_hint_hotspot
                             org.mothvpn.core.LanProxy.Kind.TETHERING -> R.string.lan_hint_usb
