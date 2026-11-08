@@ -9,6 +9,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -340,6 +341,34 @@ class UiE2ETest {
         assertNotNull("developer menu entry", dev); dev!!.click()
         assertNotNull(device.wait(Until.findObject(By.text("Crash log")), 10_000)); Thread.sleep(1000)
         device.pressBack(); Thread.sleep(500)
+    }
+
+    @Test fun lanProxyAddressBlocksAndShortInstructions() {
+        context.startActivity(Intent(context, LanShareTestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        val first = wait(By.text("192.168.43.1:10808")).visibleBounds
+        val label = wait(By.text("Phone hotspot")).visibleBounds
+        val hint = wait(By.text("For devices connected to this phone’s hotspot")).visibleBounds
+        val second = wait(By.text("192.168.1.2:10808")).visibleBounds
+        assertTrue("address is distinct above its secondary label", first.bottom < label.top)
+        assertTrue("network hint is separated from its label", label.bottom < hint.top)
+        val dp = context.resources.displayMetrics.density
+        assertTrue("address entries have generous padding and a clear gap", second.top - hint.bottom >= (32 * dp).toInt())
+        assertNull("obsolete protocol line removed", device.findObject(By.textStartsWith("Protocol:")))
+        val copies = device.findObjects(By.desc("Copy"))
+        assertEquals("one copy control for each full address", 2, copies.size)
+        val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+        copies[0].click()
+        eventually(5000, "copy hotspot IP including port") { clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() == "192.168.43.1:10808" }
+        copies[1].click()
+        eventually(5000, "copy Wi-Fi IP including port") { clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() == "192.168.1.2:10808" }
+        if (device.findObject(By.textStartsWith("1. Turn on the hotspot")) == null) {
+            runCatching { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.8f) }
+        }
+        val instructions = wait(By.textStartsWith("1. Turn on the hotspot")).text
+        assertTrue(instructions.contains("3. Host address: the address above before the colon\nPort: the number after the colon"))
+        assertTrue("nothing follows step four", instructions.endsWith("4. Save the entered settings"))
+        assertFalse(instructions.contains("socks5h"))
+        device.pressBack()
     }
 
     @Test fun providerControlsAndImmediateSubscriptionCheckboxes() {

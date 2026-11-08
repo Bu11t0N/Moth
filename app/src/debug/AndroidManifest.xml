@@ -3,5 +3,7 @@
     <queries>
         <package android:name="org.mothvpn.e2ehelper" />
     </queries>
-    <application android:networkSecurityConfig="@xml/e2e_network_security" tools:replace="android:networkSecurityConfig" />
+    <application android:networkSecurityConfig="@xml/e2e_network_security" tools:replace="android:networkSecurityConfig">
+        <activity android:name=".LanShareTestActivity" android:exported="false" />
+    </application>
 </manifest>

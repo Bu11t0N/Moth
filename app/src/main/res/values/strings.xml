@@ -632,9 +632,8 @@
     <string name="lan_port">Port (1024–65535)</string>
     <string name="lan_addresses">Address for the other device</string>
     <string name="lan_no_address">No local network yet: turn on the hotspot (or connect to Wi-Fi) and the address appears here.</string>
-    <string name="lan_protocol">Protocol: HTTP or SOCKS5, same port</string>
     <string name="lan_howto_title">How to connect another device</string>
-    <string name="lan_howto">1. Turn on the hotspot on this phone and connect the other device to it (or put both on the same Wi-Fi).\n2. On the other device open the Wi-Fi network settings → Proxy → Manual.\n3. Host: the address above (before the colon); port: the number after it.\n4. Save. The browser and most apps now go through the VPN.\n\nApps with their own proxy settings (Telegram, browsers, a PC) can use SOCKS5 with the same address and port: it also carries UDP, and with \"remote DNS\" (socks5h) names are resolved through the VPN.</string>
+    <string name="lan_howto">1. Turn on the hotspot on this phone and connect the other device to it (or put both on the same Wi-Fi).\n2. On the other device open the Wi-Fi network settings → Proxy → Manual.\n3. Host address: the address above before the colon\nPort: the number after the colon\n4. Save the entered settings</string>
     <string name="lan_state_running">Running on port %1$d</string>
     <string name="lan_state_waiting">Starts with the VPN</string>
     <string name="lan_state_busy">Port %1$d is used by another app: the VPN runs without the proxy. Choose another port.</string>

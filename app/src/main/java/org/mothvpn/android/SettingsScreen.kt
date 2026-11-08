@@ -473,9 +473,13 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
             kotlinx.coroutines.delay(3000)
         }
     }
+    LanShareDetails(port, state, endpoints)
+}
+/** Shared rendering of the live card; deterministic fixtures exercise exactly this content in debug UI tests. */
+@Composable internal fun LanShareDetails(port: Int, state: LanShare.State, endpoints: List<org.mothvpn.core.LanProxy.Endpoint>) {
     val clipboard = LocalClipboardManager.current
     SettingCard {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             val status = when (val st = state) {
                 is LanShare.State.Running -> if (st.port == port) tr(R.string.lan_state_running, st.port) else tr(R.string.lan_state_waiting)
                 is LanShare.State.PortBusy -> tr(R.string.lan_state_busy, st.port)
@@ -487,8 +491,11 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
             // Each address is labeled with its network (Wi-Fi, mobile, hotspot, tethering): both used to appear side by side unlabeled.
             endpoints.forEach { e ->
                 val address = e.address
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
+                Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, color = NdTone.raised(),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))) {
+                Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 14.dp, bottom = 14.dp), verticalAlignment = Alignment.Top) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(address, style = MaterialTheme.typography.titleMedium.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
                         Text(tr(when (e.kind) {
                             org.mothvpn.core.LanProxy.Kind.HOTSPOT -> R.string.lan_kind_hotspot
                             org.mothvpn.core.LanProxy.Kind.TETHERING -> R.string.lan_kind_tethering
@@ -498,7 +505,6 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
                             org.mothvpn.core.LanProxy.Kind.MOBILE -> R.string.lan_kind_mobile
                             org.mothvpn.core.LanProxy.Kind.OTHER -> R.string.lan_kind_other
                         }, e.iface), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(address, style = MaterialTheme.typography.titleMedium.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace))
                         Text(tr(when (e.kind) {
                             org.mothvpn.core.LanProxy.Kind.HOTSPOT -> R.string.lan_hint_hotspot
                             org.mothvpn.core.LanProxy.Kind.TETHERING -> R.string.lan_hint_usb
@@ -508,10 +514,12 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
                             else -> R.string.lan_hint_other
                         }), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(address)) }, modifier = Modifier.pressScale()) { Text(tr(R.string.lan_copy)) }
+                    IconButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(address)) }, modifier = Modifier.pressScale()) {
+                        Icon(androidx.compose.material.icons.Icons.Outlined.ContentCopy, contentDescription = tr(R.string.lan_copy))
+                    }
+                }
                 }
             }
-            Text(tr(R.string.lan_protocol), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(tr(R.string.lan_howto_title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 6.dp))
             Text(tr(R.string.lan_howto), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
