@@ -353,10 +353,25 @@ class UiE2ETest {
         fun find(text: String): UiObject2 {
             repeat(12) {
                 device.findObject(By.text(text))?.let { return it }
-                device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.3f); Thread.sleep(300)
+                // A container-transform transition can replace the accessibility node between query and scroll.
+                runCatching { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.3f) }
+                Thread.sleep(300)
             }
             return wait(By.text(text), 2000)
         }
+        // VPN-only refresh is independent of device-data consent and selected separately for each subscription.
+        find("Update only through VPN").click(); wait(By.text("Fixture one")); Thread.sleep(500)
+        assertEquals(2, device.findObjects(By.checkable(true)).size)
+        assertTrue("VPN-only defaults off per subscription", device.findObjects(By.checkable(true)).none { it.isChecked })
+        wait(By.text("Fixture one")).click()
+        eventually(5000, "only the first subscription is VPN-only") {
+            val settings = SettingsStore(context).load()
+            settings.updatesViaVpn("fixture-one") && !settings.updatesViaVpn("fixture-two")
+        }
+        device.pressBack(); Thread.sleep(300)
+        find("Update only through VPN").click(); wait(By.text("Fixture one")); Thread.sleep(500)
+        assertEquals("selection survives reopening", 1, device.findObjects(By.checkable(true)).count { it.isChecked })
+        device.pressBack()
         find("Send device data to").click(); wait(By.text("Fixture one")); Thread.sleep(500)
         assertEquals("subscriptions shown immediately", 2, device.findObjects(By.checkable(true)).size)
         assertTrue("legacy all-subscription choice is kept", device.findObjects(By.checkable(true)).all { it.isChecked })
@@ -372,20 +387,7 @@ class UiE2ETest {
         assertNull("device selection hidden while HWID is off", device.findObject(By.text("Send device data to")))
         assertNull("device details hidden while HWID is off", device.findObject(By.text("Device info")))
         assertNull("HWID copy hidden while HWID is off", device.findObject(By.text("Copy HWID")))
-        // VPN-only refresh is independent of device-data consent and selected separately for each subscription.
-        device.pressBack(); Thread.sleep(500); wait(By.text("Subscription")).click(); Thread.sleep(500)
-        find("Update only through VPN").click(); wait(By.text("Fixture one")); Thread.sleep(500)
-        assertEquals(2, device.findObjects(By.checkable(true)).size)
-        assertTrue("VPN-only defaults off per subscription", device.findObjects(By.checkable(true)).none { it.isChecked })
-        wait(By.text("Fixture one")).click()
-        eventually(5000, "only the first subscription is VPN-only") {
-            val settings = SettingsStore(context).load()
-            settings.updatesViaVpn("fixture-one") && !settings.updatesViaVpn("fixture-two")
-        }
-        device.pressBack(); Thread.sleep(300)
-        find("Update only through VPN").click(); wait(By.text("Fixture one")); Thread.sleep(500)
-        assertEquals("selection survives reopening", 1, device.findObjects(By.checkable(true)).count { it.isChecked })
-        device.pressBack()
+
     }
 
     /**
