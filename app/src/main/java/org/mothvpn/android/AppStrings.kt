@@ -159,7 +159,6 @@ private val errorResources = mapOf(
         "Как в системе" to R.string.msg_system_default_80,
         "Тёмная" to R.string.msg_dark_81,
         "Светлая" to R.string.msg_light_82,
-        "Компактные строки серверов" to R.string.msg_compact_server_rows_83,
         "Сортировать по задержке" to R.string.msg_sort_by_latency_84,
         "Скрывать недоступные серверы" to R.string.msg_hide_unavailable_servers_85,
         "Скрываются серверы с неудачной проверкой за последние 15 минут. Непроверенные и проверяемые остаются в списке. Перепроверь серверы при смене сети." to R.string.msg_servers_with_failed_checks_in_the_last_15_min_86,

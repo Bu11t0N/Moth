@@ -83,7 +83,9 @@ data class ClientSettings(
     val deviceDataSubs: List<String> = emptyList(),
     /** Sharing: a proxy (HTTP and SOCKS5 on one port, [lanProxyPort]) for other devices on the phone's networks, e.g. when the phone
      *  shares its connection (hotspot / tethering). Their traffic goes through the VPN. Off by default; see [LanProxy]. */
-    val lanProxy: Boolean = false, val lanProxyPort: Int = LanProxy.DEFAULT_PORT
+    val lanProxy: Boolean = false, val lanProxyPort: Int = LanProxy.DEFAULT_PORT,
+    /** Subscription section: refresh only through an authenticated loopback inbound forced to the active server. */
+    val subVpnOnly: Boolean = false
 ) {
     /** Whether the subscription [sourceId] (null: a new link) may receive the HWID / device headers. */
     fun sendsDeviceData(sourceId: String?): Boolean = !deviceDataSelected || (sourceId != null && sourceId in deviceDataSubs)
@@ -110,7 +112,7 @@ data class ClientSettings(
             fragment != next.fragment || noise != next.noise || mux != next.mux ||
             healthEnabled != next.healthEnabled || healthIntervalSeconds != next.healthIntervalSeconds || timeoutMs != next.timeoutMs ||
             probeUrl != next.probeUrl || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP) ||
-            lanProxy != next.lanProxy || lanProxyPort != next.lanProxyPort
+            lanProxy != next.lanProxy || lanProxyPort != next.lanProxyPort || subVpnOnly != next.subVpnOnly
 
     fun validate(): ClientSettings {
         require(theme in setOf("system", "dark", "light")) { "Неверная тема" }
@@ -164,7 +166,7 @@ data class ClientSettings(
         .put("notifySpeed", notifySpeed).put("notifyTotal", notifyTotal).put("notifyUptime", notifyUptime).put("autoSelectReuseMinutes", autoSelectReuseMinutes)
         .put("largeTitlePercent", largeTitlePercent).put("largeTitles", largeTitles)
         .put("splitAllApps", splitAllApps).put("deviceDataSelected", deviceDataSelected).put("deviceDataSubs", org.json.JSONArray(deviceDataSubs))
-        .put("lanProxy", lanProxy).put("lanProxyPort", lanProxyPort)
+        .put("lanProxy", lanProxy).put("lanProxyPort", lanProxyPort).put("subVpnOnly", subVpnOnly)
     companion object {
         /** 2 (0.7.6): files without it were written by older builds and still carry their defaults (60 s check, 5000 ms ping timeout). */
         const val SETTINGS_VERSION = 2
@@ -179,7 +181,7 @@ data class ClientSettings(
             if (j.has("healthCheckSeconds")) j.getInt("healthCheckSeconds").coerceIn(30, 900) else HealthSchedule.migrate(j.optInt("healthIntervalSeconds", 60)),
             j.optBoolean("hwidEnabled", true), j.getString("hwid"), j.optBoolean("deviceInfo", false),
             j.optString("userAgent", "Moth"), j.optString("serverSort", if (j.optBoolean("sortByLatency", false)) "latency" else "name").takeIf { it in ServerOrder.all } ?: "name",
-            j.optBoolean("compactServers", true), j.optBoolean("hideUnavailable", false),
+            true, j.optBoolean("hideUnavailable", false),
             ProbePolicy.migrateMode(j.optString("probeMode", ProbePolicy.LATENCY)), j.optString("bootstrapDns", "https://1.1.1.1/dns-query"),
             j.optInt("probeParallel", 5).coerceIn(1, 16),
             (if (j.has("probeTimeoutMs")) j.getInt("probeTimeoutMs") else if (j.has("probeTimeoutSeconds")) j.getInt("probeTimeoutSeconds") * 1000
@@ -221,6 +223,7 @@ data class ClientSettings(
             largeTitlePercent = LargeTitleSize.normalize(j.optInt("largeTitlePercent", LargeTitleSize.DEFAULT)), largeTitles = j.optBoolean("largeTitles", true),
             splitAllApps = j.optBoolean("splitAllApps", false), deviceDataSelected = j.optBoolean("deviceDataSelected", false),
             deviceDataSubs = j.optJSONArray("deviceDataSubs")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter(::validSourceId).distinct().take(500) }.orEmpty(),
+            subVpnOnly = j.optBoolean("subVpnOnly", false),
             lanProxy = j.optBoolean("lanProxy", false),
             lanProxyPort = j.optInt("lanProxyPort", LanProxy.DEFAULT_PORT).takeIf(LanProxy::validPort) ?: LanProxy.DEFAULT_PORT,
             routingRules = j.optJSONArray("routingRules")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(RoutingRule::from) }.filter { CustomRouting.valid(it) }.take(CustomRouting.MAX_RULES) }.orEmpty()).validate()

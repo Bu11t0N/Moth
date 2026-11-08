@@ -170,15 +170,15 @@ import org.mothvpn.core.SubscriptionSource
                 val r = results["$k:${p.id}"]?.takeUnless { it.cancelled || it.kind == ProbeErrorKind.CANCELLED } // cancelled checks show no indicator
                 Surface(color = if (chosen) NewDesignRow.selectedColor() else NdTone.raised(),
                     border = NewDesignRow.selectedBorder(chosen),
-                    shape = MaterialTheme.shapes.medium, modifier = Modifier.listItemMotion(this, fadeIn = unfoldEvent == null).unfold(unfoldEvent, index, group.profiles.size).pressScale().fillMaxWidth().heightIn(min = if (settings.compactServers) 64.dp else 72.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && tunnel != TunnelState.STOPPING) select(p.id, k) }
+                    shape = MaterialTheme.shapes.medium, modifier = Modifier.listItemMotion(this, fadeIn = unfoldEvent == null).unfold(unfoldEvent, index, group.profiles.size).pressScale().fillMaxWidth().heightIn(min = 64.dp).combinedClickable(onLongClick = { menuFor = p }) { if (!busy && tunnel != TunnelState.STOPPING) select(p.id, k) }
                         .semantics { contentDescription = p.name + if (chosen) tr(R.string.msg_selected_61) else "" }) {
-                    Row(Modifier.padding(horizontal = 18.dp, vertical = if (settings.compactServers) 10.dp else 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (p.id in settings.favorites) CompositionLocalProvider(LocalContentColor provides (if (isSystemInDarkTheme()) Color(0xFFFF6B8A) else Color(0xFFD81B60))) {
                                     MothIcon("heart", Modifier.padding(end = 6.dp).size(16.dp).semantics { contentDescription = tr(R.string.fav_mark) })
                                 }
-                                Text(p.name, maxLines = if (settings.compactServers) 1 else 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
+                                Text(p.name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
                             }
                             Text(serverSubtitle(p), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }

@@ -106,7 +106,7 @@ class FeaturesTest {
         assertEquals(previous.hwid, migrated.hwid)
         assertTrue(migrated.compactServers)
         assertFalse(migrated.hideUnavailable)
-        assertEquals(migrated.copy(compactServers = false, hideUnavailable = true),
+        assertEquals(migrated.copy(compactServers = true, hideUnavailable = true),
             ClientSettings.from(migrated.copy(compactServers = false, hideUnavailable = true).json()))
     }
     @Test fun probeVariantsAndUdpAreNotConfusedWithTcp() {

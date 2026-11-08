@@ -342,9 +342,41 @@ class UiE2ETest {
         device.pressBack(); Thread.sleep(500)
     }
 
+    @Test fun providerControlsAndImmediateSubscriptionCheckboxes() {
+        val profile = org.mothvpn.core.Subscriptions.parseLink("trojan://synthetic@example.com:443#Fixture")
+        val sources = listOf("fixture-one" to "Fixture one", "fixture-two" to "Fixture two").map { (id, name) ->
+            org.mothvpn.core.SubscriptionSource(id, name, "https://example.com/$id", listOf(profile))
+        }
+        SubscriptionStore(context).saveBook(org.mothvpn.core.SubscriptionBook(sources))
+        context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        tab("Settings"); wait(By.text("Subscription")).click(); Thread.sleep(700)
+        fun find(text: String): UiObject2 {
+            repeat(12) {
+                device.findObject(By.text(text))?.let { return it }
+                device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.3f); Thread.sleep(300)
+            }
+            return wait(By.text(text), 2000)
+        }
+        find("Send device data to").click(); wait(By.text("Fixture one")); Thread.sleep(500)
+        assertEquals("subscriptions shown immediately", 2, device.findObjects(By.checkable(true)).size)
+        assertTrue("legacy all-subscription choice is kept", device.findObjects(By.checkable(true)).all { it.isChecked })
+        wait(By.text("Fixture one")).click(); Thread.sleep(400)
+        eventually(5000, "one unchecked, second still checked") {
+            val settings = SettingsStore(context).load()
+            !settings.sendsDeviceData("fixture-one") && settings.sendsDeviceData("fixture-two")
+        }
+        device.pressBack(); Thread.sleep(500)
+        // Back to the top, turn off provider data, then verify dependent actions disappear.
+        device.pressBack(); Thread.sleep(500); wait(By.text("Subscription")).click(); Thread.sleep(500)
+        find("Send HWID to the provider").click(); Thread.sleep(900)
+        assertNull("device selection hidden while HWID is off", device.findObject(By.text("Send device data to")))
+        assertNull("device details hidden while HWID is off", device.findObject(By.text("Device info")))
+        assertNull("HWID copy hidden while HWID is off", device.findObject(By.text("Copy HWID")))
+    }
+
     /**
      * First run without subscriptions: the tour (Next / Back / Skip / swipe), then the permissions page (the pager's last page) (nothing granted here, Continue),
-     * then the subscription page; "Not now" closes the flow for good; the developer page shows it again.
+     * then the subscription page; "Not now" closes the flow for good; no developer shortcut remains.
      */
     @Test fun firstRunScreen() {
         Onboarding.reset(context)
@@ -385,10 +417,8 @@ class UiE2ETest {
         var dev = device.findObject(By.text("For developers"))
         repeat(6) { if (dev == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); dev = device.findObject(By.text("For developers")) } }
         assertNotNull("developer menu entry", dev); dev!!.click()
-        wait(By.text("First-run screen"), 10_000).click()
-        wait(By.text("Welcome to Moth"), 10_000); Thread.sleep(600)
-        device.pressBack(); Thread.sleep(800)
-        assertTrue("closed with Back on the first page", device.findObject(By.text("Welcome to Moth")) == null)
+        Thread.sleep(600)
+        assertNull("no first-run shortcut in developer settings", device.findObject(By.text("First-run screen")))
         assertTrue("still done", Onboarding.done(context))
     }
 }

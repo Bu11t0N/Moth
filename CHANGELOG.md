@@ -2,6 +2,16 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.1-beta.1
+
+### Changes
+
+- VPN can start without a network and reconnect when it returns.
+- Optional VPN-only subscription updates; simpler provider-data controls and subscription checkboxes.
+- Always-compact server rows and VPN-only app traffic, with time and network filters.
+- Clearer hotspot, Wi-Fi and tethering proxy addresses.
+- Updates use the same moth size as Home; removed the first-run shortcut from developer settings.
+
 ## 1.0.0
 
 Released 2026-11-02.

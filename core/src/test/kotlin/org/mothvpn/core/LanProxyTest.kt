@@ -52,11 +52,11 @@ class LanProxyTest {
         assertEquals(listOf(LanProxy.Kind.HOTSPOT, LanProxy.Kind.WIFI), e.map { it.kind })
     }
 
-    @Test fun endpointsAreLabeledWifiAndMobile() {
+    @Test fun endpointsHideCarrierAddresses() {
         // Wi-Fi and mobile data both with private addresses (mobile carriers often hand out 10.x): each gets its own label.
         val e = LanProxy.endpoints(listOf("rmnet_data0" to "10.64.12.7", "wlan0" to "192.168.1.20", "v4-rmnet_data1" to "192.0.0.4", "rndis0" to "192.168.42.129"), 10808)
-        assertEquals(listOf(LanProxy.Kind.TETHERING to "192.168.42.129:10808", LanProxy.Kind.WIFI to "192.168.1.20:10808", LanProxy.Kind.MOBILE to "10.64.12.7:10808"), e.map { it.kind to it.address })
-        assertEquals(LanProxy.Kind.MOBILE, LanProxy.kind("ccmni1")); assertEquals(LanProxy.Kind.HOTSPOT, LanProxy.kind("swlan0")); assertEquals(LanProxy.Kind.OTHER, LanProxy.kind("eth0"))
+        assertEquals(listOf(LanProxy.Kind.TETHERING to "192.168.42.129:10808", LanProxy.Kind.WIFI to "192.168.1.20:10808"), e.map { it.kind to it.address })
+        assertEquals(LanProxy.Kind.MOBILE, LanProxy.kind("ccmni1")); assertEquals(LanProxy.Kind.HOTSPOT, LanProxy.kind("swlan0")); assertEquals(LanProxy.Kind.ETHERNET, LanProxy.kind("eth0")); assertEquals(LanProxy.Kind.BLUETOOTH, LanProxy.kind("bt-pan"))
         assertTrue(LanProxy.sharingInterface("ap0")); assertFalse(LanProxy.sharingInterface("wlan0"))
         assertTrue(LanProxy.privateV4("172.20.0.1")); assertFalse(LanProxy.privateV4("172.32.0.1")); assertFalse(LanProxy.privateV4("8.8.8.8"))
     }

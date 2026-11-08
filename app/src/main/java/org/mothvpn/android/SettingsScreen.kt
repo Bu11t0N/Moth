@@ -33,7 +33,7 @@ import org.mothvpn.core.SubscriptionSchedule
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable fun SettingsScreen(initial: ClientSettings, locked: Boolean, save: (ClientSettings) -> Unit, back: () -> Unit, startUpdates: Boolean = false, started: () -> Unit = {}, restore: (org.mothvpn.core.Backup.Content) -> Unit = {}, rootRequest: Int = 0,
-    updateAvailable: Boolean = false, showOnboarding: () -> Unit = {}) {
+    updateAvailable: Boolean = false) {
     var draft by remember(initial) { mutableStateOf(initial) }
     // The open page survives the activity being recreated (process death, theme or language change) like the selected tab does, so
     // coming back shows the same page. Saved as a string resource id, not the title, so a language change still finds the page.
@@ -181,7 +181,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     if (muxDialog) ChoiceDialog(tr(R.string.mux_title), muxOptions, draft.mux, { muxDialog = false }) { applySettings(draft.copy(mux = it)) }
                     // Sharing: a proxy for devices on the phone's hotspot / tethering / Wi-Fi (sing-box "mixed" inbound, see LanProxy).
                     SectionHeader(tr(R.string.lan_head))
-                    WithNested(draft.lanProxy, { SettingsToggle(tr(R.string.lan_title), draft.lanProxy, !locked, subtitle = tr(R.string.lan_short), info = tr(R.string.lan_info)) { applySettings(draft.copy(lanProxy = it)) } }) {
+                    WithNested(draft.lanProxy, { SettingsToggle(tr(R.string.lan_title), draft.lanProxy, !locked, info = tr(R.string.lan_info)) { applySettings(draft.copy(lanProxy = it)) } }) {
                         FieldCard(lanPort, { lanPort = it.filter(Char::isDigit).take(5); number(lanPort, "lanPort") }, tr(R.string.lan_port), !locked)
                         LanShareCard(draft.lanProxyPort)
                     }
@@ -249,6 +249,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     val subOptions = SubscriptionSchedule.intervals.map { it to if (it == 0) tr(R.string.sub_auto_off) else tr(R.string.sub_auto_hours, it) }
                     DialogRow(tr(R.string.sub_auto), subOptions.first { it.first == draft.subUpdateHours }.second) { subDialog = true }
                     if (subDialog) ChoiceDialog(tr(R.string.sub_auto), subOptions, draft.subUpdateHours, { subDialog = false }) { applySettings(draft.copy(subUpdateHours = it)) }
+                    SettingsToggle(tr(R.string.sub_vpn_only), draft.subVpnOnly) { applySettings(draft.copy(subVpnOnly = it)) }
                     var trafficDialog by remember { mutableStateOf(false) }
                     val trafficOptions = org.mothvpn.core.TrafficWarning.thresholds.map { it to if (it == 0) tr(R.string.sub_auto_off) else "$it%" }
                     DialogRow(tr(R.string.traffic_warning_setting), trafficOptions.first { it.first == draft.trafficWarning }.second) { trafficDialog = true }
@@ -256,25 +257,26 @@ import org.mothvpn.core.SubscriptionSchedule
                     SettingsToggle(tr(R.string.expiry_toggle), draft.expiryWarning, info = tr(R.string.expiry_toggle_hint)) { applySettings(draft.copy(expiryWarning = it)) }
                     SectionHeader(tr(R.string.set_head_provider))
                     SettingsToggle(tr(R.string.msg_send_hwid_to_the_provider_105), draft.hwidEnabled, !locked) { applySettings(draft.copy(hwidEnabled = it)) }
-                    // The HWID field and its copy button in one card.
-                    SettingCard {
-                        OutlinedTextField(draft.hwid, { applySettings(draft.copy(hwid = it)) }, enabled = !locked, label = { Text("HWID · x-hwid") }, singleLine = true,
-                            visualTransformation = if (showHwid) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = { IconButton(onClick = { showHwid = !showHwid }, modifier = Modifier.pressScale()) { MothIcon(if (showHwid) "eye_off" else "eye") } },
-                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp))
-                        TextButton(onClick = { clipboard.setText(AnnotatedString(draft.hwid)) }, modifier = Modifier.pressScale().align(Alignment.End).padding(end = 8.dp)) { Text(tr(R.string.msg_copy_hwid_107)) }
+                    androidx.compose.animation.AnimatedVisibility(draft.hwidEnabled,
+                        enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            SettingCard {
+                                OutlinedTextField(draft.hwid, { applySettings(draft.copy(hwid = it)) }, enabled = !locked, label = { Text("HWID · x-hwid") }, singleLine = true,
+                                    visualTransformation = if (showHwid) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+                                    trailingIcon = { IconButton(onClick = { showHwid = !showHwid }, modifier = Modifier.pressScale()) { MothIcon(if (showHwid) "eye_off" else "eye") } },
+                                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp))
+                                TextButton(onClick = { clipboard.setText(AnnotatedString(draft.hwid)) }, modifier = Modifier.pressScale().align(Alignment.End).padding(end = 8.dp)) { Text(tr(R.string.msg_copy_hwid_107)) }
+                            }
+                            var deviceDialog by remember { mutableStateOf(false) }
+                            WithNested(draft.deviceInfo, { SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it, deviceInfoSet = true)) } }) {
+                                DialogRow(tr(R.string.device_title), DeviceDefaults.sent(draft).joinToString(" · "), enabled = !locked) { deviceDialog = true }
+                            }
+                            if (deviceDialog && draft.deviceInfo) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
+                            var targetsDialog by remember { mutableStateOf(false) }
+                            DialogRow(tr(R.string.device_targets), "", enabled = !locked) { targetsDialog = true }
+                            if (targetsDialog) DeviceDataTargetsDialog(draft, { targetsDialog = false }) { applySettings(it) }
+                        }
                     }
-                    // The device info that is sent (system values or the user's own), edited in a scrollable dialog, slides out of its switch. Never logged.
-                    var deviceDialog by remember { mutableStateOf(false) }
-                    WithNested(draft.deviceInfo, { SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it, deviceInfoSet = true)) } }) {
-                        DialogRow(tr(R.string.device_title), DeviceDefaults.sent(draft).joinToString(" · "), enabled = !locked) { deviceDialog = true }
-                    }
-                    if (deviceDialog && draft.deviceInfo) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
-                    // Which subscriptions get the HWID and device data: all (default, as before 1.0) or only the ticked ones.
-                    var targetsDialog by remember { mutableStateOf(false) }
-                    DialogRow(tr(R.string.device_targets), if (draft.deviceDataSelected) tr(R.string.device_targets_selected_n, draft.deviceDataSubs.size) else tr(R.string.device_targets_all),
-                        enabled = !locked && draft.hwidEnabled, info = tr(R.string.device_targets_info)) { targetsDialog = true }
-                    if (targetsDialog) DeviceDataTargetsDialog(draft, { targetsDialog = false }) { applySettings(it) }
                     // Subscription User-Agent: one row with the current choice; a sheet picks Moth, a client preset or the user's own value. Never logged.
                     var uaSheet by remember { mutableStateOf(false) }
                     DialogRow(tr(R.string.msg_subscription_user_agent_109), org.mothvpn.core.UserAgents.title(draft.userAgent, BuildConfig.VERSION_NAME), enabled = !locked) { uaSheet = true }
@@ -331,7 +333,6 @@ import org.mothvpn.core.SubscriptionSchedule
                             }
                         } },
                         confirmButton = { TextButton(onClick = { sortDialog = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
-                    SettingsToggle(tr(R.string.msg_compact_server_rows_83), draft.compactServers) { applySettings(draft.copy(compactServers = it)) }
                     SettingsToggle(tr(R.string.dev_detailed_icons), draft.detailedIcons, info = tr(R.string.dev_detailed_icons_hint)) { applySettings(draft.copy(detailedIcons = it)) }
                     SectionHeader(tr(R.string.set_head_notification))
                     SettingCard {
@@ -348,7 +349,6 @@ import org.mothvpn.core.SubscriptionSchedule
                 }
                 tr(R.string.dev_for_developers) -> {
                     DeveloperSection({ logPage = 1 }, { logPage = 2 })
-                    DialogRow(tr(R.string.dev_onboarding), tr(R.string.dev_onboarding_sum)) { showOnboarding() }
                     var headersDialog by remember { mutableStateOf(false) }
                     DialogRow(tr(R.string.dev_sub_headers), tr(R.string.dev_sub_headers_sum)) { headersDialog = true }
                     if (headersDialog) SubscriptionHeadersDialog { headersDialog = false }
@@ -490,12 +490,21 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
                         Text(tr(when (e.kind) {
                             org.mothvpn.core.LanProxy.Kind.HOTSPOT -> R.string.lan_kind_hotspot
                             org.mothvpn.core.LanProxy.Kind.TETHERING -> R.string.lan_kind_tethering
+                            org.mothvpn.core.LanProxy.Kind.BLUETOOTH -> R.string.lan_kind_bluetooth
+                            org.mothvpn.core.LanProxy.Kind.ETHERNET -> R.string.lan_kind_ethernet
                             org.mothvpn.core.LanProxy.Kind.WIFI -> R.string.lan_kind_wifi
                             org.mothvpn.core.LanProxy.Kind.MOBILE -> R.string.lan_kind_mobile
                             org.mothvpn.core.LanProxy.Kind.OTHER -> R.string.lan_kind_other
                         }, e.iface), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(address, style = MaterialTheme.typography.titleMedium.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace))
-                        if (e.kind == org.mothvpn.core.LanProxy.Kind.MOBILE) Text(tr(R.string.lan_kind_mobile_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(tr(when (e.kind) {
+                            org.mothvpn.core.LanProxy.Kind.HOTSPOT -> R.string.lan_hint_hotspot
+                            org.mothvpn.core.LanProxy.Kind.TETHERING -> R.string.lan_hint_usb
+                            org.mothvpn.core.LanProxy.Kind.BLUETOOTH -> R.string.lan_hint_bluetooth
+                            org.mothvpn.core.LanProxy.Kind.WIFI -> R.string.lan_hint_wifi
+                            org.mothvpn.core.LanProxy.Kind.ETHERNET -> R.string.lan_hint_ethernet
+                            else -> R.string.lan_hint_other
+                        }), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(address)) }, modifier = Modifier.pressScale()) { Text(tr(R.string.lan_copy)) }
                 }
@@ -564,21 +573,17 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
     }
     AlertDialog(onDismissRequest = close, title = { Text(tr(R.string.device_targets)) }, text = {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            listOf(false to tr(R.string.device_targets_all), true to tr(R.string.device_targets_selected)).forEach { (selected, label) ->
-                Row(Modifier.pressScale().fillMaxWidth().clickable { apply(draft.copy(deviceDataSelected = selected)) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(draft.deviceDataSelected == selected, { apply(draft.copy(deviceDataSelected = selected)) }); Text(label)
+            val list = sources
+            if (list == null) LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp))
+            else if (list.isEmpty()) Text(tr(R.string.device_targets_none), style = MaterialTheme.typography.bodySmall)
+            list?.forEach { (id, title) ->
+                val checked = draft.sendsDeviceData(id)
+                fun toggle() {
+                    val selected = if (draft.deviceDataSelected) draft.deviceDataSubs else list.map { it.first }
+                    apply(draft.copy(deviceDataSelected = true, deviceDataSubs = if (checked) selected - id else (selected + id).distinct()))
                 }
-            }
-            if (draft.deviceDataSelected) {
-                val list = sources
-                if (list == null) LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp))
-                else if (list.isEmpty()) Text(tr(R.string.device_targets_none), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 12.dp, top = 8.dp))
-                list?.forEach { (id, title) ->
-                    val checked = id in draft.deviceDataSubs
-                    fun toggle() { apply(draft.copy(deviceDataSubs = if (checked) draft.deviceDataSubs - id else (draft.deviceDataSubs + id).distinct())) }
-                    Row(Modifier.pressScale().fillMaxWidth().clickable { toggle() }.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked, { toggle() }); Text(title.ifBlank { id }, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    }
+                Row(Modifier.pressScale().fillMaxWidth().clickable { toggle() }, verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked, { toggle() }); Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }

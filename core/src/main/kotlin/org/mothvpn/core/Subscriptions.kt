@@ -169,7 +169,7 @@ object TunnelConfig {
      */
     /** [lan]: the port of the sharing proxy ([LanProxy]) when it is on and free; [ownAddresses]: the phone's own addresses it refuses. */
     fun create(profile: Profile, settings: ClientSettings = ClientSettings(), ruleSets: Map<String, String> = emptyMap(), dpi: LocalHop? = null, appGuard: String? = null,
-               lan: Int? = null, ownAddresses: Collection<String> = emptyList()): String = JSONObject()
+               lan: Int? = null, ownAddresses: Collection<String> = emptyList(), subscriptionTunnel: SubscriptionTunnel? = null): String = JSONObject()
         .put("log", JSONObject().put("disabled", true))
         .put("dns", JSONObject().put("servers", JSONArray()
             .put(SingDns.server("remote", settings.dns, "proxy", "bootstrap"))
@@ -178,11 +178,12 @@ object TunnelConfig {
             .put("final", "remote").put("strategy", if (settings.ipv6) "prefer_ipv4" else "ipv4_only"))
         .put("inbounds", JSONArray().put(JSONObject().put("type", "tun").put("tag", "tun-in").put("address", JSONArray(listOf("172.19.0.1/30", "fdfe:dcba:9876::1/126")))
             .put("mtu", settings.mtu).put("auto_route", true).put("strict_route", settings.dnsLeakProtection).put("stack", "gvisor"))
-            .apply { if (lan != null) put(LanProxy.inbound(lan)) })
+            .apply { if (lan != null) put(LanProxy.inbound(lan)); subscriptionTunnel?.let { put(it.inbound()) } })
         .put("outbounds", JSONArray())
         .also { SingBoxOutbounds.install(it, profile.outbound, settings, dpi); it.getJSONArray("outbounds").put(JSONObject().put("type", "direct").put("tag", "direct")) }
         .put("route", JSONObject().put("auto_detect_interface", true).put("final", "proxy").apply { if (appGuard != null) put("find_process", true) }
             .put("default_domain_resolver", JSONObject().put("server", "bootstrap")).put("rules", JSONArray().apply {
+            subscriptionTunnel?.let { put(it.rule()) }
             if (lan != null) LanProxy.rules(ownAddresses).forEach { put(it) }
             if (settings.directRu || CustomRouting.needsSniff(settings.routingRules)) put(JSONObject().put("action", "sniff"))
             put(JSONObject().put("port", 53).put("action", "hijack-dns"))

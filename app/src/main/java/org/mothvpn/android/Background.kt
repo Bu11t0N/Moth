@@ -94,7 +94,8 @@ object SubscriptionRefresh {
         // No logo field: the profile picture of the provider's public Telegram bot/channel, else the web page icon.
         val telegram = if (response.links.logo.isEmpty()) org.mothvpn.core.ProviderLinks.telegramPage(response.links) else null
         val logo = response.links.logo.ifEmpty { telegram ?: org.mothvpn.core.ProviderLinks.webIcon(response.links.web).orEmpty() }
-        ProviderLogos.refresh(context, id, logo, settings.withAppVersion(BuildConfig.VERSION_NAME).userAgent, fallback = response.links.logo.isEmpty(), telegram = telegram != null)
+        // Never perform an unbound cosmetic request during a VPN-only update; keep any cached logo.
+        if (!settings.subVpnOnly) ProviderLogos.refresh(context, id, logo, settings.withAppVersion(BuildConfig.VERSION_NAME).userAgent, fallback = response.links.logo.isEmpty(), telegram = telegram != null)
         runCatching { ExpiryReminder.checkTraffic(context) }.onFailure { Logger.w("Traffic", "check after refresh failed", it) }
         return Result(book, id, parsed.rejected)
     }
@@ -105,7 +106,7 @@ class SubscriptionUpdateWorker(context: Context, params: WorkerParameters) : Cor
     override suspend fun doWork(): Result {
         val settings = runCatching { SettingsStore(applicationContext).load() }.getOrNull() ?: return Result.success()
         val book = runCatching { SubscriptionStore(applicationContext).loadBook() }.getOrNull() ?: return Result.success()
-        if (settings.subUpdateHours == 0) return Result.success()
+        if (settings.subUpdateHours == 0 || (settings.subVpnOnly && !TunnelDownloads.ready())) return Result.success()
         val now = System.currentTimeMillis()
         val due = book.sources.filter { !it.local && it.url.startsWith("https://") && SubscriptionSchedule.due(settings.subUpdateHours, it.updatedAt, now) }
         var failed = 0
@@ -114,6 +115,9 @@ class SubscriptionUpdateWorker(context: Context, params: WorkerParameters) : Cor
                 SubscriptionRefresh.run(applicationContext, source.id, source.url, null, settings, "schedule")
                 VpnLauncher.changed.value++
                 Logger.i("Import", "scheduled update done (host=${LogFacts.hostTag(source.url)})")
+            } catch (e: TunnelDownloads.VpnRequired) {
+                // The tunnel stopped mid-refresh: skip rather than retrying directly.
+                return Result.success()
             } catch (e: org.mothvpn.core.StaleSubscriptionRefresh) {
                 Logger.i("Import", "scheduled update discarded: subscription deleted or link changed")
             } catch (e: Exception) {

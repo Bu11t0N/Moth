@@ -73,7 +73,6 @@
     <string name="msg_system_default_80" formatted="false">"System default"</string>
     <string name="msg_dark_81" formatted="false">"Dark"</string>
     <string name="msg_light_82" formatted="false">"Light"</string>
-    <string name="msg_compact_server_rows_83" formatted="false">"Compact server rows"</string>
     <string name="msg_sort_by_latency_84" formatted="false">"Sort by latency"</string>
     <string name="msg_hide_unavailable_servers_85" formatted="false">"Hide unavailable servers"</string>
     <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Servers with failed checks in the last 15 minutes are hidden. Unchecked servers and checks in progress stay visible. Check again after switching networks."</string>
@@ -521,11 +520,7 @@
     <string name="servers_check_all">Check all servers</string>
     <string name="device_title">Device info</string>
     <string name="device_targets">Send device data to</string>
-    <string name="device_targets_all">All subscriptions</string>
-    <string name="device_targets_selected">Selected subscriptions</string>
-    <string name="device_targets_selected_n">Selected: %1$d</string>
     <string name="device_targets_none">No subscriptions yet</string>
-    <string name="device_targets_info">Which subscriptions get the HWID and device info when they update. With “Selected subscriptions” a newly added link gets none until you tick it here.</string>
     <string name="check_needs_mobile">To check these servers, turn on mobile data and turn off Wi-Fi</string>
     <string name="check_needs_wifi">To check these servers, connect to Wi-Fi</string>
     <string name="ua_custom">Custom</string>
@@ -582,9 +577,6 @@
     <string name="battery_system">Android battery usage</string>
     <string name="appdata_title">App data usage</string>
     <string name="appdata_sum">Traffic per app</string>
-    <string name="appdata_access_title">All traffic (optional)</string>
-    <string name="appdata_access_text">With \"Usage access\" Moth can also show traffic outside the VPN from Android\'s own counter. Only totals per app, kept on this device.</string>
-    <string name="appdata_access_button">Allow usage access</string>
     <string name="appdata_today">Today</string>
     <string name="appdata_7">7 days</string>
     <string name="appdata_30">30 days</string>
@@ -592,24 +584,14 @@
     <string name="appdata_wifi">Wi-Fi</string>
     <string name="appdata_mobile">Mobile</string>
     <string name="appdata_total">Total: %1$s</string>
-    <string name="appdata_empty">No traffic in this period.</string>
-    <string name="appdata_failed">Android did not return data usage for this period.</string>
-    <string name="appdata_removed">Removed apps</string>
-    <string name="appdata_tethering">Hotspot and tethering</string>
     <string name="appdata_system">Android system</string>
     <string name="appdata_other">Other apps (hidden by Android)</string>
     <string name="appdata_moth">Moth (VPN overhead)</string>
-    <string name="appdata_hint">Numbers come from Android\'s data usage counter. Traffic of apps that go through the VPN is counted for those apps. Mobile data may be missing on Android 9 and older.</string>
     <string name="battery_nothing_yet">Nothing counted since the last charge yet.</string>
     <string name="appdata_unknown">App not identified</string>
-    <string name="appdata_source_vpn">Through VPN</string>
-    <string name="appdata_source_android">All traffic</string>
     <string name="appdata_vpn_empty">Nothing counted yet: apps appear here once their traffic goes through the VPN.</string>
     <string name="appdata_vpn_old">Moth can count traffic per app on Android 10 and newer. Use \"Usage access\" below instead.</string>
     <string name="appdata_vpn_hint">Counted by Moth itself while the VPN is on: traffic of apps that go through the VPN. No permission needed. Apps kept out of the VPN are not here.</string>
-    <string name="appdata_restricted_title">Android says \"Restricted setting\"?</string>
-    <string name="appdata_restricted_text">Android 13+ blocks this for apps installed from a file. Open App info and allow restricted settings: on Xiaomi (HyperOS) the switch is at the bottom of the App info page; on most other phones tap ⋮ (top right) › \"Allow restricted settings\". Then allow usage access again. The option appears after one blocked attempt.</string>
-    <string name="appdata_restricted_button">Open Moth app info</string>
     <string name="conn_title">Connections</string>
     <string name="conn_sum">Live list of connections through the VPN</string>
     <string name="conn_off_title">VPN is off</string>
@@ -646,8 +628,7 @@
     <string name="probe_preset_apple">Apple</string>
     <string name="lan_head">Sharing with other devices</string>
     <string name="lan_title">Proxy for other devices</string>
-    <string name="lan_short">Hotspot, tethering or the same Wi-Fi</string>
-    <string name="lan_info">Moth opens a proxy on the phone (HTTP and SOCKS5 on one port) while the VPN is connected. A laptop, TV or another phone connected to this phone\'s hotspot (or USB/Bluetooth tethering, or the same Wi-Fi) can use it, and its traffic then goes through the VPN like the phone\'s own: the same server, routing rules and DNS.\n\nThere is no password: while it is on, any device on these networks can use it. Only local (private) addresses are served; apps on this phone cannot use it, so split tunneling stays as set. Turn it off when you do not need it.</string>
+    <string name="lan_info">Moth opens a proxy on the phone (HTTP and SOCKS5 on one port) while the VPN is connected. A laptop, TV or another phone connected to this phone\'s hotspot (or USB/Bluetooth tethering, or the same Wi-Fi) can use it, and its traffic then goes through the VPN like the phone\'s own: the same server, routing rules and DNS.</string>
     <string name="lan_port">Port (1024–65535)</string>
     <string name="lan_addresses">Address for the other device</string>
     <string name="lan_no_address">No local network yet: turn on the hotspot (or connect to Wi-Fi) and the address appears here.</string>
@@ -659,19 +640,16 @@
     <string name="lan_state_busy">Port %1$d is used by another app: the VPN runs without the proxy. Choose another port.</string>
     <string name="set_short_lan">Sharing</string>
     <string name="msg_err_lan_port">Invalid proxy port</string>
-    <string name="lan_kind_wifi">Wi-Fi (%1$s)</string>
+    <string name="lan_kind_wifi">Wi-Fi</string>
     <string name="lan_kind_mobile">Mobile network (%1$s)</string>
-    <string name="lan_kind_mobile_hint">Usually not reachable from other devices: use the Wi-Fi or hotspot address.</string>
-    <string name="lan_kind_hotspot">Hotspot of this phone (%1$s)</string>
-    <string name="lan_kind_tethering">USB / Bluetooth tethering (%1$s)</string>
-    <string name="lan_kind_other">Other network (%1$s)</string>
+    <string name="lan_kind_hotspot">Phone hotspot</string>
+    <string name="lan_kind_tethering">USB tethering</string>
+    <string name="lan_kind_other">Local network (%1$s)</string>
     <string name="lan_copy">Copy</string>
     <string name="onboard_title">Welcome to Moth</string>
     <string name="onboard_text">To get started, add the subscription link from your VPN provider. Moth will download your servers from it.</string>
     <string name="onboard_add">Add subscription</string>
     <string name="onboard_skip">Not now</string>
-    <string name="dev_onboarding">First-run screen</string>
-    <string name="dev_onboarding_sum">Show the tour and permissions again (nothing is deleted)</string>
     <string name="onboard_t_servers_title">The best server, automatically</string>
     <string name="onboard_t_servers">Moth can check the servers and connect to the fastest one, separately for Wi-Fi and mobile data. Turn it on or off below, or later in Settings › Connection › Auto-select.</string>
     <string name="onboard_t_split">Choose which apps go through the VPN, or which bypass it. You can do it now or later in Settings › Split tunneling.</string>
@@ -700,4 +678,14 @@
     <string name="onboard_open_settings">Open settings</string>
     <string name="onboard_app_info">App info</string>
     <string name="onboard_sub_title">Add your servers</string>
+    <string name="sub_vpn_only">Update only through VPN</string>
+    <string name="sub_vpn_required">Turn on the VPN to update subscriptions</string>
+    <string name="lan_kind_bluetooth">Bluetooth tethering</string>
+    <string name="lan_kind_ethernet">Ethernet</string>
+    <string name="lan_hint_hotspot">For devices connected to this phone’s hotspot</string>
+    <string name="lan_hint_usb">For the computer connected by USB</string>
+    <string name="lan_hint_bluetooth">For devices connected by Bluetooth</string>
+    <string name="lan_hint_wifi">For devices on the same Wi-Fi network</string>
+    <string name="lan_hint_ethernet">For devices on the same wired network</string>
+    <string name="lan_hint_other">Use only from devices on this local network</string>
 </resources>

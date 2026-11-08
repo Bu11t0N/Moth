@@ -141,6 +141,7 @@ object VpnTraffic {
             val it = connections.iterator()
             while (it.hasNext()) {
                 val c = it.next(); val id = c.id ?: continue
+                if (c.outbound == "direct" || c.outbound == "block" || c.outbound == "dns-out") continue
                 ids.add(id)
                 val delta = deltas.update(id, c.uplinkTotal, c.downlinkTotal, c.closedAt != 0L) ?: run { connectionApp.remove(id); null } ?: continue
                 val app = connectionApp.getOrPut(id) {

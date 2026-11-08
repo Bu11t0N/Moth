@@ -109,18 +109,14 @@ import java.io.File
         12.dp + 52.dp + 8.dp
     BoxWithConstraints(modifier.fillMaxWidth()) {
     val top = (maxHeight - reserve).coerceAtLeast(0.dp)
-    // The drawing uses only part of its square canvas: antennae at 17 %, hindwings end at ~80 % (63 % of the height), spread wings
-    // from 4 % to 96 % (92 % of the width). The square is sized so that the drawn moth itself fills the room above the status block
-    // (and almost the page width); the empty margins of the square overhang (clipped at the top, transparent over the status line).
-    // requiredSize + exact = one size in every state, never squashed or shrunk back to the parent.
-    val room = (top - below - 4.dp).coerceAtLeast(0.dp)
-    val side = minOf(maxWidth * 0.98f / 0.92f, room / 0.63f, 560.dp)
+    // Exactly the same responsive dp size as Home. Keep the square canvas, never stretch it to this area.
+    val side = mothArtworkSize() * org.mothvpn.core.MothArtworkSize.DRAWING_RATIO
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
         Box(Modifier.weight(1f, fill = false).height(top).fillMaxWidth().clipToBounds()) {
             // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
             // Centred on the drawing (its middle is at 48.5 % of the square, not 50 %).
             Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
-                if (side >= 48.dp) MothFlutter(Modifier.requiredSize(side).offset(y = side * 0.015f), size = side, busy = busy, exact = true)
+                MothFlutter(Modifier.requiredSize(side), size = side, busy = busy, exact = true)
             }
             // The status line and the action slot sit low, at the bottom of the moth area (just above the version card).
             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
