@@ -2,6 +2,12 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.1-beta.2
+
+### Changes
+
+- Proxy for other devices: each address is shown as a separate, easier-to-read block; shorter setup instructions and no protocol line.
+
 ## 1.0.1-beta.1
 
 ### Changes
