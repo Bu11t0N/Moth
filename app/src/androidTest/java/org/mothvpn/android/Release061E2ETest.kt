@@ -152,7 +152,7 @@ class Release061E2ETest {
             val profile = use("https://$host:8443/sub", "E2E VLESS")
             SettingsStore(context).save(SettingsStore(context).load().copy(killSwitch = true))
             widget.expect("disconnected", 15_000, setOf(tr(R.string.tile_off)), tr(R.string.widget_connect))
-            assertEquals(profile.name, widget.text(R.id.widget_server))
+            eventually(15_000, "widget selected server") { widget.text(R.id.widget_server) == profile.name }
 
             connect()
             eventually(30_000, "traffic through VLESS") { fetch("/ip") == "127.0.0.11" }

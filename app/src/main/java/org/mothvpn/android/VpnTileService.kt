@@ -75,7 +75,7 @@ class VpnTileService : TileService() {
                 }
                 val network = NetworkTracker.read(getSystemService(ConnectivityManager::class.java))
                 val profile = subscription?.profiles?.firstOrNull { it.id == subscription.selection(network.kind) }
-                if (profile == null || !network.available || VpnService.prepare(this@VpnTileService) != null) {
+                if (profile == null || VpnService.prepare(this@VpnTileService) != null) {
                     Logger.i("Tile", "opening the app instead of connecting: server=${profile != null} network=${network.available}")
                     openApp()
                     return@launch

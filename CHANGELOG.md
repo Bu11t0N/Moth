@@ -2,6 +2,21 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.1
+
+Released 2026-11-08.
+
+### Changes
+
+- The VPN starts even without a network and reconnects when it returns.
+- "Update only through VPN" can be turned on for each subscription separately.
+- Simpler choice of which subscriptions get device data: just tick them.
+- The server list is always compact.
+- Clearer proxy for other devices: each address in its own block with a hint, and short setup steps.
+- App traffic shows only what went through the VPN.
+- The moth on the Updates screen is the same size as on Home.
+- Texts say "device" instead of "phone", so they fit tablets too.
+
 ## 1.0.0
 
 Released 2026-11-02.

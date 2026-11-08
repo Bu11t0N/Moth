@@ -94,7 +94,8 @@ object SubscriptionRefresh {
         // No logo field: the profile picture of the provider's public Telegram bot/channel, else the web page icon.
         val telegram = if (response.links.logo.isEmpty()) org.mothvpn.core.ProviderLinks.telegramPage(response.links) else null
         val logo = response.links.logo.ifEmpty { telegram ?: org.mothvpn.core.ProviderLinks.webIcon(response.links.web).orEmpty() }
-        ProviderLogos.refresh(context, id, logo, settings.withAppVersion(BuildConfig.VERSION_NAME).userAgent, fallback = response.links.logo.isEmpty(), telegram = telegram != null)
+        // Never perform an unbound cosmetic request during a VPN-only update; keep any cached logo.
+        if (!settings.updatesViaVpn(known)) ProviderLogos.refresh(context, id, logo, settings.withAppVersion(BuildConfig.VERSION_NAME).userAgent, fallback = response.links.logo.isEmpty(), telegram = telegram != null)
         runCatching { ExpiryReminder.checkTraffic(context) }.onFailure { Logger.w("Traffic", "check after refresh failed", it) }
         return Result(book, id, parsed.rejected)
     }
@@ -110,10 +111,14 @@ class SubscriptionUpdateWorker(context: Context, params: WorkerParameters) : Cor
         val due = book.sources.filter { !it.local && it.url.startsWith("https://") && SubscriptionSchedule.due(settings.subUpdateHours, it.updatedAt, now) }
         var failed = 0
         for (source in due) {
+            if (settings.updatesViaVpn(source.id) && !TunnelDownloads.ready()) continue
             try {
                 SubscriptionRefresh.run(applicationContext, source.id, source.url, null, settings, "schedule")
                 VpnLauncher.changed.value++
                 Logger.i("Import", "scheduled update done (host=${LogFacts.hostTag(source.url)})")
+            } catch (e: TunnelDownloads.VpnRequired) {
+                // The tunnel stopped mid-refresh: skip this source, but refresh unrestricted ones.
+                continue
             } catch (e: org.mothvpn.core.StaleSubscriptionRefresh) {
                 Logger.i("Import", "scheduled update discarded: subscription deleted or link changed")
             } catch (e: Exception) {
@@ -140,12 +145,12 @@ object SubscriptionUpdates {
 
 /** Local copies of the SagerNet rule sets for "Russian sites directly", downloaded over the physical network before the tunnel starts. */
 object RuleSetCache {
-    fun prepare(context: Context, connectivity: ConnectivityManager): Map<String, String> {
+    fun prepare(context: Context, connectivity: ConnectivityManager, allowDownloads: Boolean = true): Map<String, String> {
         val dir = File(context.filesDir, "rules").apply { mkdirs() }
         val out = mutableMapOf<String, String>()
         for ((tag, url) in DirectRoutes.ruleSets) {
             val file = File(dir, "$tag.srs")
-            if (DirectRoutes.stale(if (file.exists()) file.lastModified() else 0, System.currentTimeMillis())) {
+            if (allowDownloads && DirectRoutes.stale(if (file.exists()) file.lastModified() else 0, System.currentTimeMillis())) {
                 runCatching { download(url, file, connectivity) }.onSuccess { Logger.i("Rules", "rule set $tag updated (${file.length()} bytes)") }
                     .onFailure { Logger.w("Rules", "rule set $tag download failed; ${if (file.exists()) "using the cached copy" else "skipped"}", it) }
             }

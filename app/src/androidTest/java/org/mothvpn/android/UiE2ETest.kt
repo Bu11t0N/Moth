@@ -9,6 +9,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -342,9 +343,85 @@ class UiE2ETest {
         device.pressBack(); Thread.sleep(500)
     }
 
+    @Test fun lanProxyAddressBlocksAndShortInstructions() {
+        context.startActivity(Intent(context, LanShareTestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        val first = wait(By.text("192.168.43.1:10808")).visibleBounds
+        val hint = wait(By.text("For devices connected to this device’s hotspot")).visibleBounds
+        val second = wait(By.text("192.168.1.2:10808")).visibleBounds
+        assertTrue("address is distinct above its hint", first.bottom < hint.top)
+        assertNull("no separate network-type line", device.findObject(By.text("Device hotspot")))
+        assertNull("no waiting status line", device.findObject(By.text("Starts with the VPN")))
+        val dp = context.resources.displayMetrics.density
+        assertTrue("address entries have generous padding and a clear gap", second.top - hint.bottom >= (32 * dp).toInt())
+        assertNull("obsolete protocol line removed", device.findObject(By.textStartsWith("Protocol:")))
+        val copies = device.findObjects(By.desc("Copy"))
+        assertEquals("one copy control for each full address", 2, copies.size)
+        val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+        copies[0].click()
+        eventually(5000, "copy hotspot IP including port") { clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() == "192.168.43.1:10808" }
+        copies[1].click()
+        eventually(5000, "copy Wi-Fi IP including port") { clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() == "192.168.1.2:10808" }
+        if (device.findObject(By.textStartsWith("1. Turn on the hotspot")) == null) {
+            runCatching { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.8f) }
+        }
+        val instructions = wait(By.textStartsWith("1. Turn on the hotspot")).text
+        assertTrue(instructions.contains("Manual.\nHost address: the address above before the colon\nPort: the number after the colon\n3. Save"))
+        assertTrue("nothing follows step three", instructions.endsWith("3. Save the entered settings"))
+        assertFalse(instructions.contains("socks5h"))
+        device.pressBack()
+    }
+
+    @Test fun providerControlsAndImmediateSubscriptionCheckboxes() {
+        val profile = org.mothvpn.core.Subscriptions.parseLink("trojan://synthetic@example.com:443#Fixture")
+        val sources = listOf("fixture-one" to "Fixture one", "fixture-two" to "Fixture two").map { (id, name) ->
+            org.mothvpn.core.SubscriptionSource(id, name, "https://example.com/$id", listOf(profile))
+        }
+        SubscriptionStore(context).saveBook(org.mothvpn.core.SubscriptionBook(sources))
+        context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        tab("Settings"); wait(By.text("Subscription")).click(); Thread.sleep(700)
+        fun find(text: String): UiObject2 {
+            repeat(12) {
+                device.findObject(By.text(text))?.let { return it }
+                // A container-transform transition can replace the accessibility node between query and scroll.
+                runCatching { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.3f) }
+                Thread.sleep(300)
+            }
+            return wait(By.text(text), 2000)
+        }
+        // VPN-only refresh is independent of device-data consent and selected separately for each subscription.
+        find("Update only through VPN").click(); wait(By.text("Fixture one")); Thread.sleep(500)
+        assertEquals(2, device.findObjects(By.checkable(true)).size)
+        assertTrue("VPN-only defaults off per subscription", device.findObjects(By.checkable(true)).none { it.isChecked })
+        wait(By.text("Fixture one")).click()
+        eventually(5000, "only the first subscription is VPN-only") {
+            val settings = SettingsStore(context).load()
+            settings.updatesViaVpn("fixture-one") && !settings.updatesViaVpn("fixture-two")
+        }
+        device.pressBack(); Thread.sleep(300)
+        find("Update only through VPN").click(); wait(By.text("Fixture one")); Thread.sleep(500)
+        assertEquals("selection survives reopening", 1, device.findObjects(By.checkable(true)).count { it.isChecked })
+        device.pressBack()
+        find("Send device data to").click(); wait(By.text("Fixture one")); Thread.sleep(500)
+        assertEquals("subscriptions shown immediately", 2, device.findObjects(By.checkable(true)).size)
+        assertTrue("legacy all-subscription choice is kept", device.findObjects(By.checkable(true)).all { it.isChecked })
+        wait(By.text("Fixture one")).click(); Thread.sleep(400)
+        eventually(5000, "one unchecked, second still checked") {
+            val settings = SettingsStore(context).load()
+            !settings.sendsDeviceData("fixture-one") && settings.sendsDeviceData("fixture-two")
+        }
+        device.pressBack(); Thread.sleep(500)
+        // Back to the top, turn off provider data, then verify dependent actions disappear.
+        device.pressBack(); Thread.sleep(500); wait(By.text("Subscription")).click(); Thread.sleep(500)
+        find("Send HWID to the provider").click(); Thread.sleep(900)
+        assertNull("device selection hidden while HWID is off", device.findObject(By.text("Send device data to")))
+        assertNull("device details hidden while HWID is off", device.findObject(By.text("Device info")))
+        assertNull("HWID copy hidden while HWID is off", device.findObject(By.text("Copy HWID")))
+
+    }
+
     /**
      * First run without subscriptions: the tour (Next / Back / Skip / swipe), then the permissions page (the pager's last page) (nothing granted here, Continue),
-     * then the subscription page; "Not now" closes the flow for good; the developer page shows it again.
+     * then the subscription page; "Not now" closes the flow for good; no developer shortcut remains.
      */
     @Test fun firstRunScreen() {
         Onboarding.reset(context)
@@ -385,10 +462,8 @@ class UiE2ETest {
         var dev = device.findObject(By.text("For developers"))
         repeat(6) { if (dev == null) { device.findObject(By.scrollable(true))?.scroll(androidx.test.uiautomator.Direction.DOWN, 0.5f); Thread.sleep(400); dev = device.findObject(By.text("For developers")) } }
         assertNotNull("developer menu entry", dev); dev!!.click()
-        wait(By.text("First-run screen"), 10_000).click()
-        wait(By.text("Welcome to Moth"), 10_000); Thread.sleep(600)
-        device.pressBack(); Thread.sleep(800)
-        assertTrue("closed with Back on the first page", device.findObject(By.text("Welcome to Moth")) == null)
+        Thread.sleep(600)
+        assertNull("no first-run shortcut in developer settings", device.findObject(By.text("First-run screen")))
         assertTrue("still done", Onboarding.done(context))
     }
 }

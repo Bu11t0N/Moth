@@ -20,7 +20,7 @@ object LogFacts {
         plain("deviceInfo", old.deviceInfo, new.deviceInfo); hidden("userAgent", old.userAgent, new.userAgent)
         // Custom device info: only that it changed, never the values.
         hidden("deviceOs", old.deviceOs, new.deviceOs); hidden("deviceOsVersion", old.deviceOsVersion, new.deviceOsVersion); hidden("deviceModel", old.deviceModel, new.deviceModel)
-        plain("serverSort", old.serverSort, new.serverSort); plain("compactServers", old.compactServers, new.compactServers)
+        plain("serverSort", old.serverSort, new.serverSort); plain("subVpnOnlySubs", old.subVpnOnlySubs.size, new.subVpnOnlySubs.size)
         plain("hideUnavailable", old.hideUnavailable, new.hideUnavailable); plain("probeMode", old.probeMode, new.probeMode)
         plain("probeParallel", old.probeParallel, new.probeParallel); plain("probeTimeoutMs", old.probeTimeoutMs, new.probeTimeoutMs)
         plain("updateChannel", old.updateChannel.ifEmpty { "auto" }, new.updateChannel.ifEmpty { "auto" })

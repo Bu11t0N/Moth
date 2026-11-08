@@ -193,7 +193,7 @@ class MainActivity : AppCompatActivity() {
                                 2 -> {
                                     val tunnel by TunnelStatus.state.collectAsState()
                                     val probing by Diagnostics.running.collectAsState()
-                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) }, rootRequest = settingsRoot, updateAvailable = updateAvailable, showOnboarding = { onboarding = true; Logger.i("Onboarding", "shown from the developer page") })
+                                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth()) else SettingsScreen(settings, tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING), { saveSettings(it) }, { tab = 0 }, openUpdates, { openUpdates = false }, { restoreBackup(it) }, rootRequest = settingsRoot, updateAvailable = updateAvailable)
                                 }
                             }
                             }
@@ -346,6 +346,8 @@ class MainActivity : AppCompatActivity() {
                 }
                 show(result.first)
                 Logger.i("Import", "subscription saved: ${result.first.profiles.size} server(s) in ${System.currentTimeMillis() - started} ms (trigger=$trigger)")
+            } catch (e: TunnelDownloads.VpnRequired) {
+                notices.show(tr(R.string.sub_vpn_required))
             } catch (e: org.mothvpn.core.StaleSubscriptionRefresh) {
                 Logger.i("Import", "update discarded: subscription deleted or link changed")
                 runCatching { withContext(Dispatchers.IO) { store.loadBook() } }.onSuccess { show(it) }
@@ -375,6 +377,7 @@ class MainActivity : AppCompatActivity() {
                 refreshing = setOf(source.id)
                 try { show(withContext(Dispatchers.IO) { SubscriptionRefresh.run(this@MainActivity, source.id, source.url, null, settings, "refresh").book }) }
                 catch (e: CancellationException) { throw e }
+                catch (e: TunnelDownloads.VpnRequired) { notices.show(tr(R.string.sub_vpn_required)) }
                 catch (e: Exception) { Logger.e("Import", "subscription refresh failed (host=${LogFacts.hostTag(source.url)})", e); error = importError(e) } // no subscription name: shown messages are also logged
             } } finally { refreshing = emptySet(); refreshingAll = false; busy = false }
             error?.let { message = it }
@@ -487,7 +490,6 @@ class MainActivity : AppCompatActivity() {
     private fun cancelChecks() { startService(Intent(this, TunnelService::class.java).setAction("CANCEL_PROBES")) }
     private fun connect() {
         Logger.i("Tunnel", "connect tapped (network=${networks.state.value.kind}, available=${networks.state.value.available})")
-        if (!networks.state.value.available) { message = tr(R.string.msg_no_network_20); return }
         val subscription = saved ?: return
         val profile = subscription.profiles.firstOrNull { it.id == subscription.selection(networks.state.value.kind) } ?: run { Logger.w("Tunnel", "connect ignored: the selected server is missing"); return }
         authorize(Intent(this, TunnelService::class.java).setAction("START").putExtra("profile", profile.id))

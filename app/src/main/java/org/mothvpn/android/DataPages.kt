@@ -7,9 +7,6 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import android.app.AppOpsManager
-import android.app.usage.NetworkStats
-import android.app.usage.NetworkStatsManager
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
@@ -167,54 +164,7 @@ private fun mothBattery(context: Context): MothBattery? = runCatching {
 
 // ---------------------------------------------------------------------------------------------------------------------------- App data
 
-/** Whether the user granted Moth "Usage access" (PACKAGE_USAGE_STATS is an app op, not a runtime permission). */
-fun hasUsageAccess(context: Context): Boolean = runCatching {
-    val ops = context.getSystemService(AppOpsManager::class.java) ?: return false
-    val mode = if (Build.VERSION.SDK_INT >= 29) ops.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
-        else @Suppress("DEPRECATION") ops.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
-    if (mode == AppOpsManager.MODE_DEFAULT) context.checkCallingOrSelfPermission(android.Manifest.permission.PACKAGE_USAGE_STATS) == android.content.pm.PackageManager.PERMISSION_GRANTED
-    else mode == AppOpsManager.MODE_ALLOWED
-}.getOrDefault(false)
-
-/** Per-uid traffic from Android's data usage counter (NetworkStatsManager.querySummary) on Wi-Fi and/or mobile; null when nothing could be read. */
-private fun queryUsage(context: Context, days: Int, network: Int): List<UsageStatsMath.UidTraffic>? {
-    val nsm = context.getSystemService(NetworkStatsManager::class.java) ?: return null
-    val start = UsageStatsMath.periodStart(days, LocalDate.now(), ZoneId.systemDefault())
-    val end = System.currentTimeMillis()
-    val types = when (network) { 1 -> listOf(ConnectivityManager.TYPE_WIFI); 2 -> listOf(ConnectivityManager.TYPE_MOBILE); else -> listOf(ConnectivityManager.TYPE_WIFI, ConnectivityManager.TYPE_MOBILE) }
-    val rows = mutableListOf<UsageStatsMath.UidTraffic>(); var read = false
-    for (type in types) runCatching {
-        @Suppress("DEPRECATION") val stats = nsm.querySummary(type, null, start, end)
-        try {
-            val bucket = NetworkStats.Bucket()
-            while (stats.hasNextBucket()) { stats.getNextBucket(bucket); rows += UsageStatsMath.UidTraffic(bucket.uid, bucket.rxBytes, bucket.txBytes) }
-        } finally { stats.close() }
-        read = true
-    }.onFailure { Logger.w("AppData", "data usage query failed: ${it.javaClass.simpleName}") }
-    return if (read) UsageStatsMath.aggregate(rows) else null
-}
-
 private class AppUsageRow(val key: String, val label: String, val packageName: String?, val rx: Long, val tx: Long) { val total get() = rx + tx }
-
-/** Names the uids (apps Moth cannot see because of package visibility, system uids, removed apps) and merges the ones with the same name. */
-private fun labelled(context: Context, list: List<UsageStatsMath.UidTraffic>): List<AppUsageRow> {
-    val pm = context.packageManager
-    return list.map { u ->
-        val (key, label, pkg) = when {
-            u.uid == NetworkStats.Bucket.UID_REMOVED -> Triple("removed", tr(R.string.appdata_removed), null)
-            u.uid == NetworkStats.Bucket.UID_TETHERING -> Triple("tethering", tr(R.string.appdata_tethering), null)
-            u.uid == Process.myUid() -> Triple("moth", tr(R.string.appdata_moth), context.packageName)
-            u.uid < Process.FIRST_APPLICATION_UID -> Triple("system", tr(R.string.appdata_system), null)
-            else -> {
-                val name = pm.getPackagesForUid(u.uid)?.firstOrNull()
-                val app = name?.let { runCatching { pm.getApplicationInfo(it, 0) }.getOrNull() }
-                if (name == null || app == null) Triple("other", tr(R.string.appdata_other), null) else Triple(name, app.loadLabel(pm).toString(), name)
-            }
-        }
-        AppUsageRow(key, label, pkg, u.rx, u.tx)
-    }.groupBy { it.key }.map { (key, rows) -> AppUsageRow(key, rows.first().label, rows.first().packageName, rows.sumOf { it.rx }, rows.sumOf { it.tx }) }
-        .sortedByDescending { it.total }
-}
 
 /** Rows of the VPN's own per-app counter ([VpnTraffic]): package names to labels and icons, system uids and unknown owners grouped. */
 private fun labelledVpn(context: Context, list: List<org.mothvpn.core.VpnAppTraffic.AppBytes>): List<AppUsageRow> {
@@ -231,38 +181,20 @@ private fun labelledVpn(context: Context, list: List<org.mothvpn.core.VpnAppTraf
         .sortedByDescending { it.total }
 }
 
-/**
- * Settings › Data › App traffic: traffic per app for today / 7 / 30 days on Wi-Fi, mobile or both. By default from the VPN's own
- * counter (apps going through the VPN while it is on, Android 10+, no permission). With "Usage access" also all traffic from Android's
- * data usage counter; the page explains how to allow it, including Android 13+'s "restricted settings" block for apps not from a store.
- */
+/** Only the VPN counter: period and physical-network filters remain, no Usage access is needed. */
 @Composable fun AppDataUsagePage(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val resumed = resumeCount()
-    val access = remember(resumed) { hasUsageAccess(context) }
-    var source by rememberSaveable { mutableIntStateOf(0) } // 0: the VPN's counter, 1: Android's (needs usage access)
     var days by rememberSaveable { mutableIntStateOf(1) }
     var network by rememberSaveable { mutableIntStateOf(0) }
-    val android = source == 1 && access
     val counted by VpnTraffic.changed.collectAsState()
     val locale = AppLanguage.context().resources.configuration.locales[0]
     val units = tr(R.string.notif_units).split("|")
     fun bytes(v: Long) = TrafficFormat.bytes(v, units, locale)
-    // null while loading; the list (empty when nothing was counted) and whether the query failed.
-    val result by produceState<Pair<List<AppUsageRow>, Boolean>?>(null, android, days, network, resumed, if (android) 0L else counted / 10_000) {
-        if (android) {
-            value = null
-            value = withContext(Dispatchers.IO) { queryUsage(context, days, network)?.let { labelled(context, it) to false } ?: (emptyList<AppUsageRow>() to true) }
-        } else value = withContext(Dispatchers.IO) {
-            labelledVpn(context, VpnTraffic.query(context, days, when (network) { 1 -> "wifi"; 2 -> "mobile"; else -> null })) to false
-        }
+    val list by produceState<List<AppUsageRow>?>(null, days, network, resumed, counted / 10_000) {
+        value = withContext(Dispatchers.IO) { labelledVpn(context, VpnTraffic.query(context, days, when (network) { 1 -> "wifi"; 2 -> "mobile"; else -> null })) }
     }
     Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (access) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(0 to R.string.appdata_source_vpn, 1 to R.string.appdata_source_android).forEach { (n, label) ->
-                FilterChip(selected = (if (android) 1 else 0) == n, onClick = { source = n }, label = { Text(tr(label)) }, modifier = Modifier.pressScale())
-            }
-        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(1 to R.string.appdata_today, 7 to R.string.appdata_7, 30 to R.string.appdata_30).forEach { (d, label) ->
                 FilterChip(selected = days == d, onClick = { days = d }, label = { Text(tr(label)) }, modifier = Modifier.pressScale())
@@ -273,39 +205,15 @@ private fun labelledVpn(context: Context, list: List<org.mothvpn.core.VpnAppTraf
                 FilterChip(selected = network == n, onClick = { network = n }, label = { Text(tr(label)) }, modifier = Modifier.pressScale())
             }
         }
-        val list = result?.first; val failed = result?.second == true
-        if (list == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+        val rows = list
+        if (rows == null) LinearProgressIndicator(Modifier.fillMaxWidth())
         else DataCard {
-            Text(tr(R.string.appdata_total, bytes(list.sumOf { it.total })), style = MaterialTheme.typography.titleMedium)
-            if (list.isEmpty()) Hint(tr(when {
-                android -> if (failed) R.string.appdata_failed else R.string.appdata_empty
-                Build.VERSION.SDK_INT < 29 -> R.string.appdata_vpn_old
-                else -> R.string.appdata_vpn_empty }))
-            val top = list.firstOrNull()?.total?.coerceAtLeast(1) ?: 1
-            list.take(100).forEach { row -> AppUsageItem(row, top, ::bytes) }
+            Text(tr(R.string.appdata_total, bytes(rows.sumOf { it.total })), style = MaterialTheme.typography.titleMedium)
+            if (rows.isEmpty()) Hint(tr(if (Build.VERSION.SDK_INT < 29) R.string.appdata_vpn_old else R.string.appdata_vpn_empty))
+            val top = rows.firstOrNull()?.total?.coerceAtLeast(1) ?: 1
+            rows.take(100).forEach { row -> AppUsageItem(row, top, ::bytes) }
         }
-        Hint(tr(if (android) R.string.appdata_hint else R.string.appdata_vpn_hint))
-        if (!access) UsageAccessCard(context)
-    }
-}
-
-/** Optional "all traffic" source: what usage access gives, the button to allow it and what to do when Android blocks it (restricted settings). */
-@Composable private fun UsageAccessCard(context: Context) {
-    ListCard(tr(R.string.appdata_access_title), tr(R.string.appdata_access_text)) {
-        InfoRow(tr(R.string.appdata_access_button), null, onClick = {
-            open(context, Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, android.net.Uri.fromParts("package", context.packageName, null)), Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-        })
-        // Android 13+ blocks usage access for apps installed from a file ("Access to this app is restricted") until it is allowed in App info.
-        if (Build.VERSION.SDK_INT >= 33) {
-            RowDivider()
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(tr(R.string.appdata_restricted_title), style = MaterialTheme.typography.bodyLarge)
-                Text(tr(R.string.appdata_restricted_text), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            InfoRow(tr(R.string.appdata_restricted_button), null, onClick = {
-                open(context, Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.fromParts("package", context.packageName, null)))
-            })
-        }
+        Hint(tr(R.string.appdata_vpn_hint))
     }
 }
 

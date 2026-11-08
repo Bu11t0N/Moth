@@ -206,6 +206,7 @@ class TunnelService : VpnService(), PlatformInterface {
     @Volatile private var manualPick = false // set by a manual server switch while connected: kept while it answers (no reshuffle); failover still replaces it once dead
     private val tried = java.util.Collections.synchronizedSet(HashSet<String>())
     @Volatile private var activeSettings = ClientSettings()
+    @Volatile private var awaitingNetwork = false
     /** Runs on [executor]. [pickBest]: with auto-select on, measure all servers first (existing probe code) and use the fastest. */
     private fun startTunnel(requested: String, startId: Int?, pickBest: Boolean, networkSwitch: Boolean = false) {
         var id = requested
@@ -219,11 +220,23 @@ class TunnelService : VpnService(), PlatformInterface {
                 if (tun != null && killSwitchOn()) openBlock()
                 closeTunnel()
             }
-            initCore()
             stage = "load settings/profile"
             val settings = SettingsStore(this).load(); activeSettings = settings
             val subscription = SubscriptionStore(this).load() ?: error("Missing subscription")
-            when (Reselect.startPlan(tunnelUp, settings.autoSelectFor(NetworkTracker.read(connectivity).kind), pickBest, subscription.profiles.size)) {
+            val access = NetworkTracker.read(connectivity)
+            if (!access.available && !tunnelUp) {
+                // Establish the Android VPN now, without DNS, probes or native protocols that may resolve at startup.
+                // Its unread interface safely captures traffic; the first physical network starts the selected core below.
+                val waiting = subscription.profiles.firstOrNull { it.id == id } ?: lastStarted?.takeIf { it.id == id } ?: error("Missing profile")
+                waitForNetwork(waiting, settings)
+                return
+            }
+            initCore()
+            // A Wi-Fi/mobile interface may exist without internet. Don't hold up first connection with
+            // probes/downloads on an unvalidated link; try the saved server and keep the VPN up if DNS needs to wait.
+            val validated = NetworkTracker.physical(connectivity)?.let { connectivity.getNetworkCapabilities(it)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) } == true
+            val mayMeasure = access.available && (tunnelUp || validated)
+            when (Reselect.startPlan(tunnelUp, settings.autoSelectFor(access.kind) && mayMeasure, pickBest && mayMeasure, subscription.profiles.size)) {
                 Reselect.StartPlan.MEASURE_THEN_CONNECT -> if (!stopped) { stage = "auto select"; id = measuring { pickFastest(subscription, settings, networkSwitch) } ?: id }
                 Reselect.StartPlan.MEASURE_WHILE_UP -> {
                     stage = "auto select (tunnel up)"
@@ -243,10 +256,11 @@ class TunnelService : VpnService(), PlatformInterface {
             // change, kill switch retry) keeps using the copy it was started with instead of dropping the tunnel.
             var profile = subscription.profiles.firstOrNull { it.id == id } ?: lastStarted?.takeIf { it.id == id }?.also { Logger.i("Tunnel", "server no longer in the subscription; keeping the running one") } ?: error("Missing profile")
             val started = profile
+            lastStarted = started // also retained if native startup needs DNS before it can start
             activeEngine = profile.engine; activeKind = trackedKind()
             serverName = profile.name; foreground() // the name is shown in the notification only, never logged
             Logger.i("Tunnel", "start: ${describe(profile)} network=${NetworkTracker.read(connectivity).kind} mtu=${settings.mtu} ipv6=${settings.ipv6} health=${settings.healthEnabled} split=${settings.splitMode} directRu=${settings.directRu} auto(wifi/mobile)=${settings.autoSelectWifi}/${settings.autoSelectMobile}")
-            val ruleSets = if (settings.directRu) { stage = "rule sets"; RuleSetCache.prepare(this, connectivity) } else emptyMap()
+            val ruleSets = if (settings.directRu) { stage = "rule sets"; RuleSetCache.prepare(this, connectivity, allowDownloads = validated) } else emptyMap()
             var dpi: LocalHop? = null
             if (profile.engine == "xray") {
                 stage = "xray start"
@@ -265,14 +279,16 @@ class TunnelService : VpnService(), PlatformInterface {
             stage = "build config"
             // Sharing proxy: only when its port is free, so a taken port never stops the VPN itself (Settings shows it).
             val lan = settings.lanProxyPort.takeIf { settings.lanProxy }?.let { port -> if (LanShare.portFree(port)) port else { Logger.w("Tunnel", "sharing proxy: port busy, starting without it"); LanShare.set(LanShare.State.PortBusy(port)); null } }
+            val subscriptionTunnel = org.mothvpn.core.SubscriptionTunnel(freePort(), UUID.randomUUID().toString())
             val config = TunnelConfig.create(profile, settings, ruleSets, dpi, appGuard = if (Build.VERSION.SDK_INT >= 29) packageName else null,
-                lan = lan, ownAddresses = if (lan != null) LanShare.ownAddresses() else emptyList())
+                lan = lan, ownAddresses = if (lan != null) LanShare.ownAddresses() else emptyList(), subscriptionTunnel = subscriptionTunnel)
             stage = "Libbox.checkConfig"
             Libbox.checkConfig(config)
             stage = "Libbox.newService"
             box = Libbox.newService(config, this)
             stage = "BoxService.start"
             box!!.start()
+            TunnelDownloads.session = subscriptionTunnel
             Logger.i("Tunnel", "VPN connected (stopped=$stopped, engine=${profile.engine})")
             if (lan != null) { LanShare.set(LanShare.State.Running(lan)); Logger.i("Tunnel", "sharing proxy on") } else if (!settings.lanProxy) LanShare.set(LanShare.State.Off)
             VpnTraffic.start(this, box!!, ::trackedKind, ::trafficApp, count = Build.VERSION.SDK_INT >= 29)
@@ -288,6 +304,14 @@ class TunnelService : VpnService(), PlatformInterface {
                 if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings, scheduled = true) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
             }
         } catch (t: Throwable) {
+            if (!stopped && TunnelStatus.state.value == TunnelState.STARTING &&
+                stage in setOf("xray start", "dpi helper start", "Libbox.checkConfig", "Libbox.newService", "BoxService.start") && org.mothvpn.core.OfflineStartup.retryable(t)) {
+                val waiting = lastStarted?.takeIf { it.id == id }
+                if (waiting != null && runCatching { waitForNetwork(waiting, activeSettings) }.isSuccess) {
+                    Logger.w("Tunnel", "network-dependent startup deferred; VPN remains established", t)
+                    return
+                }
+            }
             val kill = !stopped && TunnelStatus.state.value == TunnelState.STARTING && killSwitchOn()
             Logger.e("Tunnel", "VPN connect failed at stage '$stage' (state -> ${if (kill) "BLOCKED" else "ERROR"})", t)
             if (kill && openBlock()) {
@@ -300,6 +324,33 @@ class TunnelService : VpnService(), PlatformInterface {
             closeTunnel(); closeBlock()
             TunnelStatus.mutable.value = TunnelState.ERROR
             finish()
+        }
+    }
+    /** A real VPN interface while native startup waits for the network/DNS; no physical-network fallback. */
+    private fun waitForNetwork(profile: org.mothvpn.core.Profile, settings: ClientSettings) {
+        check(openBlock()) { "VPN permission unavailable" }
+        closeTunnel() // may be a partially constructed native service; keep the blocking descriptor
+        TunnelStatus.blockingMutable.value = false
+        awaitingNetwork = true; lastStarted = profile; activeEngine = profile.engine; serverName = profile.name
+        TunnelStatus.activeMutable.value = profile.id; TunnelStatus.activeServerMutable.value = profile
+        if (stopped) return
+        TunnelStatus.mutable.value = TunnelState.RUNNING
+        updateOffline(false); startStats(settings); foreground()
+        scheduleNetworkRetry()
+    }
+    private fun scheduleNetworkRetry(): Unit = synchronized(this) {
+        retryTask?.cancel(false)
+        retryTask = runCatching { healthExecutor.schedule({
+            if (!awaitingNetwork || stopped) return@schedule
+            if (NetworkTracker.read(connectivity).available) resumeWaiting(pickBest = false) else scheduleNetworkRetry()
+        }, 15, TimeUnit.SECONDS) }.getOrNull()
+    }
+    private fun resumeWaiting(pickBest: Boolean = true) {
+        executor.execute {
+            if (!awaitingNetwork || stopped || TunnelStatus.state.value != TunnelState.RUNNING) return@execute
+            awaitingNetwork = false; cancelRetry()
+            TunnelStatus.mutable.value = TunnelState.STARTING; runCatching { foreground() }
+            startTunnel(targetId.ifBlank { VpnLauncher.lastProfileId(this) ?: return@execute }, null, pickBest = pickBest)
         }
     }
     /** Runs the auto-select measurement with [TunnelStatus.autoSelecting] set (the notification follows at once). */
@@ -539,8 +590,8 @@ class TunnelService : VpnService(), PlatformInterface {
         val offline = TunnelStatus.offline.value
         if (TunnelStatus.state.value == TunnelState.RUNNING && offline != org.mothvpn.core.OfflineStatus.Kind.ONLINE) {
             // No network at all: say so instead of showing a stale speed line.
-            if (offline == org.mothvpn.core.OfflineStatus.Kind.BLOCKED) builder.setContentTitle(tr(R.string.notif_blocked)).setContentText(tr(R.string.notif_blocked_text))
-            else { builder.setContentTitle(tr(R.string.offline_title)); if (name.isNotBlank()) builder.setContentText(name) }
+            builder.setContentTitle(tr(R.string.offline_title))
+            if (name.isNotBlank()) builder.setContentText(name)
             return builder.build()
         }
         when (TunnelStatus.state.value) {
@@ -657,6 +708,8 @@ class TunnelService : VpnService(), PlatformInterface {
         stopSelf(lastStartId)
     }
     private fun closeTunnel() {
+        TunnelDownloads.session = null
+        awaitingNetwork = false
         Logger.d("Tunnel", "closeTunnel (box=${box != null}, xray=${xray != null})")
         stopStats()
         generation.incrementAndGet(); healthTask?.cancel(true); healthTask = null
@@ -1015,6 +1068,10 @@ class TunnelService : VpnService(), PlatformInterface {
         runCatching { setUnderlyingNetworks(network?.let { arrayOf(it) }) }.onFailure { Logger.w("Tunnel", "setUnderlyingNetworks failed", it) }
         monitors.forEach { pushInterface(it, network) }
         updateOffline(network != null)
+        if (awaitingNetwork && (network != null || NetworkTracker.read(connectivity).available)) {
+            resumeWaiting()
+            return
+        }
         if (action == org.mothvpn.core.DefaultNetworkState.Action.NONE) return
         val kind = network?.let { if (connectivity.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true) "mobile" else "wifi" } ?: "none"
         Logger.i("Tunnel", "default network ${if (action == org.mothvpn.core.DefaultNetworkState.Action.LOST) "lost" else "switched to $kind"} (state=${TunnelStatus.state.value}, engine=$activeEngine)")
@@ -1069,7 +1126,7 @@ class TunnelService : VpnService(), PlatformInterface {
     /** Publishes "no network" for the home screen, tile, widget and notification (all read TunnelStatus). */
     private fun updateOffline(hasNetwork: Boolean) {
         val connected = TunnelStatus.state.value in setOf(TunnelState.RUNNING, TunnelState.STARTING)
-        val next = org.mothvpn.core.OfflineStatus.of(connected, hasNetwork, killSwitchOn())
+        val next = org.mothvpn.core.OfflineStatus.of(connected, hasNetwork && !awaitingNetwork, killSwitchOn())
         if (TunnelStatus.offlineMutable.value == next) return
         Logger.i("Tunnel", "network ${if (hasNetwork) "available" else "unavailable"}: offline status $next (state=${TunnelStatus.state.value})")
         TunnelStatus.offlineMutable.value = next

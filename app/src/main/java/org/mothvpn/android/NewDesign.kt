@@ -227,7 +227,7 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
         }.then(if (enabled) Modifier.pressScale() else Modifier).clip(CircleShape)
         .clickable(enabled = enabled, onClick = onClick, role = androidx.compose.ui.semantics.Role.Button)
         .semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(size * (210f / 260f)).graphicsLayer { alpha = if (enabled || beat) 1f else 0.55f }) { drawMoth(open.value, color, vein) }
+        Canvas(Modifier.size(size * org.mothvpn.core.MothArtworkSize.DRAWING_RATIO).graphicsLayer { alpha = if (enabled || beat) 1f else 0.55f }) { drawMoth(open.value, color, vein) }
     }
 }
 
@@ -363,7 +363,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
     val statusHeight = (if (compact) 60.dp else 88.dp) * fontScale
     val tilesHeight = (if (compact) 60.dp else 72.dp) * (1f + (fontScale - 1f) * 0.7f)
     val statusGap = if (compact) 8.dp else 14.dp
-    val mothMin = if (compact) 48.dp else 56.dp
+    val mothMin = mothArtworkSize()
     val areaMin = statusHeight + statusGap + mothMin + (if (saved == null) 56.dp + statusGap else 0.dp)
     androidx.compose.ui.layout.Layout(contents = listOf(
         { Column(Modifier.fillMaxWidth()) {
@@ -381,7 +381,7 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         } },
         { BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         val below = statusHeight + statusGap + (if (saved == null) 56.dp + statusGap else 0.dp)
-        val mothSize = (maxHeight - below).coerceIn(mothMin, 260.dp)
+        val mothSize = mothMin
         // Free height: about a third above the moth, the rest between the status lines and the tiles.
         val free = (maxHeight - below - mothSize).coerceAtLeast(0.dp)
         Column(Modifier.fillMaxWidth().padding(top = free * 0.35f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(statusGap)) {

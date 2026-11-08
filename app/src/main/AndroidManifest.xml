@@ -8,7 +8,6 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Settings › Data › App data usage: per-app traffic totals from NetworkStatsManager. Granted only by the user in Usage access settings. -->
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <!-- Split tunneling lists the apps with a launcher icon (<queries> below). With "Elevated privileges" switched on in split tunneling it
          lists every installed app that uses the network, also those without an icon: that needs QUERY_ALL_PACKAGES (granted at install). -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />

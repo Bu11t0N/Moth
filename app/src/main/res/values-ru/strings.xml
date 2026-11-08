@@ -73,7 +73,6 @@
     <string name="msg_system_default_80" formatted="false">"Как в системе"</string>
     <string name="msg_dark_81" formatted="false">"Тёмная"</string>
     <string name="msg_light_82" formatted="false">"Светлая"</string>
-    <string name="msg_compact_server_rows_83" formatted="false">"Компактные строки серверов"</string>
     <string name="msg_sort_by_latency_84" formatted="false">"Сортировать по задержке"</string>
     <string name="msg_hide_unavailable_servers_85" formatted="false">"Скрывать недоступные серверы"</string>
     <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Скрываются серверы с неудачной проверкой за последние 15 минут. Непроверенные и проверяемые остаются в списке. Перепроверь серверы при смене сети."</string>
@@ -525,11 +524,7 @@
     <string name="servers_check_all">Проверить все серверы</string>
     <string name="device_title">Данные устройства</string>
     <string name="device_targets">Кому отправлять данные устройства</string>
-    <string name="device_targets_all">Всем подпискам</string>
-    <string name="device_targets_selected">Выбранным подпискам</string>
-    <string name="device_targets_selected_n">Выбрано: %1$d</string>
     <string name="device_targets_none">Подписок пока нет</string>
-    <string name="device_targets_info">Какие подписки получают HWID и данные устройства при обновлении. В режиме «Выбранным подпискам» новая ссылка их не получает, пока вы не отметите её здесь.</string>
     <string name="check_needs_mobile">Чтобы проверить эти серверы, включите мобильные данные и отключите Wi-Fi</string>
     <string name="check_needs_wifi">Чтобы проверить эти серверы, подключитесь к Wi-Fi</string>
     <string name="ua_custom">Свой</string>
@@ -586,9 +581,6 @@
     <string name="battery_system">Расход батареи Android</string>
     <string name="appdata_title">Трафик приложений</string>
     <string name="appdata_sum">Трафик по приложениям</string>
-    <string name="appdata_access_title">Весь трафик (по желанию)</string>
-    <string name="appdata_access_text">С доступом «История использования» Moth покажет и трафик мимо VPN из счётчика Android. Только суммы по приложениям, хранятся на устройстве.</string>
-    <string name="appdata_access_button">Разрешить доступ</string>
     <string name="appdata_today">Сегодня</string>
     <string name="appdata_7">7 дней</string>
     <string name="appdata_30">30 дней</string>
@@ -596,24 +588,14 @@
     <string name="appdata_wifi">Wi‑Fi</string>
     <string name="appdata_mobile">Мобильная</string>
     <string name="appdata_total">Всего: %1$s</string>
-    <string name="appdata_empty">За этот период трафика нет.</string>
-    <string name="appdata_failed">Android не вернул данные о трафике за этот период.</string>
-    <string name="appdata_removed">Удалённые приложения</string>
-    <string name="appdata_tethering">Точка доступа и модем</string>
     <string name="appdata_system">Система Android</string>
     <string name="appdata_other">Другие приложения (скрыты Android)</string>
     <string name="appdata_moth">Moth (служебный трафик VPN)</string>
-    <string name="appdata_hint">Цифры из счётчика трафика Android. Трафик приложений через VPN засчитывается этим приложениям. На Android 9 и более ранних мобильный трафик может не показываться.</string>
     <string name="battery_nothing_yet">С последней зарядки пока ничего не посчитано.</string>
     <string name="appdata_unknown">Приложение не определено</string>
-    <string name="appdata_source_vpn">Через VPN</string>
-    <string name="appdata_source_android">Весь трафик</string>
     <string name="appdata_vpn_empty">Пока пусто: приложения появятся, когда их трафик пойдёт через VPN.</string>
     <string name="appdata_vpn_old">Moth считает трафик по приложениям на Android 10 и новее. Ниже можно разрешить «Историю использования».</string>
     <string name="appdata_vpn_hint">Считает сам Moth, пока VPN включён: трафик приложений, которые идут через VPN. Разрешения не нужны. Приложений вне VPN здесь нет.</string>
-    <string name="appdata_restricted_title">Android пишет «Доступ для приложения запрещен»?</string>
-    <string name="appdata_restricted_text">Android 13+ так блокирует приложения, установленные из файла. Откройте «О приложении» и разрешите настройки с ограниченным доступом: на Xiaomi (HyperOS) переключатель в самом низу страницы «О приложении»; на большинстве других телефонов — ⋮ (справа вверху) › «Разрешить доступ к настройкам с ограниченным доступом». Затем снова разрешите доступ. Пункт появляется после одной заблокированной попытки.</string>
-    <string name="appdata_restricted_button">Открыть «О приложении» Moth</string>
     <string name="conn_title">Соединения</string>
     <string name="conn_sum">Активные соединения через VPN в реальном времени</string>
     <string name="conn_off_title">VPN выключен</string>
@@ -650,32 +632,21 @@
     <string name="probe_preset_apple">Apple</string>
     <string name="lan_head">Раздача другим устройствам</string>
     <string name="lan_title">Прокси для других устройств</string>
-    <string name="lan_short">Точка доступа, модем или та же Wi-Fi</string>
-    <string name="lan_info">Пока VPN подключён, Moth открывает на телефоне прокси (HTTP и SOCKS5 на одном порту). Ноутбук, телевизор или другой телефон, подключённый к точке доступа этого телефона (или к USB/Bluetooth-модему, или к той же Wi-Fi), может им пользоваться, и его трафик идёт через VPN так же, как трафик телефона: тот же сервер, правила маршрутизации и DNS.\n\nПароля нет: пока функция включена, ею может пользоваться любое устройство в этих сетях. Обслуживаются только локальные (частные) адреса; приложения на самом телефоне её использовать не могут, поэтому раздельный туннель работает как настроен. Выключайте, когда не нужно.</string>
+    <string name="lan_info">Пока VPN подключён, Moth открывает на этом устройстве прокси. Другие устройства, подключённые к точке доступа этого устройства, могут им пользоваться, и их трафик идёт через VPN так же, как трафик этого устройства: тот же сервер, правила маршрутизации и DNS.</string>
     <string name="lan_port">Порт (1024–65535)</string>
     <string name="lan_addresses">Адрес для другого устройства</string>
     <string name="lan_no_address">Локальной сети пока нет: включите точку доступа (или подключитесь к Wi-Fi), и адрес появится здесь.</string>
-    <string name="lan_protocol">Протокол: HTTP или SOCKS5, порт тот же</string>
     <string name="lan_howto_title">Как подключить другое устройство</string>
-    <string name="lan_howto">1. Включите точку доступа на этом телефоне и подключите к ней другое устройство (или подключите оба к одной Wi-Fi).\n2. На другом устройстве откройте настройки этой Wi-Fi-сети → Прокси → Вручную.\n3. Хост: адрес выше (до двоеточия); порт: число после него.\n4. Сохраните. Браузер и большинство приложений пойдут через VPN.\n\nПриложения со своими настройками прокси (Telegram, браузеры, компьютер) могут использовать SOCKS5 с тем же адресом и портом: он передаёт и UDP, а с «удалённым DNS» (socks5h) имена определяются через VPN.</string>
+    <string name="lan_howto">1. Включите точку доступа на этом устройстве и подключите к ней другое устройство (или подключите оба к одной Wi-Fi).\n2. На другом устройстве откройте настройки этой Wi-Fi-сети → Прокси → Вручную.\nАдрес хоста: адрес выше до двоеточия\nПорт: число после двоеточия\n3. Сохраните введенные настройки</string>
     <string name="lan_state_running">Работает на порту %1$d</string>
-    <string name="lan_state_waiting">Запустится вместе с VPN</string>
     <string name="lan_state_busy">Порт %1$d занят другим приложением: VPN работает без прокси. Выберите другой порт.</string>
     <string name="set_short_lan">Раздача</string>
     <string name="msg_err_lan_port">Неверный порт прокси</string>
-    <string name="lan_kind_wifi">Wi-Fi (%1$s)</string>
-    <string name="lan_kind_mobile">Мобильная сеть (%1$s)</string>
-    <string name="lan_kind_mobile_hint">Обычно недоступен с других устройств: используйте адрес Wi-Fi или точки доступа.</string>
-    <string name="lan_kind_hotspot">Точка доступа этого телефона (%1$s)</string>
-    <string name="lan_kind_tethering">USB/Bluetooth-модем (%1$s)</string>
-    <string name="lan_kind_other">Другая сеть (%1$s)</string>
     <string name="lan_copy">Копировать</string>
     <string name="onboard_title">Добро пожаловать в Moth</string>
     <string name="onboard_text">Для начала добавьте ссылку на подписку от вашего VPN-провайдера. Moth загрузит из неё серверы.</string>
     <string name="onboard_add">Добавить подписку</string>
     <string name="onboard_skip">Не сейчас</string>
-    <string name="dev_onboarding">Экран первого запуска</string>
-    <string name="dev_onboarding_sum">Показать обучение и разрешения снова (ничего не удаляется)</string>
     <string name="onboard_t_servers_title">Лучший сервер — автоматически</string>
     <string name="onboard_t_servers">Moth сам проверит серверы и подключится к самому быстрому — отдельно для Wi‑Fi и мобильного интернета. Включить или выключить можно ниже или позже в Настройки › Подключение › Автовыбор.</string>
     <string name="onboard_t_split">Выберите, какие приложения идут через VPN, а какие в обход. Можно сейчас или позже в Настройки › Раздельное туннелирование.</string>
@@ -697,11 +668,19 @@
     <string name="onboard_perm_notify_denied">Не разрешено. VPN работает и так; уведомления можно включить в настройках Android.</string>
     <string name="onboard_perm_battery_text">Чтобы Android не останавливал VPN ради экономии батареи, выберите для Moth «Не оптимизировать» (или «Без ограничений»).</string>
     <string name="onboard_perm_keep">Не давать закрывать Moth</string>
-    <string name="onboard_perm_keep_text">Некоторые телефоны закрывают приложения при очистке недавних. Если на карточках есть замочек — закрепите карточку Moth в недавних.</string>
+    <string name="onboard_perm_keep_text">Некоторые устройства закрывают приложения при очистке недавних. Если на карточках есть замочек — закрепите карточку Moth в недавних.</string>
     <string name="onboard_perm_keep_xiaomi">На HyperOS/MIUI: откройте недавние приложения, зажмите карточку Moth и нажмите на замочек. Затем в «О приложении» › «Контроль активности» выберите «Нет ограничений» и включите «Автозапуск».</string>
     <string name="onboard_allow">Разрешить</string>
     <string name="onboard_allowed">Разрешено</string>
     <string name="onboard_open_settings">Открыть настройки</string>
     <string name="onboard_app_info">О приложении</string>
     <string name="onboard_sub_title">Добавьте серверы</string>
+    <string name="sub_vpn_only">Обновлять только через VPN</string>
+    <string name="sub_vpn_required">Включите VPN для обновления подписок</string>
+    <string name="lan_hint_hotspot">Для устройств, подключённых к точке доступа этого устройства</string>
+    <string name="lan_hint_usb">Для компьютера, подключённого по USB</string>
+    <string name="lan_hint_bluetooth">Для устройств, подключённых по Bluetooth</string>
+    <string name="lan_hint_wifi">Для устройств в той же сети Wi-Fi</string>
+    <string name="lan_hint_ethernet">Для устройств в той же проводной сети</string>
+    <string name="lan_hint_other">Только для устройств в этой локальной сети</string>
 </resources>

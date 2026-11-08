@@ -151,7 +151,8 @@ class Echo(http.server.BaseHTTPRequestHandler):
 
 class Sub(Echo):
     def do_GET(self):
-        if self.path.startswith("/sub2"): self.reply(base64.b64encode(LINKS2.encode()).decode(), headers={"profile-title": "Second E2E", "subscription-userinfo": QUOTA2})
+        if self.path.startswith("/ip"): self.reply(self.client_address[0])
+        elif self.path.startswith("/sub2"): self.reply(base64.b64encode(LINKS2.encode()).decode(), headers={"profile-title": "Second E2E", "subscription-userinfo": QUOTA2})
         elif self.path.startswith("/sub4"): self.reply(singbox_sub())
         elif self.path.startswith("/sub5"): self.reply(base64.b64encode(LINKS5.encode()).decode())
         elif self.path.startswith("/sub3"): self.reply(base64.b64encode(LINKS3.encode()).decode())

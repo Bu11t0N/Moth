@@ -78,14 +78,17 @@ object SubscriptionDownload {
     fun fetch(address: String, settings: ClientSettings = ClientSettings()): String = fetchDetails(address, settings).body
     /** [sourceId]: the subscription being downloaded (null: a new link), for "device data only to selected subscriptions". */
     fun fetchDetails(address: String, settings: ClientSettings = ClientSettings(), sourceId: String? = null): Response {
+        val via = if (settings.updatesViaVpn(sourceId)) TunnelDownloads.requireSession() else null
         var url = URL(address.trim())
         val original = url.toURI()
         repeat(6) {
             require(url.protocol == "https" && url.host.isNotBlank() && url.userInfo == null) { tr(R.string.msg_use_an_https_link_without_a_username_or_passw_112) }
-            val connection = url.openConnection() as HttpsURLConnection
+            val connection = if (via != null) TunnelDownloads.open(url, via) else url.openConnection() as HttpsURLConnection
             connection.connectTimeout = 15000
             connection.readTimeout = 20000
             connection.instanceFollowRedirects = false
+            connection.useCaches = false
+            if (via != null) connection.setRequestProperty("Connection", "close")
             SubscriptionHeaders.create(settings.withAppVersion(BuildConfig.VERSION_NAME), original, url.toURI(), Build.VERSION.RELEASE, "${Build.MANUFACTURER} ${Build.MODEL}", sourceId)
                 .forEach { (key, value) -> connection.setRequestProperty(key, value) }
             try {
