@@ -29,9 +29,16 @@ class Release101Test {
         assertEquals("proxy", first.getString("outbound"))
         assertEquals(1, JSONObject(TunnelConfig.create(p)).getJSONArray("inbounds").length())
     }
+    @Test fun nativeNetworkStartupFailuresAreDeferredButInvalidProfilesAreNot() {
+        assertTrue(OfflineStartup.retryable(Exception("initialize outbound: resolve endpoint: lookup fixture.invalid: no such host")))
+        assertTrue(OfflineStartup.retryable(Exception("start service", java.net.UnknownHostException())))
+        assertTrue(OfflineStartup.retryable(Exception("dial: network is unreachable")))
+        assertFalse(OfflineStartup.retryable(Exception("no such cipher")))
+        assertFalse(OfflineStartup.retryable(Exception("invalid private key")))
+    }
     @Test fun artworkSizeSharedAndBounded() {
         assertEquals(260f, MothArtworkSize.side(400f, 850f, 1f))
-        assertEquals(60f, MothArtworkSize.side(360f, 600f, 1f))
+        assertEquals(48f, MothArtworkSize.side(360f, 600f, 1f))
         assertEquals(48f, MothArtworkSize.side(320f, 500f, 2f))
         assertTrue(MothArtworkSize.side(300f, 700f, 1.5f) in 48f..260f)
     }

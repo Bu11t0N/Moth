@@ -145,12 +145,12 @@ object SubscriptionUpdates {
 
 /** Local copies of the SagerNet rule sets for "Russian sites directly", downloaded over the physical network before the tunnel starts. */
 object RuleSetCache {
-    fun prepare(context: Context, connectivity: ConnectivityManager): Map<String, String> {
+    fun prepare(context: Context, connectivity: ConnectivityManager, allowDownloads: Boolean = true): Map<String, String> {
         val dir = File(context.filesDir, "rules").apply { mkdirs() }
         val out = mutableMapOf<String, String>()
         for ((tag, url) in DirectRoutes.ruleSets) {
             val file = File(dir, "$tag.srs")
-            if (DirectRoutes.stale(if (file.exists()) file.lastModified() else 0, System.currentTimeMillis())) {
+            if (allowDownloads && DirectRoutes.stale(if (file.exists()) file.lastModified() else 0, System.currentTimeMillis())) {
                 runCatching { download(url, file, connectivity) }.onSuccess { Logger.i("Rules", "rule set $tag updated (${file.length()} bytes)") }
                     .onFailure { Logger.w("Rules", "rule set $tag download failed; ${if (file.exists()) "using the cached copy" else "skipped"}", it) }
             }

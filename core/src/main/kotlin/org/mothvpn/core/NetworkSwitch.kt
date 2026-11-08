@@ -79,3 +79,13 @@ object OfflineStatus {
         else -> Kind.WAITING
     }
 }
+
+/** Network-dependent native initialization (not malformed profiles) must not prevent establishing the Android VPN. */
+object OfflineStartup {
+    fun retryable(error: Throwable): Boolean = generateSequence(error) { it.cause }.take(12).any { cause ->
+        cause is java.net.UnknownHostException || cause is java.net.NoRouteToHostException || cause is java.net.SocketTimeoutException ||
+            listOf("lookup ", "resolve ", "resolve:", "no route to host", "network is unreachable", "network unreachable", "network is down", "i/o timeout", "context deadline exceeded").any {
+                cause.message.orEmpty().lowercase(java.util.Locale.ROOT).contains(it)
+            }
+    }
+}

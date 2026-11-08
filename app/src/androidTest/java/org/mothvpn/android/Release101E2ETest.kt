@@ -81,6 +81,24 @@ class Release101E2ETest {
         eventually("traffic recovered through the VPN") { SubscriptionDownload.fetchDetails("https://$host:8443/ip").body.trim() in setOf("127.0.0.11", "127.0.0.12", "127.0.0.13") }
         assertTrue(TunnelStatus.activeProfile.value.isNotBlank())
     }
+    @Test fun startupDnsFailureKeepsVpnAndRetriesWithoutANetworkSwitch() {
+        fixture()
+        val store = SubscriptionStore(context)
+        val working = store.load()!!.profiles.first { it.name == "E2E VLESS" }
+        val wg = Subscriptions.parse(SubscriptionDownload.fetch("https://$host:8443/sub3")).profiles.first { it.protocol == "wireguard" }
+        val unresolved = wg.copy(outbound = org.json.JSONObject(wg.outbound).put("server", "offline-start.invalid").toString())
+        val source = SubscriptionSource("dns-fixture", "Fixture", SubscriptionRecord.LOCAL_URL, listOf(unresolved))
+        store.saveBook(SubscriptionBook(listOf(source), unresolved.id))
+        context.startForegroundService(Intent(context, TunnelService::class.java).setAction("START").putExtra("profile", unresolved.id))
+        eventually("startup DNS failure keeps a VPN interface", 90_000) {
+            TunnelStatus.state.value == TunnelState.RUNNING && TunnelStatus.offline.value != OfflineStatus.Kind.ONLINE &&
+                cm.allNetworks.any { cm.getNetworkCapabilities(it)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true }
+        }
+        // Fix the synthetic endpoint without a network callback; the deferred-start timer must recover on its own.
+        store.saveBook(SubscriptionBook(listOf(source.copy(profiles = listOf(working.copy(id = unresolved.id)))), unresolved.id))
+        eventually("DNS-dependent startup retries", 90_000) { TunnelDownloads.ready() && TunnelStatus.offline.value == OfflineStatus.Kind.ONLINE }
+        eventually("traffic works after deferred startup") { SubscriptionDownload.fetch("https://$host:8443/ip").trim() == "127.0.0.11" }
+    }
     @Test fun subscriptionRefreshIsForcedThroughVpnDespiteDirectRouting() {
         val id = fixture()
         // A user bypass rule sends the fixture host directly; subscription refresh must still use the server.
