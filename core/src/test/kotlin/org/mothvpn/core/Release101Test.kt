@@ -22,6 +22,7 @@ class Release101Test {
         val via = SubscriptionTunnel(32123, "synthetic-session-password")
         val config = JSONObject(TunnelConfig.create(p, ClientSettings(directRu = true, splitMode = "only", splitApps = listOf("example.app")), appGuard = "org.mothvpn.android", subscriptionTunnel = via))
         val inbound = config.getJSONArray("inbounds").getJSONObject(1)
+        assertEquals("socks", inbound.getString("type"))
         assertEquals("127.0.0.1", inbound.getString("listen"))
         assertEquals("synthetic-session-password", inbound.getJSONArray("users").getJSONObject(0).getString("password"))
         val first = config.getJSONObject("route").getJSONArray("rules").getJSONObject(0)
