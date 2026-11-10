@@ -207,6 +207,20 @@ fun contrastOn(background: androidx.compose.ui.graphics.Color): androidx.compose
  * bottom jumped up when a switch hid its nested settings. With the same height in both passes the scroll follows the fold smoothly.
  */
 @Composable fun WithNested(visible: Boolean, parent: @Composable () -> Unit, nested: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth()) {
+        parent()
+        FoldIn(visible, Modifier.padding(top = 12.dp), androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp), nested)
+    }
+}
+
+/**
+ * The fold of [WithNested] on its own: [content] slides down out of the row above it and fades in while [visible] turns on, and folds
+ * back up when it turns off (Motion.MEDIUM, the same lookahead-safe height animation). Used by every expandable row that is not a
+ * settings switch (e.g. the groups and connection details on the Connections page). No motion when system animations are off.
+ */
+@Composable fun FoldIn(visible: Boolean, modifier: Modifier = Modifier,
+    verticalArrangement: androidx.compose.foundation.layout.Arrangement.Vertical = androidx.compose.foundation.layout.Arrangement.Top,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     val motion = animationsOn()
     val progress = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(if (visible) 1f else 0f) }
     androidx.compose.runtime.LaunchedEffect(visible, motion) {
@@ -215,20 +229,17 @@ fun contrastOn(background: androidx.compose.ui.graphics.Color): androidx.compose
         else progress.animateTo(target, tween(Motion.MEDIUM, easing = androidx.compose.animation.core.FastOutSlowInEasing))
     }
     val shown by androidx.compose.runtime.remember { androidx.compose.runtime.derivedStateOf { progress.value > 0f } }
-    androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth()) {
-        parent()
-        if (visible || shown) {
-            androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth().clipToBounds()
-                .layout { measurable, constraints ->
-                    val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
-                    val f = progress.value
-                    val height = kotlin.math.round(placeable.height * f).toInt()
-                    layout(placeable.width, height) {
-                        // Slides from a third of its height above, fading in after the first third of the fold.
-                        placeable.placeWithLayer(0, kotlin.math.round(-(1f - f) * placeable.height / 3f).toInt()) { alpha = ((f - 0.3f) / 0.7f).coerceIn(0f, 1f) }
-                    }
+    if (visible || shown) {
+        androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth().clipToBounds()
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
+                val f = progress.value
+                val height = kotlin.math.round(placeable.height * f).toInt()
+                layout(placeable.width, height) {
+                    // Slides from a third of its height above, fading in after the first third of the fold.
+                    placeable.placeWithLayer(0, kotlin.math.round(-(1f - f) * placeable.height / 3f).toInt()) { alpha = ((f - 0.3f) / 0.7f).coerceIn(0f, 1f) }
                 }
-                .padding(top = 12.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp), content = nested)
-        }
+            }
+            .then(modifier), verticalArrangement = verticalArrangement, content = content)
     }
 }

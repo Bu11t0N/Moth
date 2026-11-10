@@ -251,7 +251,8 @@ private class LiveConnectionsClient(private val onList: (List<org.mothvpn.core.L
     private fun item(c: io.nekohasekai.libbox.Connection, id: String): org.mothvpn.core.LiveConnections.Item {
         val network = c.network.orEmpty(); val source = c.source.orEmpty()
         return org.mothvpn.core.LiveConnections.Item(id, network, c.protocol.orEmpty(), source, c.destination.orEmpty(), c.domain.orEmpty(),
-            c.outbound.orEmpty(), c.createdAt, c.uplink, c.downlink, c.uplinkTotal, c.downlinkTotal, VpnTraffic.ownerApp(id, network, source), c.closedAt)
+            c.outbound.orEmpty(), c.createdAt, c.uplink, c.downlink, c.uplinkTotal, c.downlinkTotal, VpnTraffic.ownerApp(id, network, source), c.closedAt,
+            c.rule.orEmpty(), c.outboundType.orEmpty(), c.inbound.orEmpty())
     }
     private val handler = object : io.nekohasekai.libbox.CommandClientHandler {
         override fun connected() {}
@@ -313,6 +314,7 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
  * where it goes (domain or IP and port), TCP/UDP and the detected protocol, speed and bytes — refreshed every second while the page
  * is open, with a button to close a connection (the app usually opens a new one) or all of them. Needs the VPN on.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable fun ConnectionsPage(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val serving by VpnTraffic.serving.collectAsState()
@@ -361,13 +363,13 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                     if (shown.isNotEmpty()) InfoRow(tr(R.string.conn_close_all), null, onClick = { confirmAll = true })
                     else Spacer(Modifier.height(8.dp))
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(org.mothvpn.core.LiveConnections.Sort.NEWEST to R.string.conn_sort_new, org.mothvpn.core.LiveConnections.Sort.SPEED to R.string.conn_sort_speed,
                         org.mothvpn.core.LiveConnections.Sort.TRAFFIC to R.string.conn_sort_traffic).forEach { (s, label) ->
                         FilterChip(selected = sort == s, onClick = { sort = s }, label = { Text(tr(label)) }, modifier = Modifier.pressScale())
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(org.mothvpn.core.LiveConnections.GroupBy.APP to R.string.conn_group_app, org.mothvpn.core.LiveConnections.GroupBy.HOST to R.string.conn_group_host,
                         org.mothvpn.core.LiveConnections.GroupBy.NONE to R.string.conn_group_none).forEach { (g, label) ->
                         FilterChip(selected = groupBy == g, onClick = { groupBy = g }, label = { Text(tr(label)) }, modifier = Modifier.pressScale())
@@ -387,7 +389,8 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                                 budget--
                                 if (g.items.size == 1) {
                                     val c = g.items[0]
-                                    ConnectionRow(c, appLabel, pkg, now, ::bytes) { close(c) }
+                                    val dk = "detail:${c.id}"
+                                    ConnectionRow(c, appLabel, pkg, now, ::bytes, open = dk in expanded, toggle = { if (dk in expanded) expanded.remove(dk) else expanded.add(dk) }) { close(c) }
                                 } else {
                                     val stateKey = "${groupBy.name}:${g.key}"
                                     val open = stateKey in expanded
@@ -401,12 +404,18 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                                             sent.forEach { c -> closing[c.id] = at }
                                             VpnTraffic.markClosedByUser(sent.map { it.id })
                                         })
-                                    if (open) g.items.take(budget.coerceAtLeast(0)).forEach { c ->
-                                        budget--
-                                        key(c.id) {
-                                            val (childLabel, childPkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
-                                            RowDivider()
-                                            ConnectionRow(c, if (byApp) null else childLabel, childPkg, now, ::bytes, nested = true) { close(c) }
+                                    // The rows fold out of the group row (the same fold as nested settings) and back into it.
+                                    val rows = g.items.take(budget.coerceAtLeast(0))
+                                    if (open) budget -= rows.size
+                                    FoldIn(open) {
+                                        rows.forEach { c ->
+                                            key(c.id) {
+                                                val (childLabel, childPkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
+                                                val dk = "detail:${c.id}"
+                                                RowDivider()
+                                                ConnectionRow(c, if (byApp) null else childLabel, childPkg, now, ::bytes, nested = true,
+                                                    open = dk in expanded, toggle = { if (dk in expanded) expanded.remove(dk) else expanded.add(dk) }) { close(c) }
+                                            }
                                         }
                                     }
                                 }
@@ -460,13 +469,27 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
 
 /**
  * One connection. [label]: the owner app shown as the headline; null inside an app group (the group row names the app), then the target
- * is the headline. [nested]: a row inside an expanded group, indented under the group's icon.
+ * is the headline. [nested]: a row inside an expanded group, indented under the group's icon. Tapping the row ([toggle]) folds out its
+ * details under it ([open]): every field in full, wrapped instead of cut off. Only what the core reports about the connection
+ * (addresses, protocol, route, time, byte counts); nothing of the traffic itself.
  */
 @Composable private fun ConnectionRow(c: org.mothvpn.core.LiveConnections.Item, label: String?, pkg: String?, now: Long, bytes: (Long) -> String,
-    nested: Boolean = false, byUser: Boolean = false, onClose: (() -> Unit)?) {
+    nested: Boolean = false, byUser: Boolean = false, open: Boolean = false, toggle: (() -> Unit)? = null, onClose: (() -> Unit)?) {
     val context = LocalContext.current
     val target = org.mothvpn.core.LiveConnections.target(c.domain, c.destination)
-    Row(Modifier.fillMaxWidth().padding(start = if (nested) 60.dp else 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    val route = when (c.outbound) { "direct" -> tr(R.string.conn_direct); "block" -> tr(R.string.conn_blocked); "", "dns-out", "dns" -> null; else -> tr(R.string.conn_proxy) }
+    val age = when {
+        c.closedAtMs > 0 -> tr(if (byUser) R.string.conn_closed_by_you_ago else R.string.conn_closed_ago, TrafficFormat.duration(((now - c.closedAtMs) / 1000).coerceAtLeast(0)))
+        c.createdAtMs > 0 -> TrafficFormat.duration(((now - c.createdAtMs) / 1000).coerceAtLeast(0))
+        else -> null
+    }
+    val proto = org.mothvpn.core.LiveConnections.protocolLabel(c.network, c.protocol)
+    val activeServer by TunnelStatus.activeServer.collectAsState()
+    val rate = if (c.up + c.down > 0) tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.up + c.down, LIVE_INTERVAL_MS))) else null
+    Column(Modifier.fillMaxWidth()) {
+    Row(Modifier.fillMaxWidth().let { m -> if (toggle != null) m.clickable(onClick = toggle)
+            .semantics { contentDescription = tr(if (open) R.string.group_collapse else R.string.group_expand) + ": " + (label ?: target) } else m }
+        .padding(start = if (nested) 60.dp else 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
       if (!nested || label != null) {
         val icon by produceState<ImageBitmap?>(null, pkg) {
             value = pkg?.let { p -> withContext(Dispatchers.IO) { runCatching { context.packageManager.getApplicationIcon(p).toBitmap(96, 96).asImageBitmap() }.getOrNull() } }
@@ -479,21 +502,40 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
         Column(Modifier.weight(1f).padding(start = if (nested && label == null) 0.dp else 12.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             if (label != null) Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(target, style = if (label != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val route = when (c.outbound) { "direct" -> tr(R.string.conn_direct); "block" -> tr(R.string.conn_blocked); "", "dns-out", "dns" -> null; else -> tr(R.string.conn_proxy) }
-            val age = when {
-                c.closedAtMs > 0 -> tr(if (byUser) R.string.conn_closed_by_you_ago else R.string.conn_closed_ago, TrafficFormat.duration(((now - c.closedAtMs) / 1000).coerceAtLeast(0)))
-                c.createdAtMs > 0 -> TrafficFormat.duration(((now - c.createdAtMs) / 1000).coerceAtLeast(0))
-                else -> null
-            }
-            Text(listOfNotNull(org.mothvpn.core.LiveConnections.protocolLabel(c.network, c.protocol), route, age).joinToString(" · "),
+            Text(listOfNotNull(proto.ifBlank { null }, route, age).joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(tr(R.string.stats_updown, bytes(c.upTotal), bytes(c.downTotal)) + if (c.up + c.down > 0)
-                "  (" + tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.up + c.down, LIVE_INTERVAL_MS))) + ")" else "",
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            Text(tr(R.string.stats_updown, bytes(c.upTotal), bytes(c.downTotal)) + (rate?.let { "  ($it)" } ?: ""),
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (onClose != null) IconButton(onClick = onClose, modifier = Modifier.pressScale()) {
             Icon(androidx.compose.material.icons.Icons.Outlined.Close, contentDescription = tr(R.string.conn_close, label ?: target), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         } else Spacer(Modifier.width(12.dp))
+    }
+    if (toggle != null) FoldIn(open, Modifier.padding(start = 60.dp, end = 16.dp, bottom = 10.dp), Arrangement.spacedBy(6.dp)) {
+        val (appName, _) = ownerLabel(context, c.app)
+        DetailLine(tr(R.string.conn_detail_app), listOfNotNull(appName, pkg?.takeIf { it != appName }).joinToString("\n"))
+        if (c.domain.isNotBlank()) DetailLine(tr(R.string.conn_detail_domain), c.domain)
+        if (c.destination.isNotBlank()) DetailLine(tr(R.string.conn_detail_destination), c.destination)
+        if (c.source.isNotBlank()) DetailLine(tr(R.string.conn_detail_source), c.source)
+        if (proto.isNotBlank()) DetailLine(tr(R.string.conn_detail_protocol), proto)
+        route?.let { r ->
+            // Through the VPN: the server this session uses (the core's outbound tags are internal names, not shown).
+            val server = if (c.outbound !in setOf("direct", "block")) activeServer?.name else null
+            DetailLine(tr(R.string.conn_detail_route), listOfNotNull(r, server).joinToString("\n"))
+        }
+        if (c.rule.isNotBlank()) DetailLine(tr(R.string.conn_detail_rule), if (c.rule == "final") tr(R.string.conn_rule_final) else c.rule)
+        if (c.inbound == org.mothvpn.core.LanProxy.TAG) DetailLine(tr(R.string.conn_detail_inbound), tr(R.string.conn_inbound_lan))
+        age?.let { DetailLine(tr(R.string.conn_detail_time), it) }
+        DetailLine(tr(R.string.conn_detail_traffic), tr(R.string.stats_updown, bytes(c.upTotal), bytes(c.downTotal)) + (rate?.let { "\n$it" } ?: ""))
+    }
+    }
+}
+
+/** A label over its value in a connection's details; the value wraps (long domains and IPv6 addresses never get cut off). */
+@Composable private fun DetailLine(label: String, value: String) {
+    Column(Modifier.fillMaxWidth()) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, softWrap = true)
     }
 }
 
@@ -538,16 +580,23 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
         key(stateKey) {
             RowDivider()
             val (appLabel, pkg) = labels.getOrPut(g.app) { ownerLabel(context, g.app) }
-            if (g.items.size == 1) ConnectionRow(g.items[0], appLabel, pkg, now, bytes, byUser = byUser, onClose = null)
+            if (g.items.size == 1) {
+                val c = g.items[0]; val dk = "closed-detail:${c.id}"
+                ConnectionRow(c, appLabel, pkg, now, bytes, byUser = byUser, open = dk in expanded, toggle = { if (dk in expanded) expanded.remove(dk) else expanded.add(dk) }, onClose = null)
+            }
             else {
                 val open = stateKey in expanded
                 ConnectionGroupRow(g, if (byApp) appLabel else g.key, if (byApp) pkg else null, byApp, open, bytes,
                     toggle = { if (open) expanded.remove(stateKey) else expanded.add(stateKey) }, onClose = null)
-                if (open) g.items.forEach { c ->
-                    key(c.id) {
-                        val (childLabel, childPkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
-                        RowDivider()
-                        ConnectionRow(c, if (byApp) null else childLabel, childPkg, now, bytes, nested = true, byUser = byUser, onClose = null)
+                FoldIn(open) {
+                    g.items.forEach { c ->
+                        key(c.id) {
+                            val (childLabel, childPkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
+                            val dk = "closed-detail:${c.id}"
+                            RowDivider()
+                            ConnectionRow(c, if (byApp) null else childLabel, childPkg, now, bytes, nested = true, byUser = byUser,
+                                open = dk in expanded, toggle = { if (dk in expanded) expanded.remove(dk) else expanded.add(dk) }, onClose = null)
+                        }
                     }
                 }
             }

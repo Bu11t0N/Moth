@@ -13,6 +13,8 @@ object LiveConnections {
         val id: String, val network: String, val protocol: String, val source: String, val destination: String, val domain: String,
         val outbound: String, val createdAtMs: Long, val up: Long, val down: Long, val upTotal: Long, val downTotal: Long, val app: String?,
         val closedAtMs: Long = 0,
+        /** The routing rule the core matched ("final" when none did), the outbound's type and the inbound tag (tun, LAN sharing…). */
+        val rule: String = "", val outboundType: String = "", val inbound: String = "",
     ) { val total get() = upTotal + downTotal }
 
     /** How many recently closed connections the page shows (the core already keeps its own bounded list of closed ones). */

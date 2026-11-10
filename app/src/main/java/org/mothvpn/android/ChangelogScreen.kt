@@ -69,7 +69,10 @@ object ChangelogRepository {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         val sections = result?.sections
         when {
-            loading && sections == null -> Row(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.Center) { MothLoading(size = 56.dp) }
+            // The same responsive size as the Home moth (and the Updates page), centred on the page while the list loads.
+            loading && sections == null -> Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                MothLoading(size = mothArtworkSize() * org.mothvpn.core.MothArtworkSize.DRAWING_RATIO, exact = true)
+            }
             sections == null -> Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 NdButton(onClick = { version++ }, modifier = Modifier.pressScale()) { Text(tr(R.string.changelog_retry)) }
             }

@@ -112,7 +112,8 @@ import org.mothvpn.core.SubscriptionSchedule
         if (sec == tr(R.string.backup_title)) BackupPage(draft, locked, restore, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.rules_title)) RoutingRulesPage(draft.routingRules, draft.directRu, !locked, { applySettings(draft.copy(routingRules = it)) }, { applySettings(draft.copy(directRu = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.stats_title)) StatsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.appdata_title)) AppDataUsagePage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.battery_title)) BatteryPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.conn_title)) ConnectionsPage(Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.split_title)) SplitTunnelPage(draft, !locked, { applySettings(it) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (sec == tr(R.string.update_title)) UpdatePage(draft.updateChannel, { applySettings(draft.copy(updateChannel = it)) }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 3) ChangelogPage(Modifier.fillMaxSize()) else if (lp == 4) LicensesList({ licenseAsset = it; logPage = 5 }, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp == 5) LicenseTextPage(licenseAsset, Modifier.fillMaxSize().padding(bottom = 8.dp)) else if (lp != 0) LogPage(crash = lp == 2, modifier = Modifier.fillMaxSize()) else Column(Modifier.fillMaxSize().verticalScroll(if (sec == null) rootScroll else rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (sec) {
                 null -> {
-                    val onOff = listOfNotNull(when { draft.autoSelectWifi && draft.autoSelectMobile -> tr(R.string.set_short_auto); draft.autoSelectWifi -> tr(R.string.set_short_auto_wifi); draft.autoSelectMobile -> tr(R.string.set_short_auto_mobile); else -> null }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
+                    // Short card caption: at most two names, the rest as "+N" (all four never fit on one line).
+                    val onOff = listOfNotNull(tr(R.string.set_short_auto).takeIf { draft.autoSelectWifi || draft.autoSelectMobile }, tr(R.string.set_short_ks).takeIf { draft.killSwitch },
                         tr(R.string.set_short_boot).takeIf { draft.bootConnect }, tr(R.string.set_short_lan).takeIf { draft.lanProxy })
                     val theme = when (draft.theme) { "dark" -> tr(R.string.set_theme_dark); "light" -> tr(R.string.set_theme_light); else -> tr(R.string.set_theme_auto) }
                     val subAuto = if (draft.subUpdateHours == 0) tr(R.string.set_sum_sub_off) else tr(R.string.set_sum_sub_hours, draft.subUpdateHours)
@@ -120,7 +121,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     val checks = listOfNotNull((tr(R.string.set_short_health) + ": " + healthLabel(draft.healthIntervalSeconds)).takeIf { draft.healthEnabled }, method)
                     val routing = listOfNotNull(DnsServers.presetOf(draft.dns)?.label ?: tr(R.string.dns_custom), tr(R.string.set_short_ru).takeIf { draft.directRu })
                     SectionHeader(tr(R.string.set_head_main))
-                    SettingsCategory(tr(R.string.msg_connection_75), onOff.joinToString(" · ").ifEmpty { tr(R.string.set_sum_defaults) }, "connection") { section = tr(R.string.msg_connection_75) }
+                    SettingsCategory(tr(R.string.msg_connection_75), shortList(onOff).ifEmpty { tr(R.string.set_sum_defaults) }, "connection") { section = tr(R.string.msg_connection_75) }
                     SettingsCategory(tr(R.string.msg_checks_76), checks.joinToString(" · "), "checks") { section = tr(R.string.msg_checks_76) }
                     SettingsCategory(tr(R.string.set_cat_routing), routing.joinToString(" · "), "routing") { section = tr(R.string.set_cat_routing) }
                     // Split tunneling sits on the main list right under Routing (its own card, not inside the Routing page).
@@ -143,11 +144,11 @@ import org.mothvpn.core.SubscriptionSchedule
                     // The developer card stays last.
                     SettingsCategory(tr(R.string.update_title), tr(R.string.set_sum_version, BuildConfig.VERSION_NAME), "updates", dot = updateAvailable) { section = tr(R.string.update_title) }
                     SettingsCategory(tr(R.string.set_changelog), "", "changelog") { section = tr(R.string.set_changelog); logPage = 3 }
-                    SettingsCategory(tr(R.string.set_licenses), tr(R.string.set_licenses_sum), "licenses") { section = tr(R.string.set_licenses); logPage = 4 }
+                    SettingsCategory(tr(R.string.set_licenses), "", "licenses") { section = tr(R.string.set_licenses); logPage = 4 }
                     // Opens the browser, not a page: same card, no container transform, an "open in new" mark instead of the arrow.
                     val uri = androidx.compose.ui.platform.LocalUriHandler.current
                     SettingsCategory(tr(R.string.about_github), "github.com/Bu11t0N/Moth", "github", external = true) { runCatching { uri.openUri("https://github.com/Bu11t0N/Moth") } }
-                    SettingsCategory(tr(R.string.dev_for_developers), tr(R.string.set_sum_dev, if (Logger.level == LogLevel.OFF) tr(R.string.dev_level_off) else Logger.level.name), "dev") { section = tr(R.string.dev_for_developers) }
+                    SettingsCategory(tr(R.string.dev_for_developers), if (Logger.level == LogLevel.OFF) tr(R.string.set_sum_dev_off) else tr(R.string.set_sum_dev, Logger.level.name), "dev") { section = tr(R.string.dev_for_developers) }
                 }
                 tr(R.string.msg_connection_75) -> {
                     LiveApplyHint()
@@ -352,7 +353,7 @@ import org.mothvpn.core.SubscriptionSchedule
                 tr(R.string.dev_for_developers) -> {
                     DeveloperSection({ logPage = 1 }, { logPage = 2 })
                     var headersDialog by remember { mutableStateOf(false) }
-                    DialogRow(tr(R.string.dev_sub_headers), tr(R.string.dev_sub_headers_sum)) { headersDialog = true }
+                    DialogRow(tr(R.string.dev_sub_headers), "") { headersDialog = true }
                     if (headersDialog) SubscriptionHeadersDialog { headersDialog = false }
                     SettingsToggle(tr(R.string.dev_edit_servers), draft.editServers, info = tr(R.string.dev_edit_servers_hint)) { applySettings(draft.copy(editServers = it)) }
                 }
@@ -378,7 +379,7 @@ import org.mothvpn.core.SubscriptionSchedule
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 if (subtitle.isNotEmpty()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
             Icon(if (external) androidx.compose.material.icons.Icons.Outlined.OpenInNew else androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -400,6 +401,8 @@ private fun categoryIcon(name: String): androidx.compose.ui.graphics.vector.Imag
     val count = listed?.let { l -> draft.splitApps.count { it in l } } ?: draft.splitApps.size
     return when { count == 0 -> null; draft.splitMode == "only" -> tr(R.string.set_split_only, count); else -> tr(R.string.set_split_bypass, count) }
 }
+/** A card caption from a list of names: the first two, then "+N" for the rest. */
+internal fun shortList(items: List<String>): String = if (items.size <= 2) items.joinToString(" · ") else items.take(2).joinToString(" · ") + " +" + (items.size - 2)
 private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.string.set_minutes, seconds / 60) else tr(R.string.set_seconds, seconds)
 @Composable private fun SectionHeader(text: String) {
     Text(text, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
