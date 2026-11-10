@@ -251,7 +251,8 @@ private class LiveConnectionsClient(private val onList: (List<org.mothvpn.core.L
     private fun item(c: io.nekohasekai.libbox.Connection, id: String): org.mothvpn.core.LiveConnections.Item {
         val network = c.network.orEmpty(); val source = c.source.orEmpty()
         return org.mothvpn.core.LiveConnections.Item(id, network, c.protocol.orEmpty(), source, c.destination.orEmpty(), c.domain.orEmpty(),
-            c.outbound.orEmpty(), c.createdAt, c.uplink, c.downlink, c.uplinkTotal, c.downlinkTotal, VpnTraffic.ownerApp(id, network, source), c.closedAt)
+            c.outbound.orEmpty(), c.createdAt, c.uplink, c.downlink, c.uplinkTotal, c.downlinkTotal, VpnTraffic.ownerApp(id, network, source), c.closedAt,
+            c.rule.orEmpty(), c.outboundType.orEmpty(), c.inbound.orEmpty())
     }
     private val handler = object : io.nekohasekai.libbox.CommandClientHandler {
         override fun connected() {}
@@ -313,6 +314,7 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
  * where it goes (domain or IP and port), TCP/UDP and the detected protocol, speed and bytes — refreshed every second while the page
  * is open, with a button to close a connection (the app usually opens a new one) or all of them. Needs the VPN on.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable fun ConnectionsPage(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val serving by VpnTraffic.serving.collectAsState()
@@ -345,6 +347,10 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
     val units = tr(R.string.notif_units).split("|")
     fun bytes(v: Long) = TrafficFormat.bytes(v, units, locale)
     val labels = remember { HashMap<String?, Pair<String, String?>>() }
+    val userRules by produceState(emptyList<org.mothvpn.core.RoutingRule>()) {
+        value = withContext(Dispatchers.IO) { runCatching { SettingsStore(context).load().routingRules }.getOrDefault(emptyList()) }
+    }
+    CompositionLocalProvider(LocalUserRules provides userRules) {
     Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         val list = items
         when {
@@ -361,13 +367,13 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                     if (shown.isNotEmpty()) InfoRow(tr(R.string.conn_close_all), null, onClick = { confirmAll = true })
                     else Spacer(Modifier.height(8.dp))
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(org.mothvpn.core.LiveConnections.Sort.NEWEST to R.string.conn_sort_new, org.mothvpn.core.LiveConnections.Sort.SPEED to R.string.conn_sort_speed,
                         org.mothvpn.core.LiveConnections.Sort.TRAFFIC to R.string.conn_sort_traffic).forEach { (s, label) ->
                         FilterChip(selected = sort == s, onClick = { sort = s }, label = { Text(tr(label)) }, modifier = Modifier.pressScale())
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(org.mothvpn.core.LiveConnections.GroupBy.APP to R.string.conn_group_app, org.mothvpn.core.LiveConnections.GroupBy.HOST to R.string.conn_group_host,
                         org.mothvpn.core.LiveConnections.GroupBy.NONE to R.string.conn_group_none).forEach { (g, label) ->
                         FilterChip(selected = groupBy == g, onClick = { groupBy = g }, label = { Text(tr(label)) }, modifier = Modifier.pressScale())
@@ -387,13 +393,15 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                                 budget--
                                 if (g.items.size == 1) {
                                     val c = g.items[0]
-                                    ConnectionRow(c, appLabel, pkg, now, ::bytes) { close(c) }
+                                    val dk = "detail:${c.id}"
+                                    ConnectionRow(c, appLabel, pkg, now, ::bytes, open = dk in expanded, toggle = { if (dk in expanded) expanded.remove(dk) else expanded.add(dk) }) { close(c) }
                                 } else {
                                     val stateKey = "${groupBy.name}:${g.key}"
                                     val open = stateKey in expanded
                                     val title = if (byApp) appLabel else g.key
                                     ConnectionGroupRow(g, title, if (byApp) pkg else null, byApp, open, ::bytes,
-                                        toggle = { if (open) expanded.remove(stateKey) else expanded.add(stateKey) },
+                                        // Closing a group also closes every connection opened inside it, so it reopens folded.
+                                        toggle = { if (open) { expanded.remove(stateKey); expanded.removeAll(g.items.map { "detail:${it.id}" }.toSet()) } else expanded.add(stateKey) },
                                         onClose = {
                                             // No confirmation: closing an app's (or host's) connections is harmless, the app reconnects.
                                             val at = System.currentTimeMillis()
@@ -401,12 +409,18 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                                             sent.forEach { c -> closing[c.id] = at }
                                             VpnTraffic.markClosedByUser(sent.map { it.id })
                                         })
-                                    if (open) g.items.take(budget.coerceAtLeast(0)).forEach { c ->
-                                        budget--
-                                        key(c.id) {
-                                            val (childLabel, childPkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
-                                            RowDivider()
-                                            ConnectionRow(c, if (byApp) null else childLabel, childPkg, now, ::bytes, nested = true) { close(c) }
+                                    // The rows fold out of the group row (the same fold as nested settings) and back into it.
+                                    val rows = g.items.take(budget.coerceAtLeast(0))
+                                    if (open) budget -= rows.size
+                                    FoldIn(open) {
+                                        rows.forEach { c ->
+                                            key(c.id) {
+                                                val (childLabel, childPkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
+                                                val dk = "detail:${c.id}"
+                                                RowDivider()
+                                                ConnectionRow(c, if (byApp) null else childLabel, childPkg, now, ::bytes, nested = true,
+                                                    open = dk in expanded, toggle = { if (dk in expanded) expanded.remove(dk) else expanded.add(dk) }) { close(c) }
+                                            }
                                         }
                                     }
                                 }
@@ -417,6 +431,7 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                 RecentlyClosedCard(closedItems, groupBy, now, labels, expanded, ::bytes)
             }
         }
+    }
     }
     if (confirmAll) AlertDialog(onDismissRequest = { confirmAll = false }, title = { Text(tr(R.string.conn_close_all)) }, text = { Text(tr(R.string.conn_close_all_text)) },
         confirmButton = { TextButton(onClick = {
@@ -460,13 +475,27 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
 
 /**
  * One connection. [label]: the owner app shown as the headline; null inside an app group (the group row names the app), then the target
- * is the headline. [nested]: a row inside an expanded group, indented under the group's icon.
+ * is the headline. [nested]: a row inside an expanded group, indented under the group's icon. Tapping the row ([toggle]) folds out its
+ * details under it ([open]): every field in full, wrapped instead of cut off. Only what the core reports about the connection
+ * (addresses, protocol, route, time, byte counts); nothing of the traffic itself.
  */
 @Composable private fun ConnectionRow(c: org.mothvpn.core.LiveConnections.Item, label: String?, pkg: String?, now: Long, bytes: (Long) -> String,
-    nested: Boolean = false, byUser: Boolean = false, onClose: (() -> Unit)?) {
+    nested: Boolean = false, byUser: Boolean = false, open: Boolean = false, toggle: (() -> Unit)? = null, onClose: (() -> Unit)?) {
     val context = LocalContext.current
     val target = org.mothvpn.core.LiveConnections.target(c.domain, c.destination)
-    Row(Modifier.fillMaxWidth().padding(start = if (nested) 60.dp else 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    val route = when (c.outbound) { "direct" -> tr(R.string.conn_direct); "block" -> tr(R.string.conn_blocked); "", "dns-out", "dns" -> null; else -> tr(R.string.conn_proxy) }
+    val age = when {
+        // "closed 1s / 1m / 1h 2m ago" (also "closed by you …"), collapsed or expanded; the details keep clock times and the duration.
+        c.closedAtMs > 0 -> tr(if (byUser) R.string.conn_closed_by_you_ago else R.string.conn_closed_ago, agoText((now - c.closedAtMs) / 1000))
+        c.createdAtMs > 0 -> TrafficFormat.duration(((now - c.createdAtMs) / 1000).coerceAtLeast(0))
+        else -> null
+    }
+    val proto = org.mothvpn.core.LiveConnections.protocolLabel(c.network, c.protocol)
+    val rate = if (c.up + c.down > 0) tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.up + c.down, LIVE_INTERVAL_MS))) else null
+    Column(Modifier.fillMaxWidth()) {
+    Row(Modifier.fillMaxWidth().let { m -> if (toggle != null) m.clickable(onClick = toggle)
+            .semantics { contentDescription = tr(if (open) R.string.group_collapse else R.string.group_expand) + ": " + (label ?: target) } else m }
+        .padding(start = if (nested) 60.dp else 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
       if (!nested || label != null) {
         val icon by produceState<ImageBitmap?>(null, pkg) {
             value = pkg?.let { p -> withContext(Dispatchers.IO) { runCatching { context.packageManager.getApplicationIcon(p).toBitmap(96, 96).asImageBitmap() }.getOrNull() } }
@@ -479,23 +508,119 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
         Column(Modifier.weight(1f).padding(start = if (nested && label == null) 0.dp else 12.dp, end = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             if (label != null) Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(target, style = if (label != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val route = when (c.outbound) { "direct" -> tr(R.string.conn_direct); "block" -> tr(R.string.conn_blocked); "", "dns-out", "dns" -> null; else -> tr(R.string.conn_proxy) }
-            val age = when {
-                c.closedAtMs > 0 -> tr(if (byUser) R.string.conn_closed_by_you_ago else R.string.conn_closed_ago, TrafficFormat.duration(((now - c.closedAtMs) / 1000).coerceAtLeast(0)))
-                c.createdAtMs > 0 -> TrafficFormat.duration(((now - c.createdAtMs) / 1000).coerceAtLeast(0))
-                else -> null
-            }
-            Text(listOfNotNull(org.mothvpn.core.LiveConnections.protocolLabel(c.network, c.protocol), route, age).joinToString(" · "),
+            Text(listOfNotNull(proto.ifBlank { null }, route, age).joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(tr(R.string.stats_updown, bytes(c.upTotal), bytes(c.downTotal)) + if (c.up + c.down > 0)
-                "  (" + tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.up + c.down, LIVE_INTERVAL_MS))) + ")" else "",
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            Text(tr(R.string.stats_updown, bytes(c.upTotal), bytes(c.downTotal)) + (rate?.let { "  ($it)" } ?: ""),
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (onClose != null) IconButton(onClick = onClose, modifier = Modifier.pressScale()) {
             Icon(androidx.compose.material.icons.Icons.Outlined.Close, contentDescription = tr(R.string.conn_close, label ?: target), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         } else Spacer(Modifier.width(12.dp))
     }
+    if (toggle != null) FoldIn(open, Modifier.padding(start = 60.dp, end = 16.dp, bottom = 12.dp)) {
+        ConnectionDetails(c, pkg, now, bytes, route)
+    }
+    }
 }
+
+/** "1s", "1m", "1h 2m" (or "3h") for a closed connection's age. */
+private fun agoText(seconds: Long): String {
+    val a = org.mothvpn.core.LiveConnections.ago(seconds)
+    return when { a.hours > 0 && a.minutes > 0 -> tr(R.string.conn_ago_hm, a.hours.toInt(), a.minutes.toInt()); a.hours > 0 -> tr(R.string.conn_ago_h, a.hours.toInt())
+        a.minutes > 0 -> tr(R.string.conn_ago_m, a.minutes.toInt()); else -> tr(R.string.conn_ago_s, a.seconds.toInt()) }
+}
+
+/** The user's routing rules (for their names), loaded once by the Connections page. */
+private val LocalUserRules = staticCompositionLocalOf { emptyList<org.mothvpn.core.RoutingRule>() }
+
+/**
+ * Everything Moth knows about one connection, in four groups split by thin dividers: what (app, package, who opened it), where
+ * (domain, address, protocol), via (route, server and its protocol, rule), time and traffic. One row per field: a small muted label
+ * and the value; short values sit to the right of the label, long ones wrap under it. Only what the core and Moth know about the
+ * connection, never what goes through it.
+ */
+@Composable private fun ConnectionDetails(c: org.mothvpn.core.LiveConnections.Item, pkg: String?, now: Long, bytes: (Long) -> String, route: String?) {
+    val context = LocalContext.current
+    val activeServer by TunnelStatus.activeServer.collectAsState()
+    val userRules = LocalUserRules.current
+    val clock = remember { java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss") }
+    fun at(ms: Long) = java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault()).format(clock)
+    val origin = org.mothvpn.core.LiveConnections.origin(c.inbound)
+    val groups = buildList<List<Pair<String, @Composable () -> Unit>>> {
+        // What
+        add(buildList {
+            if (origin != org.mothvpn.core.LiveConnections.Origin.SUBSCRIPTION) {
+                val (appName, _) = ownerLabel(context, c.app)
+                add(tr(R.string.conn_detail_app) to { DetailValue(appName) })
+                pkg?.takeIf { it != appName }?.let { add(tr(R.string.conn_detail_package) to { DetailValue(it) }) }
+            }
+            add(tr(R.string.conn_detail_opened_by) to { DetailValue(tr(when (origin) {
+                org.mothvpn.core.LiveConnections.Origin.SHARING -> R.string.conn_origin_sharing
+                org.mothvpn.core.LiveConnections.Origin.SUBSCRIPTION -> R.string.conn_origin_subscription
+                else -> R.string.conn_origin_device })) })
+            // The tunnel's own source (an internal address of the VPN interface) means nothing; a sharing client's address does.
+            if (origin == org.mothvpn.core.LiveConnections.Origin.SHARING && c.source.isNotBlank()) add(tr(R.string.conn_detail_source) to { DetailValue(c.source) })
+        })
+        // Where
+        add(buildList {
+            if (c.domain.isNotBlank()) add(tr(R.string.conn_detail_domain) to { DetailValue(c.domain) })
+            if (c.destination.isNotBlank()) add(tr(R.string.conn_detail_destination) to { DetailValue(c.destination) })
+            val proto = org.mothvpn.core.LiveConnections.protocolLabel(c.network, c.protocol)
+            if (proto.isNotBlank()) add(tr(R.string.conn_detail_protocol) to { DetailValue(proto) })
+        })
+        // Via
+        add(buildList {
+            route?.let { r -> add(tr(R.string.conn_detail_route) to { DetailValue(r) }) }
+            val proxied = c.outbound.isNotBlank() && c.outbound !in setOf("direct", "block", "dns", "dns-out")
+            activeServer?.takeIf { proxied }?.let { p -> add(tr(R.string.conn_detail_server) to {
+                Column { DetailValue(p.name); Text(serverSubtitle(p), style = MaterialTheme.typography.bodySmall) } }) }
+            // The rule and what it does: "example.com · Direct", "My bank · Through VPN"; "RU sites direct" and DNS already say it.
+            val via = tr(R.string.conn_proxy); val direct = tr(R.string.conn_direct); val blocked = tr(R.string.conn_blocked)
+            fun with(label: String, action: String) = "$label · $action"
+            val rule = when (val m = org.mothvpn.core.LiveConnections.ruleMatch(c.rule, userRules)) {
+                org.mothvpn.core.LiveConnections.RuleMatch.Default -> with(tr(R.string.conn_rule_default), via)
+                org.mothvpn.core.LiveConnections.RuleMatch.RussiaDirect -> tr(R.string.set_short_ru)
+                org.mothvpn.core.LiveConnections.RuleMatch.Dns -> tr(R.string.conn_rule_dns)
+                org.mothvpn.core.LiveConnections.RuleMatch.SubscriptionUpdate -> with(tr(R.string.conn_origin_subscription), via)
+                org.mothvpn.core.LiveConnections.RuleMatch.SplitTunnel -> with(tr(R.string.split_title), blocked)
+                org.mothvpn.core.LiveConnections.RuleMatch.Ipv6Off -> with(tr(R.string.conn_rule_ipv6), blocked)
+                org.mothvpn.core.LiveConnections.RuleMatch.Sharing -> with(tr(R.string.conn_rule_sharing), blocked)
+                is org.mothvpn.core.LiveConnections.RuleMatch.Custom -> with(m.rule.title, when (m.rule.action) {
+                    org.mothvpn.core.CustomRouting.DIRECT -> direct; org.mothvpn.core.CustomRouting.BLOCK -> blocked; else -> via })
+                is org.mothvpn.core.LiveConnections.RuleMatch.Other -> m.text
+            }
+            add(tr(R.string.conn_detail_rule) to { DetailValue(rule) })
+        })
+        // Time and traffic
+        add(buildList {
+            if (c.createdAtMs > 0) add(tr(R.string.conn_detail_opened_at) to { DetailValue(at(c.createdAtMs)) })
+            if (c.closedAtMs > 0) add(tr(R.string.conn_detail_closed_at) to { DetailValue(at(c.closedAtMs)) })
+            if (c.createdAtMs > 0) add(tr(R.string.conn_detail_duration) to {
+                DetailValue(TrafficFormat.duration((((if (c.closedAtMs > 0) c.closedAtMs else now) - c.createdAtMs) / 1000).coerceAtLeast(0))) })
+            add(tr(R.string.conn_detail_sent) to { DetailValue(bytes(c.upTotal)) })
+            add(tr(R.string.conn_detail_received) to { DetailValue(bytes(c.downTotal)) })
+            if (c.closedAtMs == 0L) add(tr(R.string.conn_detail_speed) to { DetailValue(tr(R.string.stats_updown,
+                tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.up, LIVE_INTERVAL_MS))),
+                tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.down, LIVE_INTERVAL_MS))))) })
+        })
+    }.filter { it.isNotEmpty() }
+    Column(Modifier.fillMaxWidth()) {
+        groups.forEachIndexed { gi, rows ->
+            if (gi > 0) HorizontalDivider(Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) { rows.forEach { (label, value) -> DetailRow(label, value) } }
+        }
+    }
+}
+
+/** One details field: the muted label on the left (fixed width), the value on the right; the value wraps within its column. */
+@Composable private fun DetailRow(label: String, value: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(104.dp).padding(top = 2.dp, end = 8.dp))
+        Box(Modifier.weight(1f)) { value() }
+    }
+}
+@Composable private fun DetailValue(text: String) = Text(text, style = MaterialTheme.typography.bodyMedium, softWrap = true)
 
 /**
  * "Recently closed" under the active list, always open: the newest closed connections of this VPN session (the core's own bounded list;
@@ -538,16 +663,23 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
         key(stateKey) {
             RowDivider()
             val (appLabel, pkg) = labels.getOrPut(g.app) { ownerLabel(context, g.app) }
-            if (g.items.size == 1) ConnectionRow(g.items[0], appLabel, pkg, now, bytes, byUser = byUser, onClose = null)
+            if (g.items.size == 1) {
+                val c = g.items[0]; val dk = "closed-detail:${c.id}"
+                ConnectionRow(c, appLabel, pkg, now, bytes, byUser = byUser, open = dk in expanded, toggle = { if (dk in expanded) expanded.remove(dk) else expanded.add(dk) }, onClose = null)
+            }
             else {
                 val open = stateKey in expanded
                 ConnectionGroupRow(g, if (byApp) appLabel else g.key, if (byApp) pkg else null, byApp, open, bytes,
-                    toggle = { if (open) expanded.remove(stateKey) else expanded.add(stateKey) }, onClose = null)
-                if (open) g.items.forEach { c ->
-                    key(c.id) {
-                        val (childLabel, childPkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
-                        RowDivider()
-                        ConnectionRow(c, if (byApp) null else childLabel, childPkg, now, bytes, nested = true, byUser = byUser, onClose = null)
+                    toggle = { if (open) { expanded.remove(stateKey); expanded.removeAll(g.items.map { "closed-detail:${it.id}" }.toSet()) } else expanded.add(stateKey) }, onClose = null)
+                FoldIn(open) {
+                    g.items.forEach { c ->
+                        key(c.id) {
+                            val (childLabel, childPkg) = labels.getOrPut(c.app) { ownerLabel(context, c.app) }
+                            val dk = "closed-detail:${c.id}"
+                            RowDivider()
+                            ConnectionRow(c, if (byApp) null else childLabel, childPkg, now, bytes, nested = true, byUser = byUser,
+                                open = dk in expanded, toggle = { if (dk in expanded) expanded.remove(dk) else expanded.add(dk) }, onClose = null)
+                        }
                     }
                 }
             }

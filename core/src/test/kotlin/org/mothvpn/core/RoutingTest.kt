@@ -53,7 +53,7 @@ class RoutingTest {
         val j = JSONObject(TunnelConfig.create(profile))
         assertTrue(j.getJSONArray("inbounds").getJSONObject(0).getBoolean("strict_route"))
         val rules = j.getJSONObject("route").getJSONArray("rules")
-        assertEquals(1, rules.length()); assertEquals("hijack-dns", rules.getJSONObject(0).getString("action"))
+        assertEquals(2, rules.length()); assertEquals("sniff", rules.getJSONObject(0).getString("action")); assertEquals("hijack-dns", rules.getJSONObject(1).getString("action"))
         assertFalse(j.getJSONObject("route").has("rule_set"))
     }
     @Test fun directRussiaRules() {

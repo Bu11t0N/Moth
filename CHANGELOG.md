@@ -2,6 +2,22 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.2
+
+Released 2026-11-11.
+
+### Changes
+
+- New: tap a connection to see everything known about it: app, who opened it, site and address, protocol, server, rule, open and close times, and traffic each way.
+- New: routing rules can have a name, shown in connection details together with what the rule does.
+- Sites and protocols are shown for every connection.
+- Simpler rule editor: name, domain or IP, and where to send it. Import and export are in the ⋮ menu.
+- Connection groups open and close smoothly, and closing a group also closes everything inside it.
+- Closed connections show a short time, e.g. "closed 1m ago".
+- Shorter captions on the settings buttons, so they always fit.
+- In split tunneling, the app search hides together with the options when you scroll down.
+- The loading moth in the changelog is the same size as on Home.
+
 ## 1.0.1
 
 Released 2026-11-08.

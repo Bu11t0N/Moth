@@ -262,10 +262,10 @@ private fun Color.luminanceLow() = (0.2126f * red + 0.7152f * green + 0.0722f * 
 }
 
 /** The loading indicator of the app: the moth beating its wings fast, instead of a spinning circle. Not tappable; reads as "loading". */
-@Composable fun MothLoading(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp) {
+@Composable fun MothLoading(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp, exact: Boolean = false) {
     val label = tr(R.string.loading)
     Box(modifier.semantics(mergeDescendants = true) { contentDescription = label; progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate },
-        contentAlignment = Alignment.Center) { MothFlutter(size = size, busy = true, tappable = false) }
+        contentAlignment = Alignment.Center) { MothFlutter(size = size, busy = true, tappable = false, exact = exact) }
 }
 
 /** Moth in a 100×100 box (scaled to the canvas): four wings pivoting at the thorax, then the body, head and antennae on top. */

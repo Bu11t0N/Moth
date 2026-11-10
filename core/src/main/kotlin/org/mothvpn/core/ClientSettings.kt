@@ -110,7 +110,7 @@ data class ClientSettings(
      */
     fun needsReconnect(next: ClientSettings): Boolean =
         mtu != next.mtu || ipv6 != next.ipv6 || dns != next.dns || bootstrapDns != next.bootstrapDns || dnsLeakProtection != next.dnsLeakProtection ||
-            directRu != next.directRu || routingRules != next.routingRules || splitMode != next.splitMode || splitApps != next.splitApps ||
+            directRu != next.directRu || routingRules.map { it.copy(name = "") } != next.routingRules.map { it.copy(name = "") } || splitMode != next.splitMode || splitApps != next.splitApps ||
             fragment != next.fragment || noise != next.noise || mux != next.mux ||
             healthEnabled != next.healthEnabled || healthIntervalSeconds != next.healthIntervalSeconds || timeoutMs != next.timeoutMs ||
             probeUrl != next.probeUrl || (probeMode == ProbePolicy.TCP) != (next.probeMode == ProbePolicy.TCP) ||
