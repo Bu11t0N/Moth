@@ -209,12 +209,12 @@ class FeaturesE2ETest {
         wait(By.text("Routing")).click()
         scrollTo("Routing rules").click()
         // 1. Add a rule with the dialog.
-        // The dialog: value first (an IP switches the match type to IP by itself), then the optional name, then the route.
+        // The dialog: the optional name first, then the value (an IP switches the match type to IP by itself), then the route.
         wait(By.text("Add rule")).click()
         wait(By.clazz("android.widget.EditText"))
-        device.findObjects(By.clazz("android.widget.EditText"))[0].text = host
+        device.findObjects(By.clazz("android.widget.EditText"))[0].text = "E2E echo"
+        device.findObjects(By.clazz("android.widget.EditText"))[1].text = host
         wait(By.text("Match: IP / CIDR"))
-        device.findObjects(By.clazz("android.widget.EditText"))[1].text = "E2E echo"
         wait(By.text("Block")).click()
         wait(By.text("Save")).click()
         wait(By.text("E2E echo"))

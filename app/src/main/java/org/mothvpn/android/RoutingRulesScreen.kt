@@ -125,7 +125,7 @@ private fun actionLabel(action: String) = when (action) {
 }
 
 /**
- * Add or edit one rule, only the essentials: the value (domain or IP), an optional name, and where it goes (Direct / VPN / Block in one
+ * Add or edit one rule, only the essentials: an optional name (first), the value (domain or IP), and where it goes (Direct / VPN / Block in one
  * segmented row). The match type is a single compact line with a menu; an IP address or network switches it to IP by itself, until the
  * user picks a type. Deleting is the row's own button. [submit] returns an error to show, or null when the rule was saved.
  */
@@ -139,11 +139,11 @@ private fun actionLabel(action: String) = when (action) {
     val normalized = CustomRouting.normalize(type, value)
     AlertDialog(onDismissRequest = close, title = { Text(tr(if (initial == null) R.string.rules_add else R.string.rules_edit)) }, text = {
         Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(name, { name = it.replace("\n", " ").take(RoutingRule.MAX_NAME) }, label = { Text(tr(R.string.rules_name)) }, singleLine = true,
+                modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value, { value = it.take(253); error = null }, label = { Text(tr(R.string.rules_value)) }, singleLine = true,
                 isError = value.isNotBlank() && normalized == null, modifier = Modifier.fillMaxWidth(),
                 supportingText = { Text(if (value.isNotBlank() && normalized == null) tr(R.string.rules_invalid) else typeExample(type)) })
-            OutlinedTextField(name, { name = it.replace("\n", " ").take(RoutingRule.MAX_NAME) }, label = { Text(tr(R.string.rules_name)) }, singleLine = true,
-                modifier = Modifier.fillMaxWidth())
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 listOf(CustomRouting.DIRECT, CustomRouting.PROXY, CustomRouting.BLOCK).forEachIndexed { i, a ->
                     SegmentedButton(selected = action == a, onClick = { action = a }, shape = SegmentedButtonDefaults.itemShape(i, 3), icon = {},
