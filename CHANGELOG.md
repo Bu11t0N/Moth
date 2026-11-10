@@ -2,6 +2,16 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.2-beta.1
+
+### Changes
+
+- Shorter captions on the settings buttons, so they always fit.
+- Connection groups open and close smoothly.
+- New: tap a connection to see everything known about it: app, address, protocol, route, rule, time and traffic.
+- The loading moth in the changelog is the same size as on Home.
+- In split tunneling, the app search hides together with the options when you scroll down.
+
 ## 1.0.1
 
 Released 2026-11-08.
