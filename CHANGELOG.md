@@ -2,6 +2,14 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.2-beta.2
+
+### Changes
+
+- Connection details are easier to read and show more: who opened the connection, the site, the server and its protocol, the rule, open and close times, and traffic each way.
+- Sites and protocols are now shown for every connection.
+- The loading moth in the changelog sits a little higher.
+
 ## 1.0.2-beta.1
 
 ### Changes
