@@ -35,4 +35,19 @@ class RuleTextTest {
         assertEquals(500, r.rules.size); assertEquals(2, r.added); assertEquals(2, r.overLimit)
         assertTrue(CustomRouting.valid(r.rules))
     }
+    @Test fun namesAreOptionalAndBackwardCompatible() {
+        val named = RoutingRule(CustomRouting.SUFFIX, "example.com", CustomRouting.DIRECT, name = "Work mail")
+        val plain = RoutingRule(CustomRouting.CIDR, "10.0.0.0/8", CustomRouting.BLOCK)
+        assertEquals("suffix:example.com direct # Work mail\nip:10.0.0.0/8 block\n", RuleText.format(listOf(named, plain)))
+        assertEquals(listOf(named, plain), RuleText.import(RuleText.format(listOf(named, plain)), emptyList()).rules)
+        // Old JSON without "name" loads; a rule without a name writes no "name" key; the name round-trips.
+        val old = org.json.JSONObject().put("type", "domain").put("value", "a.example").put("action", "proxy")
+        assertEquals("", RoutingRule.from(old).name); assertEquals("a.example", RoutingRule.from(old).title)
+        assertFalse(plain.json().has("name"))
+        assertEquals(named, RoutingRule.from(named.json())); assertEquals("Work mail", named.title)
+        assertEquals("a b", RoutingRule.cleanName("  a\nb  ")); assertEquals(RoutingRule.MAX_NAME, RoutingRule.cleanName("x".repeat(100)).length)
+        // Renaming alone does not reconnect.
+        val s = ClientSettings(routingRules = listOf(plain))
+        assertFalse(s.needsReconnect(s.copy(routingRules = listOf(plain.copy(name = "LAN")))))
+    }
 }

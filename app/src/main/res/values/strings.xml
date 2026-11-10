@@ -368,7 +368,7 @@
     <string name="rules_action_proxy">Proxy</string>
     <string name="rules_action_direct">Direct</string>
     <string name="rules_action_block">Block</string>
-    <string name="rules_value">Value</string>
+    <string name="rules_value">Domain or IP</string>
     <string name="rules_ex_domain">Exactly this domain, e.g. mail.example.com</string>
     <string name="rules_ex_suffix">The domain and all its subdomains, e.g. example.com</string>
     <string name="rules_ex_keyword">Any domain containing the word, e.g. google</string>
@@ -380,6 +380,16 @@
     <string name="rules_limit">No more than 500 rules</string>
     <string name="rules_duplicate">This rule already exists</string>
     <string name="rules_empty">No rules of your own yet.</string>
+    <string name="rules_name">Name (optional)</string>
+    <string name="rules_match">Match: %1$s</string>
+    <string name="rules_route_direct">Direct</string>
+    <string name="rules_route_vpn">VPN</string>
+    <string name="rules_route_block">Block</string>
+    <string name="rules_more">Import and export</string>
+    <string name="conn_ago_s">%1$ds</string>
+    <string name="conn_ago_m">%1$dm</string>
+    <string name="conn_ago_h">%1$dh</string>
+    <string name="conn_ago_hm">%1$dh %2$dm</string>
     <string name="home_disconnect">Disconnect</string>
     <string name="backup_title">Backup</string>
     <string name="backup_sum">Export and restore</string>
@@ -633,7 +643,6 @@
     <string name="conn_origin_subscription">Subscription update</string>
     <string name="conn_detail_server">Server</string>
     <string name="conn_rule_default">Default</string>
-    <string name="conn_rule_custom">Your rule #%1$d</string>
     <string name="conn_rule_dns">DNS queries</string>
     <string name="conn_rule_ipv6">IPv6 off</string>
     <string name="conn_rule_sharing">Sharing: address not allowed</string>

@@ -4,6 +4,7 @@ package org.mothvpn.core
  * Plain-text routing rules: one rule per line, "<type>:<value> <action>", e.g. "suffix:example.com direct".
  * Types: domain, suffix, keyword, ip; actions: proxy, direct, block. Empty lines and lines starting with '#' are ignored.
  * A line without a type prefix ("example.com" or "example.com block") uses the default type; without an action, the default action.
+ * An optional name follows " # " at the end of a rule line ("suffix:example.com direct # Work mail"); lines without it load as before.
  */
 object RuleText {
     private val shortType = mapOf("domain" to CustomRouting.DOMAIN, "suffix" to CustomRouting.SUFFIX, "keyword" to CustomRouting.KEYWORD, "ip" to CustomRouting.CIDR)
@@ -12,7 +13,7 @@ object RuleText {
     private val shortName = shortType.entries.associate { (k, v) -> v to k }
     const val MAX_CHARS = 1_000_000
 
-    fun line(rule: RoutingRule) = "${shortName.getValue(rule.type)}:${rule.value} ${rule.action}"
+    fun line(rule: RoutingRule) = "${shortName.getValue(rule.type)}:${rule.value} ${rule.action}" + if (rule.name.isNotEmpty()) " # ${rule.name}" else ""
     fun format(rules: List<RoutingRule>): String = rules.joinToString("") { line(it) + "\n" }
 
     /** [invalidLines]: 1-based numbers of lines that could not be read. [rules]: the full list after the import. */
@@ -22,6 +23,10 @@ object RuleText {
 
     /** Parses one line; null when it is invalid. */
     fun parseLine(raw: String, defaultType: String, defaultAction: String): RoutingRule? {
+        val name = raw.substringAfter(" #", "").let(RoutingRule::cleanName)
+        return parseRule(raw.substringBefore(" #"), defaultType, defaultAction)?.copy(name = name)
+    }
+    private fun parseRule(raw: String, defaultType: String, defaultAction: String): RoutingRule? {
         val tokens = raw.trim().split(Regex("\\s+"))
         if (tokens.isEmpty() || tokens.size > 2 || tokens[0].isEmpty()) return null
         val action = (tokens.getOrNull(1) ?: defaultAction).lowercase()

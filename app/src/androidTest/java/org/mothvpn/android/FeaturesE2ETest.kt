@@ -209,18 +209,21 @@ class FeaturesE2ETest {
         wait(By.text("Routing")).click()
         scrollTo("Routing rules").click()
         // 1. Add a rule with the dialog.
+        // The dialog: value first (an IP switches the match type to IP by itself), then the optional name, then the route.
         wait(By.text("Add rule")).click()
-        wait(By.text("IP / CIDR")).click()
-        wait(By.clazz("android.widget.EditText")).text = host
+        wait(By.clazz("android.widget.EditText"))
+        device.findObjects(By.clazz("android.widget.EditText"))[0].text = host
+        wait(By.text("Match: IP / CIDR"))
+        device.findObjects(By.clazz("android.widget.EditText"))[1].text = "E2E echo"
         wait(By.text("Block")).click()
         wait(By.text("Save")).click()
-        wait(By.text("$host/32"))
-        val blockRule = RoutingRule("ip_cidr", "$host/32", "block")
+        wait(By.text("E2E echo"))
+        val blockRule = RoutingRule("ip_cidr", "$host/32", "block", name = "E2E echo")
         waitRules(listOf(blockRule))
         // The rule's own switch (the one on the rule's row) turns it off and on again.
         wait(By.text(tr(R.string.rules_default_head)))
         fun ruleSwitch(): androidx.test.uiautomator.UiObject2 {
-            val y = wait(By.text("$host/32")).visibleBounds.centerY()
+            val y = wait(By.text("E2E echo")).visibleBounds.centerY()
             return device.findObjects(By.checkable(true)).first { it.visibleBounds.top <= y && it.visibleBounds.bottom >= y }
         }
         ruleSwitch().click()
@@ -233,6 +236,7 @@ class FeaturesE2ETest {
                 .setPrimaryClip(android.content.ClipData.newPlainText("rules", "suffix:example.org block\nkeyword:tracker\nbad line here\nip:$host/32 direct\n"))
         }
         Thread.sleep(500)
+        wait(By.desc("Import and export")).click()
         wait(By.text("Paste")).click()
         wait(By.text("Import rules"))
         wait(By.textContains("Invalid lines: 1"))

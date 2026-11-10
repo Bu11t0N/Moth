@@ -4,9 +4,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** A user routing rule: [type] is one of [CustomRouting.types], [action] one of [CustomRouting.actions]. A rule switched off ([enabled] false) is kept but not applied. */
-data class RoutingRule(val type: String, val value: String, val action: String, val enabled: Boolean = true) {
-    fun json(): JSONObject = JSONObject().put("type", type).put("value", value).put("action", action).apply { if (!enabled) put("enabled", false) }
-    companion object { fun from(j: JSONObject) = RoutingRule(j.optString("type"), j.optString("value"), j.optString("action"), j.optBoolean("enabled", true)) }
+/** [name]: optional, set by the user to tell rules apart on the Connections page (single line, at most [MAX_NAME] characters; empty = none). */
+data class RoutingRule(val type: String, val value: String, val action: String, val enabled: Boolean = true, val name: String = "") {
+    /** Files without "name" (and rules without one) keep the old format. */
+    fun json(): JSONObject = JSONObject().put("type", type).put("value", value).put("action", action).apply { if (!enabled) put("enabled", false); if (name.isNotEmpty()) put("name", name) }
+    /** What the user calls the rule: its name, or its value (domain or IP) when it has none. */
+    val title: String get() = name.ifEmpty { value }
+    companion object {
+        const val MAX_NAME = 64
+        fun cleanName(raw: String): String = raw.replace(Regex("[\\r\\n\\t]+"), " ").trim().take(MAX_NAME).trim()
+        fun from(j: JSONObject) = RoutingRule(j.optString("type"), j.optString("value"), j.optString("action"), j.optBoolean("enabled", true), cleanName(j.optString("name")))
+    }
 }
 
 /** User routing rules, applied in order before the default rules ("Russian sites and IPs directly", [ClientSettings.directRu]). Rules switched off are skipped. */

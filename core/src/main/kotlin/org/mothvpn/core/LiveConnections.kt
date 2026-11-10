@@ -110,6 +110,10 @@ object LiveConnections {
         }
     }
 
+    /** Compact age for "closed … ago": seconds under a minute, minutes under an hour, then hours and minutes ("1h 2m", "3h"). */
+    data class Ago(val hours: Long, val minutes: Long, val seconds: Long)
+    fun ago(seconds: Long): Ago { val s = seconds.coerceAtLeast(0); return when { s < 60 -> Ago(0, 0, s); s < 3600 -> Ago(0, s / 60, 0); else -> Ago(s / 3600, s / 60 % 60, 0) } }
+
     /** Who opened a connection, from the core's inbound tag. */
     enum class Origin { DEVICE, SHARING, SUBSCRIPTION }
     fun origin(inbound: String): Origin = when (inbound) {
@@ -120,7 +124,7 @@ object LiveConnections {
     sealed class RuleMatch {
         object Default : RuleMatch(); object RussiaDirect : RuleMatch(); object Dns : RuleMatch(); object SubscriptionUpdate : RuleMatch()
         object SplitTunnel : RuleMatch(); object Ipv6Off : RuleMatch(); object Sharing : RuleMatch()
-        data class Custom(val number: Int) : RuleMatch(); data class Other(val text: String) : RuleMatch()
+        data class Custom(val number: Int, val rule: RoutingRule) : RuleMatch(); data class Other(val text: String) : RuleMatch()
     }
 
     /**
@@ -130,7 +134,7 @@ object LiveConnections {
     fun ruleMatch(rule: String, userRules: List<RoutingRule>): RuleMatch {
         val r = rule.trim()
         if (r.isEmpty() || r == "final") return RuleMatch.Default
-        userRules.forEachIndexed { i, u -> if (u.enabled && r == "${u.type}=${u.value}") return RuleMatch.Custom(i + 1) }
+        userRules.forEachIndexed { i, u -> if (u.enabled && r == "${u.type}=${u.value}") return RuleMatch.Custom(i + 1, u) }
         return when {
             r.startsWith("rule_set=") && DirectRoutes.ruleSets.keys.any { it in r } -> RuleMatch.RussiaDirect
             r == "domain_suffix=[" + DirectRoutes.suffixes.joinToString(" ") + "]" -> RuleMatch.RussiaDirect

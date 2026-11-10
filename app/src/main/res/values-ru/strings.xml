@@ -372,7 +372,7 @@
     <string name="rules_action_proxy">Через VPN</string>
     <string name="rules_action_direct">Напрямую</string>
     <string name="rules_action_block">Блокировать</string>
-    <string name="rules_value">Значение</string>
+    <string name="rules_value">Домен или IP</string>
     <string name="rules_ex_domain">Только этот домен, например mail.example.com</string>
     <string name="rules_ex_suffix">Домен и все его поддомены, например example.com</string>
     <string name="rules_ex_keyword">Любой домен, содержащий слово, например google</string>
@@ -384,6 +384,16 @@
     <string name="rules_limit">Не больше 500 правил</string>
     <string name="rules_duplicate">Такое правило уже есть</string>
     <string name="rules_empty">Своих правил пока нет.</string>
+    <string name="rules_name">Название (необязательно)</string>
+    <string name="rules_match">Совпадение: %1$s</string>
+    <string name="rules_route_direct">Напрямую</string>
+    <string name="rules_route_vpn">VPN</string>
+    <string name="rules_route_block">Блок</string>
+    <string name="rules_more">Импорт и экспорт</string>
+    <string name="conn_ago_s">%1$dс</string>
+    <string name="conn_ago_m">%1$dм</string>
+    <string name="conn_ago_h">%1$dч</string>
+    <string name="conn_ago_hm">%1$dч %2$dм</string>
     <string name="home_disconnect">Отключить</string>
     <string name="backup_title">Резервная копия</string>
     <string name="backup_sum">Экспорт и восстановление</string>
@@ -637,7 +647,6 @@
     <string name="conn_origin_subscription">Обновление подписки</string>
     <string name="conn_detail_server">Сервер</string>
     <string name="conn_rule_default">По умолчанию</string>
-    <string name="conn_rule_custom">Своё правило №%1$d</string>
     <string name="conn_rule_dns">DNS-запросы</string>
     <string name="conn_rule_ipv6">IPv6 выключен</string>
     <string name="conn_rule_sharing">Раздача: адрес не разрешён</string>

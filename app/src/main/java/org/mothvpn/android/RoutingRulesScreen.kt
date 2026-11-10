@@ -12,6 +12,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -63,17 +64,30 @@ private fun actionLabel(action: String) = when (action) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (!enabled) Text(tr(R.string.settings_wait_hint))
         Text(tr(R.string.rules_hint), style = MaterialTheme.typography.bodySmall)
-        NdButton(enabled = enabled && rules.size < CustomRouting.MAX_RULES, onClick = { editing = -1 }, modifier = Modifier.pressScale(enabled = enabled && rules.size < CustomRouting.MAX_RULES)) { Text(tr(R.string.rules_add)) }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            OutlinedButton(enabled = enabled, onClick = { status = ""; picker.launch(arrayOf("text/*")) }, modifier = Modifier.pressScale(enabled = enabled)) { Text(tr(R.string.rules_import_file)) }
-            OutlinedButton(enabled = enabled, onClick = { status = ""; clipboard.getText()?.text?.takeIf { it.isNotBlank() }?.let { importText = it.take(RuleText.MAX_CHARS) } ?: run { status = tr(R.string.import_clipboard_empty) } }, modifier = Modifier.pressScale(enabled = enabled)) { Text(tr(R.string.rules_paste)) }
-            OutlinedButton(enabled = rules.isNotEmpty(), onClick = { status = ""; exporter.launch("moth-rules.txt") }, modifier = Modifier.pressScale(enabled = rules.isNotEmpty())) { Text(tr(R.string.rules_export)) }
+        // One main action; import (file, clipboard) and export sit in the ⋮ menu next to it.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            NdButton(enabled = enabled && rules.size < CustomRouting.MAX_RULES, onClick = { editing = -1 }, modifier = Modifier.weight(1f).pressScale(enabled = enabled && rules.size < CustomRouting.MAX_RULES)) { Text(tr(R.string.rules_add)) }
+            var menu by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menu = true }, modifier = Modifier.pressScale()) {
+                    Icon(androidx.compose.material.icons.Icons.Rounded.MoreVert, contentDescription = tr(R.string.rules_more))
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text(tr(R.string.rules_import_file)) }, enabled = enabled, onClick = { menu = false; status = ""; picker.launch(arrayOf("text/*")) })
+                    DropdownMenuItem(text = { Text(tr(R.string.rules_paste)) }, enabled = enabled, onClick = {
+                        menu = false; status = ""
+                        clipboard.getText()?.text?.takeIf { it.isNotBlank() }?.let { importText = it.take(RuleText.MAX_CHARS) } ?: run { status = tr(R.string.import_clipboard_empty) }
+                    })
+                    DropdownMenuItem(text = { Text(tr(R.string.rules_export)) }, enabled = rules.isNotEmpty(), onClick = { menu = false; status = ""; exporter.launch("moth-rules.txt") })
+                }
+            }
         }
         if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall)
         if (rules.isEmpty()) Text(tr(R.string.rules_empty), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             itemsIndexed(rules) { i, rule ->
-                RuleRow(rule.value, "${i + 1}. ${typeLabel(rule.type)} → ${actionLabel(rule.action)}", rule.enabled, enabled,
+                // A named rule shows its name, with the value in the caption; an unnamed one shows its value as before.
+                RuleRow(rule.title, "${i + 1}. " + (if (rule.name.isNotEmpty()) rule.value + " · " else "") + "${typeLabel(rule.type)} → ${actionLabel(rule.action)}", rule.enabled, enabled,
                     onToggle = { save(CustomRouting.setEnabled(rules, i, it)) }, onClick = { editing = i },
                     up = { save(CustomRouting.move(rules, i, i - 1)) }.takeIf { i > 0 }, down = { save(CustomRouting.move(rules, i, i + 1)) }.takeIf { i < rules.lastIndex },
                     delete = { deleting = i })
@@ -86,7 +100,7 @@ private fun actionLabel(action: String) = when (action) {
     }
     deleting?.let { i ->
         AlertDialog(onDismissRequest = { deleting = null }, title = { Text(tr(R.string.rules_delete_confirm)) },
-            text = { rules.getOrNull(i)?.let { Text(it.value, maxLines = 2, overflow = TextOverflow.Ellipsis) } },
+            text = { rules.getOrNull(i)?.let { Text(it.title, maxLines = 2, overflow = TextOverflow.Ellipsis) } },
             confirmButton = { TextButton(onClick = { deleting = null; if (i in rules.indices) save(rules.filterIndexed { j, _ -> j != i }) }, modifier = Modifier.pressScale()) { Text(tr(R.string.rules_delete)) } },
             dismissButton = { TextButton(onClick = { deleting = null }, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
     }
@@ -99,7 +113,7 @@ private fun actionLabel(action: String) = when (action) {
     }
     editing?.let { index ->
         val original = rules.getOrNull(index)
-        RuleDialog(original, onDelete = original?.let { { editing = null; save(rules.filterIndexed { i, _ -> i != index }) } }, close = { editing = null }) { rule ->
+        RuleDialog(original, close = { editing = null }) { rule ->
             val others = rules.filterIndexed { i, _ -> i != index }
             when {
                 others.any { it.type == rule.type && it.value == rule.value } -> tr(R.string.rules_duplicate)
@@ -110,36 +124,55 @@ private fun actionLabel(action: String) = when (action) {
     }
 }
 
-/** [submit] returns an error to show, or null when the rule was saved. */
-@Composable private fun RuleDialog(initial: RoutingRule?, onDelete: (() -> Unit)?, close: () -> Unit, submit: (RoutingRule) -> String?) {
-    var type by remember { mutableStateOf(initial?.type ?: CustomRouting.SUFFIX) }
+/**
+ * Add or edit one rule, only the essentials: the value (domain or IP), an optional name, and where it goes (Direct / VPN / Block in one
+ * segmented row). The match type is a single compact line with a menu; an IP address or network switches it to IP by itself, until the
+ * user picks a type. Deleting is the row's own button. [submit] returns an error to show, or null when the rule was saved.
+ */
+@Composable private fun RuleDialog(initial: RoutingRule?, close: () -> Unit, submit: (RoutingRule) -> String?) {
+    var chosenType by remember { mutableStateOf(initial?.type) } // null: follow the value (IP → IP / CIDR, else domain suffix)
     var action by remember { mutableStateOf(initial?.action ?: CustomRouting.DIRECT) }
     var value by remember { mutableStateOf(initial?.value.orEmpty()) }
+    var name by remember { mutableStateOf(initial?.name.orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
+    val type = chosenType ?: if (CustomRouting.normalize(CustomRouting.CIDR, value) != null) CustomRouting.CIDR else CustomRouting.SUFFIX
     val normalized = CustomRouting.normalize(type, value)
     AlertDialog(onDismissRequest = close, title = { Text(tr(if (initial == null) R.string.rules_add else R.string.rules_edit)) }, text = {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(tr(R.string.rules_type), style = MaterialTheme.typography.titleSmall)
-            CustomRouting.types.forEach { t ->
-                Row(Modifier.pressScale().fillMaxWidth().clickable { type = t; error = null }, verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(type == t, { type = t; error = null }); Text(typeLabel(t))
-                }
-            }
+        Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(value, { value = it.take(253); error = null }, label = { Text(tr(R.string.rules_value)) }, singleLine = true,
                 isError = value.isNotBlank() && normalized == null, modifier = Modifier.fillMaxWidth(),
                 supportingText = { Text(if (value.isNotBlank() && normalized == null) tr(R.string.rules_invalid) else typeExample(type)) })
-            Text(tr(R.string.rules_action), style = MaterialTheme.typography.titleSmall)
-            // Same radio list as "Type" above: long labels ("Блокировать") stay on one line.
-            CustomRouting.actions.forEach { a ->
-                Row(Modifier.pressScale().fillMaxWidth().clickable { action = a }, verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(action == a, { action = a }); Text(actionLabel(a))
+            OutlinedTextField(name, { name = it.replace("\n", " ").take(RoutingRule.MAX_NAME) }, label = { Text(tr(R.string.rules_name)) }, singleLine = true,
+                modifier = Modifier.fillMaxWidth())
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf(CustomRouting.DIRECT, CustomRouting.PROXY, CustomRouting.BLOCK).forEachIndexed { i, a ->
+                    SegmentedButton(selected = action == a, onClick = { action = a }, shape = SegmentedButtonDefaults.itemShape(i, 3), icon = {},
+                        colors = SegmentedButtonDefaults.colors(activeContainerColor = MaterialTheme.colorScheme.primaryContainer, activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            inactiveContainerColor = androidx.compose.ui.graphics.Color.Transparent, activeBorderColor = MaterialTheme.colorScheme.outline, inactiveBorderColor = MaterialTheme.colorScheme.outline),
+                        modifier = Modifier.pressScale().heightIn(min = 44.dp)) { Text(routeShort(a), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                }
+            }
+            // Secondary: the match type, one line with a menu.
+            var typeMenu by remember { mutableStateOf(false) }
+            Box {
+                TextButton(onClick = { typeMenu = true }, modifier = Modifier.pressScale(), contentPadding = PaddingValues(horizontal = 4.dp)) {
+                    Text(tr(R.string.rules_match, typeLabel(type)), style = MaterialTheme.typography.bodyMedium)
+                    Icon(androidx.compose.material.icons.Icons.Rounded.KeyboardArrowDown, contentDescription = null, modifier = Modifier.size(20.dp))
+                }
+                DropdownMenu(expanded = typeMenu, onDismissRequest = { typeMenu = false }) {
+                    CustomRouting.types.forEach { t ->
+                        DropdownMenuItem(text = { Text(typeLabel(t)) }, onClick = { chosenType = t; typeMenu = false; error = null },
+                            leadingIcon = { RadioButton(selected = t == type, onClick = null) })
+                    }
                 }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            if (onDelete != null) TextButton(onClick = onDelete, modifier = Modifier.pressScale()) { Text(tr(R.string.rules_delete), color = MaterialTheme.colorScheme.error) }
         }
-    }, confirmButton = { TextButton(enabled = normalized != null, onClick = { normalized?.let { error = submit(RoutingRule(type, it, action, initial?.enabled ?: true)) } }, modifier = Modifier.pressScale(enabled = normalized != null)) { Text(tr(R.string.sub_save)) } },
+    }, confirmButton = { TextButton(enabled = normalized != null, onClick = { normalized?.let { error = submit(RoutingRule(type, it, action, initial?.enabled ?: true, RoutingRule.cleanName(name))) } }, modifier = Modifier.pressScale(enabled = normalized != null)) { Text(tr(R.string.sub_save)) } },
         dismissButton = { TextButton(onClick = close, modifier = Modifier.pressScale()) { Text(tr(R.string.msg_cancel_32)) } })
+}
+private fun routeShort(action: String) = when (action) {
+    CustomRouting.DIRECT -> tr(R.string.rules_route_direct); CustomRouting.BLOCK -> tr(R.string.rules_route_block); else -> tr(R.string.rules_route_vpn)
 }
 
 private fun importSummary(r: RuleText.Result): String = listOfNotNull(

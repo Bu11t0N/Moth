@@ -400,7 +400,8 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
                                     val open = stateKey in expanded
                                     val title = if (byApp) appLabel else g.key
                                     ConnectionGroupRow(g, title, if (byApp) pkg else null, byApp, open, ::bytes,
-                                        toggle = { if (open) expanded.remove(stateKey) else expanded.add(stateKey) },
+                                        // Closing a group also closes every connection opened inside it, so it reopens folded.
+                                        toggle = { if (open) { expanded.remove(stateKey); expanded.removeAll(g.items.map { "detail:${it.id}" }.toSet()) } else expanded.add(stateKey) },
                                         onClose = {
                                             // No confirmation: closing an app's (or host's) connections is harmless, the app reconnects.
                                             val at = System.currentTimeMillis()
@@ -484,7 +485,9 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
     val target = org.mothvpn.core.LiveConnections.target(c.domain, c.destination)
     val route = when (c.outbound) { "direct" -> tr(R.string.conn_direct); "block" -> tr(R.string.conn_blocked); "", "dns-out", "dns" -> null; else -> tr(R.string.conn_proxy) }
     val age = when {
-        c.closedAtMs > 0 -> tr(if (byUser) R.string.conn_closed_by_you_ago else R.string.conn_closed_ago, TrafficFormat.duration(((now - c.closedAtMs) / 1000).coerceAtLeast(0)))
+        // Collapsed: "closed 1s / 1m / 1h 2m ago"; the expanded row keeps the clock-style age.
+        c.closedAtMs > 0 -> tr(if (byUser) R.string.conn_closed_by_you_ago else R.string.conn_closed_ago,
+            if (open) TrafficFormat.duration(((now - c.closedAtMs) / 1000).coerceAtLeast(0)) else agoText(((now - c.closedAtMs) / 1000)))
         c.createdAtMs > 0 -> TrafficFormat.duration(((now - c.createdAtMs) / 1000).coerceAtLeast(0))
         else -> null
     }
@@ -521,7 +524,14 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
     }
 }
 
-/** The user's routing rules (for "Your rule #N"), loaded once by the Connections page. */
+/** "1s", "1m", "1h 2m" (or "3h") for a closed connection's age. */
+private fun agoText(seconds: Long): String {
+    val a = org.mothvpn.core.LiveConnections.ago(seconds)
+    return when { a.hours > 0 && a.minutes > 0 -> tr(R.string.conn_ago_hm, a.hours.toInt(), a.minutes.toInt()); a.hours > 0 -> tr(R.string.conn_ago_h, a.hours.toInt())
+        a.minutes > 0 -> tr(R.string.conn_ago_m, a.minutes.toInt()); else -> tr(R.string.conn_ago_s, a.seconds.toInt()) }
+}
+
+/** The user's routing rules (for their names), loaded once by the Connections page. */
 private val LocalUserRules = staticCompositionLocalOf { emptyList<org.mothvpn.core.RoutingRule>() }
 
 /**
@@ -565,15 +575,19 @@ private val LocalUserRules = staticCompositionLocalOf { emptyList<org.mothvpn.co
             val proxied = c.outbound.isNotBlank() && c.outbound !in setOf("direct", "block", "dns", "dns-out")
             activeServer?.takeIf { proxied }?.let { p -> add(tr(R.string.conn_detail_server) to {
                 Column { DetailValue(p.name); Text(serverSubtitle(p), style = MaterialTheme.typography.bodySmall) } }) }
+            // The rule and what it does: "example.com · Direct", "My bank · Through VPN"; "RU sites direct" and DNS already say it.
+            val via = tr(R.string.conn_proxy); val direct = tr(R.string.conn_direct); val blocked = tr(R.string.conn_blocked)
+            fun with(label: String, action: String) = "$label · $action"
             val rule = when (val m = org.mothvpn.core.LiveConnections.ruleMatch(c.rule, userRules)) {
-                org.mothvpn.core.LiveConnections.RuleMatch.Default -> tr(R.string.conn_rule_default)
+                org.mothvpn.core.LiveConnections.RuleMatch.Default -> with(tr(R.string.conn_rule_default), via)
                 org.mothvpn.core.LiveConnections.RuleMatch.RussiaDirect -> tr(R.string.set_short_ru)
                 org.mothvpn.core.LiveConnections.RuleMatch.Dns -> tr(R.string.conn_rule_dns)
-                org.mothvpn.core.LiveConnections.RuleMatch.SubscriptionUpdate -> tr(R.string.conn_origin_subscription)
-                org.mothvpn.core.LiveConnections.RuleMatch.SplitTunnel -> tr(R.string.split_title)
-                org.mothvpn.core.LiveConnections.RuleMatch.Ipv6Off -> tr(R.string.conn_rule_ipv6)
-                org.mothvpn.core.LiveConnections.RuleMatch.Sharing -> tr(R.string.conn_rule_sharing)
-                is org.mothvpn.core.LiveConnections.RuleMatch.Custom -> tr(R.string.conn_rule_custom, m.number)
+                org.mothvpn.core.LiveConnections.RuleMatch.SubscriptionUpdate -> with(tr(R.string.conn_origin_subscription), via)
+                org.mothvpn.core.LiveConnections.RuleMatch.SplitTunnel -> with(tr(R.string.split_title), blocked)
+                org.mothvpn.core.LiveConnections.RuleMatch.Ipv6Off -> with(tr(R.string.conn_rule_ipv6), blocked)
+                org.mothvpn.core.LiveConnections.RuleMatch.Sharing -> with(tr(R.string.conn_rule_sharing), blocked)
+                is org.mothvpn.core.LiveConnections.RuleMatch.Custom -> with(m.rule.title, when (m.rule.action) {
+                    org.mothvpn.core.CustomRouting.DIRECT -> direct; org.mothvpn.core.CustomRouting.BLOCK -> blocked; else -> via })
                 is org.mothvpn.core.LiveConnections.RuleMatch.Other -> m.text
             }
             add(tr(R.string.conn_detail_rule) to { DetailValue(rule) })
@@ -657,7 +671,7 @@ private val LocalUserRules = staticCompositionLocalOf { emptyList<org.mothvpn.co
             else {
                 val open = stateKey in expanded
                 ConnectionGroupRow(g, if (byApp) appLabel else g.key, if (byApp) pkg else null, byApp, open, bytes,
-                    toggle = { if (open) expanded.remove(stateKey) else expanded.add(stateKey) }, onClose = null)
+                    toggle = { if (open) { expanded.remove(stateKey); expanded.removeAll(g.items.map { "closed-detail:${it.id}" }.toSet()) } else expanded.add(stateKey) }, onClose = null)
                 FoldIn(open) {
                     g.items.forEach { c ->
                         key(c.id) {
