@@ -2,6 +2,15 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.2-beta.3
+
+### Changes
+
+- New: routing rules can have a name; connection details show the rule's name (or its address) and what it does.
+- Simpler rule editor: address, name and where to send it. Import and export are in the ⋮ menu.
+- Closing a connection group also closes everything opened inside it.
+- Closed connections show a short time, e.g. "closed 1m ago".
+
 ## 1.0.2-beta.2
 
 ### Changes
