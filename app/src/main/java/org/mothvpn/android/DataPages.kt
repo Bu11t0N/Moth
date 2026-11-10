@@ -485,9 +485,8 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
     val target = org.mothvpn.core.LiveConnections.target(c.domain, c.destination)
     val route = when (c.outbound) { "direct" -> tr(R.string.conn_direct); "block" -> tr(R.string.conn_blocked); "", "dns-out", "dns" -> null; else -> tr(R.string.conn_proxy) }
     val age = when {
-        // Collapsed: "closed 1s / 1m / 1h 2m ago"; the expanded row keeps the clock-style age.
-        c.closedAtMs > 0 -> tr(if (byUser) R.string.conn_closed_by_you_ago else R.string.conn_closed_ago,
-            if (open) TrafficFormat.duration(((now - c.closedAtMs) / 1000).coerceAtLeast(0)) else agoText(((now - c.closedAtMs) / 1000)))
+        // "closed 1s / 1m / 1h 2m ago" (also "closed by you …"), collapsed or expanded; the details keep clock times and the duration.
+        c.closedAtMs > 0 -> tr(if (byUser) R.string.conn_closed_by_you_ago else R.string.conn_closed_ago, agoText((now - c.closedAtMs) / 1000))
         c.createdAtMs > 0 -> TrafficFormat.duration(((now - c.createdAtMs) / 1000).coerceAtLeast(0))
         else -> null
     }
