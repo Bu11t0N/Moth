@@ -185,7 +185,8 @@ object TunnelConfig {
             .put("default_domain_resolver", JSONObject().put("server", "bootstrap")).put("rules", JSONArray().apply {
             subscriptionTunnel?.let { put(it.rule()) }
             if (lan != null) LanProxy.rules(ownAddresses).forEach { put(it) }
-            if (settings.directRu || CustomRouting.needsSniff(settings.routingRules)) put(JSONObject().put("action", "sniff"))
+            // Always sniffed (default timeout): domain rules need the name, and the Connections page shows the site and protocol (TLS/HTTP/QUIC).
+            put(JSONObject().put("action", "sniff"))
             put(JSONObject().put("port", 53).put("action", "hijack-dns"))
             appGuard?.let { self -> appGuardRules(settings, self, lanShared = lan != null).forEach { put(it) } }
             if (!settings.ipv6) put(JSONObject().put("ip_version", 6).put("action", "reject"))

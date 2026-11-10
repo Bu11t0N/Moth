@@ -55,9 +55,9 @@ class CustomRoutingTest {
         // then the built-in "Russian sites directly" rules
         assertEquals(JSONObject().put("x", org.json.JSONArray(DirectRoutes.suffixes)).getJSONArray("x").toString(), r.getJSONObject(8).getJSONArray("domain_suffix").toString())
         assertEquals("geoip-ru", r.getJSONObject(9).getJSONArray("rule_set").getString(0))
-        // IP-only rules need no sniffing
+        // Sniffing is always on (the Connections page shows the site and protocol), IP-only rules included
         val ipOnly = JSONObject(TunnelConfig.create(profile, ClientSettings(routingRules = listOf(rules[3])))).getJSONObject("route").getJSONArray("rules")
-        assertEquals("hijack-dns", ipOnly.getJSONObject(0).getString("action")); assertEquals(2, ipOnly.length())
+        assertEquals("sniff", ipOnly.getJSONObject(0).getString("action")); assertEquals("hijack-dns", ipOnly.getJSONObject(1).getString("action")); assertEquals(3, ipOnly.length())
     }
 
     @Test fun xrayRulesForSingleAndGroupConfigs() {

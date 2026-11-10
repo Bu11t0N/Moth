@@ -21,7 +21,7 @@ class Beta5Test {
 
     @Test fun rulesThatAreOffAreSkipped() {
         val r = JSONObject(TunnelConfig.create(profile, ClientSettings(routingRules = listOf(off), ipv6 = false))).getJSONObject("route").getJSONArray("rules").toString()
-        assertFalse("mail.example.com" in r); assertFalse("sniff" in r, "only rules that are on need sniffing")
+        assertFalse("mail.example.com" in r)
         assertEquals(listOf("ads.example"), CustomRouting.singBox(listOf(off, on)).map { it.getJSONArray("domain_suffix").getString(0) })
         assertEquals(1, CustomRouting.xray(listOf(off, on)) { it }.size)
         assertFalse(CustomRouting.needsSniff(listOf(off)))

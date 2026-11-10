@@ -109,4 +109,37 @@ object LiveConnections {
             Sort.SPEED -> groups.sortedWith(compareByDescending<Group> { it.up + it.down }.thenByDescending { it.total }.thenBy { it.key })
         }
     }
+
+    /** Who opened a connection, from the core's inbound tag. */
+    enum class Origin { DEVICE, SHARING, SUBSCRIPTION }
+    fun origin(inbound: String): Origin = when (inbound) {
+        LanProxy.TAG -> Origin.SHARING; SubscriptionTunnel.TAG -> Origin.SUBSCRIPTION; else -> Origin.DEVICE
+    }
+
+    /** The routing rule a connection matched, in user terms. [number] is 1-based in the user's rule list (switched-off rules count). */
+    sealed class RuleMatch {
+        object Default : RuleMatch(); object RussiaDirect : RuleMatch(); object Dns : RuleMatch(); object SubscriptionUpdate : RuleMatch()
+        object SplitTunnel : RuleMatch(); object Ipv6Off : RuleMatch(); object Sharing : RuleMatch()
+        data class Custom(val number: Int) : RuleMatch(); data class Other(val text: String) : RuleMatch()
+    }
+
+    /**
+     * Maps the core's description of the matched rule (sing-box rule String(): "domain_suffix=example.com", "rule_set=[a b]",
+     * empty when nothing matched) back to the rule Moth wrote in TunnelConfig.create.
+     */
+    fun ruleMatch(rule: String, userRules: List<RoutingRule>): RuleMatch {
+        val r = rule.trim()
+        if (r.isEmpty() || r == "final") return RuleMatch.Default
+        userRules.forEachIndexed { i, u -> if (u.enabled && r == "${u.type}=${u.value}") return RuleMatch.Custom(i + 1) }
+        return when {
+            r.startsWith("rule_set=") && DirectRoutes.ruleSets.keys.any { it in r } -> RuleMatch.RussiaDirect
+            r == "domain_suffix=[" + DirectRoutes.suffixes.joinToString(" ") + "]" -> RuleMatch.RussiaDirect
+            r == "port=53" -> RuleMatch.Dns
+            r == "inbound=" + SubscriptionTunnel.TAG -> RuleMatch.SubscriptionUpdate
+            r.contains("package_name=") -> RuleMatch.SplitTunnel
+            r == "ip_version=6" -> RuleMatch.Ipv6Off
+            r.contains("inbound=" + LanProxy.TAG) -> RuleMatch.Sharing
+            else -> RuleMatch.Other(r)
+        }
+    }
 }

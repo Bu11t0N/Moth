@@ -347,6 +347,10 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
     val units = tr(R.string.notif_units).split("|")
     fun bytes(v: Long) = TrafficFormat.bytes(v, units, locale)
     val labels = remember { HashMap<String?, Pair<String, String?>>() }
+    val userRules by produceState(emptyList<org.mothvpn.core.RoutingRule>()) {
+        value = withContext(Dispatchers.IO) { runCatching { SettingsStore(context).load().routingRules }.getOrDefault(emptyList()) }
+    }
+    CompositionLocalProvider(LocalUserRules provides userRules) {
     Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         val list = items
         when {
@@ -427,6 +431,7 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
             }
         }
     }
+    }
     if (confirmAll) AlertDialog(onDismissRequest = { confirmAll = false }, title = { Text(tr(R.string.conn_close_all)) }, text = { Text(tr(R.string.conn_close_all_text)) },
         confirmButton = { TextButton(onClick = {
             confirmAll = false
@@ -484,7 +489,6 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
         else -> null
     }
     val proto = org.mothvpn.core.LiveConnections.protocolLabel(c.network, c.protocol)
-    val activeServer by TunnelStatus.activeServer.collectAsState()
     val rate = if (c.up + c.down > 0) tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.up + c.down, LIVE_INTERVAL_MS))) else null
     Column(Modifier.fillMaxWidth()) {
     Row(Modifier.fillMaxWidth().let { m -> if (toggle != null) m.clickable(onClick = toggle)
@@ -511,33 +515,99 @@ private fun ownerLabel(context: Context, app: String?): Pair<String, String?> = 
             Icon(androidx.compose.material.icons.Icons.Outlined.Close, contentDescription = tr(R.string.conn_close, label ?: target), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         } else Spacer(Modifier.width(12.dp))
     }
-    if (toggle != null) FoldIn(open, Modifier.padding(start = 60.dp, end = 16.dp, bottom = 10.dp), Arrangement.spacedBy(6.dp)) {
-        val (appName, _) = ownerLabel(context, c.app)
-        DetailLine(tr(R.string.conn_detail_app), listOfNotNull(appName, pkg?.takeIf { it != appName }).joinToString("\n"))
-        if (c.domain.isNotBlank()) DetailLine(tr(R.string.conn_detail_domain), c.domain)
-        if (c.destination.isNotBlank()) DetailLine(tr(R.string.conn_detail_destination), c.destination)
-        if (c.source.isNotBlank()) DetailLine(tr(R.string.conn_detail_source), c.source)
-        if (proto.isNotBlank()) DetailLine(tr(R.string.conn_detail_protocol), proto)
-        route?.let { r ->
-            // Through the VPN: the server this session uses (the core's outbound tags are internal names, not shown).
-            val server = if (c.outbound !in setOf("direct", "block")) activeServer?.name else null
-            DetailLine(tr(R.string.conn_detail_route), listOfNotNull(r, server).joinToString("\n"))
-        }
-        if (c.rule.isNotBlank()) DetailLine(tr(R.string.conn_detail_rule), if (c.rule == "final") tr(R.string.conn_rule_final) else c.rule)
-        if (c.inbound == org.mothvpn.core.LanProxy.TAG) DetailLine(tr(R.string.conn_detail_inbound), tr(R.string.conn_inbound_lan))
-        age?.let { DetailLine(tr(R.string.conn_detail_time), it) }
-        DetailLine(tr(R.string.conn_detail_traffic), tr(R.string.stats_updown, bytes(c.upTotal), bytes(c.downTotal)) + (rate?.let { "\n$it" } ?: ""))
+    if (toggle != null) FoldIn(open, Modifier.padding(start = 60.dp, end = 16.dp, bottom = 12.dp)) {
+        ConnectionDetails(c, pkg, now, bytes, route)
     }
     }
 }
 
-/** A label over its value in a connection's details; the value wraps (long domains and IPv6 addresses never get cut off). */
-@Composable private fun DetailLine(label: String, value: String) {
+/** The user's routing rules (for "Your rule #N"), loaded once by the Connections page. */
+private val LocalUserRules = staticCompositionLocalOf { emptyList<org.mothvpn.core.RoutingRule>() }
+
+/**
+ * Everything Moth knows about one connection, in four groups split by thin dividers: what (app, package, who opened it), where
+ * (domain, address, protocol), via (route, server and its protocol, rule), time and traffic. One row per field: a small muted label
+ * and the value; short values sit to the right of the label, long ones wrap under it. Only what the core and Moth know about the
+ * connection, never what goes through it.
+ */
+@Composable private fun ConnectionDetails(c: org.mothvpn.core.LiveConnections.Item, pkg: String?, now: Long, bytes: (Long) -> String, route: String?) {
+    val context = LocalContext.current
+    val activeServer by TunnelStatus.activeServer.collectAsState()
+    val userRules = LocalUserRules.current
+    val clock = remember { java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss") }
+    fun at(ms: Long) = java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault()).format(clock)
+    val origin = org.mothvpn.core.LiveConnections.origin(c.inbound)
+    val groups = buildList<List<Pair<String, @Composable () -> Unit>>> {
+        // What
+        add(buildList {
+            if (origin != org.mothvpn.core.LiveConnections.Origin.SUBSCRIPTION) {
+                val (appName, _) = ownerLabel(context, c.app)
+                add(tr(R.string.conn_detail_app) to { DetailValue(appName) })
+                pkg?.takeIf { it != appName }?.let { add(tr(R.string.conn_detail_package) to { DetailValue(it) }) }
+            }
+            add(tr(R.string.conn_detail_opened_by) to { DetailValue(tr(when (origin) {
+                org.mothvpn.core.LiveConnections.Origin.SHARING -> R.string.conn_origin_sharing
+                org.mothvpn.core.LiveConnections.Origin.SUBSCRIPTION -> R.string.conn_origin_subscription
+                else -> R.string.conn_origin_device })) })
+            // The tunnel's own source (an internal address of the VPN interface) means nothing; a sharing client's address does.
+            if (origin == org.mothvpn.core.LiveConnections.Origin.SHARING && c.source.isNotBlank()) add(tr(R.string.conn_detail_source) to { DetailValue(c.source) })
+        })
+        // Where
+        add(buildList {
+            if (c.domain.isNotBlank()) add(tr(R.string.conn_detail_domain) to { DetailValue(c.domain) })
+            if (c.destination.isNotBlank()) add(tr(R.string.conn_detail_destination) to { DetailValue(c.destination) })
+            val proto = org.mothvpn.core.LiveConnections.protocolLabel(c.network, c.protocol)
+            if (proto.isNotBlank()) add(tr(R.string.conn_detail_protocol) to { DetailValue(proto) })
+        })
+        // Via
+        add(buildList {
+            route?.let { r -> add(tr(R.string.conn_detail_route) to { DetailValue(r) }) }
+            val proxied = c.outbound.isNotBlank() && c.outbound !in setOf("direct", "block", "dns", "dns-out")
+            activeServer?.takeIf { proxied }?.let { p -> add(tr(R.string.conn_detail_server) to {
+                Column { DetailValue(p.name); Text(serverSubtitle(p), style = MaterialTheme.typography.bodySmall) } }) }
+            val rule = when (val m = org.mothvpn.core.LiveConnections.ruleMatch(c.rule, userRules)) {
+                org.mothvpn.core.LiveConnections.RuleMatch.Default -> tr(R.string.conn_rule_default)
+                org.mothvpn.core.LiveConnections.RuleMatch.RussiaDirect -> tr(R.string.set_short_ru)
+                org.mothvpn.core.LiveConnections.RuleMatch.Dns -> tr(R.string.conn_rule_dns)
+                org.mothvpn.core.LiveConnections.RuleMatch.SubscriptionUpdate -> tr(R.string.conn_origin_subscription)
+                org.mothvpn.core.LiveConnections.RuleMatch.SplitTunnel -> tr(R.string.split_title)
+                org.mothvpn.core.LiveConnections.RuleMatch.Ipv6Off -> tr(R.string.conn_rule_ipv6)
+                org.mothvpn.core.LiveConnections.RuleMatch.Sharing -> tr(R.string.conn_rule_sharing)
+                is org.mothvpn.core.LiveConnections.RuleMatch.Custom -> tr(R.string.conn_rule_custom, m.number)
+                is org.mothvpn.core.LiveConnections.RuleMatch.Other -> m.text
+            }
+            add(tr(R.string.conn_detail_rule) to { DetailValue(rule) })
+        })
+        // Time and traffic
+        add(buildList {
+            if (c.createdAtMs > 0) add(tr(R.string.conn_detail_opened_at) to { DetailValue(at(c.createdAtMs)) })
+            if (c.closedAtMs > 0) add(tr(R.string.conn_detail_closed_at) to { DetailValue(at(c.closedAtMs)) })
+            if (c.createdAtMs > 0) add(tr(R.string.conn_detail_duration) to {
+                DetailValue(TrafficFormat.duration((((if (c.closedAtMs > 0) c.closedAtMs else now) - c.createdAtMs) / 1000).coerceAtLeast(0))) })
+            add(tr(R.string.conn_detail_sent) to { DetailValue(bytes(c.upTotal)) })
+            add(tr(R.string.conn_detail_received) to { DetailValue(bytes(c.downTotal)) })
+            if (c.closedAtMs == 0L) add(tr(R.string.conn_detail_speed) to { DetailValue(tr(R.string.stats_updown,
+                tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.up, LIVE_INTERVAL_MS))),
+                tr(R.string.conn_rate, bytes(org.mothvpn.core.LiveConnections.perSecond(c.down, LIVE_INTERVAL_MS))))) })
+        })
+    }.filter { it.isNotEmpty() }
     Column(Modifier.fillMaxWidth()) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyMedium, softWrap = true)
+        groups.forEachIndexed { gi, rows ->
+            if (gi > 0) HorizontalDivider(Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) { rows.forEach { (label, value) -> DetailRow(label, value) } }
+        }
     }
 }
+
+/** One details field: the muted label on the left (fixed width), the value on the right; the value wraps within its column. */
+@Composable private fun DetailRow(label: String, value: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(104.dp).padding(top = 2.dp, end = 8.dp))
+        Box(Modifier.weight(1f)) { value() }
+    }
+}
+@Composable private fun DetailValue(text: String) = Text(text, style = MaterialTheme.typography.bodyMedium, softWrap = true)
 
 /**
  * "Recently closed" under the active list, always open: the newest closed connections of this VPN session (the core's own bounded list;

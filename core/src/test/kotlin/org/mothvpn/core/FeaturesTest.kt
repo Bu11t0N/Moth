@@ -138,7 +138,7 @@ class FeaturesTest {
         val config = JSONObject(TunnelConfig.create(p, ClientSettings(mtu = 1280, ipv6 = false, dns = "https://dns.google/dns-query")))
         assertEquals(1280, config.getJSONArray("inbounds").getJSONObject(0).getInt("mtu"))
         assertEquals(2, config.getJSONArray("inbounds").getJSONObject(0).getJSONArray("address").length())
-        assertEquals("reject", config.getJSONObject("route").getJSONArray("rules").getJSONObject(1).getString("action"))
+        assertEquals("reject", config.getJSONObject("route").getJSONArray("rules").getJSONObject(2).getString("action")) // after sniff and hijack-dns
         assertEquals("bootstrap", config.getJSONObject("dns").getJSONArray("servers").getJSONObject(0).getString("domain_resolver"))
     }
 }

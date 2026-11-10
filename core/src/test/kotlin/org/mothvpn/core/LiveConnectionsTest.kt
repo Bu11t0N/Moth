@@ -79,4 +79,19 @@ class LiveConnectionsTest {
         assertEquals(listOf("y", "x"), groups.map { it.key })
         assertEquals(listOf("d", "c", "a"), groups[1].items.map { it.id })
     }
+    @Test fun ruleMatchInUserTerms() {
+        val rules = listOf(RoutingRule("domain", "mail.example.com", "direct", enabled = false), RoutingRule("domain_suffix", "ads.example", "block"), RoutingRule("ip_cidr", "10.0.0.0/8", "direct"))
+        assertEquals(LiveConnections.RuleMatch.Default, LiveConnections.ruleMatch("", rules))
+        assertEquals(LiveConnections.RuleMatch.Custom(2), LiveConnections.ruleMatch("domain_suffix=ads.example", rules))
+        assertEquals(LiveConnections.RuleMatch.Custom(3), LiveConnections.ruleMatch("ip_cidr=10.0.0.0/8", rules))
+        assertEquals(LiveConnections.RuleMatch.Other("domain=mail.example.com"), LiveConnections.ruleMatch("domain=mail.example.com", rules)) // switched off
+        assertEquals(LiveConnections.RuleMatch.RussiaDirect, LiveConnections.ruleMatch("domain_suffix=[ru su xn--p1ai]", rules))
+        assertEquals(LiveConnections.RuleMatch.RussiaDirect, LiveConnections.ruleMatch("rule_set=[geoip-ru geosite-category-ru]", rules))
+        assertEquals(LiveConnections.RuleMatch.Dns, LiveConnections.ruleMatch("port=53", rules))
+        assertEquals(LiveConnections.RuleMatch.SubscriptionUpdate, LiveConnections.ruleMatch("inbound=subscription-in", rules))
+        assertEquals(LiveConnections.RuleMatch.Ipv6Off, LiveConnections.ruleMatch("ip_version=6", rules))
+        assertEquals(LiveConnections.Origin.SHARING, LiveConnections.origin("lan-in"))
+        assertEquals(LiveConnections.Origin.SUBSCRIPTION, LiveConnections.origin("subscription-in"))
+        assertEquals(LiveConnections.Origin.DEVICE, LiveConnections.origin("tun-in"))
+    }
 }
