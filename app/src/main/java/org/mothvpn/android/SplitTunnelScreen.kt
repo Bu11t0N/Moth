@@ -140,8 +140,17 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
         var onTop by remember { mutableStateOf(settings.splitApps.toSet()) }
         LaunchedEffect(search, showSystem) { onTop = settings.splitApps.toSet() }
         val list = apps?.let { all -> remember(all, onTop) { all.sortedBy { it.packageName !in onTop } } }
-        if (list == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-        else {
+        if (list == null) {
+            // The same loading moth as Home, the changelog and Updates, sized to the free space under the mode cards.
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                val moth = mothArtworkSize()
+                val side = minOf(moth, maxWidth, maxHeight)
+                val free = (maxHeight - side).coerceAtLeast(0.dp)
+                Box(Modifier.padding(top = free * 0.35f).size(side), contentAlignment = Alignment.Center) {
+                    MothLoading(size = side * org.mothvpn.core.MothArtworkSize.DRAWING_RATIO, exact = true)
+                }
+            }
+        } else {
             val shown = list.filter { (showSystem || !it.system || it.packageName in settings.splitApps) && (search.isBlank() || it.label.contains(search, true) || it.packageName.contains(search, true)) }
             // The selection checkbox is always shown, bound to the saved selection (settings.splitApps) and keyed by package name, so a row
             // keeps its checkmark while the list scrolls. (1.0.0-beta.3..5 wrongly hid these instead of the two option rows above.)

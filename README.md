@@ -69,7 +69,7 @@ HTTPS checks establish a connection **through the selected server**. The default
 
 TCP checks only show whether a port is reachable; they do not verify VPN traffic and cannot check UDP protocols such as Hysteria or TUIC.
 
-Checks run on the current physical network. Switch off Wi-Fi to test mobile data. Results are separated by network type, marked when the network changes and reset when the app process ends. The unavailable-server filter only hides failed HTTPS checks from the last 15 minutes on the current network; unchecked, cancelled and TCP checks remain visible.
+Checks run on the current physical network. Switch off Wi-Fi to test mobile data. Results are separated by network type, marked when the network changes and reset when the app process ends. The unavailable-server filter hides servers whose last check failed, until you check again; unchecked and cancelled checks remain visible.
 
 ## Privacy and security
 

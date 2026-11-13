@@ -24,6 +24,7 @@ import java.net.NetworkInterface as JavaInterface
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import org.mothvpn.core.ClientSettings
 import org.mothvpn.core.Profile
@@ -35,7 +36,6 @@ import org.mothvpn.core.DpiTricks
 import org.mothvpn.core.ProbePolicy
 import org.mothvpn.core.Reselect
 import org.mothvpn.core.ProbeOrder
-import kotlin.concurrent.withLock
 import org.mothvpn.core.ProtectPolicy
 import org.mothvpn.core.ServerPicker
 import org.mothvpn.core.HealthSchedule
@@ -95,6 +95,11 @@ class TunnelService : VpnService(), PlatformInterface {
     private var healthTask: java.util.concurrent.ScheduledFuture<*>? = null
     private val generation = AtomicLong()
     private var probeCancel = AtomicBoolean(false)
+    /** Bumped when a check starts or is cancelled, so a finished old batch cannot overwrite a new one or the restored pings. */
+    private val probeGen = AtomicInteger(0)
+    private val probeCores = java.util.concurrent.ConcurrentHashMap.newKeySet<AutoCloseable>()
+    private val probeLookups = java.util.concurrent.ConcurrentHashMap.newKeySet<java.util.concurrent.Future<*>>()
+    @Volatile private var probePool: java.util.concurrent.ExecutorService? = null
     /** The running check was started by the user (Check servers); false for auto-select / failover measurements. */
     @Volatile private var userProbe = false
     private var initialized = false
@@ -189,6 +194,7 @@ class TunnelService : VpnService(), PlatformInterface {
             foreground() // while connected the notification keeps showing the server name
             probeCancel = AtomicBoolean(false); userProbe = true
             val cancel = probeCancel
+            probeGen.incrementAndGet()
             val id = intent?.getStringExtra("profile")
             val order = intent?.getStringArrayListExtra("order").orEmpty()
             Diagnostics.runningMutable.value = true
@@ -747,7 +753,37 @@ class TunnelService : VpnService(), PlatformInterface {
     }
     private fun releasePort(port: Int) { synchronized(usedPorts) { usedPorts.remove(port) } }
     private fun freePort() = ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { it.localPort }
-    private fun cancelProbes() { probeCancel.set(true); requests.forEach { it.cancel() }; tcpSockets.forEach { s -> runCatching { s.close() } } }
+    private fun cancelProbes() {
+        probeCancel.set(true)
+        probeGen.incrementAndGet()
+        // The UI must stop at once: put every in-flight row back to its last ping (not a grey dash) and clear the running flag
+        // so the cancel button disappears. In-flight work is then interrupted; it must not record a failure.
+        Diagnostics.restoreChecking()
+        Diagnostics.runningMutable.value = false
+        requests.forEach { it.cancel() }
+        tcpSockets.forEach { s -> runCatching { s.close() } }
+        probeLookups.forEach { it.cancel(true) }
+        probeCores.forEach { c -> runCatching { c.close() } }
+        probePool?.shutdownNow()
+    }
+    /** Wait for the one-at-a-time core-start lock, giving up quickly when the check is cancelled. */
+    private inline fun withCoreStart(cancelled: AtomicBoolean, block: () -> Unit): Boolean {
+        while (!cancelled.get()) {
+            try {
+                if (coreStartLock.tryLock(50, TimeUnit.MILLISECONDS)) {
+                    try {
+                        if (cancelled.get()) return false
+                        block()
+                        return true
+                    } finally { coreStartLock.unlock() }
+                }
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return false
+            }
+        }
+        return false
+    }
     /** Received bytes of this app at the previous scheduled check (-1: none yet) and the time of the last check that ran. */
     @Volatile private var healthRx = -1L
     @Volatile private var healthCheckedAt = 0L
@@ -786,7 +822,9 @@ class TunnelService : VpnService(), PlatformInterface {
     }
     /** [only]: check just these servers (one subscription from its header menu); empty = all. */
     private fun probeProfiles(id: String?, cancelled: AtomicBoolean, wantedNetwork: String?, shownOrder: List<String>, only: Set<String> = emptySet()) {
+        val batchGen = probeGen.get()
         try {
+            if (cancelled.get() || probeGen.get() != batchGen) return
             val settings = SettingsStore(this).load()
             val access = NetworkTracker.read(connectivity)
             Logger.i("Probe", "probeProfiles: mode=${settings.probeMode} network=${access.kind} available=${access.available} wanted=$wantedNetwork")
@@ -802,9 +840,13 @@ class TunnelService : VpnService(), PlatformInterface {
             Logger.i("Probe", "check covers ${targets.size} servers (${profiles.size} probed, ${plan.derived.size} balancer(s) from members)")
             val derivedBefore = plan.derived.keys.associateWith { g -> Diagnostics.lastFinished("${access.kind}:$g") }
             plan.derived.keys.forEach { g -> Diagnostics.result("${access.kind}:$g", ProbeResult(checking = true, method = if (settings.probeMode == "tcp") "TCP" else "HTTPS", networkHandle = access.handle)) }
+            if (cancelled.get() || probeGen.get() != batchGen) {
+                plan.derived.keys.forEach { g -> Diagnostics.restore("${access.kind}:$g", derivedBefore[g]) }
+                return
+            }
             val pool = Executors.newFixedThreadPool(settings.probeParallel.coerceAtMost(profiles.size).coerceAtLeast(1))
             fun probeOne(profile: Profile) {
-                if (cancelled.get() || NetworkTracker.read(connectivity).handle != access.handle) return
+                if (cancelled.get() || probeGen.get() != batchGen || NetworkTracker.read(connectivity).handle != access.handle) return
                 val key = "${access.kind}:${profile.id}"
                 val method = if (settings.probeMode == "tcp") "TCP" else "HTTPS"
                 fun result(ms: Long? = null, error: String? = null, checking: Boolean = false, wasCancelled: Boolean = false, kind: ProbeErrorKind? = null) = Diagnostics.result(key,
@@ -813,11 +855,18 @@ class TunnelService : VpnService(), PlatformInterface {
                 // (the handle changes on every reconnect of the same Wi-Fi or mobile network, so matching it blanked values).
                 val before = Diagnostics.lastFinished(key)
                 result(checking = true)
+                if (cancelled.get() || probeGen.get() != batchGen) { Diagnostics.restore(key, before); return }
                 val label = describe(profile)
                 var stage = "start"
                 Logger.i("Probe", "profile ${profiles.indexOf(profile)} method=$method $label network=${access.kind}")
                 var allocated = 0; var dpiPort = 0
                 var local: BoxService? = null; var xr: MothXrayService? = null; var helper: MothXrayService? = null
+                val watched = ArrayList<AutoCloseable>()
+                fun watch(close: () -> Unit) {
+                    val c = AutoCloseable { runCatching { close() } }
+                    watched.add(c)
+                    probeCores.add(c)
+                }
                 try {
                     if (method == "TCP") {
                         val endpoint = ProbePolicy.tcpEndpoint(profile)
@@ -828,21 +877,30 @@ class TunnelService : VpnService(), PlatformInterface {
                     }
                     stage = "free port"
                     val port = allocatePort(); allocated = port; val user = UUID.randomUUID().toString(); val password = UUID.randomUUID().toString()
-                    if (profile.engine == "xray") { stage = "xray start"; coreStartLock.withLock { xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this) } }
-                    else {
+                    if (profile.engine == "xray") {
+                        stage = "xray start"
+                        if (!withCoreStart(cancelled) {
+                            xr = Libbox.mothStartXray(LocalProxyConfig.xray(profile, port, user, password, settings), this)
+                            watch { xr?.close() }
+                        }) return
+                    } else {
                         stage = "build config"
                         var hop: LocalHop? = null
                         if (DpiTricks.singBoxHelper(settings)) {
                             stage = "dpi helper start"
                             hop = LocalHop(allocatePort().also { dpiPort = it }, UUID.randomUUID().toString())
-                            coreStartLock.withLock { helper = Libbox.mothStartXray(LocalProxyConfig.dpiHelper(hop.port, hop.uuid, settings), this) }
+                            if (!withCoreStart(cancelled) {
+                                helper = Libbox.mothStartXray(LocalProxyConfig.dpiHelper(hop.port, hop.uuid, settings), this)
+                                watch { helper?.close() }
+                            }) return
                         }
                         val config = LocalProxyConfig.singBox(profile, port, user, password, settings, hop)
                         stage = "Libbox.checkConfig"; Libbox.checkConfig(config)
-                        coreStartLock.withLock {
+                        if (!withCoreStart(cancelled) {
                             stage = "Libbox.newService"; local = Libbox.newService(config, this)
+                            watch { local?.close() }
                             stage = "BoxService.start"; local!!.start()
-                        }
+                        }) return
                     }
                     stage = "local proxy ready"
                     Logger.d("Probe", "local proxy started ($label)")
@@ -874,19 +932,30 @@ class TunnelService : VpnService(), PlatformInterface {
                         else result(error = Diagnostics.friendly(e), kind = ProbeErrorKind.of(e))
                     }
                 } finally {
+                    watched.forEach { probeCores.remove(it) }
                     if (allocated != 0) releasePort(allocated)
                     if (dpiPort != 0) releasePort(dpiPort)
                     runCatching { helper?.close() }.onFailure { Logger.w("Probe", "closing the dpi helper failed", it) }
                     runCatching { local?.close() }.onFailure { Logger.w("Probe", "closing the local core failed", it) }; runCatching { xr?.close() }.onFailure { Logger.w("Probe", "closing the local xray failed", it) }
                     // An interrupted check is not a failure: restore the last completed result from this network, or show nothing.
+                    // If a newer check already wrote a finished result, checking is false and this is a no-op.
                     if (Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, before)
                 }
             }
             try {
+                probePool = pool
                 val futures = profiles.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }
-                futures.forEach { runCatching { it.get() } }
+                var aborted = false
+                for (f in futures) {
+                    while (!f.isDone) {
+                        if (cancelled.get() || probeGen.get() != batchGen) { aborted = true; break }
+                        runCatching { f.get(50, TimeUnit.MILLISECONDS) }
+                    }
+                    if (aborted || cancelled.get() || probeGen.get() != batchGen) { aborted = true; break }
+                }
+                if (aborted) pool.shutdownNow()
                 // Balancer pings from their members; a balancer none of whose members has a result is probed itself.
-                val live = !cancelled.get() && NetworkTracker.read(connectivity).handle == access.handle
+                val live = !aborted && !cancelled.get() && probeGen.get() == batchGen && NetworkTracker.read(connectivity).handle == access.handle
                 val method = if (settings.probeMode == "tcp") "TCP" else "HTTPS"
                 val fallback = mutableListOf<Profile>()
                 val probed = profiles.map { it.id }.toSet()
@@ -905,19 +974,27 @@ class TunnelService : VpnService(), PlatformInterface {
                         org.mothvpn.core.BalancerPing.Derived.Unknown -> if (g in plan.derived) stored.firstOrNull { it.id == g }?.let(fallback::add)
                     }
                 }
-                if (fallback.isNotEmpty()) {
+                if (live && fallback.isNotEmpty()) {
                     Logger.i("Probe", "${fallback.size} balancer(s) without measured members: probing them directly")
-                    fallback.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }.forEach { runCatching { it.get() } }
+                    fallback.map { p -> pool.submit { try { probeOne(p) } catch (t: Throwable) { Logger.e("Probe", "probe task crashed", t) } } }.forEach { f ->
+                        while (!f.isDone) {
+                            if (cancelled.get() || probeGen.get() != batchGen) { pool.shutdownNow(); break }
+                            runCatching { f.get(50, TimeUnit.MILLISECONDS) }
+                        }
+                    }
                 }
             } finally {
+                if (probePool === pool) probePool = null
                 pool.shutdownNow()
                 // Anything still marked as checking (cancelled meanwhile) goes back to its last finished value.
-                plan.derived.keys.forEach { g -> val key = "${access.kind}:$g"; if (Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, derivedBefore[g]) }
+                if (probeGen.get() == batchGen) {
+                    plan.derived.keys.forEach { g -> val key = "${access.kind}:$g"; if (Diagnostics.results.value[key]?.checking == true) Diagnostics.restore(key, derivedBefore[g]) }
+                }
             }
         } catch (t: Throwable) {
             Logger.e("Probe", "probeProfiles aborted", t)
         } finally {
-            Diagnostics.runningMutable.value = false
+            if (probeGen.get() == batchGen) Diagnostics.runningMutable.value = false
             Logger.d("Probe", "probeProfiles finished")
             if (TunnelStatus.state.value in setOf(TunnelState.OFF, TunnelState.ERROR)) finish()
         }
@@ -929,9 +1006,10 @@ class TunnelService : VpnService(), PlatformInterface {
         val deadline = start + timeoutMs * 1_000_000L
         fun remaining() = ((deadline - System.nanoTime()) / 1_000_000).toInt().also { if (it <= 0 || cancelled.get()) throw java.net.SocketTimeoutException() }
         val lookup = lookupExecutor.submit<java.net.InetAddress?> { network.getAllByName(endpoint.first).let { addresses -> addresses.firstOrNull { it is java.net.Inet4Address } ?: addresses.firstOrNull() } }
+        probeLookups.add(lookup)
         try {
             val address = try { lookup.get(remaining().toLong(), TimeUnit.MILLISECONDS) ?: error(tr(R.string.msg_no_address_found_133)) }
-                finally { lookup.cancel(true) }
+                finally { lookup.cancel(true); probeLookups.remove(lookup) }
             Logger.d("Probe", "tcpProbe: dns ok in ${(System.nanoTime() - start) / 1_000_000} ms (family=${if (address is java.net.Inet4Address) "v4" else "v6"}) port=${endpoint.second}")
             stage = "tcp connect"
             java.net.Socket().use { socket ->

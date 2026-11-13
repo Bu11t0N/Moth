@@ -103,8 +103,6 @@ import org.mothvpn.core.SubscriptionSource
             unfoldJobs[key] = unfoldScope.launch { delay(org.mothvpn.core.GroupUnfold.total(count, false).toLong()); if (unfolds[key] == event) { saveCollapsed(collapsed + key); unfolds = unfolds - key } }
         }
     }
-    var now by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(results) { now = System.currentTimeMillis(); while (true) { delay(60_000); now = System.currentTimeMillis() } }
     val locked = busy || probing || tunnel in setOf(TunnelState.RUNNING, TunnelState.STARTING, TunnelState.STOPPING)
     // Updating, adding and deleting subscriptions work while connected (the running session keeps its server even if an update removed it).
     val refreshLocked = busy || probing || tunnel in setOf(TunnelState.STARTING, TunnelState.STOPPING)
@@ -125,22 +123,26 @@ import org.mothvpn.core.SubscriptionSource
         }
     }
     val profiles = saved?.profiles.orEmpty()
-    val visible = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, kind, now, network) {
-        profiles.filter { p ->
-            val r = results["$kind:${p.id}"]
-            val current = r?.networkHandle == network.handle && kind == network.kind
-            val failed = current && r != null && !r.checking && !r.cancelled && r.error != null && r.method == "HTTPS" && now - r.checkedAt in 0 until 900_000
-            (!settings.hideUnavailable || !failed) && settings.filterShows(p, kind) && (p.name.contains(search, true) || p.protocol.contains(search, true))
-        }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$kind:${p.id}"]?.latencyMs } }.let { Favorites.first(it, settings.favorites) { p -> p.id } }
+    // measurable: keyword filter + search, including servers hidden only by "hide unavailable" (those are still pinged).
+    // visible: measurable minus failed servers, when that setting is on (they stay hidden until the next check, with no 15-minute timer).
+    fun listed(k: String, forDisplay: Boolean) = profiles.filter { p ->
+        val r = results["$k:${p.id}"]
+        val hide = forDisplay && settings.hideUnavailable && r != null &&
+            org.mothvpn.core.HideUnavailable.failed(r.checking, r.cancelled || r.kind == ProbeErrorKind.CANCELLED, r.error != null)
+        !hide && settings.filterShows(p, k) && (search.isBlank() || p.name.contains(search, true) || p.protocol.contains(search, true))
+    }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$k:${p.id}"]?.latencyMs } }.let { Favorites.first(it, settings.favorites) { p -> p.id } }
+    val measurable = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, kind) {
+        listed(kind, forDisplay = false)
+    }
+    val visible = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, kind) {
+        listed(kind, forDisplay = true)
     }
     @Composable fun KindPage(k: String) {
-        val visibleK = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, k, now, network) {
-            profiles.filter { p ->
-                val r = results["$k:${p.id}"]
-                val current = r?.networkHandle == network.handle && k == network.kind
-                val failed = current && r != null && !r.checking && !r.cancelled && r.error != null && r.method == "HTTPS" && now - r.checkedAt in 0 until 900_000
-                (!settings.hideUnavailable || !failed) && settings.filterShows(p, k) && (p.name.contains(search, true) || p.protocol.contains(search, true))
-            }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$k:${p.id}"]?.latencyMs } }.let { Favorites.first(it, settings.favorites) { p -> p.id } }
+        val measurableK = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, k) {
+            listed(k, forDisplay = false)
+        }
+        val visibleK = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, k) {
+            listed(k, forDisplay = true)
         }
         if (visibleK.isEmpty()) Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             if (saved != null) Text(tr(R.string.msg_no_servers_found_59))
@@ -157,9 +159,10 @@ import org.mothvpn.core.SubscriptionSource
             val folded = book != null && groupKey in collapsed && search.isBlank()
             if (book != null) item(key = "header:$groupKey") { Box(Modifier.listItemMotion(this)) {
                 val source = group.sourceId?.let(book::source)
-                val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true }
-                // This group's servers in the order shown (favorites: the favorite servers).
-                val ids = group.profiles.map { it.id }
+                val checking = group.profiles.any { results["$k:${it.id}"]?.checking == true } ||
+                    measurableK.any { results["$k:${it.id}"]?.checking == true && (if (group.sourceId == null) it.id in settings.favorites else it.id in source?.profiles.orEmpty().map { p -> p.id }) }
+                // Check includes this group's servers hidden only by "hide unavailable"; the keyword filter and the search still apply.
+                val ids = measurableK.filter { p -> if (group.sourceId == null) p.id in settings.favorites else p.id in source?.profiles.orEmpty().map { it.id } }.map { it.id }
                 NewGroupHeader(source, group.profiles.size, folded || unfolds[groupKey]?.opening == false, checking, probing, updating = source != null && source.id in refreshing, canRefresh = source != null && !source.local && !refreshLocked, canCheck = canCheck && ids.isNotEmpty(),
                     toggle = { toggleGroup(groupKey, group.profiles.size) }, refresh = { source?.let { refreshOne(it.id) } }, check = { checkOn(k) { probeGroup(k, ids) } }, cancel = cancel,
                     actions = { if (source != null) actionsFor = source.id })
@@ -227,8 +230,8 @@ import org.mothvpn.core.SubscriptionSource
             if (saved != null) {
                 if (probing) IconButton(onClick = { cancel() }, modifier = Modifier.pressScale().then(Modifier.size(40.dp).semantics { contentDescription = tr(R.string.msg_cancel_checks_49) })) {
                     Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null)
-                } else IconButton(onClick = { checkOn(kind) { probe(kind, visible.map { it.id }) } }, enabled = canCheck && visible.isNotEmpty(),
-                    modifier = Modifier.pressScale(enabled = canCheck && visible.isNotEmpty()).then(Modifier.size(40.dp).semantics { contentDescription = tr(R.string.servers_check_all) })) {
+                } else IconButton(onClick = { checkOn(kind) { probe(kind, measurable.map { it.id }) } }, enabled = canCheck && measurable.isNotEmpty(),
+                    modifier = Modifier.pressScale(enabled = canCheck && measurable.isNotEmpty()).then(Modifier.size(40.dp).semantics { contentDescription = tr(R.string.servers_check_all) })) {
                     Icon(androidx.compose.material.icons.Icons.Rounded.NetworkCheck, contentDescription = null)
                 }
             }
@@ -273,8 +276,8 @@ import org.mothvpn.core.SubscriptionSource
         NdActionSheet(source.title(), { actionsFor = null }) {
             NdSheetItem(tr(R.string.sub_edit), androidx.compose.material.icons.Icons.Rounded.Edit, enabled = !busy) { actionsFor = null; editFor = source.id }
             if (!source.local) NdSheetItem(tr(R.string.sub_update), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !refreshLocked) { actionsFor = null; refreshOne(source.id) }
-            // This subscription's servers that the page shows; servers the filter hides are never checked (nothing to check: disabled).
-            val ids = visible.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }
+            // This subscription's servers the keyword filter and the search show, including those hidden only as unavailable.
+            val ids = measurable.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }
             NdSheetItem(tr(R.string.sub_check), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck && ids.isNotEmpty()) { actionsFor = null; checkOn(kind) { probeGroup(kind, ids) } }
             // Dimmed but tappable when locked: the tap closes the sheet and explains why in the top notice.
             NdSheetItem(tr(R.string.sub_delete), androidx.compose.material.icons.Icons.Rounded.Delete, dimmed = deleteLocked(source.id)) {

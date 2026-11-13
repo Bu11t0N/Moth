@@ -253,33 +253,41 @@ import org.mothvpn.core.SubscriptionSchedule
                     var vpnTargetsDialog by remember { mutableStateOf(false) }
                     DialogRow(tr(R.string.sub_vpn_only), "", enabled = !locked) { vpnTargetsDialog = true }
                     if (vpnTargetsDialog) SubscriptionVpnTargetsDialog(draft, { vpnTargetsDialog = false }) { applySettings(it) }
-                    var trafficDialog by remember { mutableStateOf(false) }
-                    val trafficOptions = org.mothvpn.core.TrafficWarning.thresholds.map { it to if (it == 0) tr(R.string.sub_auto_off) else "$it%" }
-                    DialogRow(tr(R.string.traffic_warning_setting), trafficOptions.first { it.first == draft.trafficWarning }.second) { trafficDialog = true }
-                    if (trafficDialog) ChoiceDialog(tr(R.string.traffic_warning_setting), trafficOptions, draft.trafficWarning, { trafficDialog = false }) { applySettings(draft.copy(trafficWarning = it)) }
-                    SettingsToggle(tr(R.string.expiry_toggle), draft.expiryWarning, info = tr(R.string.expiry_toggle_hint)) { applySettings(draft.copy(expiryWarning = it)) }
-                    SectionHeader(tr(R.string.set_head_provider))
-                    SettingsToggle(tr(R.string.msg_send_hwid_to_the_provider_105), draft.hwidEnabled, !locked) { applySettings(draft.copy(hwidEnabled = it)) }
-                    androidx.compose.animation.AnimatedVisibility(draft.hwidEnabled,
-                        enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SettingCard {
-                                OutlinedTextField(draft.hwid, { applySettings(draft.copy(hwid = it)) }, enabled = !locked, label = { Text("HWID · x-hwid") }, singleLine = true,
-                                    visualTransformation = if (showHwid) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
-                                    trailingIcon = { IconButton(onClick = { showHwid = !showHwid }, modifier = Modifier.pressScale()) { MothIcon(if (showHwid) "eye_off" else "eye") } },
-                                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp))
-                                TextButton(onClick = { clipboard.setText(AnnotatedString(draft.hwid)) }, modifier = Modifier.pressScale().align(Alignment.End).padding(end = 8.dp)) { Text(tr(R.string.msg_copy_hwid_107)) }
+                    val traffic = org.mothvpn.core.TrafficWarning
+                    val trafficOn = draft.trafficWarning != traffic.OFF
+                    var lastTrafficThreshold by remember { mutableIntStateOf(draft.trafficWarning.takeIf { it in traffic.MIN..traffic.MAX } ?: traffic.DEFAULT) }
+                    SettingCard {
+                        ToggleRow(tr(R.string.traffic_warning_setting), trafficOn) { on ->
+                            applySettings(draft.copy(trafficWarning = if (on) lastTrafficThreshold else traffic.OFF))
+                        }
+                        FoldIn(trafficOn) {
+                            TrafficThresholdSlider(if (trafficOn) draft.trafficWarning else lastTrafficThreshold) { p ->
+                                lastTrafficThreshold = p
+                                if (draft.trafficWarning != traffic.OFF) applySettings(draft.copy(trafficWarning = p))
                             }
-                            var deviceDialog by remember { mutableStateOf(false) }
-                            WithNested(draft.deviceInfo, { SettingsToggle(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it, deviceInfoSet = true)) } }) {
-                                DialogRow(tr(R.string.device_title), DeviceDefaults.sent(draft).joinToString(" · "), enabled = !locked) { deviceDialog = true }
-                            }
-                            if (deviceDialog && draft.deviceInfo) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
-                            var targetsDialog by remember { mutableStateOf(false) }
-                            DialogRow(tr(R.string.device_targets), "", enabled = !locked) { targetsDialog = true }
-                            if (targetsDialog) DeviceDataTargetsDialog(draft, { targetsDialog = false }) { applySettings(it) }
                         }
                     }
+                    SettingsToggle(tr(R.string.expiry_toggle), draft.expiryWarning, info = tr(R.string.expiry_toggle_hint)) { applySettings(draft.copy(expiryWarning = it)) }
+                    SectionHeader(tr(R.string.set_head_provider))
+                    var deviceDialog by remember { mutableStateOf(false) }
+                    var targetsDialog by remember { mutableStateOf(false) }
+                    SettingCard {
+                        ToggleRow(tr(R.string.msg_send_hwid_to_the_provider_105), draft.hwidEnabled, !locked) { applySettings(draft.copy(hwidEnabled = it)) }
+                        FoldIn(draft.hwidEnabled, Modifier.padding(bottom = 8.dp)) {
+                            OutlinedTextField(draft.hwid, { applySettings(draft.copy(hwid = it)) }, enabled = !locked, label = { Text("HWID · x-hwid") }, singleLine = true,
+                                visualTransformation = if (showHwid) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = { IconButton(onClick = { showHwid = !showHwid }, modifier = Modifier.pressScale()) { MothIcon(if (showHwid) "eye_off" else "eye") } },
+                                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp))
+                            TextButton(onClick = { clipboard.setText(AnnotatedString(draft.hwid)) }, modifier = Modifier.pressScale().align(Alignment.End).padding(end = 8.dp)) { Text(tr(R.string.msg_copy_hwid_107)) }
+                            ToggleRow(tr(R.string.msg_send_device_model_and_android_version_108), draft.deviceInfo, !locked) { applySettings(draft.copy(deviceInfo = it, deviceInfoSet = true)) }
+                            FoldIn(draft.deviceInfo) {
+                                DialogLine(tr(R.string.device_title), DeviceDefaults.sent(draft).joinToString(" · "), !locked) { deviceDialog = true }
+                            }
+                            DialogLine(tr(R.string.device_targets), "", !locked) { targetsDialog = true }
+                        }
+                    }
+                    if (deviceDialog && draft.deviceInfo) DeviceInfoDialog(draft, { deviceDialog = false }) { applySettings(it); deviceDialog = false }
+                    if (targetsDialog) DeviceDataTargetsDialog(draft, { targetsDialog = false }) { applySettings(it) }
                     // Subscription User-Agent: one row with the current choice; a sheet picks Moth, a client preset or the user's own value. Never logged.
                     var uaSheet by remember { mutableStateOf(false) }
                     DialogRow(tr(R.string.msg_subscription_user_agent_109), org.mothvpn.core.UserAgents.title(draft.userAgent, BuildConfig.VERSION_NAME), enabled = !locked) { uaSheet = true }
@@ -544,6 +552,34 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
         }
         Slider(value, { value = it; LargeTitleTuning.percent = it }, valueRange = range.MIN.toFloat()..range.MAX.toFloat(),
             onValueChangeFinished = { commit() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+    }
+}
+@Composable private fun TrafficThresholdSlider(saved: Int, save: (Int) -> Unit) {
+    val range = org.mothvpn.core.TrafficWarning
+    var value by remember(saved) { mutableFloatStateOf(saved.coerceIn(range.MIN, range.MAX).toFloat()) }
+    fun commit() {
+        if (saved == range.OFF) return
+        val p = kotlin.math.round(value).toInt().coerceIn(range.MIN, range.MAX)
+        value = p.toFloat()
+        if (p != saved) save(p)
+    }
+    val latestCommit by rememberUpdatedState(::commit)
+    DisposableEffect(Unit) { onDispose { latestCommit() } }
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("${kotlin.math.round(value).toInt()}%", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    Slider(value, { value = it }, valueRange = range.MIN.toFloat()..range.MAX.toFloat(),
+        onValueChangeFinished = { commit() }, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 4.dp))
+}
+/** A DialogRow's contents without its own card, for use inside a shared [SettingCard]. */
+@Composable private fun DialogLine(title: String, value: String, enabled: Boolean = true, open: () -> Unit) {
+    Row(Modifier.pressScale(enabled = enabled).fillMaxWidth().clickable(enabled = enabled, onClick = open).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            if (value.isNotEmpty()) Text(value, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        Text("›", modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
     }
 }
 @Composable private fun SettingsToggle(label: String, checked: Boolean, enabled: Boolean = true, subtitle: String? = null, info: String? = null,

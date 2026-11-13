@@ -687,7 +687,6 @@ object SubtitlePalette {
                     }
                 }
             }
-            Text(tr(R.string.nd_filter_hint), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
         }
     }
 }

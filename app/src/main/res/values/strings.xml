@@ -75,7 +75,7 @@
     <string name="msg_light_82" formatted="false">"Light"</string>
     <string name="msg_sort_by_latency_84" formatted="false">"Sort by latency"</string>
     <string name="msg_hide_unavailable_servers_85" formatted="false">"Hide unavailable servers"</string>
-    <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Servers with failed checks in the last 15 minutes are hidden. Unchecked servers and checks in progress stay visible. Check again after switching networks."</string>
+    <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Servers whose last check failed stay hidden until you check again. Unchecked servers and checks in progress stay visible."</string>
     <string name="msg_screen_sharing_and_screenshots_are_allowed_su_87" formatted="false">"Screen sharing and screenshots are allowed. Subscription links and HWID are masked in input fields."</string>
     <string name="msg_ipv6_through_vpn_89" formatted="false">"IPv6 through VPN"</string>
     <string name="msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90" formatted="false">"When disabled, IPv6 is blocked inside the tunnel."</string>
@@ -496,7 +496,6 @@
     <string name="nd_filter_add">Add</string>
     <string name="nd_filter_empty">No keywords: all servers are shown.</string>
     <string name="nd_filter_remove">Remove %1$s</string>
-    <string name="nd_filter_hint">Keywords are matched against server names, ignoring case. Wi-Fi and mobile data have separate filters; each stays after subscription updates.</string>
     <string name="nd_link_support">Support</string>
     <string name="nd_link_news">News</string>
     <string name="nd_link_web">Website</string>
