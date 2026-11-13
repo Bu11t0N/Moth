@@ -625,7 +625,7 @@
     <string name="conn_closed_ago">closed %1$s ago</string>
     <string name="conn_closed_by_you_ago">closed by you %1$s ago</string>
     <string name="conn_recent_title">Recently closed</string>
-    <string name="conn_recent_sum">Last %1$d while the VPN is on</string>
+    <string name="conn_recent_sum">Closed in the last 3 minutes, while the VPN is on</string>
     <string name="conn_recent_manual">Closed by you: %1$d</string>
     <string name="conn_recent_empty">No closed connections yet.</string>
     <string name="conn_detail_app">App</string>

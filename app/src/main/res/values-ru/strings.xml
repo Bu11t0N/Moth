@@ -629,7 +629,7 @@
     <string name="conn_closed_ago">закрыто %1$s назад</string>
     <string name="conn_closed_by_you_ago">закрыто вами %1$s назад</string>
     <string name="conn_recent_title">Недавно закрытые</string>
-    <string name="conn_recent_sum">Последние %1$d, пока VPN включён</string>
+    <string name="conn_recent_sum">Закрытые за последние 3 минуты, пока VPN включён</string>
     <string name="conn_recent_manual">Закрыты вами: %1$d</string>
     <string name="conn_recent_empty">Закрытых соединений пока нет.</string>
     <string name="conn_detail_app">Приложение</string>
