@@ -2,6 +2,13 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.3-beta.2
+
+### Changes
+
+- The HWID card and the traffic warning are still each one card, with lines between their parts.
+- The active-tunnel check, the proxy for other devices, large titles, and the theme with the AMOLED option are each one card: turning the switch off hides what belongs to it.
+
 ## 1.0.3-beta.1
 
 ### Changes
