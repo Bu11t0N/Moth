@@ -68,6 +68,19 @@ object Diagnostics {
         val back = previous ?: finished[id]
         resultsMutable.value = if (back != null) resultsMutable.value + (id to back) else resultsMutable.value - id
     }
+
+    /** Puts every in-progress check back to its last finished value, at once (a cancel must look immediate). */
+    @Synchronized fun restoreChecking() {
+        val current = resultsMutable.value
+        var next: MutableMap<String, ProbeResult>? = null
+        for ((id, r) in current) {
+            if (!r.checking) continue
+            if (next == null) next = current.toMutableMap()
+            val back = finished[id]
+            if (back != null) next[id] = back else next.remove(id)
+        }
+        if (next != null) resultsMutable.value = next
+    }
     @Synchronized fun result(id: String, value: ProbeResult) {
         resultsMutable.value = resultsMutable.value + (id to value)
         if (org.mothvpn.core.PingMemory.keeps(value.checking, value.cancelled || value.kind == ProbeErrorKind.CANCELLED, value.latencyMs, value.error != null)) {

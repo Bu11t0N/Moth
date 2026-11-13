@@ -17,20 +17,21 @@ object LiveConnections {
         val rule: String = "", val outboundType: String = "", val inbound: String = "",
     ) { val total get() = upTotal + downTotal }
 
-    /** How many recently closed connections the page shows (the core already keeps its own bounded list of closed ones). */
-    const val RECENT_LIMIT = 30
+    /** How long a closed connection stays on the page (the core already keeps its own bounded list of closed ones). */
+    const val RECENT_WINDOW_MS = 3 * 60 * 1000L
 
-    /** Most recently closed first, at most [limit]; open connections are ignored. */
-    fun recentlyClosed(items: List<Item>, limit: Int = RECENT_LIMIT): List<Item> =
-        items.filter { it.closedAtMs > 0 }.sortedWith(compareByDescending<Item> { it.closedAtMs }.thenBy { it.id }).take(limit.coerceAtLeast(0))
+    /** Closed within the last [windowMs] of [now], most recently closed first; open connections are ignored. */
+    fun recentlyClosed(items: List<Item>, now: Long, windowMs: Long = RECENT_WINDOW_MS): List<Item> =
+        items.filter { it.closedAtMs > 0 && now - it.closedAtMs in 0 until windowMs.coerceAtLeast(0) }
+            .sortedWith(compareByDescending<Item> { it.closedAtMs }.thenBy { it.id })
 
     /**
      * Recently closed connections split in two: those that ended by themselves and those the user closed on the page ([manualIds]),
-     * each most recently closed first and at most [limit], so a burst of natural closes never pushes the user's own closes out.
+     * each most recently closed first within the same time window, so a burst of natural closes never pushes the user's own closes out.
      */
-    fun recentlyClosedSplit(items: List<Item>, manualIds: Set<String>, limit: Int = RECENT_LIMIT): Pair<List<Item>, List<Item>> {
+    fun recentlyClosedSplit(items: List<Item>, manualIds: Set<String>, now: Long, windowMs: Long = RECENT_WINDOW_MS): Pair<List<Item>, List<Item>> {
         val (manual, natural) = items.filter { it.closedAtMs > 0 }.partition { it.id in manualIds }
-        return recentlyClosed(natural, limit) to recentlyClosed(manual, limit)
+        return recentlyClosed(natural, now, windowMs) to recentlyClosed(manual, now, windowMs)
     }
 
     /** Closed connections grouped [by] like the active list: groups and their rows ordered by the newest close first. */

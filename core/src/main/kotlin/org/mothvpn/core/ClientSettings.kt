@@ -45,7 +45,7 @@ data class ClientSettings(
     val expiryWarning: Boolean = true,
     /** User routing rules (domain / suffix / keyword / IP CIDR -> proxy, direct or block), applied in order before the built-in rules. */
     val routingRules: List<RoutingRule> = emptyList(),
-    /** Warn when a subscription has used this share of its traffic: 0 (off), 80, 90 or 95 percent. */
+    /** Warn when a subscription has used this share of its traffic: 0 (off) or 75–95 percent. */
     val trafficWarning: Int = TrafficWarning.DEFAULT,
     /** TLS ClientHello fragmentation against DPI: a [DpiTricks.fragmentPresets] id, "off" by default. */
     val fragment: String = "off",
@@ -136,7 +136,7 @@ data class ClientSettings(
         require(splitApps.size <= 2000 && splitApps.all { SplitTunnel.validPackage(it) }) { "Неверный список приложений" }
         require(DnsServers.valid(dns)) { "Неверный DNS-сервер" }
         require(Favorites.valid(favorites)) { "Неверный список избранного" }
-        require(trafficWarning in TrafficWarning.thresholds) { "Неверный порог предупреждения о трафике" }
+        require(TrafficWarning.allowed(trafficWarning)) { "Неверный порог предупреждения о трафике" }
         require(CustomRouting.valid(routingRules)) { "Неверное правило маршрутизации" }
         require(fragment in DpiTricks.fragmentPresets.keys) { "Неверный режим фрагментации" }
         require(mux in DpiTricks.muxModes) { "Неверный режим мультиплексирования" }

@@ -35,7 +35,10 @@ class TrafficWarningTest {
         assertEquals(c, ClientSettings.from(c.json()))
         assertEquals(90, ClientSettings.from(c.json().put("trafficWarning", 50)).trafficWarning)
         assertEquals(90, ClientSettings.from(c.json().apply { remove("trafficWarning") }).trafficWarning)
-        assertFailsWith<IllegalArgumentException> { ClientSettings(trafficWarning = 85).validate() }
+        assertEquals(85, ClientSettings(trafficWarning = 85).trafficWarning)
+        assertEquals(75, ClientSettings.from(c.json().put("trafficWarning", 75)).trafficWarning)
+        assertFailsWith<IllegalArgumentException> { ClientSettings(trafficWarning = 74).validate() }
+        assertFailsWith<IllegalArgumentException> { ClientSettings(trafficWarning = 96).validate() }
         assertEquals(listOf("trafficWarning=90->0"), LogFacts.settingsChanges(ClientSettings(hwid = c.hwid), ClientSettings(hwid = c.hwid, trafficWarning = 0)))
         // Included in backups.
         val back = Backup.read(Backup.export(Backup.Content(ClientSettings(trafficWarning = 95), SubscriptionBook(emptyList())), null))

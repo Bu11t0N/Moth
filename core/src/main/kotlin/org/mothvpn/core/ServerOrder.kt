@@ -64,10 +64,11 @@ object ProbeOrder {
 }
 
 /**
- * Which servers a check measures, fixed once when it starts. A check of all servers or of one subscription covers only the
- * servers the page's keyword filter shows (hidden servers are never measured); [only], when given (a subscription, or the
- * list the screen showed when Check was tapped), narrows that set further. [id] is a single server. Changing the filter
- * while a check runs never adds servers to it: callers compute this list once and keep it.
+ * Which servers a check measures, fixed once when it starts. A check of all servers or of one subscription covers the
+ * servers the page's keyword filter shows (servers the keyword filter hides are never measured); [only], when given
+ * (a subscription, or the list the screen passed when Check was tapped, which includes servers hidden only by
+ * "hide unavailable"), narrows that set further. [id] is a single server. Changing the filter while a check runs
+ * never adds servers to it: callers compute this list once and keep it.
  */
 object ProbePlan {
     fun targets(profiles: List<Profile>, settings: ClientSettings, kind: String, id: String? = null, only: Set<String> = emptySet()): List<Profile> {

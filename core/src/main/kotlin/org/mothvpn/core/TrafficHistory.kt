@@ -93,9 +93,13 @@ object ExpiryWarning {
  * also restarts when the used amount goes down (the provider reset the counter). Unlimited subscriptions (total 0) are skipped.
  */
 object TrafficWarning {
-    val thresholds = listOf(0, 80, 90, 95)
+    const val OFF = 0
+    const val MIN = 75
+    const val MAX = 95
     const val DEFAULT = 90
-    fun normalize(value: Int) = value.takeIf { it in thresholds } ?: DEFAULT
+    /** On (75–95) or off (0). */
+    fun allowed(value: Int) = value == OFF || value in MIN..MAX
+    fun normalize(value: Int) = value.takeIf { allowed(it) } ?: DEFAULT
     /** [notified]: the highest threshold already announced in [period]; [used]: the last seen amount. */
     data class State(val period: String, val used: Long, val notified: Int) {
         fun encode() = "$period|$used|$notified"

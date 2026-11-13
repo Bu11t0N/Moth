@@ -77,16 +77,17 @@ private fun open(context: Context, vararg intents: Intent) {
 }
 @Composable private fun RowDivider() = HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-/** One list row: a short label (with an optional second line under it) and its value on the right, on one line each. */
+/** One list row: the label and its value on the first line (the label wraps if it is long), and an optional
+ *  full-width explanation under them that wraps completely, with no ellipsis. */
 @Composable private fun InfoRow(label: String, value: String?, supporting: String? = null, onClick: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().let { if (onClick != null) it.pressScale(0.98f).clickable(onClick = onClick) else it }.heightIn(min = 52.dp)
-        .padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            supporting?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+    Column(Modifier.fillMaxWidth().let { if (onClick != null) it.pressScale(0.98f).clickable(onClick = onClick) else it }.heightIn(min = 52.dp)
+        .padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(end = 12.dp))
+            value?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
+            if (onClick != null) Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
         }
-        value?.let { Text(it, style = MaterialTheme.typography.titleMedium, maxLines = 1) }
-        if (onClick != null) Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
+        supporting?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 private class Line(val label: String, val value: String?, val supporting: String? = null)
@@ -270,17 +271,19 @@ private class LiveConnectionsClient(private val onList: (List<org.mothvpn.core.L
                 val out = ArrayList<org.mothvpn.core.LiveConnections.Item>()
                 val it = message.iterator()
                 while (it.hasNext()) { val c = it.next(); val id = c.id ?: continue; out += item(c, id) }
-                // The core already keeps a bounded list of closed connections for this VPN session (gone when the VPN stops); only the
-                // newest few of those that ended by themselves and of those the user closed here ([VpnTraffic.closedByUser]) are converted.
+                // The core already keeps a bounded list of closed connections for this VPN session (gone when the VPN stops);
+                // of those, only the ones closed in the last few minutes are shown, split into ones that ended by themselves
+                // and ones the user closed here ([VpnTraffic.closedByUser]).
                 message.filterState(io.nekohasekai.libbox.Libbox.ConnectionStateClosed.toInt())
                 val manual = VpnTraffic.closedByUser()
-                val limit = org.mothvpn.core.LiveConnections.RECENT_LIMIT
+                val now = System.currentTimeMillis()
+                val window = org.mothvpn.core.LiveConnections.RECENT_WINDOW_MS
                 val natural = ArrayList<Pair<Long, io.nekohasekai.libbox.Connection>>(); val mine = ArrayList<Pair<Long, io.nekohasekai.libbox.Connection>>()
                 val ci = message.iterator()
                 while (ci.hasNext()) { val c = ci.next(); val id = c.id ?: continue; (if (id in manual) mine else natural) += c.closedAt to c }
-                fun convert(raw: List<Pair<Long, io.nekohasekai.libbox.Connection>>) = raw.sortedByDescending { it.first }.take(limit)
+                fun convert(raw: List<Pair<Long, io.nekohasekai.libbox.Connection>>) = raw.filter { now - it.first in 0 until window }
                     .mapNotNull { (_, c) -> c.id?.let { id -> item(c, id) } }
-                val (n, m) = org.mothvpn.core.LiveConnections.recentlyClosedSplit(convert(natural) + convert(mine), manual)
+                val (n, m) = org.mothvpn.core.LiveConnections.recentlyClosedSplit(convert(natural) + convert(mine), manual, now)
                 onList(out, ClosedLists(n, m))
             }.onFailure { Logger.w("Connections", "reading the connection list failed: ${it.javaClass.simpleName}") }
         }
@@ -633,19 +636,22 @@ private val LocalUserRules = staticCompositionLocalOf { emptyList<org.mothvpn.co
         Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Column(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(tr(R.string.conn_recent_title), style = MaterialTheme.typography.titleMedium)
-                Text(tr(R.string.conn_recent_sum, org.mothvpn.core.LiveConnections.RECENT_LIMIT), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr(R.string.conn_recent_sum), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            val window = org.mothvpn.core.LiveConnections.RECENT_WINDOW_MS
+            val natural = lists?.natural?.let { org.mothvpn.core.LiveConnections.recentlyClosed(it, now, window) }
+            val manual = lists?.manual?.let { org.mothvpn.core.LiveConnections.recentlyClosed(it, now, window) }
             when {
                 lists == null -> LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp))
-                lists.natural.isEmpty() && lists.manual.isEmpty() -> Text(tr(R.string.conn_recent_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                natural.isNullOrEmpty() && manual.isNullOrEmpty() -> Text(tr(R.string.conn_recent_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp))
                 else -> {
-                    ClosedSection(lists.natural, false, groupBy, now, labels, expanded, bytes)
-                    if (lists.manual.isNotEmpty()) {
+                    ClosedSection(natural.orEmpty(), false, groupBy, now, labels, expanded, bytes)
+                    if (!manual.isNullOrEmpty()) {
                         RowDivider()
-                        Text(tr(R.string.conn_recent_manual, lists.manual.size), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
+                        Text(tr(R.string.conn_recent_manual, manual.size), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp))
-                        ClosedSection(lists.manual, true, groupBy, now, labels, expanded, bytes)
+                        ClosedSection(manual, true, groupBy, now, labels, expanded, bytes)
                     }
                 }
             }

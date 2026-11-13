@@ -75,7 +75,7 @@
     <string name="msg_light_82" formatted="false">"Светлая"</string>
     <string name="msg_sort_by_latency_84" formatted="false">"Сортировать по задержке"</string>
     <string name="msg_hide_unavailable_servers_85" formatted="false">"Скрывать недоступные серверы"</string>
-    <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Скрываются серверы с неудачной проверкой за последние 15 минут. Непроверенные и проверяемые остаются в списке. Перепроверь серверы при смене сети."</string>
+    <string name="msg_servers_with_failed_checks_in_the_last_15_min_86" formatted="false">"Скрываются серверы с неудачной последней проверкой — до следующей проверки. Непроверенные и проверяемые остаются в списке."</string>
     <string name="msg_screen_sharing_and_screenshots_are_allowed_su_87" formatted="false">"Можно транслировать экран и делать скриншоты. Ссылка подписки и HWID скрыты в полях ввода."</string>
     <string name="msg_ipv6_through_vpn_89" formatted="false">"IPv6 через VPN"</string>
     <string name="msg_when_disabled_ipv6_is_blocked_inside_the_tunn_90" formatted="false">"При выключении IPv6 блокируется внутри туннеля."</string>
@@ -500,7 +500,6 @@
     <string name="nd_filter_add">Добавить</string>
     <string name="nd_filter_empty">Слов нет: показаны все серверы.</string>
     <string name="nd_filter_remove">Удалить %1$s</string>
-    <string name="nd_filter_hint">Слова ищутся в названиях серверов без учёта регистра. У Wi-Fi и мобильных данных свои фильтры; они сохраняются после обновления подписок.</string>
     <string name="nd_link_support">Поддержка</string>
     <string name="nd_link_news">Новости</string>
     <string name="nd_link_web">Сайт</string>
@@ -630,7 +629,7 @@
     <string name="conn_closed_ago">закрыто %1$s назад</string>
     <string name="conn_closed_by_you_ago">закрыто вами %1$s назад</string>
     <string name="conn_recent_title">Недавно закрытые</string>
-    <string name="conn_recent_sum">Последние %1$d, пока VPN включён</string>
+    <string name="conn_recent_sum">Закрытые за последние 3 минуты, пока VPN включён</string>
     <string name="conn_recent_manual">Закрыты вами: %1$d</string>
     <string name="conn_recent_empty">Закрытых соединений пока нет.</string>
     <string name="conn_detail_app">Приложение</string>
