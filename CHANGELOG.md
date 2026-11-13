@@ -2,6 +2,19 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.3-beta.1
+
+### Changes
+
+- While the split-tunneling app list loads, a moth is shown, as on Home and in the changelog.
+- Unavailable servers stay hidden until you check again, not for 15 minutes, and they are still measured so they can come back.
+- The hint under the server filter is gone.
+- The traffic warning is a switch, with a 75–95% slider when it is on.
+- Sending HWID to the provider is one card: turning the switch off hides everything that belongs to it.
+- Recently closed connections are those closed in the last 3 minutes.
+- Cancelling a server check stops at once and keeps the previous ping, instead of a grey dash.
+- The battery optimization status is shown in full, without cutting the text off.
+
 ## 1.0.2
 
 Released 2026-11-11.
