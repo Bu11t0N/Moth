@@ -305,7 +305,9 @@ class TunnelService : VpnService(), PlatformInterface {
                 updateOffline(networkState.current != null || NetworkTracker.read(connectivity).available)
                 startStats(settings); foreground() // startStats first: it sets the connect time the notification chronometer counts from
                 TunnelStatus.activeMutable.value = id; lastStarted = started; TunnelStatus.activeServerMutable.value = started
-                Diagnostics.healthMutable.value = HealthResult(message = if (settings.healthEnabled) tr(R.string.msg_checking_internet_access_through_vpn_120) else tr(R.string.msg_checks_are_disabled_in_settings_121))
+                Diagnostics.healthMutable.value = if (settings.healthEnabled)
+                    HealthResult(checking = true, message = tr(R.string.msg_checking_internet_access_15))
+                else HealthResult(message = tr(R.string.msg_checks_are_disabled_in_settings_121))
                 healthRx = -1; healthCheckedAt = 0
                 if (settings.healthEnabled) healthTask = healthExecutor.scheduleWithFixedDelay({ checkHealth(settings, scheduled = true) }, 2, settings.healthIntervalSeconds.toLong(), TimeUnit.SECONDS)
             }
