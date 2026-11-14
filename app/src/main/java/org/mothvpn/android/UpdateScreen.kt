@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -109,14 +108,15 @@ import java.io.File
         12.dp + 52.dp + 8.dp
     BoxWithConstraints(modifier.fillMaxWidth()) {
     val top = (maxHeight - reserve).coerceAtLeast(0.dp)
-    // Exactly the same responsive dp size as Home. Keep the square canvas, never stretch it to this area.
-    val side = mothArtworkSize() * org.mothvpn.core.MothArtworkSize.DRAWING_RATIO
+    // Same drawn size as the Home moth. If this Settings page is shorter than Home (large title + the cards
+    // below), shrink the square to the slot so the antennae are not clipped; never stretch it.
+    val room = (top - below).coerceAtLeast(0.dp)
+    val side = org.mothvpn.core.MothArtworkSize.fitDrawing(mothArtworkSize().value, room.value).dp
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-        Box(Modifier.weight(1f, fill = false).height(top).fillMaxWidth().clipToBounds()) {
+        Box(Modifier.weight(1f, fill = false).height(top).fillMaxWidth()) {
             // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
-            // Centred on the drawing (its middle is at 48.5 % of the square, not 50 %).
             Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
-                MothFlutter(Modifier.requiredSize(side), size = side, busy = busy, exact = true)
+                if (side > 0.dp) MothFlutter(Modifier.requiredSize(side), size = side, busy = busy, exact = true)
             }
             // The status line and the action slot sit low, at the bottom of the moth area (just above the version card).
             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {

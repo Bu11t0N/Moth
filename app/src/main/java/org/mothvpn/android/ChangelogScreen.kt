@@ -72,7 +72,7 @@ object ChangelogRepository {
             // The same responsive size as the Home moth (and the Updates page), placed like Home: about a third of the free height above
             // it, the rest below (upper part of the centre, not the exact middle).
             loading && sections == null -> BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.TopCenter) {
-                val moth = mothArtworkSize()
+                val moth = minOf(mothArtworkSize(), maxWidth, maxHeight)
                 val free = (maxHeight - moth).coerceAtLeast(0.dp)
                 Box(Modifier.padding(top = free * 0.35f).size(moth), contentAlignment = Alignment.Center) {
                     MothLoading(size = moth * org.mothvpn.core.MothArtworkSize.DRAWING_RATIO, exact = true)
