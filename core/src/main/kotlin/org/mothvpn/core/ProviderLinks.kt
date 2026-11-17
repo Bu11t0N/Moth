@@ -49,7 +49,9 @@ data class ProviderLinks(val support: String = "", val web: String = "", val ann
 
         /**
          * An announcement as shown to the user: `base64:` decoded, a UTF-8 header value read as Latin-1 by the HTTP stack repaired,
-         * control characters dropped (line breaks kept, at most two in a row), surrounding spaces trimmed, at most [MAX_ANNOUNCE] characters.
+         * control characters dropped (line breaks kept, at most two in a row), bidi marks and zero-width spaces removed,
+         * surrounding spaces trimmed, at most [MAX_ANNOUNCE] characters. ZWJ, ZWNJ and variation selectors are kept so emoji
+         * sequences (ZWJ, skin tones, flags, keycaps) stay a single glyph.
          */
         fun announceText(raw: String, fromHeader: Boolean = false): String {
             var v = raw.trim().removeSurrounding("\"").trim()
@@ -60,7 +62,7 @@ data class ProviderLinks(val support: String = "", val web: String = "", val ann
                 if (utf8 != null) v = utf8
             }
             val clean = v.replace("\r\n", "\n").replace('\r', '\n').filter { it == '\n' || !it.isISOControl() }
-                .replace(Regex("[\\u200B-\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]"), "")
+                .replace(Regex("[\\u200B\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]"), "")
                 .replace(Regex("[ \\t]+"), " ").replace(Regex("\\n{3,}"), "\n\n").trim()
             return if (clean.length <= MAX_ANNOUNCE) clean else clean.take(MAX_ANNOUNCE - 1).trimEnd() + "…"
         }

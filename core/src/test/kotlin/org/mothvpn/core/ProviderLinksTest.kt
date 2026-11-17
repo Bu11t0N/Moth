@@ -118,4 +118,21 @@ class ProviderLinksTest {
         assertNull(ProviderLinks.telegramPhoto("<meta property=\"og:image\" content=\"http://cdn.example/a.jpg\">"))
         assertNull(ProviderLinks.telegramPhoto("<html></html>"))
     }
+
+    @Test fun announceTextKeepsEmojiJoinerSequences() {
+        // Person with blond hair + ZWJ + male sign + emoji variation selector: one "man" emoji when the joiner is kept.
+        val man = "\uD83D\uDC71\u200D\u2642\uFE0F"
+        assertEquals("Hello $man", ProviderLinks.announceText("Hello $man"))
+        assertEquals(man, ProviderLinks.announceText("\u200B$man\u202E"))
+        val tone = "\uD83D\uDC4B\uD83C\uDFFD" // waving hand, medium skin tone
+        assertEquals(tone, ProviderLinks.announceText(tone))
+        val flag = "\uD83C\uDDF7\uD83C\uDDFA" // regional-indicator flag
+        assertEquals("Go $flag", ProviderLinks.announceText("Go $flag"))
+        val keycap = "1\uFE0F\u20E3"
+        assertEquals(keycap, ProviderLinks.announceText(keycap))
+        val rainbow = "\uD83C\uDFF3\uFE0F\u200D\uD83C\uDF08"
+        assertEquals(rainbow, ProviderLinks.announceText(rainbow))
+        // Zero-width space and a bidi override are still removed.
+        assertEquals("ab", ProviderLinks.announceText("a\u200Bb\u202E"))
+    }
 }
