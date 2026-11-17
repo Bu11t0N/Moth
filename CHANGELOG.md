@@ -2,6 +2,19 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.4-beta.1
+
+### Changes
+
+- New: the subscription card shows when the subscription last changed, not only when it was last updated.
+- After you update a subscription yourself, the next automatic update is about one interval later.
+- The provider's logo is shown even when they don't send a logo link: from Telegram or their website.
+- On the subscription card, Updated, Changed and Active until (formerly Subscription expires on) can show the time as well as the date. The Servers tab still shows the date only.
+- Composite emoji in the provider's announcement stay as one symbol.
+- On a phone the app stays in portrait; tablets can still rotate. The Updates page scrolls if the window is short.
+- After you turn the VPN on, the internet check uses one caption, instead of flashing two different ones.
+- On the Updates page the moth's head and antennae are no longer cut off.
+
 ## 1.0.3
 
 Released 2026-11-13.
