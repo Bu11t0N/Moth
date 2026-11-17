@@ -522,12 +522,14 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         dismissButton = { TextButton(onClick = { showLink = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.sub_link_close)) } })
 }
 
-/** All subscriptions as cards in a bottom sheet (as the server sheet): servers, traffic, end date, last update and last change (not for local servers) and a copy-link button. */
+/** All subscriptions as cards in a bottom sheet (as the server sheet): servers, traffic, end date (with time when the provider sent one), last update and last change (not for local servers) and a copy-link button. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun SubscriptionsSheet(sources: List<org.mothvpn.core.SubscriptionSource>, close: () -> Unit, copy: (String) -> Unit) {
     val locale = AppLanguage.context().resources.configuration.locales[0]
-    val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, locale)
-    val moments = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.DEFAULT, java.text.DateFormat.SHORT, locale)
+    val zone = java.time.ZoneId.systemDefault()
+    val hour24 = android.text.format.DateFormat.is24HourFormat(AppLanguage.context())
+    fun moment(millis: Long) = org.mothvpn.core.SubscriptionMoments.format(millis, locale, zone, withTime = true, hour24 = hour24)
+    fun expiry(seconds: Long) = org.mothvpn.core.SubscriptionMoments.formatExpiry(seconds, locale, zone, hour24, allowTime = true)
     ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
         Text(tr(R.string.sub_all_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.7f).dp),
@@ -542,10 +544,10 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                             val grey = MaterialTheme.colorScheme.onSurfaceVariant
                             Text(tr(R.string.sub_servers_count, s.profiles.size), style = MaterialTheme.typography.bodySmall, color = grey)
                             if (s.totalBytes > 0) Text(tr(R.string.msg_traffic_1f_1f_gib_18, s.usedBytes / 1073741824.0, s.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall, color = grey)
-                            if (s.expires in 1..253402300799L) Text(tr(R.string.msg_subscription_expires_on_19) + dates.format(java.util.Date(s.expires * 1000)), style = MaterialTheme.typography.bodySmall, color = grey)
+                            expiry(s.expires)?.let { Text(tr(R.string.msg_subscription_expires_on_19, it), style = MaterialTheme.typography.bodySmall, color = grey) }
                             // Local servers ("My servers") are never downloaded, so they have no update or change date.
-                            if (!s.local && s.updatedAt > 0) Text(tr(R.string.sub_updated_on, dates.format(java.util.Date(s.updatedAt))), style = MaterialTheme.typography.bodySmall, color = grey)
-                            if (!s.local && s.changedAt > 0) Text(tr(R.string.sub_changed_on, moments.format(java.util.Date(s.changedAt))), style = MaterialTheme.typography.bodySmall, color = grey)
+                            if (!s.local && s.updatedAt > 0) Text(tr(R.string.sub_updated_on, moment(s.updatedAt)), style = MaterialTheme.typography.bodySmall, color = grey)
+                            if (!s.local && s.changedAt > 0) Text(tr(R.string.sub_changed_on, moment(s.changedAt)), style = MaterialTheme.typography.bodySmall, color = grey)
                         }
                         if (s.totalBytes > 0) UsageRing(s.usedBytes.toDouble() / s.totalBytes, Modifier.padding(start = 8.dp))
                         if (!s.local) IconButton(onClick = { copy(s.url) }, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.sub_link_copy_link) })) {

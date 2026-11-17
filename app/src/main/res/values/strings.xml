@@ -19,7 +19,7 @@
     <string name="msg_checking_internet_access_15" formatted="false">"Checking internet access…"</string>
     <string name="msg_add_subscription_16" formatted="false">"Add subscription"</string>
     <string name="msg_traffic_1f_1f_gib_18" formatted="false">"Traffic: %.1f / %.1f GiB"</string>
-    <string name="msg_subscription_expires_on_19" formatted="false">"Subscription expires on "</string>
+    <string name="msg_subscription_expires_on_19">Active until %1$s</string>
     <string name="msg_no_network_20" formatted="false">"No network"</string>
     <string name="msg_mobile_data_21" formatted="false">"Mobile data"</string>
     <string name="msg_vpn_permission_was_not_granted_22" formatted="false">"VPN permission was not granted"</string>
@@ -269,7 +269,7 @@
     <string name="fav_remove">Remove from favorites</string>
     <string name="fav_mark">Favorite</string>
     <string name="sub_left">Traffic left: %1$s of %2$s</string>
-    <string name="sub_expires">Expires on %1$s</string>
+    <string name="sub_expires">Active until %1$s</string>
     <string name="stats_title">Statistics</string>
     <string name="sub_delete_in_use">This subscription’s server is in use. Disconnect to delete it.</string>
     <string name="sub_wait_notice">Wait until checks and the connection change finish.</string>

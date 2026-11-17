@@ -19,7 +19,7 @@
     <string name="msg_checking_internet_access_15" formatted="false">"Проверяем интернет…"</string>
     <string name="msg_add_subscription_16" formatted="false">"Добавить подписку"</string>
     <string name="msg_traffic_1f_1f_gib_18" formatted="false">"Трафик: %.1f / %.1f ГиБ"</string>
-    <string name="msg_subscription_expires_on_19" formatted="false">"Подписка до "</string>
+    <string name="msg_subscription_expires_on_19">Активна до %1$s</string>
     <string name="msg_no_network_20" formatted="false">"Нет сети"</string>
     <string name="msg_mobile_data_21" formatted="false">"Мобильные данные"</string>
     <string name="msg_vpn_permission_was_not_granted_22" formatted="false">"Разрешение на VPN не выдано"</string>
@@ -271,7 +271,7 @@
     <string name="fav_remove">Убрать из избранного</string>
     <string name="fav_mark">Избранное</string>
     <string name="sub_left">Осталось трафика: %1$s из %2$s</string>
-    <string name="sub_expires">Действует до %1$s</string>
+    <string name="sub_expires">Активна до %1$s</string>
     <string name="stats_title">Статистика</string>
     <string name="sub_delete_in_use">Сервер этой подписки сейчас используется. Отключись, чтобы её удалить.</string>
     <string name="sub_wait_notice">Дождись окончания проверок и смены подключения.</string>

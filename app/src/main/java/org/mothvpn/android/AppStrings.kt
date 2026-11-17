@@ -119,7 +119,7 @@ private val errorResources = mapOf(
         "Проверяем интернет…" to R.string.msg_checking_internet_access_15,
         "Добавить подписку" to R.string.msg_add_subscription_16,
         "Трафик: %.1f / %.1f ГиБ" to R.string.msg_traffic_1f_1f_gib_18,
-        "Подписка до " to R.string.msg_subscription_expires_on_19,
+        "Активна до %1\$s" to R.string.msg_subscription_expires_on_19,
         "Нет сети" to R.string.msg_no_network_20,
         "Мобильные данные" to R.string.msg_mobile_data_21,
         "Разрешение на VPN не выдано" to R.string.msg_vpn_permission_was_not_granted_22,
