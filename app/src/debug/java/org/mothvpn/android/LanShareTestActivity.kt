@@ -15,6 +15,7 @@ import org.mothvpn.core.LanProxy
 /** Synthetic multi-address UI fixture, debug builds only. */
 class LanShareTestActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        ScreenOrientation.apply(this)
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme(colorScheme = MonoTheme.dark, shapes = MonoTheme.shapes) {

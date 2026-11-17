@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import android.Manifest
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
@@ -103,7 +104,14 @@ class MainActivity : AppCompatActivity() {
         if (text != null) { if (ImportInput.classify(text) is ImportInput.Kind.Invalid) message = tr(R.string.import_invalid) else import(text, "qr") }
     }
     private fun scanQr() = scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(tr(R.string.import_scan_prompt)).setBeepEnabled(false).setOrientationLocked(true).setCaptureActivity(PortraitCaptureActivity::class.java))
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // A foldable can change smallest width without a restart (this activity handles size/orientation).
+        ScreenOrientation.apply(this)
+    }
     override fun onCreate(state: Bundle?) {
+        // Before the first layout: phones already held in landscape would otherwise draw one unusable frame.
+        ScreenOrientation.apply(this)
         super.onCreate(state)
         // Beta 7 stored hashes of dismissed Home announcement banners; the banner is gone (beta 8), so is its state.
         if (state == null) runCatching { deleteSharedPreferences("announce_dismissed") }

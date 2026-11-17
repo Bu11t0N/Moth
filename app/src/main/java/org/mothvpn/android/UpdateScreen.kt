@@ -7,6 +7,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -93,10 +95,11 @@ import java.io.File
         message.isNotEmpty() -> message
         else -> ""
     }
-    // The page never scrolls and the moth has one size in every state (idle, checking, update found, downloading): its area is sized
-    // once from the page height minus the room the bottom block needs (one version row, channel row and the main button; that block
-    // never grows), so the moth neither shrinks nor moves. Low under the moth, just above the version card: the status line and one
-    // small action slot (Cancel while checking or downloading, "Check again" when an update was found). The main button never moves.
+    // The moth has one size in every state (idle, checking, update found, downloading): its area is sized from the page height
+    // minus the room the bottom block needs (one version row, channel row and the main button; that block never grows), so the moth
+    // neither shrinks nor moves when the status changes. If the window is too short (a tablet in landscape), the page scrolls
+    // instead of clipping. Low under the moth, just above the version card: the status line and one small action slot (Cancel
+    // while checking or downloading, "Check again" when an update was found). The main button stays at the bottom when there is room.
     val density = androidx.compose.ui.platform.LocalDensity.current
     val type = MaterialTheme.typography
     // Text heights follow the font size; the rest is fixed dp (see the layout below).
@@ -108,12 +111,14 @@ import java.io.File
         12.dp + 52.dp + 8.dp
     BoxWithConstraints(modifier.fillMaxWidth()) {
     val top = (maxHeight - reserve).coerceAtLeast(0.dp)
-    // Same drawn size as the Home moth. If this Settings page is shorter than Home (large title + the cards
-    // below), shrink the square to the slot so the antennae are not clipped; never stretch it.
-    val room = (top - below).coerceAtLeast(0.dp)
-    val side = org.mothvpn.core.MothArtworkSize.fitDrawing(mothArtworkSize().value, room.value).dp
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-        Box(Modifier.weight(1f, fill = false).height(top).fillMaxWidth()) {
+    // Same drawn size as the Home moth. If the slot is shorter than that (a large title, or a tablet in landscape),
+    // the page scrolls so the antennae stay visible; the square is never stretched or clipped.
+    val side = org.mothvpn.core.MothArtworkSize.drawingSide(mothArtworkSize().value).dp
+    val mothBlock = (if (side > 0.dp) side else 0.dp) + below
+    val scroll = mothBlock + reserve > maxHeight
+    Column(Modifier.fillMaxSize().then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+        verticalArrangement = if (scroll) Arrangement.Top else Arrangement.SpaceBetween) {
+        Box(Modifier.then(if (scroll) Modifier.height(mothBlock) else Modifier.weight(1f, fill = false).height(top)).fillMaxWidth()) {
             // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
             Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
                 if (side > 0.dp) MothFlutter(Modifier.requiredSize(side), size = side, busy = busy, exact = true)
