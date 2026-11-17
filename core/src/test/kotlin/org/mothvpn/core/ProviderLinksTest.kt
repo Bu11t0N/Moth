@@ -67,6 +67,25 @@ class ProviderLinksTest {
         assertEquals(null, ProviderLinks.webIcon("https://t.me/provider"))
         assertEquals(null, ProviderLinks.webIcon("tg://resolve?domain=x"))
         assertEquals(null, ProviderLinks.webIcon(""))
+        assertEquals(listOf("https://panel.example.com/apple-touch-icon.png", "https://panel.example.com/apple-touch-icon-precomposed.png",
+            "https://panel.example.com/favicon.png", "https://panel.example.com/favicon.ico"), ProviderLinks.webIconGuesses("https://panel.example.com/sub/abc123"))
+        assertEquals(emptyList<String>(), ProviderLinks.webIconGuesses("https://t.me/provider"))
+    }
+
+    @Test fun pageIconsResolveRelativeUrlsAndPreferAppleTouch() {
+        val html = """
+            <link rel="shortcut icon" href="/favicon.ico" sizes="32x32">
+            <link rel="icon" type="image/svg+xml" href="/icon.svg">
+            <link rel="apple-touch-icon" sizes="180x180" href="icons/apple.png">
+            <link rel="icon" sizes="64x64" href="//cdn.example.com/fav.png">
+            <meta property="og:image" content="/og.jpg">
+        """.trimIndent()
+        assertEquals(listOf("https://panel.example.com/icons/apple.png", "https://cdn.example.com/fav.png",
+            "https://panel.example.com/favicon.ico", "https://panel.example.com/og.jpg"),
+            ProviderLinks.pageIcons(html, "https://panel.example.com/account"))
+        assertEquals("https://panel.example.com/i.png", ProviderLinks.resolveHttps("https://panel.example.com/x", "/i.png"))
+        assertEquals(null, ProviderLinks.resolveHttps("https://panel.example.com", "http://cdn.example.com/a.png"))
+        assertEquals(null, ProviderLinks.resolveHttps("https://panel.example.com", "data:image/png;base64,xx"))
     }
 
     @Test fun announceTextPlainBase64BodySanitizedAndPersisted() {

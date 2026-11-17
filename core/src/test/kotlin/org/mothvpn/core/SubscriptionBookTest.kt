@@ -28,6 +28,7 @@ class SubscriptionBookTest {
         assertEquals(SubscriptionBook.MIGRATED_ID, s.id)
         assertEquals(old.url, s.url); assertEquals(a, s.profiles); assertEquals("Provider", s.providerName)
         assertEquals(1_900_000_000, s.expires); assertEquals(300, s.usedBytes); assertEquals(1000, s.totalBytes); assertEquals(1234, s.updatedAt)
+        assertEquals(1234, s.changedAt) // files without changedAt use the last update time
         assertEquals(old, book.record())
         // Saved again in the new format and read back: nothing changes.
         val again = SubscriptionBook.from(JSONObject(book.json().toString()))
@@ -77,5 +78,27 @@ class SubscriptionBookTest {
         assertEquals(listOf(b[0]), groups[2].profiles)
         assertEquals(listOf("one"), ServerGroups.of(book, listOf(a[0]), emptySet()).map { it.sourceId })
         assertTrue(SubscriptionSource.validName("Дом")); assertFalse(SubscriptionSource.validName("a\nb")); assertFalse(SubscriptionSource.validName("x".repeat(81)))
+    }
+
+    @Test fun changedAtAdvancesOnlyWhenProviderContentChanges() {
+        val first = SubscriptionSource("one", "Home", "https://one.example/s", a, providerName = "P", expires = 100, usedBytes = 1, totalBytes = 10, updatedAt = 5, changedAt = 5)
+        // Used traffic and the user's name are not a content change.
+        val traffic = first.copy(usedBytes = 9, name = "Renamed").withRefreshTimes(first, 20)
+        assertEquals(20, traffic.updatedAt); assertEquals(5, traffic.changedAt); assertFalse(traffic.contentChanged(first))
+        // Servers, expiry, traffic total, provider name or announcement are.
+        assertTrue(first.copy(expires = 200).contentChanged(first))
+        assertTrue(first.copy(totalBytes = 20).contentChanged(first))
+        assertTrue(first.copy(providerName = "Q").contentChanged(first))
+        assertTrue(first.copy(links = org.mothvpn.core.ProviderLinks(announceText = "hello")).contentChanged(first))
+        assertTrue(first.copy(profiles = listOf(a[0])).contentChanged(first))
+        val changed = first.copy(expires = 200).withRefreshTimes(first, 30)
+        assertEquals(30, changed.updatedAt); assertEquals(30, changed.changedAt)
+        // First save (no previous row): both timestamps are now; a missing changedAt in a file uses updatedAt.
+        val born = first.copy(updatedAt = 0, changedAt = 0).withRefreshTimes(null, 40)
+        assertEquals(40, born.updatedAt); assertEquals(40, born.changedAt)
+        val persisted = SubscriptionSource.from(first.copy(changedAt = 7).json())
+        assertEquals(7, persisted.changedAt)
+        val migrated = SubscriptionSource.from(first.copy(changedAt = 7).json().apply { remove("changedAt") })
+        assertEquals(first.updatedAt, migrated.changedAt)
     }
 }

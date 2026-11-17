@@ -7,7 +7,7 @@ class BackupTest {
     private val a = listOf(Subscriptions.parseLink("hy2://secret@a.example.com:443#A1"), Subscriptions.parseLink("trojan://secret@a2.example.com:443#A2"))
     private val local = listOf(Subscriptions.parseLink("ss://YWVzLTEyOC1nY206cGFzc3dvcmQ@l.example:8388#L"))
     private val book = SubscriptionBook(listOf(
-        SubscriptionSource("one", "Home", "https://one.example/s", a, providerName = "P", expires = 1_900_000_000, usedBytes = 5, totalBytes = 10, updatedAt = 7),
+        SubscriptionSource("one", "Home", "https://one.example/s", a, providerName = "P", expires = 1_900_000_000, usedBytes = 5, totalBytes = 10, updatedAt = 7, changedAt = 7),
         SubscriptionSource(SubscriptionSource.LOCAL_ID, "My servers", SubscriptionRecord.LOCAL_URL, local)), a[0].id, a[0].id, local[0].id)
     private val settings = ClientSettings(theme = "dark", favorites = listOf(a[1].id), killSwitch = true, subUpdateHours = 6,
         routingRules = listOf(RoutingRule("domain_suffix", "example.com", "direct")), splitMode = "bypass", splitApps = listOf("com.example.app"))

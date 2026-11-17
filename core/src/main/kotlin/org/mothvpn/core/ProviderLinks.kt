@@ -109,11 +109,52 @@ data class ProviderLinks(val support: String = "", val web: String = "", val ann
          * The provider's web page icon as a logo fallback: `https://<host of profile-web-page-url>/apple-touch-icon.png` (a 180 px icon
          * most sites have). Only for an https web page that is not Telegram; null otherwise.
          */
-        fun webIcon(web: String): String? {
-            if (web.isEmpty() || telegram(web)) return null
-            val u = runCatching { URI(web) }.getOrNull() ?: return null
-            if (!u.scheme.equals("https", true) || u.host.isNullOrBlank() || u.rawUserInfo != null) return null
-            return "https://" + u.host + (if (u.port > 0 && u.port != 443) ":" + u.port else "") + "/apple-touch-icon.png"
+        fun webIcon(web: String): String? = webIconGuesses(web).firstOrNull()
+
+        /** Common icon paths on the origin of [web], tried after icons named in the HTML. */
+        fun webIconGuesses(web: String): List<String> {
+            if (web.isEmpty() || telegram(web)) return emptyList()
+            val u = runCatching { URI(web) }.getOrNull() ?: return emptyList()
+            if (!u.scheme.equals("https", true) || u.host.isNullOrBlank() || u.rawUserInfo != null) return emptyList()
+            val origin = "https://" + u.host + (if (u.port > 0 && u.port != 443) ":" + u.port else "")
+            return listOf("/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/favicon.png", "/favicon.ico").map { origin + it }
+        }
+
+        /** Turns a possibly relative [href] into an https URL against [base], or null when it is not a safe https link. */
+        fun resolveHttps(base: String, href: String): String? {
+            val raw = href.trim().replace("&amp;", "&")
+            if (raw.isEmpty() || raw.startsWith("data:", true)) return null
+            val resolved = runCatching { URI(base).resolve(raw) }.getOrNull() ?: return null
+            if (!resolved.isAbsolute || !resolved.scheme.equals("https", true) || resolved.host.isNullOrBlank() || resolved.rawUserInfo != null) return null
+            return resolved.toString()
+        }
+
+        /**
+         * Icon URLs from a web page: apple-touch-icon and favicon link tags (larger and apple-touch first), then og:image.
+         * Relative hrefs are resolved against [base]. SVG and non-https links are dropped.
+         */
+        fun pageIcons(html: String, base: String): List<String> {
+            data class Candidate(val url: String, val apple: Boolean, val size: Int)
+            val found = mutableListOf<Candidate>()
+            for (tag in Regex("<link\\b[^>]*>", RegexOption.IGNORE_CASE).findAll(html).map { it.value }) {
+                val rel = attr(tag, "rel")?.lowercase()?.split(Regex("\\s+"))?.filter { it.isNotEmpty() } ?: continue
+                val apple = rel.any { it == "apple-touch-icon" || it == "apple-touch-icon-precomposed" }
+                val icon = rel.any { it == "icon" }
+                if (!apple && !icon) continue
+                val type = attr(tag, "type")?.lowercase().orEmpty()
+                if (type.contains("svg")) continue
+                val href = attr(tag, "href") ?: continue
+                val url = resolveHttps(base, href) ?: continue
+                val sizes = attr(tag, "sizes").orEmpty()
+                val size = Regex("(\\d+)\\s*[x×]\\s*(\\d+)", RegexOption.IGNORE_CASE).findAll(sizes)
+                    .map { maxOf(it.groupValues[1].toInt(), it.groupValues[2].toInt()) }.maxOrNull() ?: if (apple) 180 else 0
+                found += Candidate(url, apple, size)
+            }
+            val icons = found.distinctBy { it.url }.sortedWith(compareByDescending<Candidate> { it.apple }.thenByDescending { it.size }).map { it.url }
+            val og = Regex("<meta\\b[^>]*>", RegexOption.IGNORE_CASE).findAll(html).map { it.value }
+                .firstOrNull { Regex("property\\s*=\\s*[\"']og:image[\"']", RegexOption.IGNORE_CASE).containsMatchIn(it) }
+                ?.let { attr(it, "content") }?.let { resolveHttps(base, it) }
+            return (icons + listOfNotNull(og)).distinct()
         }
 
         /**

@@ -522,10 +522,12 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         dismissButton = { TextButton(onClick = { showLink = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.sub_link_close)) } })
 }
 
-/** All subscriptions as cards in a bottom sheet (as the server sheet): servers, traffic, end date, last update (not for local servers) and a copy-link button. */
+/** All subscriptions as cards in a bottom sheet (as the server sheet): servers, traffic, end date, last update and last change (not for local servers) and a copy-link button. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun SubscriptionsSheet(sources: List<org.mothvpn.core.SubscriptionSource>, close: () -> Unit, copy: (String) -> Unit) {
-    val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0])
+    val locale = AppLanguage.context().resources.configuration.locales[0]
+    val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, locale)
+    val moments = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.DEFAULT, java.text.DateFormat.SHORT, locale)
     ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
         Text(tr(R.string.sub_all_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.7f).dp),
@@ -541,8 +543,9 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                             Text(tr(R.string.sub_servers_count, s.profiles.size), style = MaterialTheme.typography.bodySmall, color = grey)
                             if (s.totalBytes > 0) Text(tr(R.string.msg_traffic_1f_1f_gib_18, s.usedBytes / 1073741824.0, s.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall, color = grey)
                             if (s.expires in 1..253402300799L) Text(tr(R.string.msg_subscription_expires_on_19) + dates.format(java.util.Date(s.expires * 1000)), style = MaterialTheme.typography.bodySmall, color = grey)
-                            // Local servers ("My servers") are never downloaded, so they have no update date.
+                            // Local servers ("My servers") are never downloaded, so they have no update or change date.
                             if (!s.local && s.updatedAt > 0) Text(tr(R.string.sub_updated_on, dates.format(java.util.Date(s.updatedAt))), style = MaterialTheme.typography.bodySmall, color = grey)
+                            if (!s.local && s.changedAt > 0) Text(tr(R.string.sub_changed_on, moments.format(java.util.Date(s.changedAt))), style = MaterialTheme.typography.bodySmall, color = grey)
                         }
                         if (s.totalBytes > 0) UsageRing(s.usedBytes.toDouble() / s.totalBytes, Modifier.padding(start = 8.dp))
                         if (!s.local) IconButton(onClick = { copy(s.url) }, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.sub_link_copy_link) })) {
@@ -847,7 +850,7 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
 @Composable fun ProviderAvatar(source: org.mothvpn.core.SubscriptionSource, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val logo by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, source.id, source.links.logo, source.updatedAt) {
-        value = if (source.local || source.links.logo.isEmpty()) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        value = if (source.local) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching { ProviderLogos.file(context, source.id).takeIf { it.exists() }?.let { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }.getOrNull()
         }
     }

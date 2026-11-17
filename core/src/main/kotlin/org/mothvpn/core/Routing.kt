@@ -28,10 +28,24 @@ object SplitTunnel {
 /** Subscription auto-update interval choices (hours, 0 = off). */
 object SubscriptionSchedule {
     val intervals = listOf(0, 1, 2, 3, 6, 12, 24)
+    const val HOUR_MS = 3_600_000L
     /** Maps any saved value to a supported interval (nearest not-shorter one; 0 stays off). */
     fun normalize(hours: Int): Int = if (hours <= 0) 0 else intervals.firstOrNull { it >= hours } ?: 24
+    /** Time after a refresh when the subscription is treated as due (90 % of the interval, slack for WorkManager). */
+    fun dueAfterMs(hours: Int): Long = hours * HOUR_MS * 9 / 10
     /** Whether a subscription saved at [updatedAt] is due at [now] (with 10 % slack for WorkManager timing). */
-    fun due(hours: Int, updatedAt: Long, now: Long): Boolean = hours > 0 && now - updatedAt >= hours * 3_600_000L * 9 / 10
+    fun due(hours: Int, updatedAt: Long, now: Long): Boolean = hours > 0 && now - updatedAt >= dueAfterMs(hours)
+    /**
+     * Delay until the next auto-update should run: the earliest of [updatedAt] (one per subscription), with the same 10 % slack
+     * as [due]. 0 if any source is already due or was never updated. null if auto-update is off or there are no sources.
+     * [notBeforeMs] raises a zero delay (sources due but skipped, e.g. VPN-only while the tunnel is down) so the worker does not loop.
+     */
+    fun nextDelayMs(hours: Int, updatedAt: Collection<Long>, now: Long, notBeforeMs: Long = 0): Long? {
+        if (hours <= 0 || updatedAt.isEmpty()) return null
+        val slack = dueAfterMs(hours)
+        val delay = updatedAt.minOf { at -> if (at <= 0L) 0L else (at + slack - now).coerceAtLeast(0L) }
+        return maxOf(delay, notBeforeMs.coerceAtLeast(0L))
+    }
 }
 
 /** DNS server choices for the tunnel. All of them are reached through the VPN server. */
