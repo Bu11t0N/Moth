@@ -18,6 +18,13 @@ class Release104Test {
         assertEquals(0f, MothArtworkSize.fitPageDrawing(artwork, MothArtworkSize.MIN_PAGE_DRAWING - 1f))
         assertEquals(0f, MothArtworkSize.fitPageDrawing(artwork, -50f))
     }
+    @Test fun updatesStatusGivesWayAfterTheMoth() {
+        assertEquals(2, MothArtworkSize.statusLines(200f, 24f, 44f))
+        assertEquals(2, MothArtworkSize.statusLines(44f + 12f + 48f, 24f, 44f))
+        assertEquals(1, MothArtworkSize.statusLines(44f + 12f + 47f, 24f, 44f))
+        assertEquals(0, MothArtworkSize.statusLines(44f + 12f + 23f, 24f, 44f))
+        assertEquals(0, MothArtworkSize.statusLines(10f, 24f, 44f))
+    }
     @Test fun updatesPageHasNoScroll() {
         val page = source("UpdateScreen.kt")
         assertFalse(page.contains("verticalScroll")); assertFalse(page.contains("rememberScrollState"))

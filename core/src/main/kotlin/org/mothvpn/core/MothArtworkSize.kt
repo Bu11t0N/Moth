@@ -23,6 +23,16 @@ object MothArtworkSize {
     fun fitPageDrawing(artwork: Float, room: Float): Float =
         fitDrawing(artwork, room).let { if (it < MIN_PAGE_DRAWING) 0f else it }
 
+    /**
+     * Updates page: status lines that fit in an area of [area] dp above the version card, after the [slot] dp action slot and the
+     * 12 dp gap; 2, 1 or 0. Depends only on the area, never on the status text, so a status change never moves the moth.
+     */
+    fun statusLines(area: Float, line: Float, slot: Float): Int = when {
+        area >= slot + 12f + 2 * line -> 2
+        area >= slot + 12f + line -> 1
+        else -> 0
+    }
+
     /** Same 48–260 dp range as Home; leave room for controls at large text sizes. */
     fun side(width: Float, height: Float, fontScale: Float): Float =
         minOf(260f, (width - 40f).coerceAtLeast(48f), (height - 560f * fontScale.coerceAtLeast(1f)).coerceAtLeast(48f))

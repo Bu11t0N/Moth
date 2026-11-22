@@ -78,6 +78,12 @@ class Release104E2ETest {
             assertEquals("main button moved ($tag)", button, again)
             assertTrue("main button cut off or under the tab bar ($tag)", again.bottom <= tabs.top && again.height() > 0)
             assertTrue("version row cut off ($tag)", installed.height() > 0 && installed.bottom < again.top)
+            // The status line (when this size has room for it) sits fully below the large title and above the version card.
+            val title = device.findObjects(By.text("Updates")).maxByOrNull { it.visibleBounds.height() }!!.visibleBounds
+            device.findObject(By.textStartsWith("You have the latest"))?.visibleBounds?.let { st ->
+                log("$tag: status=$st title=$title")
+                assertTrue("status line under the title or the card ($tag)", st.top >= title.bottom && st.bottom <= installed.top)
+            }
             device.pressBack(); Thread.sleep(600)
         }
     }

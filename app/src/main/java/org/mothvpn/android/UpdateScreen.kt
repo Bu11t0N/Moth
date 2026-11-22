@@ -94,18 +94,25 @@ import java.io.File
         else -> ""
     }
     // The page never scrolls. The bottom block (one version row, channel row and the main button) keeps its natural height and
-    // never grows; the moth area takes the rest. The moth has one size in every state (idle, checking, update found, downloading):
-    // the Home size, shrunk to the room left above the status line when the page is short (large font, small window). If that
-    // room is below MothArtworkSize.MIN_PAGE_DRAWING, the moth is not shown at all. Low under the moth, just above the version
-    // card: the status line and one small action slot (Cancel while checking or downloading, "Check again" when an update was found).
+    // never grows; the area above it holds, from the bottom up, one small action slot (Cancel while checking or downloading,
+    // "Check again" when an update was found), the status line and the moth. When that area is short (large font, small window)
+    // the parts give way in a fixed order, decided by the area's height only (never by the current status, so nothing jumps when
+    // the status changes): first the moth shrinks and, below MothArtworkSize.MIN_PAGE_DRAWING, is not shown; then the status gets
+    // one line instead of two, then no line; finally the action slot goes and the main button itself offers Cancel while busy.
+    // Every part gets a slot that fits, so nothing is drawn outside it or cut off.
     val density = androidx.compose.ui.platform.LocalDensity.current
     val type = MaterialTheme.typography
-    val sp = { u: androidx.compose.ui.unit.TextUnit -> with(density) { u.toDp() } }
-    val statusHeight = 12.dp + sp(type.bodyLarge.lineHeight) * 2
-    val below = statusHeight + 44.dp // status (two lines) + the action slot under the moth
+    val line = with(density) { type.bodyLarge.lineHeight.toDp() }
+    val slotHeight = 44.dp
     val artwork = mothArtworkSize().value
+    var slotShown by remember { mutableStateOf(true) }
     Column(modifier.fillMaxWidth()) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val lines = org.mothvpn.core.MothArtworkSize.statusLines(maxHeight.value, line.value, slotHeight.value)
+            val slot = maxHeight >= slotHeight
+            SideEffect { slotShown = slot }
+            val statusHeight = if (lines > 0) 12.dp + line * lines else 0.dp
+            val below = statusHeight + (if (slot) slotHeight else 0.dp)
             val side = org.mothvpn.core.MothArtworkSize.fitPageDrawing(artwork, (maxHeight - below).value).dp
             // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
             Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
@@ -113,14 +120,14 @@ import java.io.File
             }
             // The status line and the action slot sit low, at the bottom of the moth area (just above the version card).
             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                // Fixed height (two lines), so a status appearing or changing never moves the moth; statuses are short, errors use the top notice.
-                Box(Modifier.fillMaxWidth().height(statusHeight).padding(start = 16.dp, end = 16.dp, top = 12.dp), contentAlignment = Alignment.TopCenter) {
+                // Fixed height (one or two lines), so a status appearing or changing never moves the moth; errors use the top notice.
+                if (lines > 0) Box(Modifier.fillMaxWidth().height(statusHeight).padding(start = 16.dp, end = 16.dp, top = 12.dp), contentAlignment = Alignment.TopCenter) {
                     Text(status, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-                        maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        maxLines = lines, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
                 }
                 // One small action with a fixed place (empty when idle without an update), so the moth and the status never jump.
-                Box(Modifier.height(44.dp), contentAlignment = Alignment.Center) {
+                if (slot) Box(Modifier.height(slotHeight), contentAlignment = Alignment.Center) {
                     androidx.compose.animation.AnimatedContent(when { busy -> 1; release != null -> 2; else -> 0 }, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "updateAction") { slot ->
                         when (slot) {
                             1 -> TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale()) {
@@ -146,7 +153,10 @@ import java.io.File
             }
             DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
             // One main action at the very bottom: install a found update, otherwise check ("check again" is in the slot under the moth then).
-            if (available != null) {
+            // No room for the action slot: the main button itself cancels a running check or download.
+            if (busy && !slotShown) {
+                NdButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale().then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_cancel)) }
+            } else if (available != null) {
                 NdButton(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_install)) }
             } else {
                 NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_check)) }
