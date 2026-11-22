@@ -2,6 +2,12 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.4-beta.3
+
+### Changes
+
+- The moth on the Updates page is large again and fills the free space; the page opens with a compact title.
+
 ## 1.0.4-beta.2
 
 ### Changes
