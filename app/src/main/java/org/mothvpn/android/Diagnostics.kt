@@ -18,6 +18,9 @@ import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 
 data class ProbeResult(val checking: Boolean = false, val latencyMs: Long? = null, val error: String? = null, val checkedAt: Long = System.currentTimeMillis(), val method: String = "HTTPS", val networkHandle: Long = 0, val cancelled: Boolean = false, val kind: ProbeErrorKind? = null)
+/** True when "Hide unavailable" hides this server: its last check failed (not running, not cancelled), see [org.mothvpn.core.HideUnavailable]. */
+fun ProbeResult?.unavailable(): Boolean = this != null &&
+    org.mothvpn.core.HideUnavailable.failed(checking, cancelled || kind == ProbeErrorKind.CANCELLED, error != null)
 data class HealthResult(val checking: Boolean = false, val latencyMs: Long? = null, val message: String = tr(R.string.msg_connection_has_not_been_checked_yet_0), val failures: Int = 0)
 object Diagnostics {
     internal val resultsMutable = MutableStateFlow<Map<String, ProbeResult>>(emptyMap())

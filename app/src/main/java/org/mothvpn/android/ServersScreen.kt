@@ -127,8 +127,7 @@ import org.mothvpn.core.SubscriptionSource
     // visible: measurable minus failed servers, when that setting is on (they stay hidden until the next check, with no 15-minute timer).
     fun listed(k: String, forDisplay: Boolean) = profiles.filter { p ->
         val r = results["$k:${p.id}"]
-        val hide = forDisplay && settings.hideUnavailable && r != null &&
-            org.mothvpn.core.HideUnavailable.failed(r.checking, r.cancelled || r.kind == ProbeErrorKind.CANCELLED, r.error != null)
+        val hide = forDisplay && settings.hideUnavailable && r.unavailable()
         !hide && settings.filterShows(p, k) && (search.isBlank() || p.name.contains(search, true) || p.protocol.contains(search, true))
     }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$k:${p.id}"]?.latencyMs } }.let { Favorites.first(it, settings.favorites) { p -> p.id } }
     val measurable = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, kind) {

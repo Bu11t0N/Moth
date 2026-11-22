@@ -459,12 +459,21 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val listMax = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.7f).dp
         val kind = network.kind
-        val ordered = remember(saved, results, settings.serverSort, settings.favorites, settings.wifiFilter, settings.mobileFilter, kind) {
-            Favorites.first(ServerOrder.sort(saved.profiles.filter { settings.filterShows(it, kind) }, settings.serverSort, { it.name }) { p -> results["$kind:${p.id}"]?.latencyMs }, settings.favorites) { it.id }
+        // Same list as the Servers tab: its keyword filter and, with "Hide unavailable" on there, without servers whose last check
+        // failed (the selected server always stays, so the current choice is visible).
+        val hiding = settings.hideUnavailable
+        val ordered = remember(saved, results, settings.serverSort, settings.favorites, settings.wifiFilter, settings.mobileFilter, hiding, kind, selected?.id) {
+            val shown = saved.profiles.filter { settings.filterShows(it, kind) && (!hiding || it.id == selected?.id || !results["$kind:${it.id}"].unavailable()) }
+            Favorites.first(ServerOrder.sort(shown, settings.serverSort, { it.name }) { p -> results["$kind:${p.id}"]?.latencyMs }, settings.favorites) { it.id }
         }
         val canSelect = !busy && tunnel != TunnelState.STOPPING // also during a server check
         ModalBottomSheet(onDismissRequest = { sheet = false }, sheetState = state, containerColor = NdTone.sheet()) {
-            Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                // "Hide unavailable" from the Servers tab applies here too; a quiet label on the right says so.
+                if (hiding) Text(tr(R.string.msg_hide_unavailable_56), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 12.dp))
+            }
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = listMax), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(ordered, key = { it.id }) { p ->
                     val chosen = p.id == selected?.id
