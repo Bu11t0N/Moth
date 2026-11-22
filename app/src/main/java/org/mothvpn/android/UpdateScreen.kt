@@ -101,19 +101,22 @@ import java.io.File
     // Every part gets a slot that fits, so nothing is drawn outside it or cut off.
     val density = androidx.compose.ui.platform.LocalDensity.current
     val type = MaterialTheme.typography
-    val line = with(density) { type.bodyLarge.lineHeight.toDp() }
     Column(modifier.fillMaxWidth()) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-            // What the area has room for (decided by its height only) ...
-            val maxLines = org.mothvpn.core.MothArtworkSize.statusLines(maxHeight.value, line.value)
-            // ... and what is kept for it now: as many lines as the current status needs (at least one, at most what fits).
+            // One line of the status as the text really lays out (taller than the style's line height with a large font, so the line
+            // height alone would let the card cover the bottom of the letters).
             val measurer = androidx.compose.ui.text.rememberTextMeasurer()
             val textWidth = with(density) { (maxWidth - 32.dp).roundToPx().coerceAtLeast(1) }
-            val needed = remember(status, textWidth, type.bodyLarge) {
-                if (status.isEmpty()) 1 else measurer.measure(status, type.bodyLarge, constraints = androidx.compose.ui.unit.Constraints(maxWidth = textWidth)).lineCount
+            val oneLine = remember(type.bodyLarge, density) { with(density) { measurer.measure("Ag", type.bodyLarge).size.height.toDp() } }
+            // What the area has room for (decided by its height only) ...
+            val lines = org.mothvpn.core.MothArtworkSize.statusLines(maxHeight.value, oneLine.value)
+            // ... and what is kept for it now: the height the current status needs (at least one line, at most what fits).
+            val textHeight = remember(status, textWidth, type.bodyLarge, lines, density) {
+                if (lines == 0) 0.dp else if (status.isEmpty()) oneLine else with(density) {
+                    measurer.measure(status, type.bodyLarge, maxLines = lines, constraints = androidx.compose.ui.unit.Constraints(maxWidth = textWidth)).size.height.toDp()
+                }.coerceAtLeast(oneLine)
             }
-            val lines = minOf(maxLines, needed.coerceAtLeast(1))
-            val statusHeight = if (lines > 0) org.mothvpn.core.MothArtworkSize.STATUS_GAP.dp + line * lines else 0.dp
+            val statusHeight = if (lines > 0) org.mothvpn.core.MothArtworkSize.STATUS_GAP.dp + textHeight else 0.dp
             val below by androidx.compose.animation.core.animateDpAsState(statusHeight,
                 if (animationsOn()) androidx.compose.animation.core.tween(Motion.SHORT) else androidx.compose.animation.core.snap(), label = "updateBelow")
             // Not Home's formula (mothArtworkSize): that one keeps 560 dp × font scale free for Home's status, cards, server bar and
