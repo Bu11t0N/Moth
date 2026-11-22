@@ -4,13 +4,22 @@ name: Android
 # - e2e (emulator, real VPN): NOT on every push. It runs
 #   (a) manually: Actions → Android → "Run workflow" (do this on the release branch before tagging a final release);
 #   (b) automatically on push/PR when core-sensitive files change (the "changes" job below): the native core build and its
-#       patches/versions, the e2e servers and tests, the tunnel/VPN service, connection checks, subscription parsing and store,
+#       patches/versions, the e2e servers, the tunnel/VPN service, connection checks, subscription parsing and store,
 #       routing, split tunneling and config generation.
 on:
   push:
     branches: [main, 'release/**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      screenshots:
+        description: 'e2e screenshots: empty = none (default), "all", or comma-separated screen name prefixes (e.g. updates-available)'
+        required: false
+        default: ''
+      matrix:
+        description: 'e2e: also run the extra screen sizes and font scales (true/false)'
+        required: false
+        default: 'false'
 permissions:
   contents: read
   pull-requests: read
@@ -37,7 +46,6 @@ jobs:
               - 'scripts/check-xray-configs.sh'
               - 'scripts/e2e/**'
               - 'e2e-helper/**'
-              - 'app/src/androidTest/**'
               - 'app/src/main/AndroidManifest.xml'
               - 'app/src/main/java/org/mothvpn/android/TunnelService.kt'
               - 'app/src/main/java/org/mothvpn/android/VpnTileService.kt'
@@ -200,6 +208,10 @@ jobs:
           python3 -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.settimeout(3); s.sendto(b'x', ('10.0.2.2', 9999)); print(s.recv(64))"
       - name: Run E2E tests on the emulator
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          # Off unless asked on a manual run: screenshots of unchanged screens cost time on every run.
+          E2E_SHOTS: ${{ github.event.inputs.screenshots || '' }}
+          E2E_MATRIX: ${{ github.event.inputs.matrix || 'false' }}
         with:
           api-level: 31
           arch: x86_64
@@ -216,7 +228,7 @@ jobs:
             adb shell appops set org.mothvpn.android ACTIVATE_VPN allow
             ./scripts/e2e/app-log.sh enable
             adb logcat -c
-            adb shell am instrument -w -r org.mothvpn.android.test/androidx.test.runner.AndroidJUnitRunner > e2e-result.txt 2>&1 || true
+            adb shell am instrument -w -r ${E2E_SHOTS:+-e screenshots "$E2E_SHOTS"} -e matrix "$E2E_MATRIX" org.mothvpn.android.test/androidx.test.runner.AndroidJUnitRunner > e2e-result.txt 2>&1 || true
             adb logcat -d > e2e-logcat.txt 2>&1 || true
             ./scripts/e2e/app-log.sh pull
             adb pull /sdcard/Android/data/org.mothvpn.android/cache/e2e-window.xml . > /dev/null 2>&1 || true

@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -111,15 +112,13 @@ import java.io.File
             }
         }
         Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // One version row, no extra row or window: the installed version, replaced by the available one when an update is found;
-            // the status in small grey text under its label (it may wrap; the card grows and the moth gives way smoothly).
+            // One version row, no extra row or window: the installed version on the right and, when an update is found, the new
+            // version under it (so it is clear what updates to what); the status in small grey text under the label (it may wrap;
+            // the card grows and the moth gives way smoothly).
             val available = release
             Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).then(if (animationsOn()) Modifier.animateContentSize() else Modifier)) {
-                    androidx.compose.animation.AnimatedContent(available?.version, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "versionRow") { version ->
-                        if (version == null) VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME, status = status)
-                        else VersionRow(tr(R.string.update_available_row), version, highlight = true, status = status)
-                    }
+                    VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME, available?.version, tr(R.string.update_available_row), status)
                 }
             }
             DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
@@ -150,7 +149,7 @@ import java.io.File
 }
 
 /** A row of the version card: the label on the left, the version on the right (same look as the Data pages' rows). */
-@Composable private fun VersionRow(label: String, value: String, highlight: Boolean = false, status: String = "") {
+@Composable private fun VersionRow(label: String, value: String, newer: String?, newerLabel: String, status: String) {
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f).padding(end = 12.dp)) {
             Text(label, style = MaterialTheme.typography.bodyLarge)
@@ -158,6 +157,15 @@ import java.io.File
             if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         }
-        Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1, color = if (highlight) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Unspecified)
+        Column(horizontalAlignment = Alignment.End) {
+            Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+            // A found update: its version right under the installed one, bare (no arrow, so it stays narrow), in the accent colour.
+            androidx.compose.animation.AnimatedVisibility(newer != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+                val shown = remember { mutableStateOf(newer.orEmpty()) }
+                if (newer != null) shown.value = newer
+                Text(shown.value, style = MaterialTheme.typography.titleSmall, maxLines = 1, color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.semantics { contentDescription = "$newerLabel ${shown.value}" })
+            }
+        }
     }
 }

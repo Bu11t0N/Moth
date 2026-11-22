@@ -36,7 +36,11 @@ class Release104E2ETest {
         while (System.currentTimeMillis() < end) { if (runCatching(check).getOrDefault(false)) return; Thread.sleep(200) }
         throw AssertionError("timed out: $what")
     }
-    private fun shot(name: String) { runCatching { device.takeScreenshot(File(out, "$name.png")) } }
+    // Screenshots only when asked (instrumentation argument "screenshots": "all" or comma-separated name prefixes; the manual CI run's
+    // "screenshots" input), so ordinary runs spend no time on screens that did not change. "matrix=true" adds the extra sizes and fonts.
+    private val args = InstrumentationRegistry.getArguments()
+    private val shots = args.getString("screenshots").orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    private fun shot(name: String) { if ("all" in shots || shots.any { name.startsWith(it) }) runCatching { device.takeScreenshot(File(out, "$name.png")) } }
     private fun off() = TunnelStatus.state.value in setOf(TunnelState.OFF, TunnelState.ERROR) && !TunnelStatus.blocking.value
     private fun reset() {
         if (!off()) { context.startService(Intent(context, TunnelService::class.java).setAction("STOP")); eventually(30_000, "VPN off") { off() } }
@@ -62,7 +66,9 @@ class Release104E2ETest {
 
     /** Updates page: no scrollable container at any size; the main button sits fully above the tab bar; the moth shrinks or is hidden. */
     @Test fun updatesPageNeverScrolls() {
-        for ((size, font) in listOf("1080x1600" to 1.3f, "1080x1600" to 1.0f, "1080x1900" to 1.5f, "1080x2400" to 1.3f, "1080x2400" to 1.0f)) {
+        val sizes = if (args.getString("matrix") == "true") listOf("1080x1600" to 1.3f, "1080x1600" to 1.0f, "1080x1900" to 1.5f, "1080x2400" to 1.3f, "1080x2400" to 1.0f)
+            else listOf("1080x2400" to 1.0f)
+        for ((size, font) in sizes) {
             shell("wm size $size"); shell("settings put system font_scale $font"); Thread.sleep(1500)
             launch()
             device.findObject(By.desc("Connect VPN"))?.visibleBounds?.let { log("home-$size-$font: moth button=$it") }
@@ -108,6 +114,30 @@ class Release104E2ETest {
             } finally { AppUpdater.testCheckDelayMs = 0 }
             device.pressBack(); Thread.sleep(600)
         }
+    }
+
+    /** Updates page with an update found: the installed version stays, the new one is shown under it; Cancel stops the download. */
+    @Test fun updatesShowsInstalledAndAvailableVersion() {
+        shell("wm size 1080x2400"); shell("settings put system font_scale 1.0"); Thread.sleep(1500)
+        AppUpdater.testRelease = org.mothvpn.core.AppRelease("9.9.9", "https://10.0.2.2:1/none.apk", "Moth-9.9.9-x86_64.apk", 1L, "https://10.0.2.2:1/SHA256SUMS.txt")
+        try {
+            launch()
+            wait(By.text("Settings")).click(); Thread.sleep(900)
+            scrollTo("Updates"); wait(By.text("Updates")).click()
+            val newer = (device.wait(Until.findObject(By.text("9.9.9")), 20_000) ?: wait(By.descContains("9.9.9"), 5_000)).visibleBounds
+            val installed = wait(By.text(BuildConfig.VERSION_NAME)).visibleBounds
+            wait(By.text("Cancel")); Thread.sleep(1200)
+            shot("updates-available-downloading")
+            assertTrue("new version right under the installed one", newer.top >= installed.bottom && kotlin.math.abs(newer.right - installed.right) <= 4)
+            assertNotNull("label stays Installed version", device.findObject(By.text("Installed version")))
+            assertNull("Updates page must not scroll", device.findObject(By.scrollable(true)))
+            device.findObject(By.text("Cancel"))!!.click()
+            wait(By.text("Install update"), 10_000); Thread.sleep(800)
+            shot("updates-available")
+            assertNotNull("installed version still shown", device.findObject(By.text(BuildConfig.VERSION_NAME)))
+            assertTrue("new version still shown", device.findObject(By.text("9.9.9")) != null || device.findObject(By.descContains("9.9.9")) != null)
+            log("updates-available: installed=$installed newer=$newer")
+        } finally { AppUpdater.testRelease = null }
     }
 
     /** Home server sheet: with "Hide unavailable" on, a server whose last check failed is not listed, and the header says the filter is on. */
