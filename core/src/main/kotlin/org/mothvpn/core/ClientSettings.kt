@@ -74,7 +74,7 @@ data class ClientSettings(
     val largeTitlePercent: Int = LargeTitleSize.DEFAULT,
     /** Interface: large collapsing titles (Settings, Servers); off = the compact title bar only. */
     val largeTitles: Boolean = true,
-    /** Split tunneling, "Elevated privileges": list every installed app that can use the network (QUERY_ALL_PACKAGES), also apps
+    /** Split tunneling, "Show system apps" (merged with the former "Elevated privileges" in 1.0.4): show system apps and list every installed app that can use the network (QUERY_ALL_PACKAGES), also apps
      *  without a launcher icon. Off (default): only apps with a home-screen icon, as before 1.0. Only the list changes, not the tunnel. */
     val splitAllApps: Boolean = false,
     /** Device data (HWID and x-device-*): false (default, as before 1.0) = sent to every subscription; true = only to [deviceDataSubs]. */

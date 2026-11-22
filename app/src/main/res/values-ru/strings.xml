@@ -242,8 +242,7 @@
     <string name="split_unlisted">Нет на рабочем столе: нажмите, чтобы убрать</string>
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
-    <string name="split_all_apps">Повышенные права</string>
-    <string name="split_all_apps_info">Показывает все установленные приложения, которые используют интернет, включая фоновые службы без значка на экране. Использует разрешение на просмотр всех приложений.</string>
+    <string name="split_all_apps_info">Показывает все установленные приложения, которые используют интернет, включая системные и фоновые службы без значка на экране. Использует разрешение на просмотр всех приложений.</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
     <string name="auto_select_wifi">Автовыбор на Wi‑Fi</string>
     <string name="auto_select_mobile">Автовыбор на мобильном интернете</string>

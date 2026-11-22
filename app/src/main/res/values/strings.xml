@@ -240,8 +240,7 @@
     <string name="split_unlisted">Not on the home screen: tap to remove</string>
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
-    <string name="split_all_apps">Elevated privileges</string>
-    <string name="split_all_apps_info">Lists every installed app that uses the internet, including background services without a home-screen icon. Uses the permission to see all installed apps.</string>
+    <string name="split_all_apps_info">Lists every installed app that uses the internet, including system apps and background services without a home-screen icon. Uses the permission to see all installed apps.</string>
     <string name="direct_ru">Russian sites and IPs directly</string>
     <string name="auto_select_wifi">Auto-select on Wi-Fi</string>
     <string name="auto_select_mobile">Auto-select on mobile data</string>
