@@ -80,13 +80,14 @@ class Release104E2ETest {
             assertEquals("main button moved ($tag)", button, again)
             assertTrue("main button cut off or under the tab bar ($tag)", again.bottom <= tabs.top && again.height() > 0)
             assertTrue("version row cut off ($tag)", installed.height() > 0 && installed.bottom < again.top)
-            // The status line (when this size has room for it) sits fully below the large title and above the version card.
+            // The status sits in the version card, under the "Installed version" label and above the channel row.
             // A failed automatic check (no route to GitHub on CI) shows an error notice over the title for a while: wait it out.
             wait(By.text("Updates"), 20_000)
             val title = device.findObjects(By.text("Updates")).maxByOrNull { it.visibleBounds.height() }!!.visibleBounds
             device.findObject(By.textStartsWith("You have the latest"))?.visibleBounds?.let { st ->
                 log("$tag: status=$st title=$title")
-                assertTrue("status line under the title or the card ($tag)", st.top >= title.bottom && st.bottom <= installed.top)
+                val channelRow = wait(By.text("Update channel")).visibleBounds
+                assertTrue("status in the version card ($tag)", st.top >= installed.bottom && st.bottom <= channelRow.top && st.top >= title.bottom)
             }
             // While a check runs the main button itself is Cancel (there is no other Cancel on the page), in the same place.
             AppUpdater.testCheckDelayMs = 15_000
@@ -99,7 +100,8 @@ class Release104E2ETest {
                 assertNull("Updates page must not scroll while checking ($tag)", device.findObject(By.scrollable(true)))
                 device.findObject(By.text("Checking for updates…"))?.visibleBounds?.let { st ->
                     log("$tag-checking: status=$st cancel=$cancel")
-                    assertTrue("checking status above the card ($tag)", st.bottom <= installed.top)
+                    val channelRow = wait(By.text("Update channel")).visibleBounds
+                    assertTrue("checking status in the version card ($tag)", st.top >= installed.bottom && st.bottom <= channelRow.top)
                 }
                 device.findObject(By.text("Cancel"))!!.click()
                 wait(By.text("Check for updates"), 5_000)

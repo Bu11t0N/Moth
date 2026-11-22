@@ -18,13 +18,6 @@ class Release104Test {
         assertEquals(0f, MothArtworkSize.fitPageDrawing(artwork, MothArtworkSize.MIN_PAGE_DRAWING - 1f))
         assertEquals(0f, MothArtworkSize.fitPageDrawing(artwork, -50f))
     }
-    @Test fun updatesStatusGivesWayAfterTheMoth() {
-        assertEquals(2, MothArtworkSize.statusLines(200f, 24f))
-        assertEquals(2, MothArtworkSize.statusLines(20f + 48f, 24f))
-        assertEquals(1, MothArtworkSize.statusLines(20f + 47f, 24f))
-        assertEquals(0, MothArtworkSize.statusLines(20f + 23f, 24f))
-        assertEquals(0, MothArtworkSize.statusLines(10f, 24f))
-    }
     @Test fun updatesMothFillsFreeHeightUpToTheLargestHomeMoth() {
         // A 411 dp wide page with lots of free height: the largest Home drawing (210 dp), whatever the font size.
         assertEquals(MothArtworkSize.drawingSide(260f), MothArtworkSize.fitPageDrawing(MothArtworkSize.pageArtwork(379f), 400f))
