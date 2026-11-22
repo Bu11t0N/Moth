@@ -94,24 +94,28 @@ import java.io.File
         else -> ""
     }
     // The page never scrolls. The bottom block (one version row, channel row and the main button) keeps its natural height and
-    // never grows; the area above it holds, from the bottom up, one small action slot (Cancel while checking or downloading,
-    // "Check again" when an update was found), the status line and the moth. When that area is short (large font, small window)
-    // the parts give way in a fixed order, decided by the area's height only (never by the current status, so nothing jumps when
-    // the status changes): the moth takes the free height up to the largest Home size; first it shrinks and, below MothArtworkSize.MIN_PAGE_DRAWING, is not shown; then the status gets
-    // one line instead of two, then no line; finally the action slot goes and the main button itself offers Cancel while busy.
+    // never grows; the area above it holds the status line (at the bottom) and the moth. The main button itself is the Cancel while a
+    // check or download runs, so nothing else is kept under the status. The status keeps the lines it needs (one or two, as far as
+    // the area allows; a change resizes the moth smoothly, animated). The moth takes the rest of the height up to the largest Home
+    // size; on a short area it shrinks and, below MothArtworkSize.MIN_PAGE_DRAWING, is not shown; then the status gets one line, then none.
     // Every part gets a slot that fits, so nothing is drawn outside it or cut off.
     val density = androidx.compose.ui.platform.LocalDensity.current
     val type = MaterialTheme.typography
     val line = with(density) { type.bodyLarge.lineHeight.toDp() }
-    val slotHeight = 44.dp
-    var slotShown by remember { mutableStateOf(true) }
     Column(modifier.fillMaxWidth()) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-            val lines = org.mothvpn.core.MothArtworkSize.statusLines(maxHeight.value, line.value, slotHeight.value)
-            val slot = maxHeight >= slotHeight
-            SideEffect { slotShown = slot }
-            val statusHeight = if (lines > 0) 12.dp + line * lines else 0.dp
-            val below = statusHeight + (if (slot) slotHeight else 0.dp)
+            // What the area has room for (decided by its height only) ...
+            val maxLines = org.mothvpn.core.MothArtworkSize.statusLines(maxHeight.value, line.value)
+            // ... and what is kept for it now: as many lines as the current status needs (at least one, at most what fits).
+            val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+            val textWidth = with(density) { (maxWidth - 32.dp).roundToPx().coerceAtLeast(1) }
+            val needed = remember(status, textWidth, type.bodyLarge) {
+                if (status.isEmpty()) 1 else measurer.measure(status, type.bodyLarge, constraints = androidx.compose.ui.unit.Constraints(maxWidth = textWidth)).lineCount
+            }
+            val lines = minOf(maxLines, needed.coerceAtLeast(1))
+            val statusHeight = if (lines > 0) org.mothvpn.core.MothArtworkSize.STATUS_GAP.dp + line * lines else 0.dp
+            val below by androidx.compose.animation.core.animateDpAsState(statusHeight,
+                if (animationsOn()) androidx.compose.animation.core.tween(Motion.SHORT) else androidx.compose.animation.core.snap(), label = "updateBelow")
             // Not Home's formula (mothArtworkSize): that one keeps 560 dp × font scale free for Home's status, cards, server bar and
             // tabs, which this page does not have, so with a larger font it left the moth small above empty space. Here the moth fills
             // the free height, up to the largest Home moth and the page width.
@@ -122,29 +126,17 @@ import java.io.File
             Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
                 if (side > 0.dp) MothFlutter(Modifier.requiredSize(side), size = side, busy = busy, exact = true)
             }
-            // The status line and the action slot sit low, at the bottom of the moth area (just above the version card).
+            // The status line sits low, at the bottom of the moth area, right above the version card (20 dp of air above it, under the moth).
             Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                // Fixed height (one or two lines), so a status appearing or changing never moves the moth; errors use the top notice.
-                if (lines > 0) Box(Modifier.fillMaxWidth().height(statusHeight).padding(start = 16.dp, end = 16.dp, top = 12.dp), contentAlignment = Alignment.TopCenter) {
+                // The lines the current status needs (one or two, as far as they fit); errors use the top notice.
+                if (lines > 0) Box(Modifier.fillMaxWidth().height(statusHeight).padding(start = 16.dp, end = 16.dp, top = org.mothvpn.core.MothArtworkSize.STATUS_GAP.dp), contentAlignment = Alignment.TopCenter) {
                     Text(status, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
                         maxLines = lines, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
                 }
-                // One small action with a fixed place (empty when idle without an update), so the moth and the status never jump.
-                if (slot) Box(Modifier.height(slotHeight), contentAlignment = Alignment.Center) {
-                    androidx.compose.animation.AnimatedContent(when { busy -> 1; release != null -> 2; else -> 0 }, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "updateAction") { slot ->
-                        when (slot) {
-                            1 -> TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale()) {
-                                Text(tr(R.string.update_cancel))
-                            }
-                            2 -> TextButton(onClick = { check() }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_check)) }
-                            else -> Spacer(Modifier.size(1.dp))
-                        }
-                    }
-                }
             }
         }
-        Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // One version row, no extra row or window: the installed version, replaced by the available one when an update is found.
             val available = release
             Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
@@ -156,9 +148,9 @@ import java.io.File
                 }
             }
             DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
-            // One main action at the very bottom: install a found update, otherwise check ("check again" is in the slot under the moth then).
-            // No room for the action slot: the main button itself cancels a running check or download.
-            if (busy && !slotShown) {
+            // One main action at the very bottom: Cancel while a check or download runs (it replaces the button just tapped), otherwise
+            // install a found update or check for one.
+            if (busy) {
                 NdButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale().then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_cancel)) }
             } else if (available != null) {
                 NdButton(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_install)) }

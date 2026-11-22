@@ -110,8 +110,12 @@ object LargeTitleTuning {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun LargeTitleHeader(largeTitle: LargeTitle, title: String, modifier: Modifier = Modifier,
-    navigation: (@Composable () -> Unit)? = null, actions: @Composable RowScope.() -> Unit = {}) {
+    navigation: (@Composable () -> Unit)? = null, trimBelow: Boolean = false, actions: @Composable RowScope.() -> Unit = {}) {
     val density = LocalDensity.current
+    // [trimBelow] (a page that never scrolls, e.g. Updates): the expanded header ends just under the big title instead of keeping the
+    // empty band below it. The title itself is drawn exactly as on every other page; only the page content starts higher.
+    val trim by androidx.compose.animation.core.animateFloatAsState(if (trimBelow) 1f else 0f,
+        if (animationsOn()) androidx.compose.animation.core.tween(Motion.SHORT) else androidx.compose.animation.core.snap(), label = "largeTitleTrim")
     // Large titles off (Settings › Interface): no extra space and the title stays at the compact size, like a plain top bar. The switch
     // animates between the two (the extra space folds away while the title shrinks into its compact place).
     val motion = animationsOn()
@@ -164,7 +168,9 @@ object LargeTitleTuning {
         val x = (width - text.width * expandedScale) / 2f * (1f - fraction) + navWidth * fraction
         val centreY = band / 2f + (top + rowHeight / 2f - band / 2f) * fraction
         val y = centreY - text.height * scale / 2f
-        layout(width, height) {
+        val trimmed = (y + text.height * scale + 4.dp.toPx()).coerceAtMost(height.toFloat())
+        val shown = (height + (trimmed - height) * trim * (1f - fraction)).roundToInt()
+        layout(width, shown) {
             text.placeWithLayer(x.roundToInt(), y.roundToInt()) { transformOrigin = TransformOrigin(0f, 0f); scaleX = scale; scaleY = scale }
             row.place(width - row.width, (top + extraNow + (rowHeight - row.height) / 2f).roundToInt())
             nav?.place(0, (top + extraNow + (rowHeight - nav.height) / 2f).roundToInt())

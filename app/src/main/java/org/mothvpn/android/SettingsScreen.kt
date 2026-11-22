@@ -74,12 +74,12 @@ import org.mothvpn.core.SubscriptionSchedule
     val largeTitle = rememberLargeTitle()
     val rootScroll = rememberScrollState()
     val titleMotion = animationsOn()
-    // A new page starts at its top: large title. Back on the main list, the header follows where the list was left. Updates never
-    // scrolls, so its large title would only keep an empty band above the moth: it opens with the compact title and the moth gets that room.
+    // A new page starts at its top: large title. Back on the main list, the header follows where the list was left.
+    LaunchedEffect(section, logPage) { largeTitle.settleTo(collapsed = section == null && logPage == 0 && rootScroll.value > 0, animated = titleMotion) }
+    // Updates never scrolls: its header ends right under the big title (same title, same place), so the moth gets the empty band below it.
     val updatesTitle = tr(R.string.update_title)
-    LaunchedEffect(section, logPage) { largeTitle.settleTo(collapsed = (section == null && logPage == 0 && rootScroll.value > 0) || (section == updatesTitle && logPage == 0), animated = titleMotion) }
     Column(Modifier.fillMaxSize().nestedScroll(largeTitle.nestedScrollConnection).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        LargeTitleHeader(largeTitle, when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); 4 -> tr(R.string.set_licenses); 5 -> Licenses.entries.firstOrNull { it.asset == licenseAsset }?.let { tr(it.title) } ?: tr(R.string.set_licenses); else -> (section ?: tr(R.string.msg_settings_28)) })
+        LargeTitleHeader(largeTitle, when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); 4 -> tr(R.string.set_licenses); 5 -> Licenses.entries.firstOrNull { it.asset == licenseAsset }?.let { tr(it.title) } ?: tr(R.string.set_licenses); else -> (section ?: tr(R.string.msg_settings_28)) }, trimBelow = section == updatesTitle && logPage == 0)
         // Settings pages: a page opened from a card grows out of that card and shrinks back into it on Back
         // (container transform, shared bounds); the rest fades. Pages without a card (logs, a licence text) keep the short slide.
         fun containerKey(page: Pair<String?, Int>): String? = when {

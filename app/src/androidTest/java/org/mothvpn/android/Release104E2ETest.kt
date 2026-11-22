@@ -88,6 +88,22 @@ class Release104E2ETest {
                 log("$tag: status=$st title=$title")
                 assertTrue("status line under the title or the card ($tag)", st.top >= title.bottom && st.bottom <= installed.top)
             }
+            // While a check runs the main button itself is Cancel (there is no other Cancel on the page), in the same place.
+            AppUpdater.testCheckDelayMs = 15_000
+            try {
+                device.findObject(By.text("Check for updates"))!!.click()
+                val cancel = wait(By.text("Cancel"), 5_000).visibleBounds; Thread.sleep(1200)
+                shot("$tag-checking")
+                assertEquals("only the main button offers Cancel ($tag)", 1, device.findObjects(By.text("Cancel")).size)
+                assertTrue("Cancel replaces the main button in place ($tag)", kotlin.math.abs(button.centerY() - cancel.centerY()) <= 2 && kotlin.math.abs(button.centerX() - cancel.centerX()) <= 2)
+                assertNull("Updates page must not scroll while checking ($tag)", device.findObject(By.scrollable(true)))
+                device.findObject(By.text("Checking for updates…"))?.visibleBounds?.let { st ->
+                    log("$tag-checking: status=$st cancel=$cancel")
+                    assertTrue("checking status above the card ($tag)", st.bottom <= installed.top)
+                }
+                device.findObject(By.text("Cancel"))!!.click()
+                wait(By.text("Check for updates"), 5_000)
+            } finally { AppUpdater.testCheckDelayMs = 0 }
             device.pressBack(); Thread.sleep(600)
         }
     }

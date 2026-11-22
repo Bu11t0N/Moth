@@ -29,13 +29,16 @@ object MothArtworkSize {
     fun fitPageDrawing(artwork: Float, room: Float): Float =
         fitDrawing(artwork, room).let { if (it < MIN_PAGE_DRAWING) 0f else it }
 
+    /** Updates page: air between the moth and the status line, in dp. */
+    const val STATUS_GAP = 20f
+
     /**
-     * Updates page: status lines that fit in an area of [area] dp above the version card, after the [slot] dp action slot and the
-     * 12 dp gap; 2, 1 or 0. Depends only on the area, never on the status text, so a status change never moves the moth.
+     * Updates page: the most status lines that fit in an area of [area] dp above the version card, after the [STATUS_GAP]; 2, 1 or 0.
+     * The page keeps fewer when the current status needs fewer.
      */
-    fun statusLines(area: Float, line: Float, slot: Float): Int = when {
-        area >= slot + 12f + 2 * line -> 2
-        area >= slot + 12f + line -> 1
+    fun statusLines(area: Float, line: Float): Int = when {
+        area >= STATUS_GAP + 2 * line -> 2
+        area >= STATUS_GAP + line -> 1
         else -> 0
     }
 
