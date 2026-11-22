@@ -86,11 +86,13 @@ import java.io.File
     LaunchedEffect(Unit) { val seen = AppUpdater.installAborted.value; AppUpdater.installAborted.collect { if (it > seen) { message = ""; on(org.mothvpn.core.UpdatePhase.Event.INSTALL_ABORTED) } } }
     val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
     var channelDialog by remember { mutableStateOf(false) }
-    // One quiet status under the version in its card: what is happening now or the result of the last check. A found update is not
-    // repeated there (its version is in the same row); errors are shown by the top notice.
+    // One quiet status under the version in its card: what is happening now or the result of the last check ("Update available" when
+    // one was found; its version is on the right); errors are shown by the top notice.
     val status = when {
         phase is org.mothvpn.core.UpdatePhase.Downloading -> tr(R.string.update_downloading) + (progress?.let { " ${(it * 100).toInt().coerceIn(0, 100)} %" } ?: "")
         busy && release == null -> tr(R.string.update_checking)
+        // A found update waiting for Install: its version is on the right, under the installed one.
+        !busy && release != null -> tr(R.string.update_available_dot)
         message.isNotEmpty() -> message
         else -> ""
     }
