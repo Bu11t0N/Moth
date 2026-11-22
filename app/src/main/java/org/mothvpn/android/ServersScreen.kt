@@ -240,7 +240,7 @@ import org.mothvpn.core.SubscriptionSource
         NdPillSwitch(listOf("Wi-Fi", tr(R.string.msg_mobile_data_21)), pager.currentPage + pager.currentPageOffsetFraction) { kind = if (it == 0) "wifi" else "mobile" }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${visible.size} / ${profiles.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-            val pageFilter = settings.filterFor(kind).keywords
+            val pageFilter = settings.filterFor(kind).active // switched-on keywords only
             FilterChip(selected = pageFilter.isNotEmpty(), onClick = { filterSheet = true },
                 label = { Text(if (pageFilter.isEmpty()) tr(R.string.nd_filter) else tr(R.string.nd_filter_active, pageFilter.size)) },
                 leadingIcon = { Icon(androidx.compose.material.icons.Icons.Rounded.FilterList, contentDescription = null, modifier = Modifier.size(18.dp)) },

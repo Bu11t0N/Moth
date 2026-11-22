@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -657,7 +658,8 @@ object SubtitlePalette {
 }
 
 /**
- * Keyword server filter. Keywords are added one by one (text field + Add) and listed as rows with a delete button;
+ * Keyword server filter. Keywords are added one by one (text field + Add) and listed as rows with a checkbox (on/off, the keyword
+ * stays in the list) and a delete button;
  * the mode hides matching servers or shows only them. Saved in settings and matched against server names when the list is shown,
  * so it survives subscription updates.
  */
@@ -668,7 +670,12 @@ object SubtitlePalette {
     val rule = settings.filterFor(kind)
     val keywords = rule.keywords
     fun saveRule(next: org.mothvpn.core.ServerFilter.Rule) = save(settings.withFilter(kind, next))
-    fun add() { val next = org.mothvpn.core.ServerFilter.add(keywords, text); if (next != keywords) saveRule(rule.copy(keywords = next)); text = "" }
+    fun add() {
+        val next = org.mothvpn.core.ServerFilter.add(keywords, text)
+        if (next != keywords) saveRule(rule.copy(keywords = next))
+        else org.mothvpn.core.ServerFilter.clean(text)?.let { k -> keywords.firstOrNull { it.equals(k, ignoreCase = true) } }?.let { k -> if (!rule.enabled(k)) saveRule(rule.toggle(k, true)) }
+        text = ""
+    }
     ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
         Column(Modifier.fillMaxWidth().imePadding().padding(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(tr(R.string.nd_filter_title_for, if (kind == "mobile") tr(R.string.msg_mobile_data_21) else "Wi-Fi"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
@@ -692,9 +699,13 @@ object SubtitlePalette {
             else LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(keywords, key = { it }) { k ->
                     Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.listItemMotion(this).fillMaxWidth().heightIn(min = 56.dp)) {
-                        Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(k, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { saveRule(rule.copy(keywords = keywords - k)) }, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.nd_filter_remove, k) })) {
+                        // A checkbox switches the keyword on or off (it stays in the list); the cross deletes it.
+                        val on = rule.enabled(k)
+                        Row(Modifier.toggleable(on, role = androidx.compose.ui.semantics.Role.Checkbox) { saveRule(rule.toggle(k, it)) }.padding(start = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(on, onCheckedChange = null, modifier = Modifier.padding(horizontal = 12.dp))
+                            Text(k, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                                color = if (on) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant)
+                            IconButton(onClick = { saveRule(rule.remove(k)) }, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.nd_filter_remove, k) })) {
                                 Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(22.dp))
                             }
                         }

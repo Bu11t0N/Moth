@@ -175,7 +175,7 @@ class MainActivity : AppCompatActivity() {
             val scheme = animatedColorScheme(if (dark) (if (settings.amoled) MonoTheme.amoled else MonoTheme.dark) else MonoTheme.light)
             // The filter hides every server: a top notice once when that starts (no permanent text on Home).
             val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
-            val hidesAll = filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).keywords.isNotEmpty()
+            val hidesAll = filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).active.isNotEmpty()
             androidx.compose.runtime.LaunchedEffect(hidesAll) { if (hidesAll) notices.show(tr(R.string.nd_filter_hides_all), NoticeState.ERROR_MS) }
             MaterialTheme(colorScheme = scheme, shapes = MonoTheme.shapes) {
                 androidx.compose.runtime.CompositionLocalProvider(LocalNotice provides notices) {

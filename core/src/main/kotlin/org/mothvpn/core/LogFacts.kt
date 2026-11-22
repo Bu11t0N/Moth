@@ -41,8 +41,8 @@ object LogFacts {
         plain("lanProxy", old.lanProxy, new.lanProxy); plain("lanProxyPort", old.lanProxyPort, new.lanProxyPort)
         plain("deviceDataSubs", old.deviceDataSubs.size, new.deviceDataSubs.size)
         // Keywords can be provider or location names: only the count is logged.
-        plain("wifiFilter", old.wifiFilter.keywords.size, new.wifiFilter.keywords.size); plain("wifiFilterMode", old.wifiFilter.mode, new.wifiFilter.mode)
-        plain("mobileFilter", old.mobileFilter.keywords.size, new.mobileFilter.keywords.size); plain("mobileFilterMode", old.mobileFilter.mode, new.mobileFilter.mode)
+        plain("wifiFilter", old.wifiFilter.keywords.size, new.wifiFilter.keywords.size); plain("wifiFilterOff", old.wifiFilter.disabled.size, new.wifiFilter.disabled.size); plain("wifiFilterMode", old.wifiFilter.mode, new.wifiFilter.mode)
+        plain("mobileFilter", old.mobileFilter.keywords.size, new.mobileFilter.keywords.size); plain("mobileFilterOff", old.mobileFilter.disabled.size, new.mobileFilter.disabled.size); plain("mobileFilterMode", old.mobileFilter.mode, new.mobileFilter.mode)
         return out
     }
 
