@@ -81,6 +81,8 @@ class Release104E2ETest {
             assertTrue("main button cut off or under the tab bar ($tag)", again.bottom <= tabs.top && again.height() > 0)
             assertTrue("version row cut off ($tag)", installed.height() > 0 && installed.bottom < again.top)
             // The status line (when this size has room for it) sits fully below the large title and above the version card.
+            // A failed automatic check (no route to GitHub on CI) shows an error notice over the title for a while: wait it out.
+            wait(By.text("Updates"), 20_000)
             val title = device.findObjects(By.text("Updates")).maxByOrNull { it.visibleBounds.height() }!!.visibleBounds
             device.findObject(By.textStartsWith("You have the latest"))?.visibleBounds?.let { st ->
                 log("$tag: status=$st title=$title")
