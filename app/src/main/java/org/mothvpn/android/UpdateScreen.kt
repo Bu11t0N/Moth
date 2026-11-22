@@ -117,6 +117,7 @@ import java.io.File
             // the free height, up to the largest Home moth and the page width.
             val artwork = org.mothvpn.core.MothArtworkSize.pageArtwork(maxWidth.value)
             val side = org.mothvpn.core.MothArtworkSize.fitPageDrawing(artwork, (maxHeight - below - 16.dp).value).dp
+            LaunchedEffect(side, maxHeight) { Logger.i("Update", "moth ${side.value.toInt()} dp in a ${maxHeight.value.toInt()} dp area") }
             // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
             Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
                 if (side > 0.dp) MothFlutter(Modifier.requiredSize(side), size = side, busy = busy, exact = true)
