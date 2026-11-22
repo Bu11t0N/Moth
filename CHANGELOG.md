@@ -2,6 +2,19 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
+## 1.0.4-beta.2
+
+### Changes
+
+- New: Settings → For developers → Subscription changes adds Changes to a subscription's menu on the Servers tab: which servers each update added, changed and removed, and what exactly changed.
+- New: server filter keywords can be switched off and on with a checkbox, without deleting them.
+- The server list on Home hides unavailable servers when Hide unavailable is on in the Servers tab, and says so.
+- The provider's logo is shown in colour.
+- Telegram links have Telegram's own paper-plane icon.
+- Split tunneling has one Show system apps checkbox instead of two.
+- The proxy for other devices no longer repeats the port under the port field.
+- The Updates page never scrolls: on a short screen the moth gets smaller, or is hidden.
+
 ## 1.0.4-beta.1
 
 ### Changes
