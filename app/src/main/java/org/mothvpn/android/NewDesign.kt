@@ -700,14 +700,14 @@ object SubtitlePalette {
 fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows(p.name)
 
 /**
- * Provider link buttons (support, web page, news) as [IconTile]s with a short caption. Telegram links get a paper-plane icon.
+ * Provider link buttons (support, web page, news) as [IconTile]s with a short caption. Telegram links get Telegram's own tilted paper plane ([TelegramPlane]).
  * The URL is opened by the system; it is never written to the log.
  */
 @Composable fun ProviderLinkButtons(links: org.mothvpn.core.ProviderLinks, modifier: Modifier = Modifier) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val items = listOfNotNull(
-        links.support.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_support), if (org.mothvpn.core.ProviderLinks.telegram(it)) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Send else androidx.compose.material.icons.Icons.Rounded.SupportAgent) },
-        links.announce.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_news), if (org.mothvpn.core.ProviderLinks.telegram(it)) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Send else androidx.compose.material.icons.Icons.Rounded.Campaign) },
+        links.support.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_support), if (org.mothvpn.core.ProviderLinks.telegram(it)) TelegramPlane else androidx.compose.material.icons.Icons.Rounded.SupportAgent) },
+        links.announce.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_news), if (org.mothvpn.core.ProviderLinks.telegram(it)) TelegramPlane else androidx.compose.material.icons.Icons.Rounded.Campaign) },
         links.web.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_web), androidx.compose.material.icons.Icons.Rounded.Language) })
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         items.forEach { (url, label, icon) ->
