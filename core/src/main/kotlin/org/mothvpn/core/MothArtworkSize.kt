@@ -16,6 +16,13 @@ object MothArtworkSize {
     fun fitDrawing(artwork: Float, room: Float): Float =
         minOf(drawingSide(artwork), room.coerceAtLeast(0f))
 
+    /** Smallest moth the Updates page still draws; below this the page shows no moth at all. */
+    const val MIN_PAGE_DRAWING = 72f
+
+    /** Updates page: Home-sized drawing shrunk to [room]; 0 (no moth) when that would be under [MIN_PAGE_DRAWING]. */
+    fun fitPageDrawing(artwork: Float, room: Float): Float =
+        fitDrawing(artwork, room).let { if (it < MIN_PAGE_DRAWING) 0f else it }
+
     /** Same 48–260 dp range as Home; leave room for controls at large text sizes. */
     fun side(width: Float, height: Float, fontScale: Float): Float =
         minOf(260f, (width - 40f).coerceAtLeast(48f), (height - 560f * fontScale.coerceAtLeast(1f)).coerceAtLeast(48f))

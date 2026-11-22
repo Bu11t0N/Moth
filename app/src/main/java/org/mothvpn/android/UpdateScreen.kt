@@ -7,8 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -95,30 +93,20 @@ import java.io.File
         message.isNotEmpty() -> message
         else -> ""
     }
-    // The moth has one size in every state (idle, checking, update found, downloading): its area is sized from the page height
-    // minus the room the bottom block needs (one version row, channel row and the main button; that block never grows), so the moth
-    // neither shrinks nor moves when the status changes. If the window is too short (a tablet in landscape), the page scrolls
-    // instead of clipping. Low under the moth, just above the version card: the status line and one small action slot (Cancel
-    // while checking or downloading, "Check again" when an update was found). The main button stays at the bottom when there is room.
+    // The page never scrolls. The bottom block (one version row, channel row and the main button) keeps its natural height and
+    // never grows; the moth area takes the rest. The moth has one size in every state (idle, checking, update found, downloading):
+    // the Home size, shrunk to the room left above the status line when the page is short (large font, small window). If that
+    // room is below MothArtworkSize.MIN_PAGE_DRAWING, the moth is not shown at all. Low under the moth, just above the version
+    // card: the status line and one small action slot (Cancel while checking or downloading, "Check again" when an update was found).
     val density = androidx.compose.ui.platform.LocalDensity.current
     val type = MaterialTheme.typography
-    // Text heights follow the font size; the rest is fixed dp (see the layout below).
     val sp = { u: androidx.compose.ui.unit.TextUnit -> with(density) { u.toDp() } }
     val statusHeight = 12.dp + sp(type.bodyLarge.lineHeight) * 2
     val below = statusHeight + 44.dp // status (two lines) + the action slot under the moth
-    val cardRow = maxOf(52.dp, 20.dp + sp(type.titleMedium.lineHeight))
-    val reserve = 8.dp + (8.dp + cardRow) + 12.dp + (32.dp + sp(type.bodyLarge.lineHeight) + sp(type.bodySmall.lineHeight)) +
-        12.dp + 52.dp + 8.dp
-    BoxWithConstraints(modifier.fillMaxWidth()) {
-    val top = (maxHeight - reserve).coerceAtLeast(0.dp)
-    // Same drawn size as the Home moth. If the slot is shorter than that (a large title, or a tablet in landscape),
-    // the page scrolls so the antennae stay visible; the square is never stretched or clipped.
-    val side = org.mothvpn.core.MothArtworkSize.drawingSide(mothArtworkSize().value).dp
-    val mothBlock = (if (side > 0.dp) side else 0.dp) + below
-    val scroll = mothBlock + reserve > maxHeight
-    Column(Modifier.fillMaxSize().then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
-        verticalArrangement = if (scroll) Arrangement.Top else Arrangement.SpaceBetween) {
-        Box(Modifier.then(if (scroll) Modifier.height(mothBlock) else Modifier.weight(1f, fill = false).height(top)).fillMaxWidth()) {
+    val artwork = mothArtworkSize().value
+    Column(modifier.fillMaxWidth()) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val side = org.mothvpn.core.MothArtworkSize.fitPageDrawing(artwork, (maxHeight - below).value).dp
             // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
             Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
                 if (side > 0.dp) MothFlutter(Modifier.requiredSize(side), size = side, busy = busy, exact = true)
@@ -128,7 +116,8 @@ import java.io.File
                 // Fixed height (two lines), so a status appearing or changing never moves the moth; statuses are short, errors use the top notice.
                 Box(Modifier.fillMaxWidth().height(statusHeight).padding(start = 16.dp, end = 16.dp, top = 12.dp), contentAlignment = Alignment.TopCenter) {
                     Text(status, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().wrapContentHeight(Alignment.Top, unbounded = true).semantics { liveRegion = LiveRegionMode.Polite })
+                        maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
                 }
                 // One small action with a fixed place (empty when idle without an update), so the moth and the status never jump.
                 Box(Modifier.height(44.dp), contentAlignment = Alignment.Center) {
@@ -163,7 +152,6 @@ import java.io.File
                 NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_check)) }
             }
         }
-    }
     }
     if (channelDialog) ChoiceDialog(tr(R.string.update_channel), channels, channel, { channelDialog = false }) { value ->
         if (channel != value) { Logger.i("Settings", "update channel changed: ${channel.id} -> ${value.id}"); selectChannel(value.id) }
