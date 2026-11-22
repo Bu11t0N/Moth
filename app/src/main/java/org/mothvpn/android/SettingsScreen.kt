@@ -384,6 +384,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     DialogRow(tr(R.string.dev_sub_headers), "") { headersDialog = true }
                     if (headersDialog) SubscriptionHeadersDialog { headersDialog = false }
                     SettingsToggle(tr(R.string.dev_edit_servers), draft.editServers, info = tr(R.string.dev_edit_servers_hint)) { applySettings(draft.copy(editServers = it)) }
+                    SettingsToggle(tr(R.string.dev_change_history), draft.changeHistory, info = tr(R.string.dev_change_history_hint)) { applySettings(draft.copy(changeHistory = it)) }
                 }
             }
             AnimatedVisibility(error.isNotEmpty()) { Text(error, color = MaterialTheme.colorScheme.error) }

@@ -55,6 +55,8 @@ data class ClientSettings(
     val mux: String = "off",
     /** Developer option: "Edit JSON" in the server long-press menu. */
     val editServers: Boolean = false,
+    /** Developer option (1.0.4): "Changes" in a subscription's ⋮ menu on the Servers tab (servers added, changed and removed per update). */
+    val changeHistory: Boolean = false,
     /** Dark theme: pure black (#000000) background and surfaces for AMOLED screens. */
     val amoled: Boolean = false,
     /** Keyword server filter of the Wi-Fi page (keywords + mode), matched against server names at display time (see [ServerFilter]). */
@@ -161,7 +163,7 @@ data class ClientSettings(
         .put("autoSelectWifi", autoSelectWifi).put("autoSelectMobile", autoSelectMobile).put("autoSelect", autoSelectAny).put("bootConnect", bootConnect).put("dnsLeakProtection", dnsLeakProtection)
         .put("killSwitch", killSwitch).put("favorites", org.json.JSONArray(favorites)).put("expiryWarning", expiryWarning)
         .put("routingRules", org.json.JSONArray().apply { routingRules.forEach { put(it.json()) } }).put("trafficWarning", trafficWarning)
-        .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("amoled", amoled)
+        .put("fragment", fragment).put("noise", noise).put("mux", mux).put("editServers", editServers).put("changeHistory", changeHistory).put("amoled", amoled)
         .put("serverFilterWifi", wifiFilter.json()).put("serverFilterMobile", mobileFilter.json())
         .put("deviceInfoSet", deviceInfoSet).put("deviceOs", deviceOs).put("deviceOsVersion", deviceOsVersion).put("deviceModel", deviceModel)
         // 0.7.6: "healthCheckSeconds" holds the interval (up to 15 min); "healthIntervalSeconds" stays within 30–600 for older builds.
@@ -210,7 +212,7 @@ data class ClientSettings(
             fragment = j.optString("fragment", "off").takeIf { it in DpiTricks.fragmentPresets.keys } ?: "off",
             noise = j.optBoolean("noise", false),
             mux = j.optString("mux", "off").takeIf { it in DpiTricks.muxModes } ?: "off",
-            editServers = j.optBoolean("editServers", false),
+            editServers = j.optBoolean("editServers", false), changeHistory = j.optBoolean("changeHistory", false),
             amoled = j.optBoolean("amoled", false),
             // beta 4 had one filter ("serverFilter" + "serverFilterMode"); it becomes the filter of both networks.
             wifiFilter = j.optJSONObject("serverFilterWifi")?.let(ServerFilter.Rule::from) ?: ServerFilter.Rule.legacy(j),

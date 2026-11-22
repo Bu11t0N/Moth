@@ -77,6 +77,7 @@ object SubscriptionRefresh {
         parsed.duplicates.forEach { Logger.d("Import", "dropped: $it") }
         parsed.reasons.forEach { Logger.w("Import", "skipped: $it") }
         var id = ""
+        var change: org.mothvpn.core.SubscriptionChanges.Entry? = null
         val book = SubscriptionStore(context).update { book ->
             val old = book.refreshTarget(sourceId, link, expectedUrl)
             id = old?.id ?: SubscriptionSource.newId(link, System.currentTimeMillis())
@@ -88,8 +89,11 @@ object SubscriptionRefresh {
             val now = System.currentTimeMillis()
             val fresh = SubscriptionSource(id, name?.trim() ?: old?.name.orEmpty(), link, parsed.profiles, response.name,
                 response.expires, response.used, response.total, now, response.links).withRefreshTimes(old, now)
+            // What this update changed (servers added / changed / removed), for the developer option "Subscription changes".
+            change = runCatching { org.mothvpn.core.SubscriptionChanges.diff(old, fresh, now) }.getOrNull()
             book.upsert(fresh)
         }
+        change?.let { SubscriptionChangeLog.record(context, id, it) }
         Logger.i("Import", "subscriptions saved: ${book.sources.size} subscription(s), ${book.profiles.size} server(s)")
         ResponseHeaderNames.save(context, id, response.names)
         // Logo header, else the public Telegram profile picture, else the web page icon. Through the tunnel when it is up.

@@ -711,4 +711,24 @@
     <string name="lan_hint_wifi">Для устройств в той же сети Wi-Fi</string>
     <string name="lan_hint_ethernet">Для устройств в той же проводной сети</string>
     <string name="lan_hint_other">Только для устройств в этой локальной сети</string>
+    <string name="dev_change_history">Изменения подписок</string>
+    <string name="dev_change_history_hint">Добавляет «Изменения» в меню ⋮ подписки на вкладке «Серверы»: какие серверы каждое обновление добавило, изменило и удалило.</string>
+    <string name="sub_changes">Изменения</string>
+    <string name="changes_title">Изменения</string>
+    <string name="changes_empty">Изменений пока нет. Они записываются, когда обновление приносит что-то новое.</string>
+    <string name="changes_added">Добавлено: %1$d</string>
+    <string name="changes_changed">Изменено: %1$d</string>
+    <string name="changes_removed">Удалено: %1$d</string>
+    <string name="changes_other_expires">Изменён срок действия</string>
+    <string name="changes_other_total">Изменён лимит трафика</string>
+    <string name="changes_other_provider">Изменено название провайдера</string>
+    <string name="changes_other_announce">Изменено объявление</string>
+    <string name="changes_field_name">Название</string>
+    <string name="changes_field_protocol">Протокол</string>
+    <string name="changes_field_address">Адрес</string>
+    <string name="changes_field_port">Порт</string>
+    <string name="changes_absent">нет</string>
+    <string name="changes_secret_changed">изменено (скрыто)</string>
+    <string name="changes_secret_added">добавлено (скрыто)</string>
+    <string name="changes_secret_removed">удалено</string>
 </resources>
