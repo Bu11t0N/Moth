@@ -25,6 +25,15 @@ class Release104Test {
         assertEquals(0, MothArtworkSize.statusLines(44f + 12f + 23f, 24f, 44f))
         assertEquals(0, MothArtworkSize.statusLines(10f, 24f, 44f))
     }
+    @Test fun updatesMothFillsFreeHeightUpToTheLargestHomeMoth() {
+        // A 411 dp wide page with lots of free height: the largest Home drawing (210 dp), whatever the font size.
+        assertEquals(MothArtworkSize.drawingSide(260f), MothArtworkSize.fitPageDrawing(MothArtworkSize.pageArtwork(379f), 400f))
+        // Narrow page: limited by the width.
+        assertEquals(MothArtworkSize.drawingSide(200f), MothArtworkSize.fitPageDrawing(MothArtworkSize.pageArtwork(200f), 400f))
+        // Home with font 1.3 on a 900 dp window gives a 160 dp drawing; the page is not bound by that.
+        assertTrue(MothArtworkSize.drawingSide(MothArtworkSize.side(411f, 900f, 1.3f)) < MothArtworkSize.fitPageDrawing(MothArtworkSize.pageArtwork(379f), 300f))
+        assertFalse(source("UpdateScreen.kt").contains("mothArtworkSize()"))
+    }
     @Test fun updatesPageHasNoScroll() {
         val page = source("UpdateScreen.kt")
         assertFalse(page.contains("verticalScroll")); assertFalse(page.contains("rememberScrollState"))

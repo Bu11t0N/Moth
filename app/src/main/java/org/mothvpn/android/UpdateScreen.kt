@@ -97,14 +97,13 @@ import java.io.File
     // never grows; the area above it holds, from the bottom up, one small action slot (Cancel while checking or downloading,
     // "Check again" when an update was found), the status line and the moth. When that area is short (large font, small window)
     // the parts give way in a fixed order, decided by the area's height only (never by the current status, so nothing jumps when
-    // the status changes): first the moth shrinks and, below MothArtworkSize.MIN_PAGE_DRAWING, is not shown; then the status gets
+    // the status changes): the moth takes the free height up to the largest Home size; first it shrinks and, below MothArtworkSize.MIN_PAGE_DRAWING, is not shown; then the status gets
     // one line instead of two, then no line; finally the action slot goes and the main button itself offers Cancel while busy.
     // Every part gets a slot that fits, so nothing is drawn outside it or cut off.
     val density = androidx.compose.ui.platform.LocalDensity.current
     val type = MaterialTheme.typography
     val line = with(density) { type.bodyLarge.lineHeight.toDp() }
     val slotHeight = 44.dp
-    val artwork = mothArtworkSize().value
     var slotShown by remember { mutableStateOf(true) }
     Column(modifier.fillMaxWidth()) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
@@ -113,7 +112,11 @@ import java.io.File
             SideEffect { slotShown = slot }
             val statusHeight = if (lines > 0) 12.dp + line * lines else 0.dp
             val below = statusHeight + (if (slot) slotHeight else 0.dp)
-            val side = org.mothvpn.core.MothArtworkSize.fitPageDrawing(artwork, (maxHeight - below).value).dp
+            // Not Home's formula (mothArtworkSize): that one keeps 560 dp × font scale free for Home's status, cards, server bar and
+            // tabs, which this page does not have, so with a larger font it left the moth small above empty space. Here the moth fills
+            // the free height, up to the largest Home moth and the page width.
+            val artwork = org.mothvpn.core.MothArtworkSize.pageArtwork(maxWidth.value)
+            val side = org.mothvpn.core.MothArtworkSize.fitPageDrawing(artwork, (maxHeight - below - 16.dp).value).dp
             // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
             Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
                 if (side > 0.dp) MothFlutter(Modifier.requiredSize(side), size = side, busy = busy, exact = true)

@@ -19,6 +19,12 @@ object MothArtworkSize {
     /** Smallest moth the Updates page still draws; below this the page shows no moth at all. */
     const val MIN_PAGE_DRAWING = 72f
 
+    /**
+     * Updates page artwork for a page [width] dp wide: the largest Home button (260 dp), never wider than the page. Unlike [side] it
+     * reserves no room for Home's controls; the page fits the drawing to its free height with [fitPageDrawing].
+     */
+    fun pageArtwork(width: Float): Float = minOf(260f, width.coerceAtLeast(0f))
+
     /** Updates page: Home-sized drawing shrunk to [room]; 0 (no moth) when that would be under [MIN_PAGE_DRAWING]. */
     fun fitPageDrawing(artwork: Float, room: Float): Float =
         fitDrawing(artwork, room).let { if (it < MIN_PAGE_DRAWING) 0f else it }

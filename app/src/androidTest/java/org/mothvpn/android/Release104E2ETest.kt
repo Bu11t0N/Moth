@@ -62,9 +62,11 @@ class Release104E2ETest {
 
     /** Updates page: no scrollable container at any size; the main button sits fully above the tab bar; the moth shrinks or is hidden. */
     @Test fun updatesPageNeverScrolls() {
-        for ((size, font) in listOf("1080x1600" to 1.3f, "1080x1600" to 1.0f, "1080x1900" to 1.5f, "1080x2400" to 1.3f)) {
+        for ((size, font) in listOf("1080x1600" to 1.3f, "1080x1600" to 1.0f, "1080x1900" to 1.5f, "1080x2400" to 1.3f, "1080x2400" to 1.0f)) {
             shell("wm size $size"); shell("settings put system font_scale $font"); Thread.sleep(1500)
             launch()
+            device.findObject(By.desc("Connect VPN"))?.visibleBounds?.let { log("home-$size-$font: moth button=$it") }
+            shot("home-$size-$font")
             wait(By.text("Settings")).click(); Thread.sleep(900)
             scrollTo("Updates"); wait(By.text("Updates")).click()
             val button = wait(By.text("Check for updates")).visibleBounds; Thread.sleep(1200)
