@@ -664,7 +664,6 @@
     <string name="lan_no_address">No local network yet: turn on the hotspot (or connect to Wi-Fi) and the address appears here.</string>
     <string name="lan_howto_title">How to connect another device</string>
     <string name="lan_howto">1. Turn on the hotspot on this device and connect the other device to it (or put both on the same Wi-Fi).\n2. On the other device open the Wi-Fi network settings → Proxy → Manual.\nHost address: the address above before the colon\nPort: the number after the colon\n3. Save the entered settings</string>
-    <string name="lan_state_running">Running on port %1$d</string>
     <string name="lan_state_busy">Port %1$d is used by another app: the VPN runs without the proxy. Choose another port.</string>
     <string name="set_short_lan">Sharing</string>
     <string name="msg_err_lan_port">Invalid proxy port</string>
