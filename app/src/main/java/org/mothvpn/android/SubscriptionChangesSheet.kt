@@ -32,6 +32,8 @@ import org.mothvpn.core.SubscriptionChanges
     val entries by produceState<List<SubscriptionChanges.Entry>?>(null, source.id, source.changedAt) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { SubscriptionChangeLog.of(context, source.id) }
     }
+    // The sheet opens only once the history is read: a sheet that grows after opening would keep its first, short height.
+    val list = entries ?: return
     val locale = AppLanguage.context().resources.configuration.locales[0]
     val zone = java.time.ZoneId.systemDefault()
     val hour24 = android.text.format.DateFormat.is24HourFormat(AppLanguage.context())
@@ -40,12 +42,11 @@ import org.mothvpn.core.SubscriptionChanges
         Text(tr(R.string.changes_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 24.dp, end = 24.dp))
         Text(source.title(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp))
-        val list = entries
-        if (list != null && list.isEmpty()) Text(tr(R.string.changes_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        if (list.isEmpty()) Text(tr(R.string.changes_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 32.dp))
         else LazyColumn(Modifier.fillMaxWidth().heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.75f).dp),
             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(list.orEmpty(), key = { it.at }) { e ->
+            items(list, key = { it.at }) { e ->
                 Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(vertical = 10.dp)) {
                         Text(org.mothvpn.core.SubscriptionMoments.format(e.at, locale, zone, withTime = true, hour24 = hour24), style = MaterialTheme.typography.titleSmall,
