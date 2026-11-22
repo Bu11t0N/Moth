@@ -848,7 +848,7 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
     }
 }
 
-/** The provider's logo (cached by [ProviderLogos], shown in greys to fit the monochrome design), or a monochrome tile icon when there is none. */
+/** The provider's logo (cached by [ProviderLogos], shown in its own colours), or a monochrome tile icon when there is none. */
 @Composable fun ProviderAvatar(source: org.mothvpn.core.SubscriptionSource, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val logo by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, source.id, source.links.logo, source.updatedAt) {
@@ -859,7 +859,6 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
     val image = logo
     if (image == null) IconTile(if (source.local) androidx.compose.material.icons.Icons.Outlined.Dns else androidx.compose.material.icons.Icons.Outlined.CardMembership, modifier, size)
     else androidx.compose.foundation.Image(image, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-        colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) }),
         modifier = modifier.size(size).clip(RoundedCornerShape(12.dp)))
 }
 
