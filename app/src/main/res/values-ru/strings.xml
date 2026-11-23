@@ -19,7 +19,7 @@
     <string name="msg_checking_internet_access_15" formatted="false">"Проверяем интернет…"</string>
     <string name="msg_add_subscription_16" formatted="false">"Добавить подписку"</string>
     <string name="msg_traffic_1f_1f_gib_18" formatted="false">"Трафик: %.1f / %.1f ГиБ"</string>
-    <string name="msg_subscription_expires_on_19" formatted="false">"Подписка до "</string>
+    <string name="msg_subscription_expires_on_19">Активна до %1$s</string>
     <string name="msg_no_network_20" formatted="false">"Нет сети"</string>
     <string name="msg_mobile_data_21" formatted="false">"Мобильные данные"</string>
     <string name="msg_vpn_permission_was_not_granted_22" formatted="false">"Разрешение на VPN не выдано"</string>
@@ -242,8 +242,7 @@
     <string name="split_unlisted">Нет на рабочем столе: нажмите, чтобы убрать</string>
     <string name="split_search">Поиск приложений</string>
     <string name="split_show_system">Показывать системные</string>
-    <string name="split_all_apps">Повышенные права</string>
-    <string name="split_all_apps_info">Показывает все установленные приложения, которые используют интернет, включая фоновые службы без значка на экране. Использует разрешение на просмотр всех приложений.</string>
+    <string name="split_all_apps_info">Показывает все установленные приложения, которые используют интернет, включая системные и фоновые службы без значка на экране. Использует разрешение на просмотр всех приложений.</string>
     <string name="direct_ru">Российские сайты и IP напрямую</string>
     <string name="auto_select_wifi">Автовыбор на Wi‑Fi</string>
     <string name="auto_select_mobile">Автовыбор на мобильном интернете</string>
@@ -271,7 +270,7 @@
     <string name="fav_remove">Убрать из избранного</string>
     <string name="fav_mark">Избранное</string>
     <string name="sub_left">Осталось трафика: %1$s из %2$s</string>
-    <string name="sub_expires">Действует до %1$s</string>
+    <string name="sub_expires">Активна до %1$s</string>
     <string name="stats_title">Статистика</string>
     <string name="sub_delete_in_use">Сервер этой подписки сейчас используется. Отключись, чтобы её удалить.</string>
     <string name="sub_wait_notice">Дождись окончания проверок и смены подключения.</string>
@@ -475,6 +474,7 @@
     <string name="sub_all_show">Показать все подписки</string>
     <string name="sub_all_title">Подписки</string>
     <string name="sub_updated_on">Обновлена: %1$s</string>
+    <string name="sub_changed_on">Изменена: %1$s</string>
     <string name="sub_link_copy_link">Скопировать ссылку</string>
     <string name="nd_choose_server">Выбрать сервер</string>
     <string name="dev_edit_servers">Редактирование серверов</string>
@@ -667,7 +667,6 @@
     <string name="lan_no_address">Локальной сети пока нет: включите точку доступа (или подключитесь к Wi-Fi), и адрес появится здесь.</string>
     <string name="lan_howto_title">Как подключить другое устройство</string>
     <string name="lan_howto">1. Включите точку доступа на этом устройстве и подключите к ней другое устройство (или подключите оба к одной Wi-Fi).\n2. На другом устройстве откройте настройки этой Wi-Fi-сети → Прокси → Вручную.\nАдрес хоста: адрес выше до двоеточия\nПорт: число после двоеточия\n3. Сохраните введенные настройки</string>
-    <string name="lan_state_running">Работает на порту %1$d</string>
     <string name="lan_state_busy">Порт %1$d занят другим приложением: VPN работает без прокси. Выберите другой порт.</string>
     <string name="set_short_lan">Раздача</string>
     <string name="msg_err_lan_port">Неверный порт прокси</string>
@@ -712,4 +711,24 @@
     <string name="lan_hint_wifi">Для устройств в той же сети Wi-Fi</string>
     <string name="lan_hint_ethernet">Для устройств в той же проводной сети</string>
     <string name="lan_hint_other">Только для устройств в этой локальной сети</string>
+    <string name="dev_change_history">Изменения подписок</string>
+    <string name="dev_change_history_hint">Добавляет «Изменения» в меню ⋮ подписки на вкладке «Серверы»: какие серверы каждое обновление добавило, изменило и удалило.</string>
+    <string name="sub_changes">Изменения</string>
+    <string name="changes_title">Изменения</string>
+    <string name="changes_empty">Изменений пока нет. Они записываются, когда обновление приносит что-то новое.</string>
+    <string name="changes_added">Добавлено: %1$d</string>
+    <string name="changes_changed">Изменено: %1$d</string>
+    <string name="changes_removed">Удалено: %1$d</string>
+    <string name="changes_other_expires">Изменён срок действия</string>
+    <string name="changes_other_total">Изменён лимит трафика</string>
+    <string name="changes_other_provider">Изменено название провайдера</string>
+    <string name="changes_other_announce">Изменено объявление</string>
+    <string name="changes_field_name">Название</string>
+    <string name="changes_field_protocol">Протокол</string>
+    <string name="changes_field_address">Адрес</string>
+    <string name="changes_field_port">Порт</string>
+    <string name="changes_absent">нет</string>
+    <string name="changes_secret_changed">изменено (скрыто)</string>
+    <string name="changes_secret_added">добавлено (скрыто)</string>
+    <string name="changes_secret_removed">удалено</string>
 </resources>

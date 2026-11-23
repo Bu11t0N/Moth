@@ -67,6 +67,25 @@ class ProviderLinksTest {
         assertEquals(null, ProviderLinks.webIcon("https://t.me/provider"))
         assertEquals(null, ProviderLinks.webIcon("tg://resolve?domain=x"))
         assertEquals(null, ProviderLinks.webIcon(""))
+        assertEquals(listOf("https://panel.example.com/apple-touch-icon.png", "https://panel.example.com/apple-touch-icon-precomposed.png",
+            "https://panel.example.com/favicon.png", "https://panel.example.com/favicon.ico"), ProviderLinks.webIconGuesses("https://panel.example.com/sub/abc123"))
+        assertEquals(emptyList<String>(), ProviderLinks.webIconGuesses("https://t.me/provider"))
+    }
+
+    @Test fun pageIconsResolveRelativeUrlsAndPreferAppleTouch() {
+        val html = """
+            <link rel="shortcut icon" href="/favicon.ico" sizes="32x32">
+            <link rel="icon" type="image/svg+xml" href="/icon.svg">
+            <link rel="apple-touch-icon" sizes="180x180" href="icons/apple.png">
+            <link rel="icon" sizes="64x64" href="//cdn.example.com/fav.png">
+            <meta property="og:image" content="/og.jpg">
+        """.trimIndent()
+        assertEquals(listOf("https://panel.example.com/icons/apple.png", "https://cdn.example.com/fav.png",
+            "https://panel.example.com/favicon.ico", "https://panel.example.com/og.jpg"),
+            ProviderLinks.pageIcons(html, "https://panel.example.com/account"))
+        assertEquals("https://panel.example.com/i.png", ProviderLinks.resolveHttps("https://panel.example.com/x", "/i.png"))
+        assertEquals(null, ProviderLinks.resolveHttps("https://panel.example.com", "http://cdn.example.com/a.png"))
+        assertEquals(null, ProviderLinks.resolveHttps("https://panel.example.com", "data:image/png;base64,xx"))
     }
 
     @Test fun announceTextPlainBase64BodySanitizedAndPersisted() {
@@ -98,5 +117,22 @@ class ProviderLinksTest {
         assertNull(ProviderLinks.telegramPhoto("<meta property='og:image' content='https://telegram.org/img/t_logo.png'>"))
         assertNull(ProviderLinks.telegramPhoto("<meta property=\"og:image\" content=\"http://cdn.example/a.jpg\">"))
         assertNull(ProviderLinks.telegramPhoto("<html></html>"))
+    }
+
+    @Test fun announceTextKeepsEmojiJoinerSequences() {
+        // Person with blond hair + ZWJ + male sign + emoji variation selector: one "man" emoji when the joiner is kept.
+        val man = "\uD83D\uDC71\u200D\u2642\uFE0F"
+        assertEquals("Hello $man", ProviderLinks.announceText("Hello $man"))
+        assertEquals(man, ProviderLinks.announceText("\u200B$man\u202E"))
+        val tone = "\uD83D\uDC4B\uD83C\uDFFD" // waving hand, medium skin tone
+        assertEquals(tone, ProviderLinks.announceText(tone))
+        val flag = "\uD83C\uDDF7\uD83C\uDDFA" // regional-indicator flag
+        assertEquals("Go $flag", ProviderLinks.announceText("Go $flag"))
+        val keycap = "1\uFE0F\u20E3"
+        assertEquals(keycap, ProviderLinks.announceText(keycap))
+        val rainbow = "\uD83C\uDFF3\uFE0F\u200D\uD83C\uDF08"
+        assertEquals(rainbow, ProviderLinks.announceText(rainbow))
+        // Zero-width space and a bidi override are still removed.
+        assertEquals("ab", ProviderLinks.announceText("a\u200Bb\u202E"))
     }
 }

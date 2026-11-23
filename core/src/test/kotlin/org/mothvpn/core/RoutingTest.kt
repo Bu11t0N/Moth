@@ -84,6 +84,24 @@ class RoutingTest {
         assertFalse(SubscriptionSchedule.due(0, 0, Long.MAX_VALUE))
         assertTrue(SubscriptionSchedule.due(6, 0, 6 * 3_600_000L))
         assertFalse(SubscriptionSchedule.due(24, 0, 3_600_000L))
+        val hour = SubscriptionSchedule.HOUR_MS
+        val slack = SubscriptionSchedule.dueAfterMs(1)
+        assertEquals(hour * 9 / 10, slack)
+        // Off, or no sources: nothing to schedule.
+        assertNull(SubscriptionSchedule.nextDelayMs(0, listOf(1L), 0))
+        assertNull(SubscriptionSchedule.nextDelayMs(1, emptyList(), 0))
+        // Already due, or never updated: run now.
+        assertEquals(0L, SubscriptionSchedule.nextDelayMs(1, listOf(0L), 1000L))
+        assertEquals(0L, SubscriptionSchedule.nextDelayMs(1, listOf(100L), 100L + slack))
+        // A fresh refresh: wait the remaining slack; a second almost-due source keeps its own earlier time.
+        val now = 10_000_000L
+        val fresh = now
+        val older = now - slack + 60_000L
+        assertEquals(slack, SubscriptionSchedule.nextDelayMs(1, listOf(fresh), now))
+        assertEquals(60_000L, SubscriptionSchedule.nextDelayMs(1, listOf(fresh, older), now))
+        // A floor raises a zero delay (VPN-only sources still due) without postponing a later source past the floor.
+        assertEquals(15 * 60 * 1000L, SubscriptionSchedule.nextDelayMs(1, listOf(0L), now, 15 * 60 * 1000L))
+        assertEquals(slack, SubscriptionSchedule.nextDelayMs(1, listOf(fresh), now, 0))
     }
     @Test fun importInputAndLinks() {
         assertEquals(ImportInput.Kind.Subscription("https://x.example/s"), ImportInput.classify("  https://x.example/s \n"))

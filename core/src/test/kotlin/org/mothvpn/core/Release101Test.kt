@@ -43,4 +43,25 @@ class Release101Test {
         assertEquals(48f, MothArtworkSize.side(320f, 500f, 2f))
         assertTrue(MothArtworkSize.side(300f, 700f, 1.5f) in 48f..260f)
     }
+
+    @Test fun updatesMothFitsSlotSoAntennaeAreNotClipped() {
+        val artwork = MothArtworkSize.side(360f, 800f, 1f)
+        val homeDrawing = MothArtworkSize.drawingSide(artwork)
+        assertEquals(artwork * MothArtworkSize.DRAWING_RATIO, homeDrawing)
+        // Same size as Home when the Updates slot is tall enough.
+        assertEquals(homeDrawing, MothArtworkSize.fitDrawing(artwork, homeDrawing + 40f))
+        // A Settings page with a large title can leave a shorter slot than the Home-sized canvas.
+        // The previous Updates layout kept that canvas and clipToBounds, which cut the antennae
+        // (tip at 17 % of the square, stroke 2.2) whenever the overflow reached them.
+        val tightRoom = 120f
+        val clippedTop = (homeDrawing - tightRoom) / 2f / homeDrawing * 100f
+        val antennaTop = MothArtworkSize.ANTENNA_TIP - MothArtworkSize.ANTENNA_STROKE / 2f
+        assertTrue(homeDrawing > tightRoom)
+        assertTrue(clippedTop > antennaTop, "old clip at $clippedTop % would miss the antennae")
+        val fitted = MothArtworkSize.fitDrawing(artwork, tightRoom)
+        assertEquals(tightRoom, fitted)
+        assertTrue(antennaTop / 100f * fitted >= 0f)
+        assertTrue(fitted <= tightRoom)
+        assertEquals(0f, MothArtworkSize.fitDrawing(artwork, -10f))
+    }
 }

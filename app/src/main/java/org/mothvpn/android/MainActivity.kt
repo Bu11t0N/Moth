@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import android.Manifest
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
@@ -103,7 +104,14 @@ class MainActivity : AppCompatActivity() {
         if (text != null) { if (ImportInput.classify(text) is ImportInput.Kind.Invalid) message = tr(R.string.import_invalid) else import(text, "qr") }
     }
     private fun scanQr() = scanner.launch(ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(tr(R.string.import_scan_prompt)).setBeepEnabled(false).setOrientationLocked(true).setCaptureActivity(PortraitCaptureActivity::class.java))
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // A foldable can change smallest width without a restart (this activity handles size/orientation).
+        ScreenOrientation.apply(this)
+    }
     override fun onCreate(state: Bundle?) {
+        // Before the first layout: phones already held in landscape would otherwise draw one unusable frame.
+        ScreenOrientation.apply(this)
         super.onCreate(state)
         // Beta 7 stored hashes of dismissed Home announcement banners; the banner is gone (beta 8), so is its state.
         if (state == null) runCatching { deleteSharedPreferences("announce_dismissed") }
@@ -167,7 +175,7 @@ class MainActivity : AppCompatActivity() {
             val scheme = animatedColorScheme(if (dark) (if (settings.amoled) MonoTheme.amoled else MonoTheme.dark) else MonoTheme.light)
             // The filter hides every server: a top notice once when that starts (no permanent text on Home).
             val filterHidesAll by TunnelStatus.filterHidesAll.collectAsState()
-            val hidesAll = filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).keywords.isNotEmpty()
+            val hidesAll = filterHidesAll && settings.autoSelectFor(network.kind) && settings.filterFor(network.kind).active.isNotEmpty()
             androidx.compose.runtime.LaunchedEffect(hidesAll) { if (hidesAll) notices.show(tr(R.string.nd_filter_hides_all), NoticeState.ERROR_MS) }
             MaterialTheme(colorScheme = scheme, shapes = MonoTheme.shapes) {
                 androidx.compose.runtime.CompositionLocalProvider(LocalNotice provides notices) {
@@ -467,7 +475,7 @@ class MainActivity : AppCompatActivity() {
         busy = true
         lifecycleScope.launch {
             try {
-                val next = withContext(Dispatchers.IO) { store.update { it.remove(id) }.also { if (it.sources.isEmpty()) store.clear(); ProviderLogos.remove(this@MainActivity, id); ResponseHeaderNames.remove(this@MainActivity, id) } }
+                val next = withContext(Dispatchers.IO) { store.update { it.remove(id) }.also { if (it.sources.isEmpty()) store.clear(); ProviderLogos.remove(this@MainActivity, id); ResponseHeaderNames.remove(this@MainActivity, id); SubscriptionChangeLog.remove(this@MainActivity, id) } }
                 show(next.takeIf { it.sources.isNotEmpty() })
                 Logger.i("Store", "subscription removed by the user (${next.sources.size} left)")
             }

@@ -35,14 +35,14 @@ object LogFacts {
         if (old.routingRules.size == new.routingRules.size) plain("routingRulesOff", old.routingRules.count { !it.enabled }, new.routingRules.count { !it.enabled })
         plain("trafficWarning", old.trafficWarning, new.trafficWarning)
         plain("fragment", old.fragment, new.fragment); plain("noise", old.noise, new.noise); plain("mux", old.mux, new.mux)
-        plain("editServers", old.editServers, new.editServers); plain("amoled", old.amoled, new.amoled)
+        plain("editServers", old.editServers, new.editServers); plain("changeHistory", old.changeHistory, new.changeHistory); plain("amoled", old.amoled, new.amoled)
         plain("largeTitlePercent", old.largeTitlePercent, new.largeTitlePercent); plain("largeTitles", old.largeTitles, new.largeTitles)
         plain("splitAllApps", old.splitAllApps, new.splitAllApps); plain("deviceDataSelected", old.deviceDataSelected, new.deviceDataSelected)
         plain("lanProxy", old.lanProxy, new.lanProxy); plain("lanProxyPort", old.lanProxyPort, new.lanProxyPort)
         plain("deviceDataSubs", old.deviceDataSubs.size, new.deviceDataSubs.size)
         // Keywords can be provider or location names: only the count is logged.
-        plain("wifiFilter", old.wifiFilter.keywords.size, new.wifiFilter.keywords.size); plain("wifiFilterMode", old.wifiFilter.mode, new.wifiFilter.mode)
-        plain("mobileFilter", old.mobileFilter.keywords.size, new.mobileFilter.keywords.size); plain("mobileFilterMode", old.mobileFilter.mode, new.mobileFilter.mode)
+        plain("wifiFilter", old.wifiFilter.keywords.size, new.wifiFilter.keywords.size); plain("wifiFilterOff", old.wifiFilter.disabled.size, new.wifiFilter.disabled.size); plain("wifiFilterMode", old.wifiFilter.mode, new.wifiFilter.mode)
+        plain("mobileFilter", old.mobileFilter.keywords.size, new.mobileFilter.keywords.size); plain("mobileFilterOff", old.mobileFilter.disabled.size, new.mobileFilter.disabled.size); plain("mobileFilterMode", old.mobileFilter.mode, new.mobileFilter.mode)
         return out
     }
 

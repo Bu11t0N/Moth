@@ -19,7 +19,7 @@
     <string name="msg_checking_internet_access_15" formatted="false">"Checking internet access…"</string>
     <string name="msg_add_subscription_16" formatted="false">"Add subscription"</string>
     <string name="msg_traffic_1f_1f_gib_18" formatted="false">"Traffic: %.1f / %.1f GiB"</string>
-    <string name="msg_subscription_expires_on_19" formatted="false">"Subscription expires on "</string>
+    <string name="msg_subscription_expires_on_19">Active until %1$s</string>
     <string name="msg_no_network_20" formatted="false">"No network"</string>
     <string name="msg_mobile_data_21" formatted="false">"Mobile data"</string>
     <string name="msg_vpn_permission_was_not_granted_22" formatted="false">"VPN permission was not granted"</string>
@@ -240,8 +240,7 @@
     <string name="split_unlisted">Not on the home screen: tap to remove</string>
     <string name="split_search">Search apps</string>
     <string name="split_show_system">Show system apps</string>
-    <string name="split_all_apps">Elevated privileges</string>
-    <string name="split_all_apps_info">Lists every installed app that uses the internet, including background services without a home-screen icon. Uses the permission to see all installed apps.</string>
+    <string name="split_all_apps_info">Lists every installed app that uses the internet, including system apps and background services without a home-screen icon. Uses the permission to see all installed apps.</string>
     <string name="direct_ru">Russian sites and IPs directly</string>
     <string name="auto_select_wifi">Auto-select on Wi-Fi</string>
     <string name="auto_select_mobile">Auto-select on mobile data</string>
@@ -269,7 +268,7 @@
     <string name="fav_remove">Remove from favorites</string>
     <string name="fav_mark">Favorite</string>
     <string name="sub_left">Traffic left: %1$s of %2$s</string>
-    <string name="sub_expires">Expires on %1$s</string>
+    <string name="sub_expires">Active until %1$s</string>
     <string name="stats_title">Statistics</string>
     <string name="sub_delete_in_use">This subscription’s server is in use. Disconnect to delete it.</string>
     <string name="sub_wait_notice">Wait until checks and the connection change finish.</string>
@@ -471,6 +470,7 @@
     <string name="sub_all_show">Show all subscriptions</string>
     <string name="sub_all_title">Subscriptions</string>
     <string name="sub_updated_on">Updated: %1$s</string>
+    <string name="sub_changed_on">Changed: %1$s</string>
     <string name="sub_link_copy_link">Copy link</string>
     <string name="nd_choose_server">Choose server</string>
     <string name="dev_edit_servers">Edit servers</string>
@@ -663,7 +663,6 @@
     <string name="lan_no_address">No local network yet: turn on the hotspot (or connect to Wi-Fi) and the address appears here.</string>
     <string name="lan_howto_title">How to connect another device</string>
     <string name="lan_howto">1. Turn on the hotspot on this device and connect the other device to it (or put both on the same Wi-Fi).\n2. On the other device open the Wi-Fi network settings → Proxy → Manual.\nHost address: the address above before the colon\nPort: the number after the colon\n3. Save the entered settings</string>
-    <string name="lan_state_running">Running on port %1$d</string>
     <string name="lan_state_busy">Port %1$d is used by another app: the VPN runs without the proxy. Choose another port.</string>
     <string name="set_short_lan">Sharing</string>
     <string name="msg_err_lan_port">Invalid proxy port</string>
@@ -708,4 +707,24 @@
     <string name="lan_hint_wifi">For devices on the same Wi-Fi network</string>
     <string name="lan_hint_ethernet">For devices on the same wired network</string>
     <string name="lan_hint_other">Use only from devices on this local network</string>
+    <string name="dev_change_history">Subscription changes</string>
+    <string name="dev_change_history_hint">Adds \"Changes\" to a subscription\'s ⋮ menu on the Servers tab: which servers each update added, changed and removed.</string>
+    <string name="sub_changes">Changes</string>
+    <string name="changes_title">Changes</string>
+    <string name="changes_empty">No changes yet. They are recorded when an update brings something new.</string>
+    <string name="changes_added">Added: %1$d</string>
+    <string name="changes_changed">Changed: %1$d</string>
+    <string name="changes_removed">Removed: %1$d</string>
+    <string name="changes_other_expires">Expiry date changed</string>
+    <string name="changes_other_total">Traffic limit changed</string>
+    <string name="changes_other_provider">Provider name changed</string>
+    <string name="changes_other_announce">Announcement changed</string>
+    <string name="changes_field_name">Name</string>
+    <string name="changes_field_protocol">Protocol</string>
+    <string name="changes_field_address">Address</string>
+    <string name="changes_field_port">Port</string>
+    <string name="changes_absent">none</string>
+    <string name="changes_secret_changed">changed (hidden)</string>
+    <string name="changes_secret_added">added (hidden)</string>
+    <string name="changes_secret_removed">removed</string>
 </resources>

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.NetworkCheck
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.FilterList
@@ -76,6 +77,7 @@ import org.mothvpn.core.SubscriptionSource
     var delete by remember { mutableStateOf<String?>(null) }
     var actionsFor by remember { mutableStateOf<String?>(null) }
     var editFor by remember { mutableStateOf<String?>(null) }
+    var changesFor by remember { mutableStateOf<String?>(null) }
     var menuFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
     var jsonFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
     var shareFor by remember { mutableStateOf<org.mothvpn.core.Profile?>(null) }
@@ -127,8 +129,7 @@ import org.mothvpn.core.SubscriptionSource
     // visible: measurable minus failed servers, when that setting is on (they stay hidden until the next check, with no 15-minute timer).
     fun listed(k: String, forDisplay: Boolean) = profiles.filter { p ->
         val r = results["$k:${p.id}"]
-        val hide = forDisplay && settings.hideUnavailable && r != null &&
-            org.mothvpn.core.HideUnavailable.failed(r.checking, r.cancelled || r.kind == ProbeErrorKind.CANCELLED, r.error != null)
+        val hide = forDisplay && settings.hideUnavailable && r.unavailable()
         !hide && settings.filterShows(p, k) && (search.isBlank() || p.name.contains(search, true) || p.protocol.contains(search, true))
     }.let { ServerOrder.sort(it, settings.serverSort, { p -> p.name }) { p -> results["$k:${p.id}"]?.latencyMs } }.let { Favorites.first(it, settings.favorites) { p -> p.id } }
     val measurable = remember(profiles, results, settings.hideUnavailable, settings.wifiFilter, settings.mobileFilter, settings.serverSort, settings.favorites, search, kind) {
@@ -241,7 +242,7 @@ import org.mothvpn.core.SubscriptionSource
         NdPillSwitch(listOf("Wi-Fi", tr(R.string.msg_mobile_data_21)), pager.currentPage + pager.currentPageOffsetFraction) { kind = if (it == 0) "wifi" else "mobile" }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${visible.size} / ${profiles.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-            val pageFilter = settings.filterFor(kind).keywords
+            val pageFilter = settings.filterFor(kind).active // switched-on keywords only
             FilterChip(selected = pageFilter.isNotEmpty(), onClick = { filterSheet = true },
                 label = { Text(if (pageFilter.isEmpty()) tr(R.string.nd_filter) else tr(R.string.nd_filter_active, pageFilter.size)) },
                 leadingIcon = { Icon(androidx.compose.material.icons.Icons.Rounded.FilterList, contentDescription = null, modifier = Modifier.size(18.dp)) },
@@ -276,6 +277,8 @@ import org.mothvpn.core.SubscriptionSource
         NdActionSheet(source.title(), { actionsFor = null }) {
             NdSheetItem(tr(R.string.sub_edit), androidx.compose.material.icons.Icons.Rounded.Edit, enabled = !busy) { actionsFor = null; editFor = source.id }
             if (!source.local) NdSheetItem(tr(R.string.sub_update), androidx.compose.material.icons.Icons.Rounded.Refresh, enabled = !refreshLocked) { actionsFor = null; refreshOne(source.id) }
+            // Developer option "Subscription changes": servers added, changed and removed by each update.
+            if (!source.local && settings.changeHistory) NdSheetItem(tr(R.string.sub_changes), androidx.compose.material.icons.Icons.Rounded.History) { actionsFor = null; changesFor = source.id }
             // This subscription's servers the keyword filter and the search show, including those hidden only as unavailable.
             val ids = measurable.filter { it.id in source.profiles.map { p -> p.id }.toSet() }.map { it.id }
             NdSheetItem(tr(R.string.sub_check), androidx.compose.material.icons.Icons.Rounded.NetworkCheck, enabled = canCheck && ids.isNotEmpty()) { actionsFor = null; checkOn(kind) { probeGroup(kind, ids) } }
@@ -290,6 +293,7 @@ import org.mothvpn.core.SubscriptionSource
             }
         }
     }
+    changesFor?.let { id -> book?.source(id) }?.let { source -> SubscriptionChangesSheet(source) { changesFor = null } }
     editFor?.let { id -> book?.source(id) }?.let { source ->
         var name by remember(source.id) { mutableStateOf(source.name.ifBlank { source.providerName }) }
         var link by remember(source.id) { mutableStateOf(if (source.local) "" else source.url) }

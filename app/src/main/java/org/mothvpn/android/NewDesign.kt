@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -459,12 +460,21 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val listMax = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.7f).dp
         val kind = network.kind
-        val ordered = remember(saved, results, settings.serverSort, settings.favorites, settings.wifiFilter, settings.mobileFilter, kind) {
-            Favorites.first(ServerOrder.sort(saved.profiles.filter { settings.filterShows(it, kind) }, settings.serverSort, { it.name }) { p -> results["$kind:${p.id}"]?.latencyMs }, settings.favorites) { it.id }
+        // Same list as the Servers tab: its keyword filter and, with "Hide unavailable" on there, without servers whose last check
+        // failed (the selected server always stays, so the current choice is visible).
+        val hiding = settings.hideUnavailable
+        val ordered = remember(saved, results, settings.serverSort, settings.favorites, settings.wifiFilter, settings.mobileFilter, hiding, kind, selected?.id) {
+            val shown = saved.profiles.filter { settings.filterShows(it, kind) && (!hiding || it.id == selected?.id || !results["$kind:${it.id}"].unavailable()) }
+            Favorites.first(ServerOrder.sort(shown, settings.serverSort, { it.name }) { p -> results["$kind:${p.id}"]?.latencyMs }, settings.favorites) { it.id }
         }
         val canSelect = !busy && tunnel != TunnelState.STOPPING // also during a server check
         ModalBottomSheet(onDismissRequest = { sheet = false }, sheetState = state, containerColor = NdTone.sheet()) {
-            Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(tr(R.string.msg_servers_27), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                // "Hide unavailable" from the Servers tab applies here too; a quiet label on the right says so.
+                if (hiding) Text(tr(R.string.msg_hide_unavailable_56), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 12.dp))
+            }
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = listMax), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(ordered, key = { it.id }) { p ->
                     val chosen = p.id == selected?.id
@@ -522,10 +532,14 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
         dismissButton = { TextButton(onClick = { showLink = false }, modifier = Modifier.pressScale()) { Text(tr(R.string.sub_link_close)) } })
 }
 
-/** All subscriptions as cards in a bottom sheet (as the server sheet): servers, traffic, end date, last update (not for local servers) and a copy-link button. */
+/** All subscriptions as cards in a bottom sheet (as the server sheet): servers, traffic, end date (with time when the provider sent one), last update and last change (not for local servers) and a copy-link button. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun SubscriptionsSheet(sources: List<org.mothvpn.core.SubscriptionSource>, close: () -> Unit, copy: (String) -> Unit) {
-    val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.DEFAULT, AppLanguage.context().resources.configuration.locales[0])
+    val locale = AppLanguage.context().resources.configuration.locales[0]
+    val zone = java.time.ZoneId.systemDefault()
+    val hour24 = android.text.format.DateFormat.is24HourFormat(AppLanguage.context())
+    fun moment(millis: Long) = org.mothvpn.core.SubscriptionMoments.format(millis, locale, zone, withTime = true, hour24 = hour24)
+    fun expiry(seconds: Long) = org.mothvpn.core.SubscriptionMoments.formatExpiry(seconds, locale, zone, hour24, allowTime = true)
     ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
         Text(tr(R.string.sub_all_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.7f).dp),
@@ -540,9 +554,10 @@ private fun ping(results: Map<String, ProbeResult>, kind: String, p: Profile, ne
                             val grey = MaterialTheme.colorScheme.onSurfaceVariant
                             Text(tr(R.string.sub_servers_count, s.profiles.size), style = MaterialTheme.typography.bodySmall, color = grey)
                             if (s.totalBytes > 0) Text(tr(R.string.msg_traffic_1f_1f_gib_18, s.usedBytes / 1073741824.0, s.totalBytes / 1073741824.0), style = MaterialTheme.typography.bodySmall, color = grey)
-                            if (s.expires in 1..253402300799L) Text(tr(R.string.msg_subscription_expires_on_19) + dates.format(java.util.Date(s.expires * 1000)), style = MaterialTheme.typography.bodySmall, color = grey)
-                            // Local servers ("My servers") are never downloaded, so they have no update date.
-                            if (!s.local && s.updatedAt > 0) Text(tr(R.string.sub_updated_on, dates.format(java.util.Date(s.updatedAt))), style = MaterialTheme.typography.bodySmall, color = grey)
+                            expiry(s.expires)?.let { Text(tr(R.string.msg_subscription_expires_on_19, it), style = MaterialTheme.typography.bodySmall, color = grey) }
+                            // Local servers ("My servers") are never downloaded, so they have no update or change date.
+                            if (!s.local && s.updatedAt > 0) Text(tr(R.string.sub_updated_on, moment(s.updatedAt)), style = MaterialTheme.typography.bodySmall, color = grey)
+                            if (!s.local && s.changedAt > 0) Text(tr(R.string.sub_changed_on, moment(s.changedAt)), style = MaterialTheme.typography.bodySmall, color = grey)
                         }
                         if (s.totalBytes > 0) UsageRing(s.usedBytes.toDouble() / s.totalBytes, Modifier.padding(start = 8.dp))
                         if (!s.local) IconButton(onClick = { copy(s.url) }, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.sub_link_copy_link) })) {
@@ -643,7 +658,8 @@ object SubtitlePalette {
 }
 
 /**
- * Keyword server filter. Keywords are added one by one (text field + Add) and listed as rows with a delete button;
+ * Keyword server filter. Keywords are added one by one (text field + Add) and listed as rows with a checkbox (on/off, the keyword
+ * stays in the list) and a delete button;
  * the mode hides matching servers or shows only them. Saved in settings and matched against server names when the list is shown,
  * so it survives subscription updates.
  */
@@ -654,7 +670,12 @@ object SubtitlePalette {
     val rule = settings.filterFor(kind)
     val keywords = rule.keywords
     fun saveRule(next: org.mothvpn.core.ServerFilter.Rule) = save(settings.withFilter(kind, next))
-    fun add() { val next = org.mothvpn.core.ServerFilter.add(keywords, text); if (next != keywords) saveRule(rule.copy(keywords = next)); text = "" }
+    fun add() {
+        val next = org.mothvpn.core.ServerFilter.add(keywords, text)
+        if (next != keywords) saveRule(rule.copy(keywords = next))
+        else org.mothvpn.core.ServerFilter.clean(text)?.let { k -> keywords.firstOrNull { it.equals(k, ignoreCase = true) } }?.let { k -> if (!rule.enabled(k)) saveRule(rule.toggle(k, true)) }
+        text = ""
+    }
     ModalBottomSheet(onDismissRequest = close, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = NdTone.sheet()) {
         Column(Modifier.fillMaxWidth().imePadding().padding(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(tr(R.string.nd_filter_title_for, if (kind == "mobile") tr(R.string.msg_mobile_data_21) else "Wi-Fi"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
@@ -678,9 +699,13 @@ object SubtitlePalette {
             else LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(keywords, key = { it }) { k ->
                     Surface(shape = MaterialTheme.shapes.medium, color = NdTone.raised(), modifier = Modifier.listItemMotion(this).fillMaxWidth().heightIn(min = 56.dp)) {
-                        Row(Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(k, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { saveRule(rule.copy(keywords = keywords - k)) }, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.nd_filter_remove, k) })) {
+                        // A checkbox switches the keyword on or off (it stays in the list); the cross deletes it.
+                        val on = rule.enabled(k)
+                        Row(Modifier.toggleable(on, role = androidx.compose.ui.semantics.Role.Checkbox) { saveRule(rule.toggle(k, it)) }.padding(start = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(on, onCheckedChange = null, modifier = Modifier.padding(horizontal = 12.dp))
+                            Text(k, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                                color = if (on) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant)
+                            IconButton(onClick = { saveRule(rule.remove(k)) }, modifier = Modifier.pressScale().then(Modifier.size(48.dp).semantics { contentDescription = tr(R.string.nd_filter_remove, k) })) {
                                 Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(22.dp))
                             }
                         }
@@ -695,14 +720,14 @@ object SubtitlePalette {
 fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows(p.name)
 
 /**
- * Provider link buttons (support, web page, news) as [IconTile]s with a short caption. Telegram links get a paper-plane icon.
+ * Provider link buttons (support, web page, news) as [IconTile]s with a short caption. Telegram links get Telegram's own tilted paper plane ([TelegramPlane]).
  * The URL is opened by the system; it is never written to the log.
  */
 @Composable fun ProviderLinkButtons(links: org.mothvpn.core.ProviderLinks, modifier: Modifier = Modifier) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val items = listOfNotNull(
-        links.support.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_support), if (org.mothvpn.core.ProviderLinks.telegram(it)) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Send else androidx.compose.material.icons.Icons.Rounded.SupportAgent) },
-        links.announce.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_news), if (org.mothvpn.core.ProviderLinks.telegram(it)) androidx.compose.material.icons.Icons.AutoMirrored.Rounded.Send else androidx.compose.material.icons.Icons.Rounded.Campaign) },
+        links.support.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_support), if (org.mothvpn.core.ProviderLinks.telegram(it)) TelegramPlane else androidx.compose.material.icons.Icons.Rounded.SupportAgent) },
+        links.announce.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_news), if (org.mothvpn.core.ProviderLinks.telegram(it)) TelegramPlane else androidx.compose.material.icons.Icons.Rounded.Campaign) },
         links.web.takeIf { it.isNotEmpty() }?.let { Triple(it, tr(R.string.nd_link_web), androidx.compose.material.icons.Icons.Rounded.Language) })
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         items.forEach { (url, label, icon) ->
@@ -843,18 +868,17 @@ fun ClientSettings.filterShows(p: Profile, kind: String) = filterFor(kind).shows
     }
 }
 
-/** The provider's logo (cached by [ProviderLogos], shown in greys to fit the monochrome design), or a monochrome tile icon when there is none. */
+/** The provider's logo (cached by [ProviderLogos], shown in its own colours), or a monochrome tile icon when there is none. */
 @Composable fun ProviderAvatar(source: org.mothvpn.core.SubscriptionSource, modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val logo by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, source.id, source.links.logo, source.updatedAt) {
-        value = if (source.local || source.links.logo.isEmpty()) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        value = if (source.local) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching { ProviderLogos.file(context, source.id).takeIf { it.exists() }?.let { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }.getOrNull()
         }
     }
     val image = logo
     if (image == null) IconTile(if (source.local) androidx.compose.material.icons.Icons.Outlined.Dns else androidx.compose.material.icons.Icons.Outlined.CardMembership, modifier, size)
     else androidx.compose.foundation.Image(image, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-        colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) }),
         modifier = modifier.size(size).clip(RoundedCornerShape(12.dp)))
 }
 

@@ -108,7 +108,7 @@ class UiE2ETest {
                 val dp = context.resources.displayMetrics.density
                 assertTrue("server bar cut off by the screen edge ($state): $bar", bar.height() >= (64 * dp).toInt())
                 assertTrue("subscription card squeezed ($state)", card.height() >= (64 * context.resources.displayMetrics.density).toInt())
-                val until = wait(By.textContains("Expires on")).visibleBounds
+                val until = wait(By.textContains("Active until")).visibleBounds
                 assertTrue("valid-until line covered ($state)", until.bottom <= bar.top && until.height() > 0)
                 return moth
             }

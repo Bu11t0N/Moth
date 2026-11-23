@@ -76,8 +76,10 @@ import org.mothvpn.core.SubscriptionSchedule
     val titleMotion = animationsOn()
     // A new page starts at its top: large title. Back on the main list, the header follows where the list was left.
     LaunchedEffect(section, logPage) { largeTitle.settleTo(collapsed = section == null && logPage == 0 && rootScroll.value > 0, animated = titleMotion) }
+    // Updates never scrolls: its header ends right under the big title (same title, same place), so the moth gets the empty band below it.
+    val updatesTitle = tr(R.string.update_title)
     Column(Modifier.fillMaxSize().nestedScroll(largeTitle.nestedScrollConnection).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        LargeTitleHeader(largeTitle, when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); 4 -> tr(R.string.set_licenses); 5 -> Licenses.entries.firstOrNull { it.asset == licenseAsset }?.let { tr(it.title) } ?: tr(R.string.set_licenses); else -> (section ?: tr(R.string.msg_settings_28)) })
+        LargeTitleHeader(largeTitle, when (logPage) { 1 -> tr(R.string.dev_log); 2 -> tr(R.string.dev_crash_log); 3 -> tr(R.string.set_changelog); 4 -> tr(R.string.set_licenses); 5 -> Licenses.entries.firstOrNull { it.asset == licenseAsset }?.let { tr(it.title) } ?: tr(R.string.set_licenses); else -> (section ?: tr(R.string.msg_settings_28)) }, trimBelow = section == updatesTitle && logPage == 0)
         // Settings pages: a page opened from a card grows out of that card and shrinks back into it on Back
         // (container transform, shared bounds); the rest fades. Pages without a card (logs, a licence text) keep the short slide.
         fun containerKey(page: Pair<String?, Int>): String? = when {
@@ -384,6 +386,7 @@ import org.mothvpn.core.SubscriptionSchedule
                     DialogRow(tr(R.string.dev_sub_headers), "") { headersDialog = true }
                     if (headersDialog) SubscriptionHeadersDialog { headersDialog = false }
                     SettingsToggle(tr(R.string.dev_edit_servers), draft.editServers, info = tr(R.string.dev_edit_servers_hint)) { applySettings(draft.copy(editServers = it)) }
+                    SettingsToggle(tr(R.string.dev_change_history), draft.changeHistory, info = tr(R.string.dev_change_history_hint)) { applySettings(draft.copy(changeHistory = it)) }
                 }
             }
             AnimatedVisibility(error.isNotEmpty()) { Text(error, color = MaterialTheme.colorScheme.error) }
@@ -522,13 +525,9 @@ private fun healthLabel(seconds: Int): String = if (seconds % 60 == 0) tr(R.stri
 @Composable private fun LanShareBody(port: Int, state: LanShare.State, endpoints: List<org.mothvpn.core.LanProxy.Endpoint>) {
     val clipboard = LocalClipboardManager.current
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // No "starts with the VPN" line: only a running proxy on this port or a busy port is reported.
-            val status = when (val st = state) {
-                is LanShare.State.Running -> if (st.port == port) tr(R.string.lan_state_running, st.port) else null
-                is LanShare.State.PortBusy -> tr(R.string.lan_state_busy, st.port)
-                LanShare.State.Off -> null
-            }
-            if (status != null) Text(status, style = MaterialTheme.typography.bodyMedium, color = if (state is LanShare.State.PortBusy) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            // Only a problem is reported (a busy port). No "running on port N" line: the port field above already shows the port.
+            val busy = state as? LanShare.State.PortBusy
+            if (busy != null) Text(tr(R.string.lan_state_busy, busy.port), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             Text(tr(R.string.lan_addresses), style = MaterialTheme.typography.titleSmall)
             if (endpoints.isEmpty()) Text(tr(R.string.lan_no_address), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             // Each address carries one "For devices…" hint saying who should use it (no separate network-type line duplicating it).

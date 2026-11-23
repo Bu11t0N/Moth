@@ -56,7 +56,14 @@ object AppUpdater {
     }
 
     /** Release channel reads releases/latest (never a prerelease); Beta reads the releases list and takes the newest non-draft version. */
+    /** UI tests only: holds every check this long before it starts, so the page can be looked at while a check runs. */
+    @androidx.annotation.VisibleForTesting @Volatile var testCheckDelayMs = 0L
+    /** UI tests only: a check finds this release, and its download waits until it is cancelled (nothing is fetched or installed). */
+    @androidx.annotation.VisibleForTesting @Volatile var testRelease: AppRelease? = null
+
     suspend fun check(channel: UpdateChannel): AppRelease? {
+        if (testCheckDelayMs > 0) kotlinx.coroutines.delay(testCheckDelayMs)
+        testRelease?.let { return it }
         val abis = Build.SUPPORTED_ABIS.toList()
         Logger.i("Update", "check started: channel=${channel.id} installed=${BuildConfig.VERSION_NAME} source=${if (channel == UpdateChannel.BETA) "releases list" else "latest release"}")
         val found = when (channel) {
@@ -119,6 +126,7 @@ object AppUpdater {
     }
 
     suspend fun download(context: Context, release: AppRelease, progress: (Float) -> Unit = {}): File {
+        if (testRelease != null && release == testRelease) kotlinx.coroutines.awaitCancellation()
         Logger.i("Update", "download started: ${release.version} asset=${release.apkName} expected=${release.size} bytes")
         val expected = AppRelease.checksum(text(release.sumsUrl, 64 * 1024), release.apkName)
         forget(context)

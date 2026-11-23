@@ -11,9 +11,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -86,79 +86,54 @@ import java.io.File
     LaunchedEffect(Unit) { val seen = AppUpdater.installAborted.value; AppUpdater.installAborted.collect { if (it > seen) { message = ""; on(org.mothvpn.core.UpdatePhase.Event.INSTALL_ABORTED) } } }
     val channels = listOf(UpdateChannel.RELEASE to tr(R.string.update_channel_release), UpdateChannel.BETA to tr(R.string.update_channel_beta))
     var channelDialog by remember { mutableStateOf(false) }
-    // One quiet status line under the moth: what is happening now or the result of the last check. A found update is not repeated
-    // there (its version is in the card below); errors are shown by the top notice.
+    // One quiet status under the version in its card: what is happening now or the result of the last check ("Update available" when
+    // one was found; its version is on the right); errors are shown by the top notice.
     val status = when {
         phase is org.mothvpn.core.UpdatePhase.Downloading -> tr(R.string.update_downloading) + (progress?.let { " ${(it * 100).toInt().coerceIn(0, 100)} %" } ?: "")
         busy && release == null -> tr(R.string.update_checking)
+        // A found update waiting for Install: its version is on the right, under the installed one.
+        !busy && release != null -> tr(R.string.update_available_dot)
         message.isNotEmpty() -> message
         else -> ""
     }
-    // The page never scrolls and the moth has one size in every state (idle, checking, update found, downloading): its area is sized
-    // once from the page height minus the room the bottom block needs (one version row, channel row and the main button; that block
-    // never grows), so the moth neither shrinks nor moves. Low under the moth, just above the version card: the status line and one
-    // small action slot (Cancel while checking or downloading, "Check again" when an update was found). The main button never moves.
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val type = MaterialTheme.typography
-    // Text heights follow the font size; the rest is fixed dp (see the layout below).
-    val sp = { u: androidx.compose.ui.unit.TextUnit -> with(density) { u.toDp() } }
-    val statusHeight = 12.dp + sp(type.bodyLarge.lineHeight) * 2
-    val below = statusHeight + 44.dp // status (two lines) + the action slot under the moth
-    val cardRow = maxOf(52.dp, 20.dp + sp(type.titleMedium.lineHeight))
-    val reserve = 8.dp + (8.dp + cardRow) + 12.dp + (32.dp + sp(type.bodyLarge.lineHeight) + sp(type.bodySmall.lineHeight)) +
-        12.dp + 52.dp + 8.dp
-    BoxWithConstraints(modifier.fillMaxWidth()) {
-    val top = (maxHeight - reserve).coerceAtLeast(0.dp)
-    // Exactly the same responsive dp size as Home. Keep the square canvas, never stretch it to this area.
-    val side = mothArtworkSize() * org.mothvpn.core.MothArtworkSize.DRAWING_RATIO
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-        Box(Modifier.weight(1f, fill = false).height(top).fillMaxWidth().clipToBounds()) {
+    // The page never scrolls. The bottom block (the version card with the status under its label, the channel row and the main
+    // button) keeps its natural height; the moth takes the rest of the height above it, up to the largest Home size. On a short area
+    // it shrinks and, below MothArtworkSize.MIN_PAGE_DRAWING, is not shown. The main button itself is the Cancel while a check or
+    // download runs, so nothing else sits between the moth and the cards.
+    Column(modifier.fillMaxWidth()) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            // Not Home's formula (mothArtworkSize): that one keeps 560 dp × font scale free for Home's status, cards, server bar and
+            // tabs, which this page does not have, so with a larger font it left the moth small above empty space. Here the moth fills
+            // the free height, up to the largest Home moth and the page width.
+            val artwork = org.mothvpn.core.MothArtworkSize.pageArtwork(maxWidth.value)
+            val side = org.mothvpn.core.MothArtworkSize.fitPageDrawing(artwork, (maxHeight - 16.dp).value).dp
+            LaunchedEffect(side, maxHeight) { Logger.i("Update", "moth ${side.value.toInt()} dp in a ${maxHeight.value.toInt()} dp area") }
             // The connected moth, slowly beating its wings (faster while checking or downloading); a tap makes it flap. A picture, not a button.
-            // Centred on the drawing (its middle is at 48.5 % of the square, not 50 %).
-            Box(Modifier.fillMaxSize().padding(bottom = below), contentAlignment = Alignment.Center) {
-                MothFlutter(Modifier.requiredSize(side), size = side, busy = busy, exact = true)
-            }
-            // The status line and the action slot sit low, at the bottom of the moth area (just above the version card).
-            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                // Fixed height (two lines), so a status appearing or changing never moves the moth; statuses are short, errors use the top notice.
-                Box(Modifier.fillMaxWidth().height(statusHeight).padding(start = 16.dp, end = 16.dp, top = 12.dp), contentAlignment = Alignment.TopCenter) {
-                    Text(status, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().wrapContentHeight(Alignment.Top, unbounded = true).semantics { liveRegion = LiveRegionMode.Polite })
-                }
-                // One small action with a fixed place (empty when idle without an update), so the moth and the status never jump.
-                Box(Modifier.height(44.dp), contentAlignment = Alignment.Center) {
-                    androidx.compose.animation.AnimatedContent(when { busy -> 1; release != null -> 2; else -> 0 }, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "updateAction") { slot ->
-                        when (slot) {
-                            1 -> TextButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale()) {
-                                Text(tr(R.string.update_cancel))
-                            }
-                            2 -> TextButton(onClick = { check() }, modifier = Modifier.pressScale()) { Text(tr(R.string.update_check)) }
-                            else -> Spacer(Modifier.size(1.dp))
-                        }
-                    }
-                }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                if (side > 0.dp) MothFlutter(Modifier.requiredSize(side), size = side, busy = busy, exact = true)
             }
         }
         Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // One version row, no extra row or window: the installed version, replaced by the available one when an update is found.
+            // One version row, no extra row or window: the installed version on the right and, when an update is found, the new
+            // version under it (so it is clear what updates to what); the status in small grey text under the label (it may wrap;
+            // the card grows and the moth gives way smoothly).
             val available = release
             Card(Modifier.fillMaxWidth(), colors = ndCardColors()) {
-                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    androidx.compose.animation.AnimatedContent(available?.version, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "versionRow") { version ->
-                        if (version == null) VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME)
-                        else VersionRow(tr(R.string.update_available_row), version, highlight = true)
-                    }
+                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).then(if (animationsOn()) Modifier.animateContentSize() else Modifier)) {
+                    VersionRow(tr(R.string.update_installed_row), BuildConfig.VERSION_NAME, available?.version, tr(R.string.update_available_row), status)
                 }
             }
             DialogRow(tr(R.string.update_channel), channels.first { it.first == channel }.second, enabled = !busy) { channelDialog = true }
-            // One main action at the very bottom: install a found update, otherwise check ("check again" is in the slot under the moth then).
-            if (available != null) {
+            // One main action at the very bottom: Cancel while a check or download runs (it replaces the button just tapped), otherwise
+            // install a found update or check for one.
+            if (busy) {
+                NdButton(onClick = { job?.cancel(); job = null; message = ""; on(org.mothvpn.core.UpdatePhase.Event.CANCELLED) }, modifier = Modifier.pressScale().then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_cancel)) }
+            } else if (available != null) {
                 NdButton(enabled = !busy, onClick = { action { proceed(available) } }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_install)) }
             } else {
                 NdButton(enabled = !busy, onClick = { check() }, modifier = Modifier.pressScale(enabled = !busy).then(Modifier.fillMaxWidth().heightIn(min = 52.dp))) { Text(tr(R.string.update_check)) }
             }
         }
-    }
     }
     if (channelDialog) ChoiceDialog(tr(R.string.update_channel), channels, channel, { channelDialog = false }) { value ->
         if (channel != value) { Logger.i("Settings", "update channel changed: ${channel.id} -> ${value.id}"); selectChannel(value.id) }
@@ -176,9 +151,23 @@ import java.io.File
 }
 
 /** A row of the version card: the label on the left, the version on the right (same look as the Data pages' rows). */
-@Composable private fun VersionRow(label: String, value: String, highlight: Boolean = false) {
+@Composable private fun VersionRow(label: String, value: String, newer: String?, newerLabel: String, status: String) {
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(end = 12.dp))
-        Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1, color = if (highlight) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Unspecified)
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            // The status, like the value under a settings row's title (Update channel / Beta), in grey; read out when it changes.
+            if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+            // A found update: its version right under the installed one, bare (no arrow, so it stays narrow), in the accent colour.
+            androidx.compose.animation.AnimatedVisibility(newer != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+                val shown = remember { mutableStateOf(newer.orEmpty()) }
+                if (newer != null) shown.value = newer
+                Text(shown.value, style = MaterialTheme.typography.titleSmall, maxLines = 1, color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.semantics { contentDescription = "$newerLabel ${shown.value}" })
+            }
+        }
     }
 }

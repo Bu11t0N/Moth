@@ -77,6 +77,7 @@ object SubscriptionRefresh {
         parsed.duplicates.forEach { Logger.d("Import", "dropped: $it") }
         parsed.reasons.forEach { Logger.w("Import", "skipped: $it") }
         var id = ""
+        var change: org.mothvpn.core.SubscriptionChanges.Entry? = null
         val book = SubscriptionStore(context).update { book ->
             val old = book.refreshTarget(sourceId, link, expectedUrl)
             id = old?.id ?: SubscriptionSource.newId(link, System.currentTimeMillis())
@@ -85,18 +86,24 @@ object SubscriptionRefresh {
                 val added = parsed.profiles.count { n -> o.profiles.none { it.id == n.id } }
                 Logger.i("Import", "refresh result: servers ${o.profiles.size} -> ${parsed.profiles.size} (added $added, removed $gone)")
             }
-            book.upsert(SubscriptionSource(id, name?.trim() ?: old?.name.orEmpty(), link, parsed.profiles, response.name,
-                response.expires, response.used, response.total, System.currentTimeMillis(), response.links))
+            val now = System.currentTimeMillis()
+            val fresh = SubscriptionSource(id, name?.trim() ?: old?.name.orEmpty(), link, parsed.profiles, response.name,
+                response.expires, response.used, response.total, now, response.links).withRefreshTimes(old, now)
+            // What this update changed (servers added / changed / removed), for the developer option "Subscription changes".
+            change = runCatching { org.mothvpn.core.SubscriptionChanges.diff(old, fresh, now) }.getOrNull()
+            book.upsert(fresh)
         }
+        change?.let { SubscriptionChangeLog.record(context, id, it) }
         Logger.i("Import", "subscriptions saved: ${book.sources.size} subscription(s), ${book.profiles.size} server(s)")
         ResponseHeaderNames.save(context, id, response.names)
-        // No logo header: the provider's web page icon (apple-touch-icon), if it has an https web page.
-        // No logo field: the profile picture of the provider's public Telegram bot/channel, else the web page icon.
-        val telegram = if (response.links.logo.isEmpty()) org.mothvpn.core.ProviderLinks.telegramPage(response.links) else null
-        val logo = response.links.logo.ifEmpty { telegram ?: org.mothvpn.core.ProviderLinks.webIcon(response.links.web).orEmpty() }
-        // Never perform an unbound cosmetic request during a VPN-only update; keep any cached logo.
-        if (!settings.updatesViaVpn(known)) ProviderLogos.refresh(context, id, logo, settings.withAppVersion(BuildConfig.VERSION_NAME).userAgent, fallback = response.links.logo.isEmpty(), telegram = telegram != null)
+        // Logo header, else the public Telegram profile picture, else the web page icon. Through the tunnel when it is up.
+        // A VPN-only subscription is not fetched on the physical network: keep any cached logo until the tunnel is ready.
+        ProviderLogos.refresh(context, id, response.links, settings.withAppVersion(BuildConfig.VERSION_NAME).userAgent,
+            allowPhysical = !settings.updatesViaVpn(known))
         runCatching { ExpiryReminder.checkTraffic(context) }.onFailure { Logger.w("Traffic", "check after refresh failed", it) }
+        // A manual refresh or a newly added subscription restarts the auto-update timer from this moment.
+        if (trigger != "schedule") runCatching { SubscriptionUpdates.schedule(context, settings.subUpdateHours) }
+            .onFailure { Logger.w("Import", "reschedule after refresh failed", it) }
         return Result(book, id, parsed.rejected)
     }
 }
@@ -110,14 +117,16 @@ class SubscriptionUpdateWorker(context: Context, params: WorkerParameters) : Cor
         val now = System.currentTimeMillis()
         val due = book.sources.filter { !it.local && it.url.startsWith("https://") && SubscriptionSchedule.due(settings.subUpdateHours, it.updatedAt, now) }
         var failed = 0
+        var skippedVpn = 0
         for (source in due) {
-            if (settings.updatesViaVpn(source.id) && !TunnelDownloads.ready()) continue
+            if (settings.updatesViaVpn(source.id) && !TunnelDownloads.ready()) { skippedVpn++; continue }
             try {
                 SubscriptionRefresh.run(applicationContext, source.id, source.url, null, settings, "schedule")
                 VpnLauncher.changed.value++
                 Logger.i("Import", "scheduled update done (host=${LogFacts.hostTag(source.url)})")
             } catch (e: TunnelDownloads.VpnRequired) {
                 // The tunnel stopped mid-refresh: skip this source, but refresh unrestricted ones.
+                skippedVpn++
                 continue
             } catch (e: org.mothvpn.core.StaleSubscriptionRefresh) {
                 Logger.i("Import", "scheduled update discarded: subscription deleted or link changed")
@@ -126,20 +135,37 @@ class SubscriptionUpdateWorker(context: Context, params: WorkerParameters) : Cor
                 Logger.w("Import", "scheduled update failed (host=${LogFacts.hostTag(source.url)}, attempt ${runAttemptCount + 1})", e)
             }
         }
-        return if (failed > 0 && runAttemptCount < 2) Result.retry() else Result.success()
+        if (failed > 0 && runAttemptCount < 2) return Result.retry()
+        // Sources still due because the tunnel was down must not be retried in a tight loop.
+        val floor = if (skippedVpn > 0) 15 * 60 * 1000L else 0L
+        runCatching { SubscriptionUpdates.schedule(applicationContext, settings.subUpdateHours, floor) }
+            .onFailure { Logger.w("Import", "reschedule after a scheduled update failed", it) }
+        return Result.success()
     }
 }
 
 object SubscriptionUpdates {
     private const val NAME = "subscription-update"
-    fun schedule(context: Context, hours: Int) {
+    /**
+     * One-time work at the earliest next due time across all remote subscriptions (10 % slack, same as [SubscriptionSchedule.due]).
+     * A successful manual refresh or a newly added subscription re-enqueues this, so the timer starts from that moment without
+     * pushing a different subscription past its own interval. [notBeforeMs] raises a zero delay (VPN-only sources still due).
+     */
+    fun schedule(context: Context, hours: Int, notBeforeMs: Long = 0) {
         val work = WorkManager.getInstance(context)
         if (hours <= 0) { work.cancelUniqueWork(NAME); return }
-        val request = PeriodicWorkRequestBuilder<SubscriptionUpdateWorker>(hours.toLong(), TimeUnit.HOURS)
+        val book = runCatching { SubscriptionStore(context).loadBook() }.onFailure { Logger.w("Import", "reading subscriptions to schedule an update failed", it) }.getOrNull() ?: return
+        val times = book.sources.filter { !it.local && it.url.startsWith("https://") }.map { it.updatedAt }
+        val delay = SubscriptionSchedule.nextDelayMs(hours, times, System.currentTimeMillis(), notBeforeMs)
+        // Drop leftover periodic work from older versions, then enqueue a one-time run.
+        work.cancelUniqueWork(NAME)
+        if (delay == null) return
+        val request = OneTimeWorkRequestBuilder<SubscriptionUpdateWorker>()
+            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES).build()
-        work.enqueueUniquePeriodicWork(NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
-        Logger.d("Import", "scheduled update every $hours h")
+        work.enqueueUniqueWork(NAME, ExistingWorkPolicy.REPLACE, request)
+        Logger.d("Import", "next scheduled update in ${delay / 1000} s")
     }
 }
 

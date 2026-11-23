@@ -41,6 +41,7 @@ Moth is not affiliated with SagerNet or XTLS. The sing-box license forbids using
 | AndroidX AppCompat | 1.8.0 | Apache-2.0 |
 | Compose Material 3 (Compose BOM 2026.06.01) | 1.4.0 | Apache-2.0 |
 | Compose Material Icons Extended | 1.7.8 | Apache-2.0 |
+| Simple Icons (Telegram glyph, paper plane only) | — | CC0-1.0 |
 | AndroidX Lifecycle Runtime KTX | 2.10.0 | Apache-2.0 |
 | AndroidX WorkManager (work-runtime-ktx) | 2.12.0 | Apache-2.0 |
 | Kotlin standard library | 2.4.21 | Apache-2.0 |

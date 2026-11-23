@@ -11,18 +11,38 @@ class StaleSubscriptionRefresh : IllegalStateException("Subscription changed whi
 data class SubscriptionSource(val id: String, val name: String, val url: String, val profiles: List<Profile>,
     val providerName: String = "", val expires: Long = 0, val usedBytes: Long = 0, val totalBytes: Long = 0, val updatedAt: Long = 0,
     /** Support / web page / news links from the provider's headers (never logged). */
-    val links: ProviderLinks = ProviderLinks()) {
+    val links: ProviderLinks = ProviderLinks(),
+    /** Last time provider content changed (servers, expiry, traffic total, name or announcement); not used traffic. */
+    val changedAt: Long = 0) {
     val local get() = url == SubscriptionRecord.LOCAL_URL
     /** Name to show: the user's name, else the provider's profile-title, else the host of the link. */
     fun title(): String = name.ifBlank { providerName }.ifBlank { runCatching { java.net.URI(url).host }.getOrNull().orEmpty() }
+    /** Whether provider content changed compared to [previous], ignoring used traffic and the user's own name for the subscription. */
+    fun contentChanged(previous: SubscriptionSource?): Boolean {
+        if (previous == null) return true
+        return profiles.map { it.id to it.outbound } != previous.profiles.map { it.id to it.outbound } ||
+            expires != previous.expires || totalBytes != previous.totalBytes ||
+            providerName != previous.providerName || links.announceText != previous.links.announceText
+    }
+    /** Copy with [updatedAt] = [now] and [changedAt] only advanced when provider content changed. */
+    fun withRefreshTimes(previous: SubscriptionSource?, now: Long): SubscriptionSource {
+        val at = if (contentChanged(previous)) now else previous!!.changedAt.takeIf { it > 0 } ?: previous.updatedAt
+        return copy(updatedAt = now, changedAt = at)
+    }
     fun json(): JSONObject = SubscriptionRecord(url, profiles, "", providerName = providerName, expires = expires, usedBytes = usedBytes,
-        totalBytes = totalBytes, updatedAt = updatedAt).json().put("id", id).put("name", name).apply { remove("selected"); remove("wifiSelected"); remove("mobileSelected"); if (links.stored) put("providerLinks", links.json()) }
+        totalBytes = totalBytes, updatedAt = updatedAt).json().put("id", id).put("name", name).apply {
+            remove("selected"); remove("wifiSelected"); remove("mobileSelected")
+            if (links.stored) put("providerLinks", links.json())
+            if (changedAt > 0) put("changedAt", changedAt)
+        }
     companion object {
         const val LOCAL_ID = "local"
         fun from(j: JSONObject): SubscriptionSource {
             val r = SubscriptionRecord.from(JSONObject(j.toString()).put("selected", ""))
+            val links = if (r.local) ProviderLinks() else ProviderLinks.from(j.optJSONObject("providerLinks"))
+            val changedAt = if (j.has("changedAt")) j.optLong("changedAt") else r.updatedAt
             return SubscriptionSource(j.getString("id"), j.optString("name", ""), r.url, r.profiles, r.providerName, r.expires, r.usedBytes, r.totalBytes, r.updatedAt,
-                if (r.local) ProviderLinks() else ProviderLinks.from(j.optJSONObject("providerLinks")))
+                links, changedAt)
         }
         fun newId(url: String, now: Long): String = MessageDigest.getInstance("SHA-256").digest("$url|$now|${System.nanoTime()}".toByteArray())
             .joinToString("") { "%02x".format(it) }.take(16)
@@ -91,7 +111,7 @@ data class SubscriptionBook(val sources: List<SubscriptionSource>, val selected:
             val id = if (old.local) SubscriptionSource.LOCAL_ID else MIGRATED_ID
             val name = if (old.local) old.providerName else ""
             return SubscriptionBook(listOf(SubscriptionSource(id, name, old.url, old.profiles, if (old.local) "" else old.providerName,
-                old.expires, old.usedBytes, old.totalBytes, old.updatedAt)), old.selected, old.wifiSelected, old.mobileSelected).normalized()
+                old.expires, old.usedBytes, old.totalBytes, old.updatedAt, changedAt = old.updatedAt)), old.selected, old.wifiSelected, old.mobileSelected).normalized()
         }
     }
 }

@@ -13,6 +13,20 @@ import java.util.Locale
 class MothApplication : Application() {
     override fun onCreate() {
         super.onCreate(); instance = this; CrashLog.install(this); MothWidget.observe(this)
+        // Every activity, including future ones and the debug LAN-share fixture. Applied again in MainActivity
+        // before super.onCreate so a phone already in landscape is locked before the first frame.
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            override fun onActivityPreCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) = ScreenOrientation.apply(activity)
+            override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) {
+                if (Build.VERSION.SDK_INT < 29) ScreenOrientation.apply(activity)
+            }
+            override fun onActivityStarted(activity: android.app.Activity) {}
+            override fun onActivityResumed(activity: android.app.Activity) {}
+            override fun onActivityPaused(activity: android.app.Activity) {}
+            override fun onActivityStopped(activity: android.app.Activity) {}
+            override fun onActivitySaveInstanceState(activity: android.app.Activity, outState: android.os.Bundle) {}
+            override fun onActivityDestroyed(activity: android.app.Activity) {}
+        })
         Diagnostics.load() // the last ping of every server survives app restarts
         // Before libbox (Go) starts: Xray's TLS roots then include user-installed CAs (see TrustedCertificates).
         TrustedCertificates.exportPath(this); Thread { TrustedCertificates.write(this) }.start()
@@ -105,7 +119,7 @@ private val errorResources = mapOf(
         "Проверяем интернет…" to R.string.msg_checking_internet_access_15,
         "Добавить подписку" to R.string.msg_add_subscription_16,
         "Трафик: %.1f / %.1f ГиБ" to R.string.msg_traffic_1f_1f_gib_18,
-        "Подписка до " to R.string.msg_subscription_expires_on_19,
+        "Активна до %1\$s" to R.string.msg_subscription_expires_on_19,
         "Нет сети" to R.string.msg_no_network_20,
         "Мобильные данные" to R.string.msg_mobile_data_21,
         "Разрешение на VPN не выдано" to R.string.msg_vpn_permission_was_not_granted_22,

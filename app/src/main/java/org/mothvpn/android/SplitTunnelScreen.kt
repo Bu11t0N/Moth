@@ -32,7 +32,7 @@ private class AppEntry(val packageName: String, val label: String, val system: B
 
 /**
  * The apps split tunneling offers: by default only apps with an icon on the home screen / in the app drawer (<queries> MAIN/LAUNCHER in
- * the manifest); with [all] ("Elevated privileges", QUERY_ALL_PACKAGES) every installed package, also services without an icon.
+ * the manifest); with [all] ("Show system apps", QUERY_ALL_PACKAGES) every installed package, also services without an icon.
  * Of those only the ones that can use the network (INTERNET permission). Moth itself is left out.
  * System apps are marked (shown behind "Show system apps"). Call off the main thread.
  */
@@ -78,7 +78,8 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
     val pm = context.packageManager
     var apps by remember { mutableStateOf<List<AppEntry>?>(null) }
     var search by remember { mutableStateOf("") }
-    var showSystem by remember { mutableStateOf(false) }
+    // "Show system apps" is saved (ClientSettings.splitAllApps): it shows system apps and lists every installed app.
+    val showSystem = settings.splitAllApps
     LaunchedEffect(settings.splitAllApps) {
         apps = null
         apps = withContext(Dispatchers.IO) {
@@ -114,24 +115,22 @@ fun splitListedPackages(context: android.content.Context, all: Boolean = false):
                 }
             }
         }
-        // The search field and the "Show system apps" and "Elevated privileges" rows step aside once the app list is scrolled down (more room for the apps) and
+        // The search field and the "Show system apps" row step aside once the app list is scrolled down (more room for the apps) and
         // come back only at its very top. The per-app selection checkboxes in the list never hide.
         val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-        // The two option rows show only while the list is at its very top (first item, offset 0); scrolled down at all → hidden.
+        // The option row shows only while the list is at its very top (first item, offset 0); scrolled down at all → hidden.
         val hideOptions by remember { androidx.compose.runtime.derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
-        // The search field hides together with the two rows (same animation and timing) and comes back with them at the very top.
+        // The search field hides together with that row (same animation and timing) and comes back with it at the very top.
         // Fully hidden, AnimatedVisibility leaves no child in the column, so no extra gap stays above the list.
         androidx.compose.animation.AnimatedVisibility(!hideOptions, enter = androidx.compose.animation.expandVertically(expandFrom = Alignment.Top) + androidx.compose.animation.fadeIn(),
             exit = androidx.compose.animation.shrinkVertically(shrinkTowards = Alignment.Top) + androidx.compose.animation.fadeOut()) {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(search, { search = it }, label = { Text(tr(R.string.split_search)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.pressScale().fillMaxWidth().clickable { showSystem = !showSystem }) {
-                    Checkbox(showSystem, { showSystem = it }); Text(tr(R.string.split_show_system))
-                }
-                // "Elevated privileges": list every installed app (QUERY_ALL_PACKAGES), also those without a launcher icon.
+                // One "Show system apps" row (1.0.4: merged with the former "Elevated privileges" row, which did nothing without it): lists
+                // every installed app that uses the internet (QUERY_ALL_PACKAGES), system apps and services without a launcher icon included.
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.pressScale(enabled = enabled).fillMaxWidth().clickable(enabled = enabled) { apply(settings.copy(splitAllApps = !settings.splitAllApps)) }) {
-                    Checkbox(settings.splitAllApps, { apply(settings.copy(splitAllApps = it)) }, enabled = enabled)
-                    TitleWithInfo(tr(R.string.split_all_apps), tr(R.string.split_all_apps_info), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                    Checkbox(showSystem, { apply(settings.copy(splitAllApps = it)) }, enabled = enabled)
+                    TitleWithInfo(tr(R.string.split_show_system), tr(R.string.split_all_apps_info), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
