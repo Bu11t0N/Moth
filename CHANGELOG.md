@@ -2,37 +2,26 @@
 
 Moth versions, newest first. Russian version: [CHANGELOG.ru.md](CHANGELOG.ru.md).
 
-## 1.0.4-beta.3
+## 1.0.4
+
+Released 2026-11-23.
 
 ### Changes
 
-- The moth on the Updates page is large again and fills the free space; the page opens with a compact title.
-
-## 1.0.4-beta.2
-
-### Changes
-
+- New: the subscription card shows when the subscription last changed, and Updated, Changed and Active until (formerly Subscription until) show the time too when it is known. The Servers tab still shows only the date.
 - New: Settings → For developers → Subscription changes adds Changes to a subscription's menu on the Servers tab: which servers each update added, changed and removed, and what exactly changed.
 - New: server filter keywords can be switched off and on with a checkbox, without deleting them.
+- On the Updates page the version card shows both the installed and the new version, with what is happening under its name. Check for updates turns into Cancel while a check runs.
+- The Updates page never scrolls, and its moth is large and never cut off; on a short screen it gets smaller or is hidden.
 - The server list on Home hides unavailable servers when Hide unavailable is on in the Servers tab, and says so.
-- The provider's logo is shown in colour.
+- The provider's logo is in colour and is shown even when the provider sends no link to it: from Telegram or its website.
 - Telegram links have Telegram's own paper-plane icon.
+- After a manual subscription update, the next automatic one comes about one interval later.
+- Combined emoji in the provider's announcement stay one icon.
 - Split tunneling has one Show system apps checkbox instead of two.
 - The proxy for other devices no longer repeats the port under the port field.
-- The Updates page never scrolls: on a short screen the moth gets smaller, or is hidden.
-
-## 1.0.4-beta.1
-
-### Changes
-
-- New: the subscription card shows when the subscription last changed, not only when it was last updated.
-- After you update a subscription yourself, the next automatic update is about one interval later.
-- The provider's logo is shown even when they don't send a logo link: from Telegram or their website.
-- On the subscription card, Updated, Changed and Active until (formerly Subscription expires on) can show the time as well as the date. The Servers tab still shows the date only.
-- Composite emoji in the provider's announcement stay as one symbol.
-- On a phone the app stays in portrait; tablets can still rotate. The Updates page scrolls if the window is short.
-- After you turn the VPN on, the internet check uses one caption, instead of flashing two different ones.
-- On the Updates page the moth's head and antennae are no longer cut off.
+- On devices with a small screen the app stays in portrait; on tablets it can rotate.
+- After the VPN is turned on, the internet check shows one caption instead of flashing two different ones.
 
 ## 1.0.3
 
